@@ -1,0 +1,26 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.badge-picker-edit {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  padding: 20px 7.5%;
+  box-sizing: border-box;
+  background: white;
+  overflow-y: scroll;
+
+  h4 {
+    width: 100%;
+    color: variables.$colour-6;
+    margin-bottom: 40px;
+    text-align: left;
+  }
+
+  .badge-wrapper {
+    width: 60%;
+    margin-bottom: 40px;
+    position: relative;
+    @include mixins.flexbox;
+  }
+}

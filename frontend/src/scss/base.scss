@@ -1,0 +1,270 @@
+@use "fonts";
+@use "variables";
+@use "mixins";
+
+h1, h2, h3, h4, h5, h6, p, img {
+  margin: 0;
+  user-select: none;
+}
+
+a {
+  cursor: pointer;
+  text-decoration: none;
+  color: black;
+}
+
+html, body {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'formula1-regular', sans-serif;
+  background: variables.$background;
+
+  #root {
+    @include mixins.flexbox-column;
+    width: 100%;
+    height: 100%;
+
+    main {
+      width: 450px;
+      max-height: 80vh;
+      border-radius: 25px;
+      background: white;
+      box-shadow: variables.$shadow;
+      @include mixins.flexbox-start-column;
+      overflow: hidden;
+      color: variables.$colour-4;
+      position: relative;
+
+      nav {
+        width: 100%;
+        height: 60px;
+        @include mixins.flexbox-space-between;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        position: relative;
+        z-index: 1000;
+        background: white;
+        margin-bottom: 2px;
+
+        .nav-left {
+          height: 100%;
+          @include mixins.flexbox;
+
+          .nav-item:first-child {
+            padding-left: 20px;
+          }
+        }
+      }
+
+      .content-container {
+        width: 100%;
+        @include mixins.flexbox-space-between-column;
+        flex-grow: 1;
+        z-index: 0;
+        overflow-y: auto;
+        padding: 20px 0;
+        min-height: 200px;
+
+        .form-background {
+          position: absolute;
+          top: 0;
+          width: 150%;
+          opacity: 0.7;
+          z-index: -1;
+          transition: variables.$trans-speed;
+        }
+
+        .form-title {
+          width: 85%;
+          @include mixins.flexbox-start-column;
+          align-items: start;
+          color: variables.$colour-6;
+
+          h2 {
+            @include mixins.flexbox-start;
+            transition: variables.$trans-speed;
+          }
+
+          .clickable {
+            cursor: pointer;
+            color: variables.$colour-4;
+
+            &:hover {
+              color: black;
+            }
+          }
+        }
+
+        > *:last-child {
+          margin-bottom: 0;
+        }
+
+        .button-bar {
+          width: 100%;
+          position: absolute;
+          bottom: 0;
+          background: white;
+          @include mixins.flexbox;
+          justify-content: space-evenly;
+          z-index: 5;
+          border-top: 2px solid variables.$background;
+          padding: 20px 0;
+          box-sizing: border-box;
+        }
+
+        .mui-form-el {
+          width: 100%;
+          margin-bottom: 20px;
+          background: white;
+        }
+
+        .mui-form-btn {
+          margin-top: 20px;
+        }
+
+        .form-container {
+          width: 100%;
+          @include mixins.flexbox-space-between-column;
+          flex-grow: 1;
+          padding: 20px 0;
+
+          form {
+            width: 100%;
+            @include mixins.flexbox-column;
+            padding: 0 7.5%;
+            box-sizing: border-box;
+          }
+
+          .form-notification {
+            width: 85%;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            color: variables.$colour-6;
+            margin: 40px 0;
+
+            p {
+              margin-bottom: 20px;
+            }
+
+            :last-child {
+              margin: 0;
+            }
+          }
+
+          .under-form-text {
+            margin-top: 200px;
+          }
+        }
+
+        .under-form-text {
+          text-align: center;
+          font-weight: 300;
+          cursor: pointer;
+          transition: variables.$trans-speed;
+
+          &:hover {
+            color: black;
+          }
+        }
+
+        .sign-up-container {
+          width: 100%;
+          @include mixins.flexbox;
+          padding-bottom: 20px;
+
+          :first-child {
+            pointer-events: none;
+            margin-right: 5px;
+          }
+
+          .sign-up {
+            color: variables.$mui-blue;
+
+            &:hover {
+              color: black;
+            }
+          }
+        }
+      }
+    }
+
+    .main-logged-in {
+      background: variables.$background;
+      
+      .content-container {
+        padding: 0;
+        justify-content: start;
+      }
+    }
+
+    footer {
+      width: 100%;
+      height: 50px;
+      @include mixins.flexbox;
+      color: variables.$colour-3;
+      position: absolute;
+      bottom: 0;
+
+      h5 {
+        font-weight: 500;
+      }
+      
+      a {
+        color: variables.$colour-3;
+        display: inline-flex;
+        margin: 1px 0 0 5px;
+        transition: variables.$trans-speed;
+
+        svg {
+          height: 16px;
+          width: 16px;
+        }
+
+        &:hover {
+          color: black;
+        }
+      }
+    }
+  }
+}
+
+@media screen and ( max-width: 550px ) {
+  body {
+    background: white;
+    
+    #root {
+      main {
+        width: 100%;
+        height: 100%;
+        box-shadow: none;
+        border-radius: 0px;
+        max-height: none;
+
+        .content-container {
+          .form-container {
+            .form-title {
+              margin: 0 !important;
+            }
+
+            .under-form-text {
+              margin: 0;
+            }
+          }
+        }
+      }
+
+      footer {
+        display: none;
+      }
+    }
+  }
+}

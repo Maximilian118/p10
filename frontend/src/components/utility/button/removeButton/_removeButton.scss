@@ -1,0 +1,15 @@
+@use '../../../../scss/variables';
+
+.remove-button {
+  background: variables.$f1-red !important;
+
+  svg {
+    width: 90%;
+    height: 90%;
+    color: white !important;
+  }
+
+  &:hover {
+    background: variables.$f1-red-hover !important;
+  }
+}

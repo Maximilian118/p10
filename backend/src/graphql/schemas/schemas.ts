@@ -1,0 +1,56 @@
+import { buildSchema } from "graphql"
+import userSchema from "./userSchema"
+import bucketSchema from "./bucketSchema"
+import champSchema from "./champSchema"
+import badgeSchema from "./badgeSchema"
+import driverSchema from "./driverSchema"
+import driverGroupSchema from "./driverGroupSchema"
+import teamSchema from "./teamSchema"
+
+const Schema = buildSchema(`
+  ${userSchema}
+  ${bucketSchema}
+  ${champSchema}
+  ${badgeSchema}
+  ${driverGroupSchema}
+  ${driverSchema}
+  ${teamSchema}
+
+  type rootQuery {
+    signS3(filename: String!): S3Payload!
+    login(email: String!, password: String): User!
+    getBadgesByChamp(championship: String): Badges
+    getDriverGroups: DriverGroups
+    getDrivers: Drivers
+    getTeams: Teams
+  }
+
+  type rootMutation {
+    createUser(userInput: userInput): User!
+    forgot(email: String!): String!
+    updatePP(icon: String!, profile_picture: String!): User!
+    updateName(name: String!): User!
+    updateEmail(email: String!): User!
+    updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
+    createChamp(champInput: champInput): Champ!
+    newBadge(badgeInput: badgeInput): Badge!
+    updateBadge(updateBadgeInput: updateBadgeInput): Badge!
+    newDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!
+    updateDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!
+    deleteDriverGroup(_id: ID!): DriverGroup!
+    newDriver(driverInput: driverInput): Driver!
+    updateDriver(driverInput: driverInput): Driver!
+    deleteDriver(_id: ID!): Driver!
+    newTeam(teamInput: teamInput): Team!
+    updateTeam(teamInput: teamInput): Team!
+    deleteTeam(_id: ID!): Team!
+    deleteS3(url: String!, depth: Int): S3Deleted!
+  }
+
+  schema {
+    query: rootQuery
+    mutation: rootMutation
+  }
+`)
+
+export default Schema

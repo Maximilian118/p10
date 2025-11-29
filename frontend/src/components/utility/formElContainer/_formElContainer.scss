@@ -1,0 +1,49 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.form-el-container {
+  width: 100%;
+  min-height: 53.13px;
+  background: white;
+  margin-bottom: 20px;
+  position: relative;
+  padding: 25px 12px 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.42);
+  @include mixins.flexbox;
+  transition: variables.$trans-speed;
+  overflow: hidden;
+
+  .mui-background-wrapper {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+
+    .mui-background {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+  
+      label {
+        color: rgba(0, 0, 0, 0.6);
+        z-index: 0;
+      }
+    }::after {
+      border-bottom: none !important;
+    }
+  }
+}
+
+.mui-error {
+  border-bottom: 1px solid #d32f2f !important;
+
+  label {
+    color: #d32f2f !important;
+  }
+}

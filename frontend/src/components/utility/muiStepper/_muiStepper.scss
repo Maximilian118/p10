@@ -1,0 +1,29 @@
+.mui-stepper {
+  width: 100%;
+
+  .MuiStepper-root {
+    .MuiStep-root {
+      padding: 0 0 0 8px;
+    }
+
+    .MuiStep-root:first-child {
+      padding: 0;
+    }
+
+    .MuiStepLabel-label {
+      margin-right: 8px;
+    }
+
+    .MuiStep-root:last-child {
+      .MuiStepLabel-root {
+        .MuiStepLabel-iconContainer {
+          padding-right: 0;
+        }
+
+        .MuiStepLabel-label {
+          margin: 0 0 0 8px;
+        }
+      }
+    }
+  }
+}

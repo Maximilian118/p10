@@ -1,0 +1,36 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.driver-card {
+  width: 100%;
+  height: 44px;
+  @include mixins.flexbox-start;
+  flex-shrink: 0;
+  padding: 6px 16px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: variables.$trans-speed;
+  position: relative;
+
+  .driver-name {
+    color: variables.$colour-9;
+    font-size: 14px;
+    overflow-x: scroll;
+    margin-right: 32px;
+  }
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  .toolbar {
+    height: 100%;
+    @include mixins.flexbox-end;
+    position: absolute;
+    right: 16px;
+
+    > *:not(:first-child) {
+      margin-left: 5px;
+    }
+  }
+}

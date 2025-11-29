@@ -1,0 +1,34 @@
+@use '../../../scss/mixins';
+
+.champ-basics-card {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  background: white;
+  padding: 60px 7.5% 20px;
+  box-sizing: border-box;
+
+  .dropzone {
+    width: 60%;
+  }
+
+  .mui-form-pagination {
+    background: none !important;
+    width: 100% !important;
+    height: 32px !important;
+    @include mixins.flexbox;
+    position: relative;
+    z-index: 1 !important;
+
+    ul {
+      width: 100%;
+      @include mixins.flexbox-space-between;
+      flex-wrap: nowrap;
+    }
+
+    li {
+      width: 11.1%;
+      @include mixins.flexbox;
+    }
+  }
+}

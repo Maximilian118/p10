@@ -1,0 +1,37 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.badge-picker {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  background: white;
+
+  .badge-list-container, .badge-list-empty, .badge-picker-loading {
+    width: 100%;
+    @include mixins.flexbox-start;
+    padding: 20px 7.5% 60px;
+    box-sizing: border-box;
+    align-items: start;
+    flex-flow: wrap;
+    overflow-y: auto;
+
+    .badge-item {
+      @include mixins.flexbox;
+      flex: 0 0 16.66%;
+      margin-bottom: 10px;
+    }
+  }
+
+  .badge-list-empty, .badge-picker-loading {
+    padding: 20px 7.5%;
+  }
+
+  .badge-picker-loading {
+    justify-content: center;
+  }
+
+  .badge-list-error {
+    color: variables.$delete-hover;
+  }
+}

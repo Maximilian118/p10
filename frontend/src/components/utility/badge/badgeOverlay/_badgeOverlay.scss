@@ -1,0 +1,35 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+.badge-outer {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 6px solid variables.$silver;
+  opacity: 0.9;
+  @include mixins.flexbox;
+  transition: 1s;
+
+  .badge-middle {
+    width: 94%;
+    height: 94%;
+    border-radius: 50%;
+    border: 4px solid variables.$silver;
+    opacity: 0.6;
+    @include mixins.flexbox;
+    transition: 1s;
+
+    .badge-inner {
+      width: 96%;
+      height: 96%;
+      border-radius: 50%;
+      border: 2px solid variables.$silver;
+      opacity: 0.4;
+      transition: 1s;
+    }
+  }
+}

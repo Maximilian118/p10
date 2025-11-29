@@ -1,0 +1,37 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.MuiAutocomplete-option {
+  p {
+    color: variables.$colour-9;
+    font-size: 14px;
+    overflow-x: scroll;
+  }
+}
+
+.mui-autocomplete {
+  width: 100%;
+
+  .spinner {
+    position: absolute;
+    @include mixins.flexbox;
+    height: 100%;
+    right: 45px;
+    top: 0px;
+  }
+}
+
+.mui-autocomplete-no-options {
+  height: 44px;
+  @include mixins.flexbox-start;
+  background: variables.$mui-success;
+  color: white;
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  font-size: 14px;
+
+  svg {
+    margin-right: 8px;
+  }
+}

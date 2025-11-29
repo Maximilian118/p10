@@ -1,0 +1,16 @@
+.text-icon, .text-icon-absolute {
+  width: fit-content;
+  background: rgba(0, 0, 0, 0.38);
+  padding: 0 8px;
+  box-sizing: border-box;
+
+  .text-icon-text {
+    color: white;
+  }
+}
+
+.text-icon-absolute {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}

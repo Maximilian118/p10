@@ -1,0 +1,100 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+@use '../../../scss/keyframes';
+
+.dropzone {
+  width: 50%;
+  aspect-ratio: 1 / 1;
+  margin-bottom: 60px;
+  cursor: pointer;
+  border-radius: 50%;
+  @include mixins.flexbox;
+  padding: 7px;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  background: white;
+  box-shadow: variables.$shadow-surround;
+  font-size: 14px;
+  flex-shrink: 0;
+
+  .inside-border {
+    width: 100%;
+    height: 100%;
+    border: 1px dashed variables.$mui-border;
+    @include mixins.flexbox;
+    border-radius: 50%;
+    transition: variables.$trans-speed;
+
+    p {
+      width: 90%;
+      text-align: center;
+    }
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+    }
+  }
+  
+  .drag-active {
+    border: 1px dashed black;
+  }
+
+  .change {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    @include mixins.flexbox;
+    background: white;
+    color: black;
+    transition: variables.$trans-speed;
+  }
+
+  &:hover {
+    .inside-border {
+      border: 1px dashed black;
+    }
+
+    .change {
+      opacity: 0.8;
+    }
+  }
+}
+
+.dropzone-error {
+  border: 1px solid variables.$error;
+
+  .inside-border {
+    border: 1px dashed variables.$error;
+  }
+
+  &:hover {
+    border: 1px solid variables.$error;
+  }
+}
+
+.dropzone-user-icon, .dropzone-image-error {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  @include mixins.flexbox;
+  background: variables.$colour-1;
+  font-size: 32px;
+  color: variables.$colour-9;
+}
+
+.dropzone-image-error {
+  background: variables.$error;
+
+  p {
+    color: white;
+  }
+}
+
+.dropzone-disabled {
+  pointer-events: none;
+}

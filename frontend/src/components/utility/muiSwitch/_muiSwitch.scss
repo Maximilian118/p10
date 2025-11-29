@@ -1,0 +1,11 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.mui-switch {
+  @include mixins.flexbox;
+
+  p {
+    font-size: 12px;
+    color: variables.$colour-6;
+  }
+}

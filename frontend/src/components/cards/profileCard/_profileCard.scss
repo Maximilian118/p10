@@ -1,0 +1,25 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.profile-card {
+  width: 100%;
+  background: white;
+  @include mixins.flexbox;
+  margin-bottom: 2px;
+
+  .profile-info {
+    height: 100%;
+    flex-grow: 1;
+    @include mixins.flexbox-column;
+    align-items: start;
+
+    p {
+      color: variables.$colour-6;
+      margin-bottom: 2px;
+    }
+
+    h5 {
+      font-weight: 300;
+    }
+  }
+}

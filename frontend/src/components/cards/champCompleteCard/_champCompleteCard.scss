@@ -1,0 +1,28 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+.champ-complete-card {
+  width: 100%;
+  flex-shrink: 0;
+  background: white;
+
+  .champ-complete-text-container {
+    padding: 20px 7.5%;
+    box-sizing: border-box;
+
+    .champ-complete-title {
+      width: 100%;
+      @include mixins.flexbox-start;
+      color: variables.$colour-6;
+      margin-bottom: 16px;
+
+      h4 {
+        margin-right: 5px;
+      }
+
+      svg {
+        margin-bottom: 4px;
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.rules-and-regs-edit {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  flex-grow: 1;
+
+  .rules-and-regs-title {
+    width: 100%;
+    padding: 20px 7.5% 30px;
+    box-sizing: border-box;
+    background: white;
+    
+    h4 {
+      width: 100%;
+      color: variables.$colour-6;
+      text-align: left;
+    }
+  }
+  
+  .rule-or-reg-edit {
+    width: 100%;
+    @include mixins.flexbox;
+    position: relative;
+    padding: 0 7.5% 20px;
+    box-sizing: border-box;
+    background: white;
+
+    .mui-multiline {
+      width: 100%;
+
+      label {
+        color: variables.$colour-9;
+      }
+      
+      textarea {
+        font-size: 13px;
+        margin-top: 10px;
+      }
+    }
+
+    .remove-button {
+      position: absolute;
+      top: 5px;
+      right: calc(7.5% + 5px);
+    }
+  }
+
+  .sub-btns {
+    margin-bottom: 78.5px;
+
+    .sub-add-button {
+      background: variables.$mui-success;
+      color: white;
+  
+      &:hover {
+        background: variables.$mui-success-hover;
+      }
+    }
+  }
+
+  .delete-confirm {
+    width: 100%;
+    @include mixins.flexbox;
+    justify-content: space-evenly;
+    color: variables.$colour-6;
+
+    .delete-confirm-buttons {
+      @include mixins.flexbox;
+      flex-wrap: nowrap;
+    }
+  }
+}

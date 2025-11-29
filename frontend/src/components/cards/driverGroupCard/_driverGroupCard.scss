@@ -1,0 +1,83 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.driver-group-card, .driver-group-card-selected {
+  width: 100%;
+  min-height: 120px;
+  @include mixins.flexbox-start;
+  background: white;
+  cursor: pointer;
+  transition: variables.$trans-speed;
+  position: relative;
+  padding: 10px 7.5%;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  .main-icon-container {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    position: relative;
+    @include mixins.flexbox;
+
+    > :last-child {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+  }
+
+  .driver-group-content {
+    height: 100%;
+    flex-grow: 1;
+    @include mixins.flexbox-column;
+    align-items: start;
+    padding: 10px 0;
+    box-sizing: border-box;
+    margin-left: 20px;
+    overflow: hidden;
+
+    .driver-group-selected {
+      font-size: 15px;
+      color: white;
+      margin-bottom: 5px;
+    }
+
+    .driver-group-title {
+      width: 100%;
+      color: variables.$colour-9;
+      margin-bottom: 8px;
+      text-transform: capitalize;
+      overflow-wrap: break-word;
+      font-size: 15px;
+    }
+
+    .driver-group-drivers {
+      width: 100%;
+      @include mixins.flexbox-start;
+
+      > *:not(:first-child) {
+        margin-left: 5px;
+      }
+    }
+  }
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+}
+
+.driver-group-card-selected {
+  background: variables.$mui-blue;
+  cursor: default;
+
+  .driver-group-content {
+    .driver-group-title {
+      color: white;
+    }
+  }
+
+  &:hover {
+    background: variables.$mui-blue;
+  }
+}

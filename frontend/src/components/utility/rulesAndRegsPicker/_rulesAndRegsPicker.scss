@@ -1,0 +1,19 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.rules-and-regs-picker {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+
+  .rules-and-regs-list, .rules-and-regs-empty {
+    width: 100%;
+    background: white;
+    padding: 20px 7.5% 60px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .rules-and-regs-empty {
+    padding: 20px 7.5%;
+  }
+}

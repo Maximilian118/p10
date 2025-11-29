@@ -1,0 +1,28 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.champ-header-card {
+  width: 100%;
+  @include mixins.flexbox-end-column;
+  flex-shrink: 0;
+  padding: 20px 0;
+  box-sizing: border-box;
+  background: white;
+  border-bottom: 2px solid variables.$background;
+  position: sticky;
+  overflow: hidden;
+  top: -98px;
+  z-index: 5;
+
+  .form-title {
+    margin-bottom: 10px;
+  }
+
+  .champ-header-stepper {
+    width: 85%;
+    @include mixins.flexbox;
+    margin-top: 20px;
+    position: sticky;
+    top: 0;
+  }
+}

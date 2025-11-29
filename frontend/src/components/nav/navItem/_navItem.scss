@@ -1,0 +1,17 @@
+@use '../../../scss/keyframes.scss';
+@use '../../../scss/mixins.scss';
+@use '../../../scss/variables.scss';
+
+.nav-item {
+  height: 100%;
+  @include mixins.flexbox;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background 300ms;
+  padding-right: 20px;
+
+  &:hover {
+    color: black;
+  }
+}

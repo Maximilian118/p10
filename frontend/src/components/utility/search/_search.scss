@@ -1,0 +1,25 @@
+@use '../../../scss/variables';
+
+.search {
+  width: 100%;
+  background: white;
+  margin-bottom: 2px !important;
+
+  .MuiFormLabel-root {
+    color: variables.$colour-4;
+    font-size: 16px;
+    left: calc(7.5% - 12px);
+  }
+
+  .MuiInputBase-root {
+    border-radius: 0;
+    background: white;
+
+    .MuiInputBase-input {
+      margin: 0 7.5%;
+      padding-left: 0;
+      padding-right: 0;
+      font-size: 16px;
+    }
+  }
+}
