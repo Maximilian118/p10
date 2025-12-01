@@ -30,18 +30,13 @@ const userResolvers = {
       profilePictureErrors(profile_picture, icon)
 
       // Create a new user DB object.
-      const user = new User(
-        {
-          name,
-          email,
-          icon,
-          profile_picture,
-          password: await hashPass(password as string),
-        },
-        (err: string) => {
-          if (err) throw new Error(err)
-        },
-      )
+      const user = new User({
+        name,
+        email,
+        icon,
+        profile_picture,
+        password: await hashPass(password as string),
+      })
 
       // Save the new user to the DB.
       await user.save()

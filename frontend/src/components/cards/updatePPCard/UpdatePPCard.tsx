@@ -13,7 +13,7 @@ const UpdatePPCard: React.FC = () => {
     <div className="update-pp-card">
       <Button
         variant="contained"
-        onClick={e => dropzoneRef.current && dropzoneRef.current.click()}
+        onClick={() => dropzoneRef.current && dropzoneRef.current.click()}
       >Change Profile Picture</Button>
     </div>
   )

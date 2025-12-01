@@ -20,7 +20,7 @@ const initruleReg = (user: userType, ruleReg?: ruleOrRegType | null) => {
     text: ruleReg ? ruleReg.text : "",
     created_by: user,
     created_at: ruleReg ? ruleReg.created_at : moment().format(),
-    histroy: [],
+    history: [],
     subsections: ruleReg ? ruleReg.subsections : [],
   }
 }

@@ -109,8 +109,8 @@ const MUIAutocomplete = <T extends { url: string, name: string }>({
       options={options as any}
       isOptionEqualToValue={(option, value) => findValueString(option) === findValueString(value)}
       getOptionLabel={(option: T | string | null) => findValueString(option) as string}
-      renderOption={(props: object, option: T | string | null, state: { index: number }) => (
-        <li key={state.index} {...props}>
+      renderOption={({ key, ...props }: any, option: T | string | null) => (
+        <li key={key} {...props}>
           {typeof option !== "string" && !!option && <ImageIcon src={option.url} style={{ marginRight: 16 }}/>}
           <p>{findValueString(option)}</p>
         </li>

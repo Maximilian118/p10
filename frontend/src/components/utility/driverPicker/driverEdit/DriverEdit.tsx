@@ -338,7 +338,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
           className="mui-button-back"
           variant="contained" 
           color="inherit"
-          onClick={e => {
+          onClick={() => {
             setIsDriverEdit(false)
             setDriver(initDriver(user))
           }}
@@ -346,13 +346,13 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
         {canEditDriver(driver, user) === "delete" && driver._id && <Button
           variant="contained" 
           color="error"
-          onClick={e => deleteDriverHandler()}
+          onClick={() => deleteDriverHandler()}
           startIcon={delLoading && <CircularProgress size={20} color={"inherit"}/>}
         >Delete</Button>}
         <Button
           variant="contained"
           disabled={!canEditDriver(driver, user)}
-          onClick={e => editForm._id ? updateDriverHandler() : onSubmitHandler()}
+          onClick={() => editForm._id ? updateDriverHandler() : onSubmitHandler()}
           startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         >{editForm._id ? "Update" : "Submit"}</Button>
       </div>

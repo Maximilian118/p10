@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
 import { Button, CircularProgress } from "@mui/material"
-import { NavigateFunction, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { presetArrays } from "../components/utility/pointsPicker/ppPresets"
 import { badgeType, driverGroupType, pointsStructureType, rulesAndRegsType } from "../shared/types"
 import { defaultRulesAndRegs } from "../shared/rulesAndRegs"
@@ -13,6 +13,7 @@ import DriverGroupPicker from "../components/utility/driverGroupPicker/DriverGro
 import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
+import { createChamp } from "../shared/requests/champRequests"
 
 interface createChampFormBaseType {
   champName: string
@@ -37,7 +38,7 @@ export interface createChampFormErrType extends createChampFormBaseType {
   [key: string]: string | number
 }
 
-const CreateChamp: React.FC = props => {
+const CreateChamp: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const [ loading, setLoading ] = useState<boolean>(false) // loading for createChamp req.
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
@@ -76,10 +77,45 @@ const CreateChamp: React.FC = props => {
 
   const navigate = useNavigate()
 
-  const onSubmitHandler = async (e: React.FormEvent<HTMLFormElement>, navigate: NavigateFunction) => {
+  // Handles form submission - validates and creates the championship
+  const onSubmitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log(form)
-    // create a champ
+
+    // Validate required fields before submission
+    if (!form.champName) {
+      setFormErr(prev => ({ ...prev, champName: "Championship name is required." }))
+      return
+    }
+
+    if (!form.driverGroup) {
+      setFormErr(prev => ({ ...prev, driverGroup: "A driver group is required." }))
+      return
+    }
+
+    if (form.pointsStructure.length === 0) {
+      setFormErr(prev => ({ ...prev, pointsStructure: "Points structure is required." }))
+      return
+    }
+
+    if (form.rulesAndRegs.list.length === 0) {
+      setFormErr(prev => ({ ...prev, rulesAndRegs: "At least one rule is required." }))
+      return
+    }
+
+    // Call the createChamp API
+    const champ = await createChamp(
+      form,
+      user,
+      setUser,
+      navigate,
+      setLoading,
+      setBackendErr,
+    )
+
+    // Navigate to championship dashboard on success
+    if (champ && champ._id) {
+      navigate(`/championship/${champ._id}`)
+    }
   }
 
   const firstStep = activeStep === 0
@@ -91,7 +127,7 @@ const CreateChamp: React.FC = props => {
         variant="contained" 
         color="inherit"
         disabled={firstStep}
-        onClick={e => !firstStep && setActiveStep(prevStep => prevStep - 1)}
+        onClick={() => !firstStep && setActiveStep(prevStep => prevStep - 1)}
       >Back</Button>
       <Button 
         variant="contained" 
@@ -105,7 +141,7 @@ const CreateChamp: React.FC = props => {
   const contentMargin = { marginBottom: 78.5 }
 
   return (
-    <form className="content-container" onSubmit={e => onSubmitHandler(e, navigate)} style={{ height: "100vh" }}>
+    <form className="content-container" onSubmit={e => onSubmitHandler(e)} style={{ height: "100vh" }}>
       <ChampHeaderCard activeStep={activeStep}/>
         {activeStep === 0 && 
         <ChampBasicsCard
@@ -158,9 +194,10 @@ const CreateChamp: React.FC = props => {
           setDefaultBadges={setDefaultBadges}
         />
       }
-      {activeStep === 4 && 
+      {activeStep === 4 &&
         <ChampCompleteCard
           stepperBtns={stepperBtns}
+          backendErr={backendErr}
         />
       }
     </form>

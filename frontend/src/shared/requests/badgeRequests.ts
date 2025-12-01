@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { badgeType } from "../types"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
@@ -9,11 +9,13 @@ export const newBadge = async (
   badge: badgeType,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
   navigate: NavigateFunction,
-): Promise<void> => {
-  setLoading(true)
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  setLoading?: React.Dispatch<React.SetStateAction<boolean>>,
+): Promise<badgeType | null> => {
+  if (setLoading) setLoading(true)
+
+  let result: badgeType | null = null
 
   try {
     await axios
@@ -28,27 +30,34 @@ export const newBadge = async (
             mutation NewBadge($championship: String, $url: String!, $name: String!, $rarity: Int!, $awardedHow: String!, $awardedDesc: String!, $zoom: Int) {
               newBadge(badgeInput: { championship: $championship, url: $url,  name: $name, rarity: $rarity, awardedHow: $awardedHow, awardedDesc: $awardedDesc, zoom: $zoom }) {
                 _id
+                url
+                name
+                rarity
+                awardedHow
+                awardedDesc
+                zoom
               }
             }
           `,
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("newBadge", res, setUser, navigate, setBackendErr, true)
         } else {
-          graphQLResponse("newBadge", res, user, setUser)
+          result = graphQLResponse("newBadge", res, user, setUser, false) as badgeType
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("newBadge", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("newBadge", err, setUser, navigate, setBackendErr, true)
   }
 
-  setLoading(false)
+  if (setLoading) setLoading(false)
+  return result
 }
 
 export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
@@ -95,7 +104,7 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("getBadgesByChamp", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -132,10 +141,10 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
           }
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("getBadgesByChamp", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("getBadgesByChamp", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -168,17 +177,17 @@ export const updateBadge = async (
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updateBadge", res, setUser, navigate, setBackendErr, true)
         } else {
           graphQLResponse("updateBadge", res, user, setUser)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updateBadge", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updateBadge", err, setUser, navigate, setBackendErr, true)
   }
 

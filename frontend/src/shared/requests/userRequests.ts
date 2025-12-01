@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 import { createFormType } from "../../page/Create"
 import { userType, logInSuccess, logout } from "../localStorage"
 import { populateUser } from "./requestPopulation"
@@ -72,7 +72,7 @@ export const createUser = async <U extends { dropzone: string }>(
           }
         `,
       })
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("createUser", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -80,10 +80,10 @@ export const createUser = async <U extends { dropzone: string }>(
           navigate("/")
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("createUser", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("createUser", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -111,7 +111,7 @@ export const login = async (
         }
       `,
       })
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("login", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -119,11 +119,11 @@ export const login = async (
           navigate("/")
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         console.log(err)
         graphQLErrors("login", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("login", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -148,17 +148,17 @@ export const forgot = async (
           }
         `,
       })
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("forgot", res, undefined, undefined, setBackendErr, true)
         } else {
           setSuccess(true)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("forgot", err, undefined, undefined, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("forgot", err, undefined, undefined, setBackendErr, true)
   }
 
@@ -210,7 +210,7 @@ export const updatePP = async <T extends formType>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updatePP", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -236,10 +236,10 @@ export const updatePP = async <T extends formType>(
           localStorage.setItem("profile_picture", response.profile_picture)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updatePP", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updatePP", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -275,7 +275,7 @@ export const updateEmail = async <T extends formType>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updateEmail", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -299,10 +299,10 @@ export const updateEmail = async <T extends formType>(
           setSuccess(true)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updateEmail", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updateEmail", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -338,7 +338,7 @@ export const updateName = async <T extends formType>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updateName", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -362,10 +362,10 @@ export const updateName = async <T extends formType>(
           setSuccess(true)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updateName", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updateName", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -399,7 +399,7 @@ export const updatePassword = async <T extends passFormType>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updatePassword", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -409,10 +409,10 @@ export const updatePassword = async <T extends passFormType>(
           navigate("/pass-success")
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updatePassword", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updatePassword", err, setUser, navigate, setBackendErr, true)
   }
 

@@ -49,26 +49,21 @@ const driverResolvers = {
       })
 
       // Create a new driver DB object.
-      const driver = new Driver(
-        {
-          created_by,
-          url,
-          name,
-          driverID,
-          teams,
-          stats: {
-            nationality,
-            heightCM,
-            weightKG,
-            birthday,
-            moustache,
-            mullet,
-          },
+      const driver = new Driver({
+        created_by,
+        url,
+        name,
+        driverID,
+        teams,
+        stats: {
+          nationality,
+          heightCM,
+          weightKG,
+          birthday,
+          moustache,
+          mullet,
         },
-        (err: string) => {
-          if (err) throw new Error(err)
-        },
-      )
+      })
       // Update teams with the _id of this driver.
       await updateTeams(teams, driver._id)
       // Save the new driver to the DB.

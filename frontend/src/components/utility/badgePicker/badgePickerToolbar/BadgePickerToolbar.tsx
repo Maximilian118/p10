@@ -24,7 +24,7 @@ const BadgePickerToolbar: React.FC<badgePickerToolbarType> = ({ setIsEdit, draw,
       endIcon={<FilterList/>}>
       Filter
     </Button>
-    <AddButton onClick={e => setIsEdit(true)}/>
+    <AddButton onClick={() => setIsEdit(true)}/>
   </div>
 )
 

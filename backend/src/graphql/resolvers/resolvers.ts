@@ -4,6 +4,7 @@ import badgeResolvers from "./badgeResolvers"
 import driverGroupResolvers from "./driverGroupResolvers"
 import driverResolvers from "./driverResolvers"
 import teamResolvers from "./teamResolvers"
+import champResolvers from "./champResolvers"
 
 const Resolvers = {
   ...userResolvers,
@@ -12,6 +13,7 @@ const Resolvers = {
   ...driverGroupResolvers,
   ...driverResolvers,
   ...teamResolvers,
+  ...champResolvers,
 }
 
 export default Resolvers

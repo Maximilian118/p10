@@ -12,6 +12,7 @@ export interface badgeType {
   awardedHow: string
   awardedDesc: string
   zoom: number
+  isDefault: boolean
   created_at: string
   updated_at: string
   tokens: string[]
@@ -27,6 +28,7 @@ const badgeSchema = new mongoose.Schema<badgeType>({
   awardedHow: { type: String, required: true }, // A short description of how the badge was awarded. Also used for function refs.
   awardedDesc: { type: String, required: true }, // A long description of how the badge was awarded.
   zoom: { type: Number, default: 100 }, // The level of zoom on the picture to apply to the image. E.G Width and height.
+  isDefault: { type: Boolean, default: false }, // Whether this is a default/template badge reusable across championships.
   created_at: { type: String, default: moment().format() }, // When the badge was created.
   updated_at: { type: String, default: moment().format() }, // When the badge was updated.
 })

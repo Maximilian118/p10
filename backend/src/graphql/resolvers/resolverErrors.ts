@@ -1,6 +1,7 @@
 import { GraphQLError } from "graphql"
 import User, { userType } from "../../models/user"
 import Badge, { badgeType } from "../../models/badge"
+import Champ from "../../models/champ"
 import { ObjectId } from "mongodb"
 import badgeRewardOutcomes, { findDesc, findDescs, findHows } from "../../shared/badgeOutcomes"
 import Team from "../../models/team"
@@ -12,10 +13,10 @@ export type punctuation = `${string}.` | `${string}!` | `${string}?`
 
 export const throwError = (
   type: string,
-  value: any,
+  value: unknown,
   message: punctuation,
   code?: number,
-): GraphQLError => {
+): never => {
   throw new GraphQLError(
     JSON.stringify({
       type,
@@ -420,5 +421,29 @@ export const falsyValErrors = <T>(inputObject: T): void => {
     if (!inputObject[key] && typeof inputObject[key] !== "boolean") {
       throwError(key, inputObject, `${key} must be populated.`)
     }
+  }
+}
+
+// Validates championship name - must be unique globally and valid format
+export const champNameErrors = async (name: string): Promise<void> => {
+  const type = "champName"
+
+  if (!name) {
+    throwError(type, name, "Please enter a championship name.")
+  }
+
+  if (!/^[a-zA-Z0-9\s-']{1,30}$/.test(name)) {
+    if (name.length > 30) {
+      throwError(type, name, "30 characters maximum.")
+    }
+
+    throwError(type, name, "No special characters except hyphens and apostrophes.")
+  }
+
+  // Check if championship name already exists (globally unique)
+  const existingChamp = await Champ.findOne({ name: { $regex: `^${name}$`, $options: "i" } })
+
+  if (existingChamp) {
+    throwError(type, name, "A championship by that name already exists!")
   }
 }

@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 import {
   formatFilename,
   graphQLErrors,
@@ -16,10 +16,10 @@ const putS3 = async (
 ): Promise<void> => {
   return await axios
     .put(signedRequest, file, { headers: { "Content-Type": file.type } })
-    .then((res: any) => {
+    .then((res: AxiosResponse) => {
       console.log(res)
     })
-    .catch((err: any) => {
+    .catch((err: unknown) => {
       graphQLErrors("putS3", err, undefined, undefined, setBackendErr, true)
     })
 }
@@ -56,7 +56,7 @@ export const uplaodS3 = async (
           }
         `,
       })
-      .then(async (res: any) => {
+      .then(async (res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("signS3", res, undefined, undefined, setBackendErr, true)
         } else {
@@ -73,10 +73,10 @@ export const uplaodS3 = async (
           await putS3(file, res.data.data.signS3.signedRequest, setBackendErr)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("signS3", err, undefined, undefined, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("signS3", err, undefined, undefined, setBackendErr, true)
   }
 
@@ -111,17 +111,17 @@ export const deleteS3 = async (
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("deleteS3", res, setUser, navigate, setBackendErr, true)
         } else {
           graphQLResponse("deleteS3", res, user, setUser, false)
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("deleteS3", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("deleteS3", err, setUser, navigate, setBackendErr, true)
   }
 }

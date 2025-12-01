@@ -5,12 +5,15 @@ import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/
 import MUISlider from "../../muiSlider/MUISlider"
 import { Diamond, Groups, ZoomInMap, ZoomOutMap } from "@mui/icons-material"
 import BadgeOverlay, { getBadgeColour } from "../../badge/badgeOverlay/BadgeOverlay"
-import { Button, TextField } from "@mui/material"
+import { Button, CircularProgress, TextField } from "@mui/material"
 import { inputLabel, updateForm } from "../../../../shared/formValidation"
 import MUIAutocomplete from "../../muiAutocomplete/muiAutocomplete"
 import { badgeOutcomeType, badgeRewardOutcomes } from "../../../../shared/badges"
 import { badgeType } from "../../../../shared/types"
 import { badgePickerErrors } from "../badgePickerUtility"
+import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
+import { userType } from "../../../../shared/localStorage"
+import { NavigateFunction } from "react-router-dom"
 
 interface badgePickerEditType<T> {
   isEdit: boolean | badgeType
@@ -18,6 +21,9 @@ interface badgePickerEditType<T> {
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
   style?: React.CSSProperties
+  user: userType
+  setUser: React.Dispatch<React.SetStateAction<userType>>
+  navigate: NavigateFunction
 }
 
 interface editFormType {
@@ -41,9 +47,10 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
   }
 }
 
-const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, style }: badgePickerEditType<T>) => {
+const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, style, user, setUser, navigate }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
+  const [ loading, setLoading ] = useState<boolean>(false)
   const [ editForm, setEditForm ] = useState<editFormType>({
     badgeName: isNewBadge ? "" : isEdit.name,
     icon: initIcon(isEdit),
@@ -79,9 +86,10 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     return getHows
   }
 
-  // Depending on wheather we're editing or creating a new badge, setForm accordingly.
-  // If a new image has been uploaded, store the file under the file key and create a URL for render.
-  const onSubmitHandler = () => {
+  // Depending on whether we're editing or creating a new badge, setForm accordingly.
+  // For new badges: upload to S3, store badge data in form (backend creates in MongoDB during createChamp).
+  // For editing: update form locally (S3 upload if new image).
+  const onSubmitHandler = async () => {
     // Check for errors.
     const hasErr = badgePickerErrors(isNewBadge, {
       name: editForm.badgeName,
@@ -93,53 +101,66 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     if (hasErr) {
       return
     }
-    
-    // setForm
-    if (!isNewBadge) {
-      setForm(prevForm => {
-        return {
-          ...prevForm,
-          champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
-            if (badge._id === isEdit._id) {
-              return {
-                ...badge,
-                url: editForm.icon ? URL.createObjectURL(editForm.icon) : isEdit.url,
-                name: editForm.badgeName,
-                zoom,
-                rarity,
-                awardedHow: how ? how : badge.awardedHow,
-                awardedDesc: findDesc(badgeRewardOutcomes, how),
-                file: editForm.icon,
-                default: false,
-              }
-            } else {
-              return badge
-            }
-          })
-        }
-      })
+
+    setLoading(true)
+
+    if (isNewBadge) {
+      // Upload badge image to S3.
+      const s3Url = await uplaodS3("badges", "custom", editForm.icon, setBackendErr)
+      if (!s3Url) {
+        setLoading(false)
+        return
+      }
+
+      // Add badge data to form (no DB call - backend creates it during createChamp).
+      setForm(prevForm => ({
+        ...prevForm,
+        champBadges: [
+          {
+            url: s3Url,
+            name: editForm.badgeName,
+            rarity,
+            awardedHow: how,
+            awardedDesc: findDesc(badgeRewardOutcomes, how),
+            zoom,
+            default: false,
+          } as badgeType,
+          ...prevForm.champBadges,
+        ]
+      }))
     } else {
-      setForm(prevForm => {
-        return {
-          ...prevForm,
-          champBadges: [
-            {
-              _id: `TEMP: ${Math.random()}`,
-              url: editForm.icon ? URL.createObjectURL(editForm.icon) : null,
+      // Editing existing badge - update form locally.
+      // If a new image was uploaded, upload to S3 first.
+      let badgeUrl = isEdit.url
+      if (editForm.icon) {
+        const s3Url = await uplaodS3("badges", "custom", editForm.icon, setBackendErr)
+        if (s3Url) {
+          badgeUrl = s3Url
+        }
+      }
+
+      setForm(prevForm => ({
+        ...prevForm,
+        champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
+          if (badge._id === isEdit._id) {
+            return {
+              ...badge,
+              url: badgeUrl,
               name: editForm.badgeName,
               zoom,
               rarity,
-              awardedHow: how,
+              awardedHow: how ? how : badge.awardedHow,
               awardedDesc: findDesc(badgeRewardOutcomes, how),
-              file: editForm.icon,
               default: false,
-            },
-            ...prevForm.champBadges,
-          ]
-        }
-      })
+            }
+          } else {
+            return badge
+          }
+        })
+      }))
     }
 
+    setLoading(false)
     setIsEdit(false)
   }
 
@@ -233,17 +254,18 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           className="mui-button-back"
           variant="contained" 
           color="inherit"
-          onClick={e => setIsEdit(false)}
+          onClick={() => setIsEdit(false)}
         >Back</Button>
         {!isNewBadge && <Button
           variant="contained" 
           color="error"
-          onClick={e => deleteBadgeHandler()}
+          onClick={() => deleteBadgeHandler()}
         >Delete</Button>}
         <Button
           variant="contained"
-          onClick={e => onSubmitHandler()}
-        >Submit</Button>
+          onClick={() => onSubmitHandler()}
+          disabled={loading}
+        >{loading ? <CircularProgress size={24} /> : "Submit"}</Button>
       </div>
     </div>
   )

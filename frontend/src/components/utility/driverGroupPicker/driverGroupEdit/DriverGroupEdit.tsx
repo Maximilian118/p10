@@ -172,7 +172,7 @@ const DriverGroupEdit = <T extends { driverGroup: driverGroupType | null }>({
           className="mui-button-back"
           variant="contained" 
           color="inherit"
-          onClick={e => {
+          onClick={() => {
             setIsEdit(false)
             setGroup(initDriverGroup(user))
           }}
@@ -180,13 +180,13 @@ const DriverGroupEdit = <T extends { driverGroup: driverGroupType | null }>({
         {canEditGroup(group, user) === "delete" && group._id && <Button
           variant="contained" 
           color="error"
-          onClick={e => deleteDriverGroupHandler()}
+          onClick={() => deleteDriverGroupHandler()}
           startIcon={delLoading && <CircularProgress size={20} color={"inherit"}/>}
         >Delete</Button>}
         <Button
           variant="contained"
-          disabled={group.drivers.length < 2}
-          onClick={e => editForm._id ? updateDriverHandler() : onSubmitHandler()}
+          disabled={editForm.drivers.length < 2}
+          onClick={() => editForm._id ? updateDriverHandler() : onSubmitHandler()}
           startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         >Submit</Button>
       </div>

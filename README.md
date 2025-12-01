@@ -16,12 +16,7 @@
 
 # The p10 game™. ©
 
-## Points structure:
-
-- Winner is awarded 2 points.
-- Runner up is awarded 1 point.
-
-## Rules & Regulations:
+## Default Rules & Regulations:
 
 1. The winning driver must be included in the last session of qualifying.
 

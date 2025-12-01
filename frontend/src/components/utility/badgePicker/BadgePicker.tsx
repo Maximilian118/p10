@@ -62,13 +62,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
 
   const badgesFiltered = form.champBadges.filter((badge) => filtered.includes(badge.rarity))
 
-  return isEdit ? 
-    <BadgePickerEdit 
-      isEdit={isEdit} 
+  return isEdit ?
+    <BadgePickerEdit
+      isEdit={isEdit}
       setIsEdit={setIsEdit}
       form={form}
       setForm={setForm}
       style={style}
+      user={user}
+      setUser={setUser}
+      navigate={navigate}
     /> : (
     <div className="badge-picker" style={style}>
       {loading ? 

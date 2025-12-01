@@ -24,21 +24,16 @@ const teamResolvers = {
       await createdByErrors(req._id, created_by)
       await teamNameErrors(name)
 
-      // Create a new user DB object.
-      const team = new Team(
-        {
-          created_by,
-          url,
-          name,
-          stats: {
-            nationality,
-            inceptionDate,
-          },
+      // Create a new team DB object.
+      const team = new Team({
+        created_by,
+        url,
+        name,
+        stats: {
+          nationality,
+          inceptionDate,
         },
-        (err: string) => {
-          if (err) throw new Error(err)
-        },
-      )
+      })
 
       // Save the new user to the DB.
       await team.save()

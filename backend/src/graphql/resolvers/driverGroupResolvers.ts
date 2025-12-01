@@ -31,18 +31,13 @@ const driverGroupResolvers = {
       nameCanNumbersErrors("groupName", name)
       driversErrors(drivers)
 
-      // Create a new driver group DB object. 
-      const driverGroup = new DriverGroup(
-        {
-          created_by,
-          url,
-          name,
-          drivers,
-        },
-        (err: string) => {
-          if (err) throw new Error(err)
-        },
-      )
+      // Create a new driver group DB object.
+      const driverGroup = new DriverGroup({
+        created_by,
+        url,
+        name,
+        drivers,
+      })
       // Update drivers with the _id of this group.
       await updateDrivers(drivers, undefined, driverGroup._id)
       // Save the new driver group to the DB.

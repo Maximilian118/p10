@@ -66,7 +66,7 @@ export const formatErrHandler = ( error: GraphQLError ): {
   type: string
   message: string
   code: number
-  value: any
+  value: unknown
   locations: readonly SourceLocation[]
   path: readonly (string | number)[]
 } => {

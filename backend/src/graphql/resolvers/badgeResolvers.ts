@@ -24,7 +24,7 @@ const badgeResolvers = {
     }
 
     try {
-      const { url, name, rarity, awardedHow, awardedDesc, zoom, championship } = args.badgeInput
+      const { url, name, rarity, awardedHow, awardedDesc, zoom, championship, isDefault } = args.badgeInput
       const user = (await User.findById(req._id)) as userTypeMongo
 
       // Check for errors.
@@ -38,21 +38,17 @@ const badgeResolvers = {
       badgeChampErrors(championship)
       await badgeDuplicateErrors(args.badgeInput)
 
-      // Create a new user DB object.
-      const badge = new Badge(
-        {
-          url,
-          name,
-          rarity,
-          awardedHow,
-          awardedDesc,
-          zoom,
-          championship,
-        },
-        (err: string) => {
-          if (err) throw new Error(err)
-        },
-      )
+      // Create a new badge DB object.
+      const badge = new Badge({
+        url,
+        name,
+        rarity,
+        awardedHow,
+        awardedDesc,
+        zoom,
+        championship,
+        isDefault: isDefault || false,
+      })
 
       // Save the new user to the DB.
       await badge.save()
@@ -83,8 +79,13 @@ const badgeResolvers = {
       // Check for errors.
       userErrors(user)
 
-      // Find badges by championship value.
-      const badges = await Badge.find({ championship } as { championship: ObjectId }).exec()
+      // Find badges - if no championship provided, return default badges
+      let badges
+      if (championship === null) {
+        badges = await Badge.find({ isDefault: true }).exec()
+      } else {
+        badges = await Badge.find({ championship }).exec()
+      }
 
       // Return the new user with tokens.
       return {

@@ -519,11 +519,11 @@ export const badgeRewardOutcomes: badgeOutcomeType[] = [
     awardedDesc: "Win a round when Thomas came last.",
   },
   {
-    awardedHow: "Win with 10 players.",
+    awardedHow: "Win with 10 competitors.",
     awardedDesc: "Win a round when 10 or more competitors have placed a bet.",
   },
   {
-    awardedHow: "Win with 20 players/full.",
+    awardedHow: "Win with 20 competitors/full.",
     awardedDesc:
       "Win a round when a championship is full of competitors and everyone has placed a bet.",
   },

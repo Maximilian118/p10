@@ -9,6 +9,7 @@ const badgeSchema = `
     awardedHow: String!
     awardedDesc: String!
     zoom: Int!
+    isDefault: Boolean!
     created_at: String!
     updated_at: String!
     tokens: [String!]
@@ -27,6 +28,7 @@ const badgeSchema = `
     awardedDesc: String!
     zoom: Int
     championship: String
+    isDefault: Boolean
   }
 
   input updateBadgeInput {

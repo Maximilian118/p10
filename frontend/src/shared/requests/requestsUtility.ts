@@ -22,7 +22,7 @@ type errorType = {
   type: string
   message: string
   code: number | null
-  value: any
+  value: unknown
   locations: readonly string[]
   path: readonly (string | number)[]
 }
@@ -55,13 +55,14 @@ type axiosGraphqlErrObj = {
 }
 
 // Find errors from an axios graphql request, wherever they might be and return an array of graphQLErrors.
-const findErrs = (err: axiosGraphqlErrObj): errorType[] => {
-  if (err.response) {
-    return err.response.data.errors
+const findErrs = (err: unknown): errorType[] => {
+  const errObj = err as axiosGraphqlErrObj
+  if (errObj?.response) {
+    return errObj.response.data.errors
   }
 
-  if (err.data) {
-    return err.data.errors
+  if (errObj?.data) {
+    return errObj.data.errors
   }
 
   return []
@@ -70,7 +71,7 @@ const findErrs = (err: axiosGraphqlErrObj): errorType[] => {
 // Format and return a GraphQL Error from an Axios request.
 export const graphQLErrors = (
   request: string,
-  err: {},
+  err: unknown,
   setUser?: React.Dispatch<React.SetStateAction<userType>> | undefined,
   navigate?: NavigateFunction | undefined,
   setBackendErr?: React.Dispatch<React.SetStateAction<graphQLErrorType>> | undefined,

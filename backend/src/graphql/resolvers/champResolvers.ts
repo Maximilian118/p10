@@ -1,0 +1,309 @@
+import moment from "moment"
+import { AuthRequest } from "../../middleware/auth"
+import Champ, { champType } from "../../models/champ"
+import User, { userTypeMongo } from "../../models/user"
+import DriverGroup from "../../models/driverGroup"
+import Badge from "../../models/badge"
+import { ObjectId } from "mongodb"
+import {
+  champNameErrors,
+  falsyValErrors,
+  throwError,
+  userErrors,
+} from "./resolverErrors"
+
+// Input types for the createChamp mutation
+interface PointsStructureInput {
+  result: number
+  points: number
+}
+
+interface RuleOrRegSubsectionInput {
+  text: string
+}
+
+interface RuleOrRegInput {
+  text: string
+  subsections?: RuleOrRegSubsectionInput[]
+}
+
+interface RulesAndRegsInput {
+  default: boolean
+  list: RuleOrRegInput[]
+}
+
+interface ChampBadgeInput {
+  _id?: string
+  url?: string
+  name?: string
+  rarity?: number
+  awardedHow?: string
+  awardedDesc?: string
+  zoom?: number
+  isDefault: boolean
+}
+
+interface RoundInput {
+  round: number
+  completed: boolean
+}
+
+export interface ChampInput {
+  name: string
+  icon?: string
+  profile_picture?: string
+  rounds: RoundInput[]
+  driverGroup: string
+  maxCompetitors?: number
+  pointsStructure: PointsStructureInput[]
+  rulesAndRegs: RulesAndRegsInput
+  champBadges: ChampBadgeInput[]
+}
+
+// Generates empty results array for a competitor with all rounds initialized to 0 points
+const generateEmptyResults = (rounds: RoundInput[]) => {
+  return rounds.map((r) => ({
+    round: r.round,
+    points: 0,
+  }))
+}
+
+const champResolvers = {
+  // Creates a new championship with all associated data
+  createChamp: async (
+    args: { champInput: ChampInput },
+    req: AuthRequest,
+  ): Promise<champType> => {
+    if (!req.isAuth) {
+      throwError("createChamp", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const {
+        name,
+        icon,
+        profile_picture,
+        rounds,
+        driverGroup,
+        maxCompetitors,
+        pointsStructure,
+        rulesAndRegs,
+        champBadges,
+      } = args.champInput
+
+      // Validate user exists
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Check for errors
+      await champNameErrors(name)
+      falsyValErrors({
+        champName: name,
+        rounds,
+        driverGroup,
+      })
+
+      // Validate driver group exists
+      const group = await DriverGroup.findById(driverGroup)
+      if (!group) {
+        return throwError("driverGroup", driverGroup, "Driver group not found.")
+      }
+
+      // Validate rounds
+      if (!rounds || rounds.length < 1 || rounds.length > 30) {
+        throwError("rounds", rounds, "Rounds must be between 1 and 30.")
+      }
+
+      // Validate points structure
+      if (!pointsStructure || pointsStructure.length === 0) {
+        throwError("pointsStructure", pointsStructure, "Points structure is required.")
+      }
+
+      // Build rules and regs with user references
+      const processedRulesAndRegs = {
+        default: rulesAndRegs.default,
+        list: rulesAndRegs.list.map((rule) => ({
+          text: rule.text,
+          created_by: user._id,
+          created_at: moment().format(),
+          history: [],
+          subsections: rule.subsections?.map((sub) => ({
+            text: sub.text,
+            created_by: user._id,
+            created_at: moment().format(),
+            history: [],
+          })) || [],
+        })),
+      }
+
+      // Transform rounds to include empty bets array
+      const roundsWithBets = rounds.map((r) => ({
+        round: r.round,
+        completed: r.completed,
+        bets: [],
+      }))
+
+      // Create the championship document
+      const champ = new Champ({
+        name,
+        icon: icon || "",
+        profile_picture: profile_picture || "",
+        season: 1,
+        rounds: roundsWithBets,
+        standings: [
+          {
+            competitor: user._id,
+            active: true,
+            status: "competitor",
+            results: generateEmptyResults(rounds),
+          },
+        ],
+        adjudicator: {
+          current: user._id,
+          since: moment().format(),
+          rounds: [],
+          history: [],
+        },
+        driverGroup: new ObjectId(driverGroup),
+        pointsStructure,
+        rulesAndRegs: processedRulesAndRegs,
+        protests: [],
+        ruleChanges: [],
+        settings: {
+          maxCompetitors: maxCompetitors || 24,
+          inactiveCompetitors: false,
+          protests: {
+            protestsAlwaysVote: false,
+            allowMultipleProtests: false,
+          },
+          ruleChanges: {
+            ruleChangeAlwaysVote: true,
+            allowMultipleRuleChanges: true,
+            ruleChangeExpiry: "",
+          },
+          autoOpen: {
+            auto: false,
+            dateTime: "",
+          },
+          autoClose: {
+            auto: false,
+            dateTime: "",
+          },
+          audio: {
+            enabled: false,
+            auto: false,
+            triggers: {
+              open: [],
+              close: [],
+            },
+          },
+          wager: {
+            allow: false,
+            description: "",
+            min: 0,
+            max: 0,
+            equal: false,
+          },
+        },
+        champBadges: [],
+        waitingList: [],
+        history: {
+          seasons: [1],
+          names: [
+            {
+              name,
+              created_at: moment().format(),
+            },
+          ],
+          rounds: [],
+          stats: {
+            allTime: {
+              mostCompetitors: 1,
+              mostPoints: {
+                competitor: user._id,
+                points: 0,
+              },
+              mostBadgesGiven: {
+                competitor: user._id,
+                badgesNum: 0,
+              },
+              rarestBadgeGiven: {
+                competitor: user._id,
+                badge: user._id,
+              },
+              mostWins: {
+                competitor: user._id,
+                amount: 0,
+              },
+              mostRunnerUp: {
+                competitor: user._id,
+                amount: 0,
+              },
+              bestWinStreak: {
+                competitor: user._id,
+                amount: 0,
+              },
+              bestPointsStreak: {
+                competitor: user._id,
+                amount: 0,
+              },
+            },
+            seasons: [],
+          },
+        },
+        created_by: user._id,
+        created_at: moment().format(),
+        updated_at: moment().format(),
+      })
+
+      // Save the championship
+      const newChamp = await champ.save()
+
+      // Process badges - create custom badges with championship reference, collect all IDs.
+      const badgeIds: ObjectId[] = []
+
+      for (const badge of champBadges) {
+        if (badge._id) {
+          // Default badge - use existing ID.
+          badgeIds.push(new ObjectId(badge._id))
+        } else if (badge.url && badge.name) {
+          // Custom badge - create new with championship reference.
+          const newBadge = new Badge({
+            url: badge.url,
+            name: badge.name,
+            rarity: badge.rarity ?? 0,
+            awardedHow: badge.awardedHow,
+            awardedDesc: badge.awardedDesc,
+            zoom: badge.zoom ?? 100,
+            championship: newChamp._id,
+            isDefault: false,
+          })
+          await newBadge.save()
+          badgeIds.push(newBadge._id)
+        }
+      }
+
+      // Update championship with badge references.
+      newChamp.champBadges = badgeIds
+      await newChamp.save()
+
+      // Update driver group with championship reference
+      group.championships.push(newChamp._id)
+      await group.save()
+
+      // Update user with championship reference
+      user.championships.push(newChamp._id)
+      await user.save()
+
+      // Return the created championship with tokens
+      return {
+        ...newChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+}
+
+export default champResolvers

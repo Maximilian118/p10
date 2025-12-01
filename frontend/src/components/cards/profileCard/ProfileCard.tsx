@@ -49,7 +49,7 @@ const ProfileCard = <T extends formType, U extends formErrType>({ user, setUser,
             className="mui-form-btn"
             style={{ margin: "5px 0 0 0" }}
             startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
-            onClick={e => uploadPPHandler()}
+            onClick={() => uploadPPHandler()}
           >Confirm</Button>
         </>
       )

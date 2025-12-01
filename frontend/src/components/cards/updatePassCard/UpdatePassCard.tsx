@@ -10,7 +10,7 @@ const UpdatePassCard: React.FC = () => {
     <div className="update-pass-card">
       <Button
         variant="contained"
-        onClick={e => navigate("/password")}
+        onClick={() => navigate("/password")}
       >Change Password</Button>
     </div>
   )

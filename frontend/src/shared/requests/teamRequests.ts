@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 import { teamType } from "../types"
 import { userType } from "../localStorage"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
@@ -54,7 +54,7 @@ export const newTeam = async <T extends { teams: teamType[] }>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("newTeam", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -70,10 +70,10 @@ export const newTeam = async <T extends { teams: teamType[] }>(
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("newTeam", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("newTeam", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -131,7 +131,7 @@ export const updateTeam = async <T extends { teams: teamType[] }>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updateTeam", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -154,10 +154,10 @@ export const updateTeam = async <T extends { teams: teamType[] }>(
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updateTeam", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updateTeam", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -194,7 +194,7 @@ export const getTeams = async (
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("getTeams", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -209,10 +209,10 @@ export const getTeams = async (
           }
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("getTeams", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("getTeams", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -250,7 +250,7 @@ export const deleteTeam = async <T extends { teams: teamType[] }>(
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("deleteTeam", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -267,10 +267,10 @@ export const deleteTeam = async <T extends { teams: teamType[] }>(
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("deleteTeam", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("deleteTeam", err, setUser, navigate, setBackendErr, true)
   }
 

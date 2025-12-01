@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
@@ -54,7 +54,7 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("newDriverGroup", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -72,10 +72,10 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -112,7 +112,7 @@ export const getDriverGroups = async (
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("getDriverGroups", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -127,10 +127,10 @@ export const getDriverGroups = async (
           }
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("getDriverGroups", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("getDriverGroups", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -187,7 +187,7 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("updateDriverGroup", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -224,10 +224,10 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
   }
 
@@ -267,7 +267,7 @@ export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType
         },
         { headers: headers(user.token) },
       )
-      .then((res: any) => {
+      .then((res: AxiosResponse) => {
         if (res.data.errors) {
           graphQLErrors("deleteDriverGroup", res, setUser, navigate, setBackendErr, true)
         } else {
@@ -288,10 +288,10 @@ export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType
           success = true
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
       })
-  } catch (err: any) {
+  } catch (err: unknown) {
     graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
   }
 

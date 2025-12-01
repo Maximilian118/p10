@@ -24,7 +24,7 @@ export type ruleOrRegType = {
   text: string
   created_by: userType
   created_at: string
-  histroy: {
+  history: {
     text: string
     updatedBy: userType
     updated_at: string
@@ -104,43 +104,58 @@ export interface driverGroupType {
   tokens?: string[]
 }
 
+// Type for tracking adjudicator rounds
+export interface AdjudicatorRoundType {
+  season: number
+  round: number
+  timestamp: string
+}
+
+// Type for tracking bets per round
+export interface BetType {
+  competitor: userType | string
+  driver: driverType | string
+  timestamp: string
+}
+
 export interface champType {
   _id: string
   name: string
   icon: string
-  season: string
+  profile_picture: string
+  season: number
   rounds: {
     round: number
     completed: boolean
-    standings: {
-      player: userType
+    bets: BetType[]
+  }[]
+  standings: {
+    competitor: userType
+    active: boolean
+    status: "competitor" | "guest"
+    results: {
+      round: number
       points: number
-      history: {
-        round: string
-        points: number
-      }[]
     }[]
   }[]
   adjudicator: {
     current: userType
     since: string
-    rounds: string[]
-    player: boolean
+    rounds: AdjudicatorRoundType[]
     history: {
       adjudicator: userType
       since: string
-      rounds: string[]
+      rounds: AdjudicatorRoundType[]
     }[]
   }
-  players: userType[]
   driverGroup: driverGroupType
   pointsStructure: pointsStructureType
   rulesAndRegs: rulesAndRegsType
   protests: protestType[] // Protest model
   ruleChanges: ruleChangeType[] // RuleChange model
   settings: {
-    maxPlayers: number
-    inactivePlayers: boolean
+    maxCompetitors: number
+    inactiveCompetitors: boolean
     protests: {
       protestsAlwaysVote: boolean
       allowMultipleProtests: boolean
@@ -180,7 +195,7 @@ export interface champType {
     position: number
   }[]
   history: {
-    seasons: string[]
+    seasons: number[]
     names: {
       name: string
       created_at: string
@@ -191,54 +206,54 @@ export interface champType {
     }[]
     stats: {
       allTime: {
-        mostPlayers: number // Most players to be a part of the champ concurrently ever.
+        mostCompetitors: number // Most competitors to be a part of the champ concurrently ever.
         mostPoints: {
-          // Most points ever awarded to a player in a season.
-          player: userType
+          // Most points ever awarded to a competitor in a season.
+          competitor: userType
           points: number
         }
         mostBadgesGiven: {
-          player: userType // Most badges given to a player.
+          competitor: userType // Most badges given to a competitor.
           badgesNum: number
         }
         rarestBadgeGiven: {
-          player: userType // Rarest badge given to a player.
+          competitor: userType // Rarest badge given to a competitor.
           badge: userType // What badge?
         }
         mostWins: {
-          player: userType // Most wins ever.
+          competitor: userType // Most wins ever.
           amount: number
         }
         mostRunnerUp: {
-          player: userType // Most runner up ever.
+          competitor: userType // Most runner up ever.
           amount: number
         }
         bestWinStreak: {
-          player: userType // The most times in a row a user has won.
+          competitor: userType // The most times in a row a user has won.
           amount: number
         }
         bestPointsStreak: {
-          player: userType // The most times in a row a user has scorred points.
+          competitor: userType // The most times in a row a user has scored points.
           amount: number
         }
       }
       seasons: {
-        season: string
-        mostPlayers: number // Most players to be a part of the champ concurrently.
+        season: number
+        mostCompetitors: number // Most competitors to be a part of the champ concurrently.
         mostWins: {
-          player: userType // Most wins this season.
+          competitor: userType // Most wins this season.
           amount: number
         }
         mostRunnerUp: {
-          player: userType // Most runner up this season.
+          competitor: userType // Most runner up this season.
           amount: number
         }
         bestWinStreak: {
-          player: userType // The most times in a row a user has won.
+          competitor: userType // The most times in a row a user has won.
           amount: number
         }
         bestPointsStreak: {
-          player: userType // The most times in a row a user has scorred points.
+          competitor: userType // The most times in a row a user has scored points.
           amount: number
         }
       }[]

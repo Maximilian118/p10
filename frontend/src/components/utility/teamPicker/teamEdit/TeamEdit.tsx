@@ -185,7 +185,7 @@ const TeamEdit = <T extends { teams: teamType[] }>({
           className="mui-button-back"
           variant="contained" 
           color="inherit"
-          onClick={e => {
+          onClick={() => {
             setTeam(initTeam(user))
             setIsEdit(false)
           }}
@@ -193,12 +193,12 @@ const TeamEdit = <T extends { teams: teamType[] }>({
         {canEditTeam(team, user) === "delete" && team._id && <Button
           variant="contained" 
           color="error"
-          onClick={e => deleteTeamHandler()}
+          onClick={() => deleteTeamHandler()}
           startIcon={delLoading && <CircularProgress size={20} color={"inherit"}/>}
         >Delete</Button>}
         <Button
           variant="contained"
-          onClick={e => editForm._id ? updateTeamHandler() : onSubmitHandler()}
+          onClick={() => editForm._id ? updateTeamHandler() : onSubmitHandler()}
           disabled={!canEditTeam(team, user)}
           startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         >{editForm._id ? "Update" : "Submit"}</Button>
