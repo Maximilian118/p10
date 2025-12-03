@@ -1,4 +1,5 @@
 import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import './_champCard.scss'
 import { champType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
@@ -8,12 +9,12 @@ import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 interface champCardType {
   champ: champType
   onClick?: (e: SyntheticEvent) => void
-  selected?: boolean
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
 }
 
-const ChampCard: React.FC<champCardType> = ({ champ, onClick, selected, canEdit, onEditClicked }) => {
+const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditClicked }) => {
+  const navigate = useNavigate()
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const groupDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -26,11 +27,10 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, selected, canEdit,
   }, [])
 
   return (
-    <div className={`champ-card${selected ? "-selected" : ""}`} onClick={onClick}>
+    <div className="champ-card" onClick={onClick}>
       <div className="main-icon-container">
         <ImageIcon src={champ.icon} size="contained"/>
         {canEdit && <EditButton
-          inverted={selected}
           onClick={e => {
             e.stopPropagation()
             if (onEditClicked) {
@@ -40,17 +40,24 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, selected, canEdit,
         />}
       </div>
       <div className="champ-content">
-        {selected && <p className="champ-selected">Selected</p>}
         <p className="champ-title">{champ.name}</p>
         <div ref={groupDriversRef} className="champ-drivers">
           {champ.standings.map((s, i) => {
             if (i < lastIcon ) {
-              return <ImageIcon key={i} src={s.competitor.icon}/>
+              return (
+                <ImageIcon
+                  key={i}
+                  src={s.competitor.icon}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/profile/${s.competitor._id}`)
+                  }}
+                />
+              )
             } else if (i === lastIcon) {
               return (
-                <CounterIcon 
-                  key={i} 
-                  inverted={selected} 
+                <CounterIcon
+                  key={i}
                   counter={champ.standings.length - lastIcon}
                 />
               )

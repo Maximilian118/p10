@@ -44,6 +44,7 @@ const Championships: React.FC = () => {
         <ChampCard
           key={i}
           champ={c}
+          onClick={() => navigate(`/championship/${c._id}`)}
         />
       ))
     )

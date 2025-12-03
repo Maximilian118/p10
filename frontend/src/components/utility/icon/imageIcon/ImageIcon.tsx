@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { SyntheticEvent, useState } from "react"
 import '../_icon.scss'
 import './_imageIcon.scss'
 
@@ -7,9 +7,10 @@ interface iconType {
   id?: string
   size?: "small" | "medium" | "large" | "contained"
   style?: React.CSSProperties
+  onClick?: (e: SyntheticEvent) => void
 }
 
-const ImageIcon: React.FC<iconType> = ({ src, id, size, style }) => {
+const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick }) => {
   const [ error, setError ] = useState<boolean>(false)
 
   const iconContent = (error: boolean, src: string) => {
@@ -24,8 +25,11 @@ const ImageIcon: React.FC<iconType> = ({ src, id, size, style }) => {
     }
   }
 
+  // Enable pointer events and cursor when onClick is provided.
+  const clickableStyle = onClick ? { pointerEvents: 'auto' as const, cursor: 'pointer' } : {}
+
   return (
-    <div id={id} className={`icon-${size ? size : "medium"} image-icon`} style={style}>
+    <div id={id} className={`icon-${size ? size : "medium"} image-icon`} style={{...style, ...clickableStyle}} onClick={onClick}>
       {iconContent(error, src)}
     </div>
   )

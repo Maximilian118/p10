@@ -1,7 +1,7 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-.champ-card, .champ-card-selected {
+.champ-card {
   width: 100%;
   min-height: 60px;
   @include mixins.flexbox-start;
@@ -37,12 +37,6 @@
     margin-left: 20px;
     overflow: hidden;
 
-    .champ-selected {
-      font-size: 15px;
-      color: white;
-      margin-bottom: 5px;
-    }
-
     .champ-title {
       width: 100%;
       color: variables.$colour-9;
@@ -67,22 +61,7 @@
   }
 
   // Adds spacing between consecutive ChampCards
-  & + .champ-card, & + .champ-card-selected {
+  & + .champ-card {
     margin-top: 2px;
-  }
-}
-
-.champ-card-selected {
-  background: variables.$mui-blue;
-  cursor: default;
-
-  .champ-content {
-    .champ-title {
-      color: white;
-    }
-  }
-
-  &:hover {
-    background: variables.$mui-blue;
   }
 }
