@@ -65,6 +65,11 @@
   &:hover {
     background: rgba(0, 0, 0, 0.06);
   }
+
+  // Adds spacing between consecutive ChampCards
+  & + .champ-card, & + .champ-card-selected {
+    margin-top: 2px;
+  }
 }
 
 .champ-card-selected {
