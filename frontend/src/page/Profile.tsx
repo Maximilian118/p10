@@ -58,7 +58,9 @@ const Profile: React.FC = () => {
       />
       <UpdatePPCard/>
       <UpdatePassCard/>
-      <LogoutCard setUser={setUser}/>
+      <div className="profile-bottom-cards">
+        <LogoutCard setUser={setUser}/>
+      </div>
     </div>
   )
 }

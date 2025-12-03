@@ -203,6 +203,12 @@ body {
       .content-container {
         padding: 0;
         justify-content: start;
+
+        // Pushes cards to the bottom of the content-container
+        .profile-bottom-cards {
+          width: 100%;
+          margin-top: auto;
+        }
       }
     }
 
