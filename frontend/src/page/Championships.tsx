@@ -19,14 +19,16 @@ const Championships: React.FC = () => {
 
   const navigate = useNavigate()
 
-  // just logging her for now before we add search logic to satisfy unused var
-  console.log(search)
-
-  // Fetch all championships for the user on mount.
+  // Fetch all championships on mount.
   useEffect(() => {
     getChamps(setChamps, user, setUser, navigate, setLoading, setBackendErr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Initialize search state when champs data loads.
+  useEffect(() => {
+    setSearch(champs)
+  }, [champs])
 
   const renderChampsList = () => {
     if (loading) {
@@ -38,8 +40,8 @@ const Championships: React.FC = () => {
     }
 
     return (
-      champs.map((c, i) => (
-        <ChampCard 
+      search.map((c, i) => (
+        <ChampCard
           key={i}
           champ={c}
         />

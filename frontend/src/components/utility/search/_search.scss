@@ -15,6 +15,11 @@
     border-radius: 0;
     background: white;
 
+    &:hover,
+    &.Mui-focused {
+      background: white;
+    }
+
     .MuiInputBase-input {
       margin: 0 7.5%;
       padding-left: 0;

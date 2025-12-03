@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import "./_search.scss"
 import { TextField } from "@mui/material"
 import { sortAlphabetically } from "../../../shared/utility"
+import Fuse from "fuse.js"
 
 interface searchType<T> {
   original: T[] // Original array of objects. Likely the result of a request.
@@ -11,19 +12,24 @@ interface searchType<T> {
 const Search = <T extends { name: string }>({ original, setSearch }: searchType<T>) => {
   const [ query, setQuery ] = useState("")
 
+  // Debounced fuzzy search using Fuse.js.
   useEffect(() => {
-    const handler = setTimeout(() => { // setTimeout to prevent lag if user mashes the keyboard.
+    const handler = setTimeout(() => {
       if (query.trim() === "") {
-        setSearch(sortAlphabetically(original)) // Return search to the original array.
+        // No query - return alphabetically sorted original array.
+        setSearch(sortAlphabetically(original))
       } else {
-        const filtered = original.filter(item =>
-          item.name.toLowerCase().includes(query.toLowerCase()) // Ignore case.
-        )
-        setSearch(sortAlphabetically(filtered)) // Set search state to the filtered array.
+        // Fuzzy search with Fuse.js.
+        const fuse = new Fuse(original, {
+          keys: ["name"],
+          threshold: 0.4, // 0 = exact match, 1 = match anything.
+        })
+        const results = fuse.search(query).map(result => result.item)
+        setSearch(results) // Fuse returns results ranked by relevance.
       }
-    }, 300) // Debounce time 0.3s I.E change state only once per 0.3s.
+    }, 300) // Debounce 300ms.
 
-    return () => clearTimeout(handler) // Cleanup
+    return () => clearTimeout(handler)
   }, [query, original, setSearch])
   
   return (
