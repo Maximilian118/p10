@@ -71,7 +71,6 @@ body {
         z-index: 0;
         overflow-y: auto;
         padding: 20px 0;
-        min-height: 200px;
 
         .form-background {
           position: absolute;
@@ -198,8 +197,9 @@ body {
     }
 
     .main-logged-in {
+      height: 80vh;
       background: variables.$background;
-      
+
       .content-container {
         padding: 0;
         justify-content: start;
@@ -240,7 +240,7 @@ body {
 @media screen and ( max-width: 550px ) {
   body {
     background: white;
-    
+
     #root {
       main {
         width: 100%;
@@ -260,6 +260,10 @@ body {
             }
           }
         }
+      }
+
+      .main-logged-in {
+        height: 100%;
       }
 
       footer {

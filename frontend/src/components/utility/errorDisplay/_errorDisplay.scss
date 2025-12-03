@@ -1,0 +1,23 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+.error-display-container {
+  padding: 20px 7.5%;
+  box-sizing: border-box;
+  background: variables.$f1-red;
+  color: white;
+
+  .error-display-title {
+    width: 100%;
+    @include mixins.flexbox-start;
+    margin-bottom: 16px;
+
+    h4 {
+      margin-right: 5px;
+    }
+
+    svg {
+      margin-bottom: 4px;
+    }
+  }
+}

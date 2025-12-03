@@ -23,6 +23,7 @@ const Schema = buildSchema(`
     getDriverGroups: DriverGroups
     getDrivers: Drivers
     getTeams: Teams
+    getChamps: Champs
   }
 
   type rootMutation {

@@ -6,6 +6,73 @@ import { champType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 
+// Fetches all championships for the authenticated user.
+export const getChamps = async (
+  setChamps: React.Dispatch<React.SetStateAction<champType[]>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {},
+          query: `
+            query {
+              getChamps {
+                array {
+                  _id
+                  name
+                  icon
+                  profile_picture
+                  season
+                  created_at
+                  updated_at
+                  standings {
+                    competitor {
+                      _id
+                      icon
+                    }
+                  }
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getChamps", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const champs = graphQLResponse("getChamps", res, user, setUser) as {
+            array: champType[]
+            token: string
+            code: number
+          }
+
+          if (champs.array.length > 0) {
+            setChamps(champs.array)
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getChamps", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getChamps", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
 // Creates a new championship with all form data
 export const createChamp = async (
   form: createChampFormType,
@@ -21,7 +88,15 @@ export const createChamp = async (
 
   // Upload icon to S3 if provided
   if (form.icon) {
-    iconURL = await uplaodS3(form.champName, "icon", form.icon, setBackendErr, user, setUser, navigate)
+    iconURL = await uplaodS3(
+      form.champName,
+      "icon",
+      form.icon,
+      setBackendErr,
+      user,
+      setUser,
+      navigate,
+    )
 
     if (!iconURL) {
       setLoading(false)
@@ -31,7 +106,15 @@ export const createChamp = async (
 
   // Upload profile picture to S3 if provided
   if (form.profile_picture) {
-    profilePictureURL = await uplaodS3(form.champName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate)
+    profilePictureURL = await uplaodS3(
+      form.champName,
+      "profile-picture",
+      form.profile_picture,
+      setBackendErr,
+      user,
+      setUser,
+      navigate,
+    )
 
     if (!profilePictureURL) {
       setLoading(false)
@@ -61,9 +144,10 @@ export const createChamp = async (
   // Build rules and regs list (strip out user info - backend will add it)
   const rulesAndRegsList = form.rulesAndRegs.list.map((rule) => ({
     text: rule.text,
-    subsections: rule.subsections?.map((sub) => ({
-      text: sub.text,
-    })) || [],
+    subsections:
+      rule.subsections?.map((sub) => ({
+        text: sub.text,
+      })) || [],
   }))
 
   // Generate rounds array from the number of rounds specified in form

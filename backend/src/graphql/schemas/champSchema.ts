@@ -27,7 +27,7 @@ const champSchema = `
   }
 
   type Standing {
-    competitor: ID!
+    competitor: User!
     active: Boolean!
     status: String!
     results: [RoundResult!]!
@@ -102,6 +102,11 @@ const champSchema = `
     awardedDesc: String
     zoom: Int
     isDefault: Boolean!
+  }
+
+  type Champs {
+    array: [Champ!]!
+    tokens: [String!]
   }
 `
 export default champSchema

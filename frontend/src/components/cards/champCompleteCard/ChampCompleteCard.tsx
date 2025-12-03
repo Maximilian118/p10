@@ -1,7 +1,8 @@
 import React from "react"
 import './_champCompleteCard.scss'
-import { Error, SportsScore } from "@mui/icons-material"
+import { SportsScore } from "@mui/icons-material"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
+import ErrorDisplay from "../../utility/errorDisplay/ErrorDisplay"
 
 interface champCompleteCardType {
   stepperBtns?: JSX.Element
@@ -20,15 +21,7 @@ const ChampCompleteCard: React.FC<champCompleteCardType> = ({ stepperBtns, style
         <p>As the adjudicator of this championship you can always
         edit the details of this championship after creation.</p>
       </div>
-      {backendErr?.message && (
-        <div className="champ-complete-error-container">
-          <div className="champ-complete-error-title">
-            <h4>Error</h4>
-            <Error/>
-          </div>
-          <p>{backendErr.message}</p>
-        </div>
-      )}
+      <ErrorDisplay backendErr={backendErr}/>
       {stepperBtns}
     </div>
   )

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react"
 import "./_driverGroupPicker.scss"
-import { CircularProgress } from "@mui/material"
 import { driverGroupType } from "../../../shared/types"
 import { getDriverGroups } from "../../../shared/requests/driverGroupRequests"
 import { userType } from "../../../shared/localStorage"
@@ -13,6 +12,7 @@ import { sortAlphabetically } from "../../../shared/utility"
 import Search from "../search/Search"
 import AddButton from "../button/addButton/AddButton"
 import { canEditGroup } from "./driverGroupEdit/driverGroupUtility"
+import FillLoading from "../fillLoading/FillLoading"
 
 interface driverGroupPickerType<T> {
   form: T
@@ -88,10 +88,8 @@ const DriverGroupPicker= <T extends { driverGroup: driverGroupType | null }>({
             }}
           />
         )}
-        {loading ? 
-          <div className="driver-group-loading">
-            <CircularProgress/>
-          </div> : 
+        {loading ?
+          <FillLoading/> :
           groups.length > 0 ? 
           <div className="driver-group-list">
             {sortedGroups

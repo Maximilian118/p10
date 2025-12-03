@@ -5,12 +5,7 @@ import User, { userTypeMongo } from "../../models/user"
 import DriverGroup from "../../models/driverGroup"
 import Badge from "../../models/badge"
 import { ObjectId } from "mongodb"
-import {
-  champNameErrors,
-  falsyValErrors,
-  throwError,
-  userErrors,
-} from "./resolverErrors"
+import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 
 // Input types for the createChamp mutation
 interface PointsStructureInput {
@@ -69,11 +64,30 @@ const generateEmptyResults = (rounds: RoundInput[]) => {
 }
 
 const champResolvers = {
-  // Creates a new championship with all associated data
-  createChamp: async (
-    args: { champInput: ChampInput },
+  // Returns all championships.
+  getChamps: async (
+    _args: Record<string, never>,
     req: AuthRequest,
-  ): Promise<champType> => {
+  ): Promise<{ array: champType[]; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("getChamps", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Populate competitor data for standings to get user icons.
+      const champs = await Champ.find({}).populate("standings.competitor", "_id icon").exec()
+
+      return {
+        array: champs,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Creates a new championship with all associated data
+  createChamp: async (args: { champInput: ChampInput }, req: AuthRequest): Promise<champType> => {
     if (!req.isAuth) {
       throwError("createChamp", req.isAuth, "Not Authenticated!", 401)
     }
@@ -127,12 +141,13 @@ const champResolvers = {
           created_by: user._id,
           created_at: moment().format(),
           history: [],
-          subsections: rule.subsections?.map((sub) => ({
-            text: sub.text,
-            created_by: user._id,
-            created_at: moment().format(),
-            history: [],
-          })) || [],
+          subsections:
+            rule.subsections?.map((sub) => ({
+              text: sub.text,
+              created_by: user._id,
+              created_at: moment().format(),
+              history: [],
+            })) || [],
         })),
       }
 

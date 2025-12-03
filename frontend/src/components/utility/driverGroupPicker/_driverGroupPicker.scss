@@ -4,6 +4,7 @@
 .driver-group-picker {
   width: 100%;
   @include mixins.flexbox-column;
+  flex-grow: 1;
   flex-shrink: 0;
 
   .search {
@@ -24,15 +25,16 @@
     width: 100%;
     position: relative;
     flex-grow: 1;
+    @include mixins.flexbox-start-column;
 
-    .driver-group-list, .driver-group-empty, .driver-group-loading {
+    .driver-group-list, .driver-group-empty {
       width: 100%;
       @include mixins.flexbox-start-column;
       overflow-y: scroll;
       background: #ffffff;
     }
 
-    .driver-group-empty, .driver-group-loading {
+    .driver-group-empty {
       padding: 20px 7.5%;
       box-sizing: border-box;
     }
