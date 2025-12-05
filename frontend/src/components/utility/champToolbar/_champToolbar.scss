@@ -1,4 +1,5 @@
 @use '../../../scss/mixins';
+@use '../../../scss/variables';
 
 .champ-toolbar {
   width: 100%;
@@ -12,5 +13,17 @@
 
   * {
     pointer-events: all;
+  }
+
+  > *:not(:first-child) {
+    margin-left: 10px;
+  }
+
+  .champ-toolbar-join {
+    background-color: variables.$mui-success !important;
+
+    &:hover {
+      background-color: variables.$mui-success-hover !important;
+    }
   }
 }

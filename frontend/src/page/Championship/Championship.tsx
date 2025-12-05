@@ -83,7 +83,7 @@ const Championship: React.FC = () => {
       ) : (
         <ChampBanner champ={champ} readOnly />
       )}
-      <ChampToolbar />
+      <ChampToolbar champ={champ} user={user} />
     </div>
   )
 }

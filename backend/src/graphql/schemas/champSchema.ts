@@ -9,7 +9,7 @@ const champSchema = `
     rounds: [Round!]!
     standings: [Standing!]!
     adjudicator: Adjudicator!
-    settings: ChampSettings!
+    settings: ChampSettings
     created_at: String!
     updated_at: String!
     tokens: [String!]
@@ -59,8 +59,50 @@ const champSchema = `
   }
 
   type ChampSettings {
-    inviteOnly: Boolean!
-    maxCompetitors: Int!
+    inviteOnly: Boolean
+    maxCompetitors: Int
+    inactiveCompetitors: Boolean
+    protests: ProtestSettings
+    ruleChanges: RuleChangeSettings
+    autoOpen: AutoSettings
+    autoClose: AutoSettings
+    audio: AudioSettings
+    wager: WagerSettings
+  }
+
+  type ProtestSettings {
+    protestsAlwaysVote: Boolean
+    allowMultipleProtests: Boolean
+  }
+
+  type RuleChangeSettings {
+    ruleChangeAlwaysVote: Boolean
+    allowMultipleRuleChanges: Boolean
+    ruleChangeExpiry: String
+  }
+
+  type AutoSettings {
+    auto: Boolean
+    dateTime: String
+  }
+
+  type AudioSettings {
+    enabled: Boolean
+    auto: Boolean
+    triggers: AudioTriggers
+  }
+
+  type AudioTriggers {
+    open: [String]
+    close: [String]
+  }
+
+  type WagerSettings {
+    allow: Boolean
+    description: String
+    max: Int
+    min: Int
+    equal: Boolean
   }
 
   input champInput {

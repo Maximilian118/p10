@@ -193,6 +193,39 @@ export const populateChamp = `
   settings {
     inviteOnly
     maxCompetitors
+    inactiveCompetitors
+    protests {
+      protestsAlwaysVote
+      allowMultipleProtests
+    }
+    ruleChanges {
+      ruleChangeAlwaysVote
+      allowMultipleRuleChanges
+      ruleChangeExpiry
+    }
+    autoOpen {
+      auto
+      dateTime
+    }
+    autoClose {
+      auto
+      dateTime
+    }
+    audio {
+      enabled
+      auto
+      triggers {
+        open
+        close
+      }
+    }
+    wager {
+      allow
+      description
+      max
+      min
+      equal
+    }
   }
   created_at
   updated_at
