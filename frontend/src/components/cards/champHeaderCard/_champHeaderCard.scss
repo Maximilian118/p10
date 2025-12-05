@@ -11,12 +11,8 @@
   border-bottom: 2px solid variables.$background;
   position: sticky;
   overflow: hidden;
-  top: -98px;
+  top: -60px;
   z-index: 5;
-
-  .form-title {
-    margin-bottom: 10px;
-  }
 
   .champ-header-stepper {
     width: 85%;
