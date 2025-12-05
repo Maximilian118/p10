@@ -49,6 +49,7 @@ export interface ChampInput {
   profile_picture?: string
   rounds: RoundInput[]
   driverGroup: string
+  inviteOnly?: boolean
   maxCompetitors?: number
   pointsStructure: PointsStructureInput[]
   rulesAndRegs: RulesAndRegsInput
@@ -133,6 +134,7 @@ const champResolvers = {
         profile_picture,
         rounds,
         driverGroup,
+        inviteOnly,
         maxCompetitors,
         pointsStructure,
         rulesAndRegs,
@@ -219,6 +221,7 @@ const champResolvers = {
         protests: [],
         ruleChanges: [],
         settings: {
+          inviteOnly: inviteOnly || false,
           maxCompetitors: maxCompetitors || 24,
           inactiveCompetitors: false,
           protests: {

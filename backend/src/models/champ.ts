@@ -77,6 +77,7 @@ export interface champType {
   protests: ObjectId[] // Protest model
   ruleChanges: ObjectId[] // RuleChange model
   settings: {
+    inviteOnly: boolean // only allow users to join via invite from adjudicator
     maxCompetitors: number // max competitors for a series to have at once
     inactiveCompetitors: boolean // competitors that are inactive
     protests: {
@@ -300,6 +301,8 @@ const champSchema = new mongoose.Schema<champType>({
   protests: [{ type: mongoose.Schema.ObjectId, ref: "Protest" }], // Open protests for this champ.
   ruleChanges: [{ type: mongoose.Schema.ObjectId, ref: "RuleChange" }], // Open votes for rule/reg changes.
   settings: {
+    // Only allow users to join via invite from adjudicator.
+    inviteOnly: { type: Boolean, default: false },
     // Maximum competitors in this championship. Default 24.
     // First-come-first-serve betting - no more than 1 competitor per car per round.
     maxCompetitors: { type: Number, default: 24 },

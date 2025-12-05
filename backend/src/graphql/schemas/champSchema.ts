@@ -9,6 +9,7 @@ const champSchema = `
     rounds: [Round!]!
     standings: [Standing!]!
     adjudicator: Adjudicator!
+    settings: ChampSettings!
     created_at: String!
     updated_at: String!
     tokens: [String!]
@@ -57,12 +58,18 @@ const champSchema = `
     history: [AdjudicatorHistory!]!
   }
 
+  type ChampSettings {
+    inviteOnly: Boolean!
+    maxCompetitors: Int!
+  }
+
   input champInput {
     name: String!
     icon: String
     profile_picture: String
     rounds: [RoundInput!]!
     driverGroup: ID!
+    inviteOnly: Boolean
     maxCompetitors: Int
     pointsStructure: [PointsStructureInput!]!
     rulesAndRegs: RulesAndRegsInput!

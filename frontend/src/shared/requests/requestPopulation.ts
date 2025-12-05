@@ -190,6 +190,10 @@ export const populateChamp = `
       }
     }
   }
+  settings {
+    inviteOnly
+    maxCompetitors
+  }
   created_at
   updated_at
   tokens

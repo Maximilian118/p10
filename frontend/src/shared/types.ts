@@ -170,6 +170,7 @@ export interface champType {
   protests: protestType[] // Protest model
   ruleChanges: ruleChangeType[] // RuleChange model
   settings: {
+    inviteOnly: boolean
     maxCompetitors: number
     inactiveCompetitors: boolean
     protests: {
