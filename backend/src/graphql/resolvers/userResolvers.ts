@@ -74,6 +74,29 @@ const userResolvers = {
       throw err
     }
   },
+  // Fetches a user by ID with populated championships and badges.
+  getUserById: async ({ _id }: { _id: string }, req: AuthRequest): Promise<userType> => {
+    if (!req.isAuth) {
+      throwError("getUserById", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(_id)
+        .populate("championships")
+        .populate("badges.badge")
+        .exec()) as userTypeMongo
+
+      userErrors(user)
+
+      return {
+        ...user._doc,
+        tokens: req.tokens,
+        password: null,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
   forgot: async ({ email }: { email: string }): Promise<string> => {
     try {
       const user = (await User.findOne({ email })) as userTypeMongo

@@ -1,13 +1,13 @@
 import axios, { AxiosResponse } from "axios"
 import { createFormType } from "../../page/Create"
 import { userType, logInSuccess, logout } from "../localStorage"
-import { populateUser } from "./requestPopulation"
+import { populateUser, populateUserProfile } from "./requestPopulation"
 import { uplaodS3 } from "./bucketRequests"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
 import { NavigateFunction } from "react-router-dom"
 import { loginFormType } from "../../page/Login"
 import { forgotFormType } from "../../page/Forgot"
-import { formType } from "../types"
+import { formType, userProfileType } from "../types"
 import { passFormType } from "../../page/Password"
 
 export const createUser = async <U extends { dropzone: string }>(
@@ -414,6 +414,52 @@ export const updatePassword = async <T extends passFormType>(
       })
   } catch (err: unknown) {
     graphQLErrors("updatePassword", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
+// Fetches a user by ID with populated championships and badges.
+export const getUserById = async (
+  _id: string,
+  setUserProfile: React.Dispatch<React.SetStateAction<userProfileType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            query GetUserById($_id: ID!) {
+              getUserById(_id: $_id) {
+                ${populateUserProfile}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getUserById", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const userProfile = graphQLResponse("getUserById", res, user, setUser) as userProfileType
+          setUserProfile(userProfile)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getUserById", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getUserById", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)

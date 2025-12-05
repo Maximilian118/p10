@@ -19,6 +19,7 @@ const Schema = buildSchema(`
   type rootQuery {
     signS3(filename: String!): S3Payload!
     login(email: String!, password: String): User!
+    getUserById(_id: ID!): User!
     getBadgesByChamp(championship: String): Badges
     getDriverGroups: DriverGroups
     getDrivers: Drivers

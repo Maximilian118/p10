@@ -31,6 +31,18 @@ export const getPermLevel = (user: userType): string => {
   return "Competitor"
 }
 
+// Return a string reflecting the permissions level from a permissions object.
+export const getPermLevelFromPermissions = (permissions: { admin: boolean; adjudicator: boolean; guest: boolean }): string => {
+  const keys = Object.keys(permissions) as (keyof typeof permissions)[]
+  const res = keys.filter((key) => permissions[key] === true)
+
+  if (res.length > 0) {
+    return res[0]
+  }
+
+  return "Competitor"
+}
+
 // Make the window size inclusive of mobile browser ui.
 export const resizeOps = () => {
   document.documentElement.style.setProperty("--vh", window.innerHeight * 0.01 + "px")

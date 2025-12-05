@@ -23,6 +23,38 @@ export const populateUser = `
     guest
   }
 `
+
+// User profile population template (for viewing other users).
+export const populateUserProfile = `
+  _id
+  name
+  icon
+  profile_picture
+  championships {
+    _id
+    name
+    icon
+    profile_picture
+    season
+    created_at
+  }
+  badges {
+    _id
+    url
+    name
+    rarity
+    awardedHow
+    awardedDesc
+    created_at
+  }
+  permissions {
+    admin
+    adjudicator
+    guest
+  }
+  created_at
+  tokens
+`
 // Team population template literal.
 export const populateTeam = `
   _id

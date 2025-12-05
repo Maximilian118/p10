@@ -1,5 +1,21 @@
 import { userType } from "./localStorage"
 
+// Type for viewing another user's profile (populated data).
+export interface userProfileType {
+  _id: string
+  name: string
+  icon: string
+  profile_picture: string
+  championships: champType[]
+  badges: badgeType[]
+  permissions: {
+    admin: boolean
+    adjudicator: boolean
+    guest: boolean
+  }
+  created_at: string
+}
+
 export interface formType {
   icon: File | null
   profile_picture: File | null
