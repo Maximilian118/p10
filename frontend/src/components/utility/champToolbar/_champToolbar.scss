@@ -1,0 +1,16 @@
+@use '../../../scss/mixins';
+
+.champ-toolbar {
+  width: 100%;
+  @include mixins.flexbox-end;
+  padding: 20px;
+  box-sizing: border-box;
+  position: absolute;
+  bottom: 0;
+  z-index: 3;
+  pointer-events: none;
+
+  * {
+    pointer-events: all;
+  }
+}

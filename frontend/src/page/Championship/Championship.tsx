@@ -8,6 +8,7 @@ import { getChamp } from "../../shared/requests/champRequests"
 import ChampBanner from "../../components/cards/champBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
+import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -82,6 +83,7 @@ const Championship: React.FC = () => {
       ) : (
         <ChampBanner champ={champ} readOnly />
       )}
+      <ChampToolbar />
     </div>
   )
 }
