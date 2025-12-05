@@ -64,6 +64,40 @@ const generateEmptyResults = (rounds: RoundInput[]) => {
 }
 
 const champResolvers = {
+  // Fetches a championship by ID with all populated references.
+  getChampById: async (
+    { _id }: { _id: string },
+    req: AuthRequest,
+  ): Promise<champType> => {
+    if (!req.isAuth) {
+      throwError("getChampById", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+        .populate("standings.competitor")
+        .populate("adjudicator.current")
+        .populate("adjudicator.history.adjudicator")
+        .populate({
+          path: "driverGroup",
+          populate: { path: "drivers" }
+        })
+        .populate("champBadges")
+        .exec()
+
+      if (!champ) {
+        return throwError("getChampById", _id, "Championship not found!", 404)
+      }
+
+      return {
+        ...champ._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Returns all championships.
   getChamps: async (
     _args: Record<string, never>,
@@ -313,6 +347,59 @@ const champResolvers = {
       // Return the created championship with tokens
       return {
         ...newChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Updates championship profile picture (adjudicator only).
+  updateChampPP: async (
+    { _id, icon, profile_picture }: { _id: string; icon: string; profile_picture: string },
+    req: AuthRequest,
+  ): Promise<champType> => {
+    if (!req.isAuth) {
+      throwError("updateChampPP", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("updateChampPP", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is the adjudicator
+      if (champ.adjudicator.current.toString() !== req._id) {
+        return throwError("updateChampPP", req._id, "Only the adjudicator can update championship images!", 403)
+      }
+
+      // Update icon and profile_picture
+      champ.icon = icon
+      champ.profile_picture = profile_picture
+      champ.updated_at = moment().format()
+
+      await champ.save()
+
+      // Return populated championship
+      const populatedChamp = await Champ.findById(_id)
+        .populate("standings.competitor")
+        .populate("adjudicator.current")
+        .populate("adjudicator.history.adjudicator")
+        .populate({
+          path: "driverGroup",
+          populate: { path: "drivers" }
+        })
+        .populate("champBadges")
+        .exec()
+
+      if (!populatedChamp) {
+        return throwError("updateChampPP", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        ...populatedChamp._doc,
         tokens: req.tokens,
       }
     } catch (err) {

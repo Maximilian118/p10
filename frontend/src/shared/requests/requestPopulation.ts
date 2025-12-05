@@ -120,3 +120,77 @@ export const populateDriverGroup = `
   created_at
   updated_at
 `
+
+// Championship population template literal for single champ fetch.
+export const populateChamp = `
+  _id
+  name
+  icon
+  profile_picture
+  season
+  rounds {
+    round
+    completed
+    bets {
+      competitor
+      driver
+      timestamp
+    }
+  }
+  standings {
+    competitor {
+      _id
+      name
+      icon
+      profile_picture
+      permissions {
+        admin
+        adjudicator
+        guest
+      }
+      created_at
+    }
+    active
+    status
+    results {
+      round
+      points
+    }
+  }
+  adjudicator {
+    current {
+      _id
+      name
+      icon
+      profile_picture
+      permissions {
+        admin
+        adjudicator
+        guest
+      }
+      created_at
+    }
+    since
+    rounds {
+      season
+      round
+      timestamp
+    }
+    history {
+      adjudicator {
+        _id
+        name
+        icon
+      }
+      since
+      rounds {
+        season
+        round
+        timestamp
+      }
+    }
+  }
+  created_at
+  updated_at
+  tokens
+`

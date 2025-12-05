@@ -1,1 +1,8 @@
+@use '../../scss/mixins';
+
 // Championship detail page styles
+.championship-loading {
+  width: 100%;
+  height: 200px;
+  @include mixins.flexbox;
+}

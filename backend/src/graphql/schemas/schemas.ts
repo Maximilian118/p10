@@ -25,6 +25,7 @@ const Schema = buildSchema(`
     getDrivers: Drivers
     getTeams: Teams
     getChamps: Champs
+    getChampById(_id: ID!): Champ!
   }
 
   type rootMutation {
@@ -35,6 +36,7 @@ const Schema = buildSchema(`
     updateEmail(email: String!): User!
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
     createChamp(champInput: champInput): Champ!
+    updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!
     newDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!

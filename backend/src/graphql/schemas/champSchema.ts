@@ -45,13 +45,13 @@ const champSchema = `
   }
 
   type AdjudicatorHistory {
-    adjudicator: ID!
+    adjudicator: User!
     since: String!
     rounds: [AdjudicatorRound!]!
   }
 
   type Adjudicator {
-    current: ID!
+    current: User!
     since: String!
     rounds: [AdjudicatorRound!]!
     history: [AdjudicatorHistory!]!

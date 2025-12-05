@@ -2,9 +2,10 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { champType } from "../types"
+import { champType, formType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
+import { populateChamp } from "./requestPopulation"
 
 // Fetches all championships for the authenticated user.
 export const getChamps = async (
@@ -234,4 +235,122 @@ export const createChamp = async (
     setLoading(false)
     return null
   }
+}
+
+// Fetches a single championship by ID with full populated data.
+export const getChamp = async (
+  _id: string,
+  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            query GetChampById($_id: ID!) {
+              getChampById(_id: $_id) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getChampById", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const champ = graphQLResponse("getChampById", res, user, setUser) as champType
+          setChamp(champ)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getChampById", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getChampById", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
+// Updates championship profile picture (adjudicator only).
+export const updateChampPP = async <T extends formType>(
+  champId: string,
+  form: T,
+  setForm: React.Dispatch<React.SetStateAction<T>>,
+  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+  let iconURL = ""
+  let ppURL = ""
+
+  if (form.icon && form.profile_picture) {
+    iconURL = await uplaodS3(form.champName || "championship", "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
+    ppURL = await uplaodS3(form.champName || "championship", "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
+
+    if (!iconURL || !ppURL) {
+      setLoading(false)
+      return
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            icon: iconURL,
+            profile_picture: ppURL,
+          },
+          query: `
+            mutation UpdateChampPP($_id: ID!, $icon: String!, $profile_picture: String!) {
+              updateChampPP(_id: $_id, icon: $icon, profile_picture: $profile_picture) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateChampPP", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("updateChampPP", res, user, setUser) as champType
+          setChamp(updatedChamp)
+
+          setForm((prevForm) => {
+            return {
+              ...prevForm,
+              icon: null,
+              profile_picture: null,
+            }
+          })
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateChampPP", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateChampPP", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
 }
