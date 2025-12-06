@@ -9,7 +9,7 @@
   z-index: 5;
   padding: 18px 12px;
   box-sizing: border-box;
-  transition: variables.$trans-speed;
+  transition: bottom 0.3s ease-out;
   @include mixins.flexbox-space-between-column;
   border-top: 2px solid variables.$background;
 

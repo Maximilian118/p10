@@ -10,6 +10,7 @@ import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
+import ActionsDrawer from "../../components/utility/actionsDrawer/ActionsDrawer"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +27,7 @@ const Championship: React.FC = () => {
     dropzone: "",
   })
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
+  const [ actionsOpen, setActionsOpen ] = useState<boolean>(false)
 
   const navigate = useNavigate()
 
@@ -68,41 +70,47 @@ const Championship: React.FC = () => {
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
 
   return (
-    <div className="content-container">
-      {isAdjudicator ? (
-        <ChampBanner<formType, formErrType>
+    <>
+      <div className="content-container">
+        {isAdjudicator ? (
+          <ChampBanner<formType, formErrType>
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            form={form}
+            setForm={setForm}
+            formErr={formErr}
+            setFormErr={setFormErr}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+          />
+        ) : (
+          <ChampBanner champ={champ} readOnly />
+        )}
+        <div className="competitors-list">
+          {champ.standings.map((standing, i) => (
+            <CompetitorCard
+              key={standing.competitor._id || i}
+              competitor={standing.competitor}
+              highlight={justJoined && standing.competitor._id === user._id}
+            />
+          ))}
+        </div>
+        <ChampToolbar
           champ={champ}
           setChamp={setChamp}
           user={user}
           setUser={setUser}
-          form={form}
-          setForm={setForm}
-          formErr={formErr}
-          setFormErr={setFormErr}
-          backendErr={backendErr}
           setBackendErr={setBackendErr}
+          onJoinSuccess={() => setJustJoined(true)}
+          onActionsClick={() => setActionsOpen(true)}
         />
-      ) : (
-        <ChampBanner champ={champ} readOnly />
-      )}
-      <div className="competitors-list">
-        {champ.standings.map((standing, i) => (
-          <CompetitorCard
-            key={standing.competitor._id || i}
-            competitor={standing.competitor}
-            highlight={justJoined && standing.competitor._id === user._id}
-          />
-        ))}
       </div>
-      <ChampToolbar
-        champ={champ}
-        setChamp={setChamp}
-        user={user}
-        setUser={setUser}
-        setBackendErr={setBackendErr}
-        onJoinSuccess={() => setJustJoined(true)}
-      />
-    </div>
+      <ActionsDrawer open={actionsOpen} setOpen={setActionsOpen}>
+        <p>Actions drawer content goes here</p>
+      </ActionsDrawer>
+    </>
   )
 }
 
