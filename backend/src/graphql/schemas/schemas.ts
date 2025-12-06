@@ -37,6 +37,7 @@ const Schema = buildSchema(`
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
     createChamp(champInput: champInput): Champ!
     updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!
+    joinChamp(_id: ID!): Champ!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!
     newDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!

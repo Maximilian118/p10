@@ -36,4 +36,19 @@
   & + .competitor-card {
     margin-top: 2px;
   }
+
+  // Highlight animation for newly added competitors.
+  &.competitor-card-highlight {
+    animation: highlightFade 3s ease-out forwards;
+  }
+}
+
+// Keyframes for green to white fade animation.
+@keyframes highlightFade {
+  0% {
+    background: variables.$mui-success;
+  }
+  100% {
+    background: white;
+  }
 }

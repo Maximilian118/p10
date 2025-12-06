@@ -1,18 +1,27 @@
 import React from "react"
+import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
 import { Button } from "@mui/material"
 import { FilterList, GroupAdd, Lock, Block } from "@mui/icons-material"
 import { champType } from "../../../shared/types"
 import { userType } from "../../../shared/localStorage"
+import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
+import { joinChamp } from "../../../shared/requests/champRequests"
 
 interface champToolbarType {
   champ: champType
+  setChamp: React.Dispatch<React.SetStateAction<champType | null>>
   user: userType
+  setUser: React.Dispatch<React.SetStateAction<userType>>
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+  onJoinSuccess?: () => void
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, user, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, onJoinSuccess, style }) => {
+  const navigate = useNavigate()
+
   // Check if user is already a competitor in the championship.
   const isCompetitor = champ.standings.some(s => s.competitor._id === user._id)
 
@@ -46,8 +55,12 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, user, style }) => {
           variant="contained"
           size="small"
           className="champ-toolbar-join"
-          onClick={e => {
+          onClick={async e => {
             e.stopPropagation()
+            const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+            if (success && onJoinSuccess) {
+              onJoinSuccess()
+            }
           }}
           endIcon={<GroupAdd />}
         >

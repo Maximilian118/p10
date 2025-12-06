@@ -354,3 +354,49 @@ export const updateChampPP = async <T extends formType>(
 
   setLoading(false)
 }
+
+// Joins a championship as a competitor.
+export const joinChamp = async (
+  _id: string,
+  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            mutation JoinChamp($_id: ID!) {
+              joinChamp(_id: $_id) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("joinChamp", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("joinChamp", res, user, setUser) as champType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("joinChamp", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("joinChamp", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}

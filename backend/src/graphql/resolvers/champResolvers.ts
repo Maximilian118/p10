@@ -357,6 +357,90 @@ const champResolvers = {
     }
   },
 
+  // Allows a user to join a championship.
+  joinChamp: async (
+    { _id }: { _id: string },
+    req: AuthRequest,
+  ): Promise<champType> => {
+    if (!req.isAuth) {
+      throwError("joinChamp", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("joinChamp", _id, "Championship not found!", 404)
+      }
+
+      // Validate user exists
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Check if user is already a competitor
+      const isAlreadyCompetitor = champ.standings.some(
+        (s) => s.competitor.toString() === req._id
+      )
+      if (isAlreadyCompetitor) {
+        return throwError("joinChamp", req._id, "You are already a competitor in this championship!", 400)
+      }
+
+      // Check if championship is invite only
+      if (champ.settings.inviteOnly) {
+        return throwError("joinChamp", req._id, "This championship is invite only!", 403)
+      }
+
+      // Check if championship is full
+      if (champ.standings.length >= champ.settings.maxCompetitors) {
+        return throwError("joinChamp", req._id, "This championship is full!", 400)
+      }
+
+      // Generate empty results for all rounds
+      const emptyResults = champ.rounds.map((r) => ({
+        round: r.round,
+        points: 0,
+      }))
+
+      // Add user to standings
+      champ.standings.push({
+        competitor: user._id,
+        active: true,
+        status: "competitor",
+        results: emptyResults,
+      })
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Add championship to user's championships
+      user.championships.push(champ._id)
+      await user.save()
+
+      // Return populated championship
+      const populatedChamp = await Champ.findById(_id)
+        .populate("standings.competitor")
+        .populate("adjudicator.current")
+        .populate("adjudicator.history.adjudicator")
+        .populate({
+          path: "driverGroup",
+          populate: { path: "drivers" }
+        })
+        .populate("champBadges")
+        .exec()
+
+      if (!populatedChamp) {
+        return throwError("joinChamp", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Updates championship profile picture (adjudicator only).
   updateChampPP: async (
     { _id, icon, profile_picture }: { _id: string; icon: string; profile_picture: string },

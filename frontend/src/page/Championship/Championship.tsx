@@ -25,6 +25,7 @@ const Championship: React.FC = () => {
   const [ formErr, setFormErr ] = useState<formErrType>({
     dropzone: "",
   })
+  const [ justJoined, setJustJoined ] = useState<boolean>(false)
 
   const navigate = useNavigate()
 
@@ -86,10 +87,21 @@ const Championship: React.FC = () => {
       )}
       <div className="competitors-list">
         {champ.standings.map((standing, i) => (
-          <CompetitorCard key={standing.competitor._id || i} competitor={standing.competitor} />
+          <CompetitorCard
+            key={standing.competitor._id || i}
+            competitor={standing.competitor}
+            highlight={justJoined && standing.competitor._id === user._id}
+          />
         ))}
       </div>
-      <ChampToolbar champ={champ} user={user} />
+      <ChampToolbar
+        champ={champ}
+        setChamp={setChamp}
+        user={user}
+        setUser={setUser}
+        setBackendErr={setBackendErr}
+        onJoinSuccess={() => setJustJoined(true)}
+      />
     </div>
   )
 }
