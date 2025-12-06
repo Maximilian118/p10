@@ -7,17 +7,18 @@ import Fuse from "fuse.js"
 interface searchType<T> {
   original: T[] // Original array of objects. Likely the result of a request.
   setSearch: React.Dispatch<React.SetStateAction<T[]>> // State of the filtered search.
+  preserveOrder?: boolean // If true, preserve original order when query is empty instead of sorting alphabetically.
 }
 
-const Search = <T extends { name: string }>({ original, setSearch }: searchType<T>) => {
+const Search = <T extends { name: string }>({ original, setSearch, preserveOrder }: searchType<T>) => {
   const [ query, setQuery ] = useState("")
 
   // Debounced fuzzy search using Fuse.js.
   useEffect(() => {
     const handler = setTimeout(() => {
       if (query.trim() === "") {
-        // No query - return alphabetically sorted original array.
-        setSearch(sortAlphabetically(original))
+        // No query - return original array (sorted alphabetically unless preserveOrder is true).
+        setSearch(preserveOrder ? original : sortAlphabetically(original))
       } else {
         // Fuzzy search with Fuse.js.
         const fuse = new Fuse(original, {

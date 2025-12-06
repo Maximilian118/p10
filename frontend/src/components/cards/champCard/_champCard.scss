@@ -12,6 +12,7 @@
   padding: 5px 7.5%;
   box-sizing: border-box;
   overflow: hidden;
+  flex-shrink: 0;
 
   .main-icon-container {
     width: 60px;

@@ -41,6 +41,11 @@ export const getChamps = async (
                       icon
                     }
                   }
+                  adjudicator {
+                    current {
+                      _id
+                    }
+                  }
                 }
                 tokens
               }

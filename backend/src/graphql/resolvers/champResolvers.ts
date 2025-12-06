@@ -109,8 +109,11 @@ const champResolvers = {
     }
 
     try {
-      // Populate competitor data for standings to get user icons.
-      const champs = await Champ.find({}).populate("standings.competitor", "_id icon").exec()
+      // Populate competitor and adjudicator data.
+      const champs = await Champ.find({})
+        .populate("standings.competitor", "_id icon")
+        .populate("adjudicator.current", "_id")
+        .exec()
 
       return {
         array: champs,
