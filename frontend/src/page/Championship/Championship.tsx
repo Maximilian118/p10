@@ -9,6 +9,7 @@ import ChampBanner from "../../components/cards/champBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
+import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -83,6 +84,11 @@ const Championship: React.FC = () => {
       ) : (
         <ChampBanner champ={champ} readOnly />
       )}
+      <div className="competitors-list">
+        {champ.standings.map((standing, i) => (
+          <CompetitorCard key={standing.competitor._id || i} competitor={standing.competitor} />
+        ))}
+      </div>
       <ChampToolbar champ={champ} user={user} />
     </div>
   )
