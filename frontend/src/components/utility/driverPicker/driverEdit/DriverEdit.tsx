@@ -36,6 +36,7 @@ interface driverEditType<T> {
 export interface driverEditFormType {
   _id: string | null
   url: string
+  body: string
   driverName: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
   teams: teamType[]
@@ -47,10 +48,13 @@ export interface driverEditFormType {
   mullet: boolean
   icon: File | null
   profile_picture: File | null
+  bodyIcon: File | null
+  bodyPicture: File | null
 }
 
 export interface driverEditFormErrType {
   url: string
+  body: string
   driverName: string
   driverID: string
   teams: string
@@ -61,6 +65,7 @@ export interface driverEditFormErrType {
   moustache: string
   mullet: string
   dropzone: string
+  dropzoneBody: string
   [key: string]: string
 }
 
@@ -84,6 +89,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
   const [ editForm, setEditForm ] = useState<driverEditFormType>({
     _id: driver._id ? driver._id : null,
     url: driver.url ? driver.url : "",
+    body: driver.body ? driver.body : "",
     driverName: driver.name ? driver.name : "",
     driverID: driver.driverID ? driver.driverID : "",
     teams: driver.teams ? driver.teams : [], // All the teams the driver currently belongs to.
@@ -95,9 +101,12 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
     mullet: driver.stats.mullet ? driver.stats.mullet : false,
     icon: null,
     profile_picture: null,
+    bodyIcon: null,
+    bodyPicture: null,
   })
   const [ editFormErr, setEditFormErr ] = useState<driverEditFormErrType>({
     url: "",
+    body: "",
     driverName: "",
     driverID: "",
     teams: "",
@@ -108,6 +117,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
     moustache: "",
     mullet: "",
     dropzone: "",
+    dropzoneBody: "",
   })
 
   const navigate = useNavigate()
@@ -163,18 +173,38 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
     /> : (
     <div className="driver-edit" style={style}>
       <h4>{`${!driver.name ? `New` : `Edit`} Driver`}</h4>
-      <DropZone<driverEditFormType, driverEditFormErrType>
-        form={editForm}
-        setForm={setEditForm}
-        formErr={editFormErr}
-        setFormErr={setEditFormErr}
-        backendErr={backendErr}
-        setBackendErr={setBackendErr}
-        purposeText="Driver Image"
-        thumbImg={driver.url ? driver.url : false}
-        style={{ marginBottom: 40 }}
-        disabled={!canEditDriver(driver, user)}
-      />
+      <div className="driver-edit-dropzones">
+        <div className="driver-edit-dropzone-container">
+          <DropZone<driverEditFormType, driverEditFormErrType>
+            form={editForm}
+            setForm={setEditForm}
+            formErr={editFormErr}
+            setFormErr={setEditFormErr}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            purposeText="Driver Headshot"
+            thumbImg={driver.url ? driver.url : false}
+            disabled={!canEditDriver(driver, user)}
+          />
+        </div>
+        <div className="driver-edit-dropzone-container">
+          <DropZone<driverEditFormType, driverEditFormErrType>
+            form={editForm}
+            setForm={setEditForm}
+            formErr={editFormErr}
+            setFormErr={setEditFormErr}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            purposeText="Driver Full Body"
+            thumbImg={driver.body ? driver.body : false}
+            disabled={!canEditDriver(driver, user)}
+            optional
+            iconField="bodyIcon"
+            profilePictureField="bodyPicture"
+            dropzoneErrorField="dropzoneBody"
+          />
+        </div>
+      </div>
       <TextField
         name="driverName"
         inputProps={{ maxLength: 30 }}

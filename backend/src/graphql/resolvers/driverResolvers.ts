@@ -26,6 +26,7 @@ const driverResolvers = {
       const {
         created_by,
         url,
+        body,
         name,
         driverID,
         teams,
@@ -52,6 +53,7 @@ const driverResolvers = {
       const driver = new Driver({
         created_by,
         url,
+        body,
         name,
         driverID,
         teams,
@@ -147,6 +149,7 @@ const driverResolvers = {
       const {
         _id,
         url,
+        body,
         name,
         driverID,
         teams,
@@ -175,6 +178,10 @@ const driverResolvers = {
 
       if (driver.url !== url) {
         driver.url = url
+      }
+
+      if (driver.body !== body) {
+        driver.body = body
       }
 
       if (capitalise(driver.name) !== capitalise(name)) {

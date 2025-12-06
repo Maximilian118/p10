@@ -12,6 +12,7 @@ export const driverEditErrors = (
 ): boolean => {
   const errors: driverEditFormErrType = {
     url: "",
+    body: "",
     driverName: "",
     driverID: "",
     teams: "",
@@ -22,10 +23,11 @@ export const driverEditErrors = (
     moustache: "",
     mullet: "",
     dropzone: "",
+    dropzoneBody: "",
   }
 
   if (!editForm.icon && !update) {
-    errors.dropzone = "Please enter an image."
+    errors.dropzone = "Please enter a headshot image."
   }
 
   if (!editForm.driverName) {
@@ -100,6 +102,7 @@ export const driverDeleteErrors = (
 ): boolean => {
   const errors: driverEditFormErrType = {
     url: "",
+    body: "",
     driverName: "",
     driverID: "",
     teams: "",
@@ -110,6 +113,7 @@ export const driverDeleteErrors = (
     moustache: "",
     mullet: "",
     dropzone: "",
+    dropzoneBody: "",
   }
 
   if (driver.teams.length > 0) {

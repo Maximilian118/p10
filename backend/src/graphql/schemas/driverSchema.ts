@@ -11,6 +11,7 @@ const driverSchema = `
   type Driver {
     _id: ID!
     url: String!
+    body: String
     name: String!
     driverID: String!
     teams: [Team]
@@ -31,6 +32,7 @@ const driverSchema = `
     _id: ID
     created_by: ID
     url: String
+    body: String
     name: String!
     driverID: String!
     teams: [ID!]

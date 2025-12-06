@@ -15,6 +15,7 @@ export const initDriver = (user: userType): driverType => {
   return {
     created_by: user._id,
     url: "",
+    body: "",
     name: "",
     driverID: "",
     teams: [],

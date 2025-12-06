@@ -23,7 +23,7 @@ export const compressImage = async (file: File, fileSize: number): Promise<File>
 }
 
 // An array of strings to indicate wheather backendErrs are applicable to dropZone.
-export const errTypes = ["icon", "profile_picture", "signS3", "putS3", "Unknown", "badge", "dropzone"]
+export const errTypes = ["icon", "profile_picture", "signS3", "putS3", "Unknown", "badge", "dropzone", "dropzoneBody", "body"]
 
 // Determine if error class should be applied.
 export const displayError = (

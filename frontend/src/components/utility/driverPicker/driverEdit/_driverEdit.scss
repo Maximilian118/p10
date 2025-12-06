@@ -16,9 +16,26 @@
     text-align: left;
   }
 
-  .dropzone {
-    width: 60%;
-    margin-bottom: 60px !important;
+  .driver-edit-dropzones {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 20px;
+    margin-bottom: 40px;
+
+    .driver-edit-dropzone-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .dropzone {
+        width: 100%;
+        margin-bottom: 0 !important;
+      }
+    }
   }
 
   .driver-edit-stats {
@@ -32,11 +49,11 @@
   }
 
   .driver-edit-checkboxes {
-    @include mixins.flexbox-start-column;
+    @include mixins.flexbox-space-between;
+    gap: 20px;
 
     > * {
       @include mixins.flexbox-start;
-      width: 130px;
     }
   }
 }

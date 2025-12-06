@@ -20,12 +20,24 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 ): Promise<boolean> => {
   setLoading(true)
   let iconURL = ""
+  let bodyURL = ""
   let success = false
 
+  // Upload headshot image to S3.
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+    iconURL = await uplaodS3(editForm.driverName, "headshot", editForm.icon, setBackendErr) // prettier-ignore
 
     if (!iconURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  // Upload body image to S3.
+  if (editForm.bodyIcon) {
+    bodyURL = await uplaodS3(editForm.driverName, "body", editForm.bodyIcon, setBackendErr) // prettier-ignore
+
+    if (!bodyURL) {
       setLoading(false)
       return false
     }
@@ -39,6 +51,7 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
           variables: {
             created_by: user._id,
             url: iconURL,
+            body: bodyURL,
             name: capitalise(editForm.driverName),
             driverID: editForm.driverID,
             teams: editForm.teams.map((team) => team._id),
@@ -51,8 +64,9 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
           },
           query: `
             mutation NewDriver(
-              $created_by: ID!, 
-              $url: String!, 
+              $created_by: ID!,
+              $url: String!,
+              $body: String,
               $name: String!,
               $driverID: String!,
               $teams: [ID!],
@@ -64,9 +78,10 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
               $mullet: Boolean!,
             ) {
               newDriver(
-                driverInput: { 
-                  created_by: $created_by, 
-                  url: $url, 
+                driverInput: {
+                  created_by: $created_by,
+                  url: $url,
+                  body: $body,
                   name: $name,
                   driverID: $driverID,
                   teams: $teams,
@@ -125,10 +140,12 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
 ): Promise<boolean> => {
   setLoading && setLoading(true)
   let iconURL = ""
+  let bodyURL = ""
   let success = false
 
+  // Upload new headshot image to S3 if changed.
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    iconURL = await uplaodS3(editForm.driverName, "headshot", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!iconURL) {
       setLoading && setLoading(false)
@@ -136,8 +153,19 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
     }
   }
 
+  // Upload new body image to S3 if changed.
+  if (editForm.bodyIcon) {
+    bodyURL = await uplaodS3(editForm.driverName, "body", editForm.bodyIcon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+
+    if (!bodyURL) {
+      setLoading && setLoading(false)
+      return false
+    }
+  }
+
   const updatedDriver = {
     url: iconURL ? iconURL : driver.url,
+    body: bodyURL ? bodyURL : driver.body,
     name: editForm.driverName,
     nationality: editForm.nationality!.label,
     heightCM: onlyNumbers(editForm.heightCM!),
@@ -159,6 +187,7 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
             mutation UpdateDriver(
               $_id: ID,
               $url: String,
+              $body: String,
               $name: String!,
               $driverID: String!,
               $teams: [ID!],
@@ -170,9 +199,10 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
               $mullet: Boolean!,
             ) {
               updateDriver(
-                driverInput: { 
+                driverInput: {
                   _id: $_id,
                   url: $url,
+                  body: $body,
                   name: $name,
                   driverID: $driverID,
                   teams: $teams,

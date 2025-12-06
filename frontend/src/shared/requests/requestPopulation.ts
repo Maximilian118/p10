@@ -80,6 +80,7 @@ export const populateTeam = `
 export const populateDriver = `
   _id
   url
+  body
   name
   driverID
   teams {

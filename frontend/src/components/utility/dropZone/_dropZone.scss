@@ -31,6 +31,19 @@
       text-align: center;
     }
 
+    .dropzone-prompt {
+      @include mixins.flexbox-column;
+      width: 90%;
+
+      p {
+        width: 100%;
+      }
+
+      .dropzone-optional {
+        margin-top: 6px;
+      }
+    }
+
     img {
       width: 100%;
       height: 100%;

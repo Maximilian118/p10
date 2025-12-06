@@ -20,6 +20,10 @@ interface dropZoneType<T, U> {
   zoom?: number
   thumbImg?: string | false
   disabled?: boolean
+  optional?: boolean // Shows "(Optional)" text below the main prompt.
+  iconField?: string // Custom field name for icon (defaults to 'icon').
+  profilePictureField?: string // Custom field name for profile_picture (defaults to 'profile_picture').
+  dropzoneErrorField?: string // Custom field name for dropzone error (defaults to 'dropzone').
 }
 
 interface compressedImagesType {
@@ -27,19 +31,23 @@ interface compressedImagesType {
   profile_picture: File
 }
 
-const DropZone = <T extends formType, U extends formErrType>({ 
-  form, 
-  setForm, 
+const DropZone = <T extends formType, U extends formErrType>({
+  form,
+  setForm,
   formErr,
-  setFormErr, 
-  backendErr, 
-  setBackendErr, 
-  user, 
-  style, 
-  purposeText, 
-  zoom, 
+  setFormErr,
+  backendErr,
+  setBackendErr,
+  user,
+  style,
+  purposeText,
+  zoom,
   thumbImg,
   disabled,
+  optional,
+  iconField = 'icon',
+  profilePictureField = 'profile_picture',
+  dropzoneErrorField = 'dropzone',
 }: dropZoneType<T, U>) => {
   const [ thumb, setThumb ] = useState<string>("")
   const [ error, setError ] = useState<string>("")
@@ -53,12 +61,13 @@ const DropZone = <T extends formType, U extends formErrType>({
       setThumb(user.profile_picture)
     }
 
-    if (form.profile_picture) {
-      setThumb(URL.createObjectURL(form.profile_picture))
+    const profilePicture = form[profilePictureField as keyof T] as File | null
+    if (profilePicture) {
+      setThumb(URL.createObjectURL(profilePicture))
     } else if (thumbImg) {
       setThumb(thumbImg)
     }
-  }, [form.profile_picture, user, thumbImg])
+  }, [form, profilePictureField, user, thumbImg])
 
   // Determine if the window has drag and drop capabilities.
   const canDragDrop = (): boolean => {
@@ -88,7 +97,8 @@ const DropZone = <T extends formType, U extends formErrType>({
   // Then, setThumb with a url string for the thumbnail.
   // Then, setForm with compressed Files.
   useEffect(() => {
-    if (myFiles.length > 0 && fileRejections.length === 0 && myFiles[0].name !== form.icon?.name) {
+    const iconFile = form[iconField as keyof T] as File | null
+    if (myFiles.length > 0 && fileRejections.length === 0 && myFiles[0].name !== iconFile?.name) {
       setLoading(true)
       // If files have been accepted, remove any backend errors.
       if (backendErr && setBackendErr && hasBackendErr(errTypes, backendErr)) {
@@ -105,7 +115,7 @@ const DropZone = <T extends formType, U extends formErrType>({
         setError: React.Dispatch<React.SetStateAction<string>>,
         setFormErr?: React.Dispatch<React.SetStateAction<U>>,
       ): Promise<void> => {
-        const compressImages = async (file: File): Promise<compressedImagesType> => {
+        const compressImages = async (file: File): Promise<{ icon: File; profile_picture: File }> => {
           // Skip compression for files 200KB or smaller.
           if (file.size <= 200000) {
             return {
@@ -128,13 +138,14 @@ const DropZone = <T extends formType, U extends formErrType>({
         setFormErr && setFormErr((prevFormErr): U => {
           return {
             ...prevFormErr,
-            dropzone: "",
+            [dropzoneErrorField]: "",
           }
         })
         setForm(prevForm => {
           return {
             ...prevForm,
-            ...compressedImages,
+            [iconField]: compressedImages.icon,
+            [profilePictureField]: compressedImages.profile_picture,
           }
         })
 
@@ -151,20 +162,22 @@ const DropZone = <T extends formType, U extends formErrType>({
       setFormErr && setFormErr((prevFormErr): U => {
         return {
           ...prevFormErr,
-          dropzone: err,
+          [dropzoneErrorField]: err,
         }
       })
 
       setLoading(false)
     }
-  }, [form.icon?.name, myFiles, fileRejections, setForm, setFormErr, backendErr, setBackendErr])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, iconField, myFiles, fileRejections, setForm, setFormErr, backendErr, setBackendErr, dropzoneErrorField, profilePictureField])
 
   // If formErr is passed, display the dropzone error if there is one.
   useEffect(() => {
-    if (formErr?.dropzone) {
-      setError(formErr.dropzone)
+    const dropzoneError = formErr?.[dropzoneErrorField as keyof U] as string | undefined
+    if (dropzoneError) {
+      setError(dropzoneError)
     }
-  }, [formErr?.dropzone])
+  }, [formErr, dropzoneErrorField])
 
   const dropZoneContent = (
     canDragDrop: () => boolean,
@@ -189,7 +202,12 @@ const DropZone = <T extends formType, U extends formErrType>({
       return dropZoneThumb(thumb, imgErr, setImgErr, user, zoom)
     }
 
-    return <p>{`${canDragDrop() ? `Drag and drop` : `Select`} a ${purposeText ? purposeText : "Profile Picture"}...`}</p>
+    return (
+      <div className="dropzone-prompt">
+        <p>{`${canDragDrop() ? `Drag and drop` : `Select`} a ${purposeText ? purposeText : "Profile Picture"}...`}</p>
+        {optional && <p className="dropzone-optional">(Optional)</p>}
+      </div>
+    )
   }
 
   return (
