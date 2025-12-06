@@ -1,0 +1,62 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+// Container wraps nav and drawer, ensures full width and sticky positioning.
+.nav-container {
+  width: 100%;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  nav {
+    .nav-left {
+      padding-left: 10px;
+    }
+
+    .nav-icon {
+      color: variables.$colour-4;
+      transition: variables.$trans-speed;
+
+      &:hover {
+        color: variables.$colour-9;
+      }
+    }
+
+    .nav-icon-active {
+      color: variables.$colour-9;
+    }
+  }
+
+  // Drawer that slides down from beneath the nav.
+  .nav-drawer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease-out;
+    z-index: 99;
+
+    .nav-drawer-item {
+      padding: 15px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid #f5f5f5;
+
+      &:hover {
+        background: variables.$colour-1;
+      }
+    }
+
+    .nav-drawer-item-active {
+      color: black;
+    }
+  }
+
+  .nav-drawer-open {
+    max-height: 300px;
+    transition: max-height 0.3s ease-in;
+  }
+}
