@@ -14,8 +14,8 @@ interface navType {
 const menuItems = [
   { text: "Championships", url: "/championships" },
   { text: "Driver Groups", url: "/driver-groups" },
-  { text: "Drivers", url: "/drivers" },
   { text: "Teams", url: "/teams" },
+  { text: "Drivers", url: "/drivers" },
 ]
 
 const Nav: React.FC<navType> = ({ user }) => {

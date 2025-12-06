@@ -8,7 +8,7 @@ import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsU
 import { getDriverGroups } from "../shared/requests/driverGroupRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
-import DriverGroupCard from "../components/cards/driverGroupCard/DriverGroupCard"
+import DriverGroupListCard from "../components/cards/driverGroupListCard/DriverGroupListCard"
 
 const DriverGroups: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -41,7 +41,7 @@ const DriverGroups: React.FC = () => {
 
     return (
       search.map((group, i) => (
-        <DriverGroupCard
+        <DriverGroupListCard
           key={i}
           group={group}
           onClick={() => navigate(`/driver-group/${group._id}`)}

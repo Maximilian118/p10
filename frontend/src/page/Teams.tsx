@@ -8,7 +8,7 @@ import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsU
 import { getTeams } from "../shared/requests/teamRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
-import TeamCard from "../components/cards/teamCard/TeamCard"
+import TeamListCard from "../components/cards/teamListCard/TeamListCard"
 
 const Teams: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -41,7 +41,7 @@ const Teams: React.FC = () => {
 
     return (
       search.map((team, i) => (
-        <TeamCard
+        <TeamListCard
           key={i}
           team={team}
           onClick={() => navigate(`/team/${team._id}`)}

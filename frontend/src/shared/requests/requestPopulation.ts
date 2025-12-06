@@ -55,7 +55,7 @@ export const populateUserProfile = `
   created_at
   tokens
 `
-// Team population template literal.
+// Team population template literal (lean version for nested use).
 export const populateTeam = `
   _id
   url
@@ -65,6 +65,30 @@ export const populateTeam = `
   }
   drivers {
     _id
+  }
+  stats {
+    inceptionDate
+    nationality
+  }
+  created_by {
+    ${populateUser}
+  }
+  created_at
+  updated_at
+`
+
+// Team population for Teams list page (includes driver details for icons).
+export const populateTeamList = `
+  _id
+  url
+  name
+  driverGroups {
+    _id
+  }
+  drivers {
+    _id
+    url
+    name
   }
   stats {
     inceptionDate

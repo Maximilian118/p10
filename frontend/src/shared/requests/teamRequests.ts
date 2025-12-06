@@ -6,7 +6,7 @@ import { NavigateFunction } from "react-router-dom"
 import { teamEditFormType } from "../../components/utility/teamPicker/teamEdit/TeamEdit"
 import { uplaodS3 } from "./bucketRequests"
 import moment from "moment"
-import { populateTeam } from "./requestPopulation"
+import { populateTeam, populateTeamList } from "./requestPopulation"
 import { capitalise } from "../utility"
 
 export const newTeam = async <T extends { teams: teamType[] }>(
@@ -185,7 +185,7 @@ export const getTeams = async (
             query {
               getTeams {
                 array {
-                  ${populateTeam}
+                  ${populateTeamList}
                 }
                 tokens
               }

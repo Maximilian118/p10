@@ -8,7 +8,7 @@ import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsU
 import { getDrivers } from "../shared/requests/driverRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
-import DriverCard from "../components/cards/driverCard/DriverCard"
+import DriverListCard from "../components/cards/driverListCard/DriverListCard"
 
 const Drivers: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -41,7 +41,7 @@ const Drivers: React.FC = () => {
 
     return (
       search.map((driver, i) => (
-        <DriverCard
+        <DriverListCard
           key={i}
           driver={driver}
           onClick={() => navigate(`/driver/${driver._id}`)}
