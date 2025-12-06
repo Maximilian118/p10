@@ -73,10 +73,11 @@ const DropZone = <T extends formType, U extends formErrType>({
   }, [myFiles])
 
   // Init DropZone with the necessary arguments.
-  const { fileRejections, getRootProps, getInputProps, isDragActive } = useDropzone({ 
+  const { fileRejections, getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { // Only allow these file types.
       'image/jpeg': [],
       'image/png': [],
+      'image/avif': [],
     },
     multiple: false, // Only 1 file.
     maxSize: 10000000, // Maximum file size = 10mb.
@@ -105,6 +106,14 @@ const DropZone = <T extends formType, U extends formErrType>({
         setFormErr?: React.Dispatch<React.SetStateAction<U>>,
       ): Promise<void> => {
         const compressImages = async (file: File): Promise<compressedImagesType> => {
+          // Skip compression for files 200KB or smaller.
+          if (file.size <= 200000) {
+            return {
+              icon: file,
+              profile_picture: file,
+            }
+          }
+
           return {
             icon: await compressImage(file, 0.1),
             profile_picture: await compressImage(file, 1),
