@@ -7,6 +7,11 @@
   flex-shrink: 0;
   background: white;
 
+  // Only grow to fill space when showing the loading spinner.
+  &:has(.badge-picker-loading) {
+    flex-grow: 1;
+  }
+
   .badge-list-container, .badge-list-empty, .badge-picker-loading {
     width: 100%;
     @include mixins.flexbox-start;
@@ -29,6 +34,8 @@
 
   .badge-picker-loading {
     justify-content: center;
+    align-items: center;
+    flex-grow: 1;
   }
 
   .badge-list-error {

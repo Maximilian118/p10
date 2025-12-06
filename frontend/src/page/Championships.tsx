@@ -74,13 +74,15 @@ const Championships: React.FC = () => {
   }
 
   return (
-    <div className="content-container">
+    <div className="content-container champs-container">
       <Search
         original={sortedChamps}
         setSearch={setSearch}
         preserveOrder
       />
-      {renderChampsList()}
+      <div className="champs-list">
+        {renderChampsList()}
+      </div>
       <AddButton
         onClick={() => navigate("/create-championship")}
         absolute

@@ -4,6 +4,10 @@
   width: 100%;
   background: white;
   margin-bottom: 2px !important;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
 
   .MuiFormLabel-root {
     color: variables.$colour-4;
