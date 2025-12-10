@@ -47,8 +47,8 @@ export const formatError = (error: string): string => {
   switch (error) {
     case "File is larger than 10000000 bytes":
       return "File size is too big! 10 megabytes maximum."
-    case "File type must be image/jpeg,image/png,image/avif":
-      return "The file type must be a jpeg, png, or avif."
+    case "File type must be image/jpeg,image/png,image/avif,image/webp":
+      return "The file type must be a jpeg, png, avif, or webp."
     case "Too many files":
       return "Woah there! Only one file buster."
     default:

@@ -87,6 +87,7 @@ const DropZone = <T extends formType, U extends formErrType>({
       'image/jpeg': [],
       'image/png': [],
       'image/avif': [],
+      'image/webp': [],
     },
     multiple: false, // Only 1 file.
     maxSize: 10000000, // Maximum file size = 10mb.
