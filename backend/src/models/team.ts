@@ -26,6 +26,7 @@ export interface teamInputType {
   name: string
   nationality: string
   inceptionDate: string
+  drivers?: ObjectId[]
 }
 
 const teamSchema = new mongoose.Schema<teamType>({

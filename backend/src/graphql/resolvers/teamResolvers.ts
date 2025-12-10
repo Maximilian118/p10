@@ -10,6 +10,7 @@ import {
   falsyValErrors,
 } from "./resolverErrors"
 import { teamPopulation } from "../../shared/population"
+import { syncTeamDrivers, updateDrivers } from "./resolverUtility"
 
 const teamResolvers = {
   newTeam: async (args: { teamInput: teamInputType }, req: AuthRequest): Promise<teamType> => {
@@ -18,7 +19,7 @@ const teamResolvers = {
     }
 
     try {
-      const { created_by, url, name, nationality, inceptionDate } = args.teamInput
+      const { created_by, url, name, nationality, inceptionDate, drivers } = args.teamInput
       // Check for errors.
       imageErrors(url)
       await createdByErrors(req._id, created_by)
@@ -35,8 +36,15 @@ const teamResolvers = {
         },
       })
 
-      // Save the new user to the DB.
+      // Save the new team to the DB.
       await team.save()
+
+      // If drivers were provided, add this team to each driver and update team's drivers array.
+      if (drivers && drivers.length > 0) {
+        await updateDrivers(drivers, team._id)
+        team.drivers = drivers
+        await team.save()
+      }
 
       // Return the new team with tokens.
       return {
@@ -110,7 +118,7 @@ const teamResolvers = {
       throwError("getTeams", req.isAuth, "Not Authenticated!", 401)
     }
     try {
-      const { _id, url, name, nationality, inceptionDate } = args.teamInput
+      const { _id, url, name, nationality, inceptionDate, drivers } = args.teamInput
       // Check for errors
       imageErrors(url)
       falsyValErrors({
@@ -142,6 +150,14 @@ const teamResolvers = {
 
       if (team.stats.inceptionDate !== inceptionDate) {
         team.stats.inceptionDate = inceptionDate
+      }
+
+      // Sync driver-team relationships if drivers array was provided.
+      if (drivers) {
+        const oldDriverIds = team.drivers || []
+        const newDriverIds = drivers
+        await syncTeamDrivers(team._id, oldDriverIds, newDriverIds)
+        team.drivers = newDriverIds
       }
 
       team.updated_at = moment().format()

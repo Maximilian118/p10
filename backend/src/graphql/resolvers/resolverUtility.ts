@@ -95,3 +95,42 @@ export const syncDriverTeams = async (
     }
   }
 }
+
+// Sync team-driver relationship bidirectionally when drivers change.
+// Removes team from old drivers and adds to new drivers.
+export const syncTeamDrivers = async (
+  teamId: ObjectId,
+  oldDriverIds: ObjectId[],
+  newDriverIds: ObjectId[],
+): Promise<void> => {
+  const oldSet = new Set(oldDriverIds.map((id) => id.toString()))
+  const newSet = new Set(newDriverIds.map((id) => id.toString()))
+
+  // Find drivers to remove team from (in old but not in new).
+  const driversToRemoveFrom = oldDriverIds.filter((id) => !newSet.has(id.toString()))
+
+  // Find drivers to add team to (in new but not in old).
+  const driversToAddTo = newDriverIds.filter((id) => !oldSet.has(id.toString()))
+
+  // Remove team from old drivers.
+  for (const driverId of driversToRemoveFrom) {
+    const driver = await Driver.findById(driverId)
+    if (driver) {
+      driver.teams = driver.teams.filter((t) => t.toString() !== teamId.toString())
+      driver.updated_at = moment().format()
+      await driver.save()
+    }
+  }
+
+  // Add team to new drivers.
+  for (const driverId of driversToAddTo) {
+    const driver = await Driver.findById(driverId)
+    if (driver) {
+      if (!driver.teams.some((t) => t.toString() === teamId.toString())) {
+        driver.teams.push(teamId)
+        driver.updated_at = moment().format()
+        await driver.save()
+      }
+    }
+  }
+}

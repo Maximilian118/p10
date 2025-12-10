@@ -7,7 +7,7 @@ import { inputLabel, updateForm } from "../../../../shared/formValidation"
 import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
 import DriverEdit from '../../driverPicker/driverEdit/DriverEdit'
 import { userType } from "../../../../shared/localStorage"
-import DriverPicker from "../../driverPicker/DriverPicker"
+import DriverPickerChampForm from "../../driverPicker/DriverPickerChampForm"
 import { initDriver, initSeries } from "../../../../shared/init"
 import { deleteSeries, newSeries, updateSeries } from "../../../../shared/requests/seriesRequests"
 import { useNavigate } from "react-router-dom"
@@ -154,7 +154,7 @@ const SeriesEdit = <T extends { series: seriesType | null }>({
         error={editFormErr.seriesName || backendErr.type === "seriesName" ? true : false}
         disabled={!canEditSeries(series, user)}
       />
-      <DriverPicker
+      <DriverPickerChampForm
         user={user}
         setUser={setUser}
         setForm={setForm}

@@ -8,11 +8,9 @@ import { createSeries, editSeries, removeSeries } from "../../shared/requests/se
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import { initDriver } from "../../shared/init"
-import { createdByID, sortAlphabetically } from "../../shared/utility"
+import { createdByID } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
-import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocomplete"
-import DriverCard from "../../components/cards/driverCard/DriverCard"
-import AddButton from "../../components/utility/button/addButton/AddButton"
+import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import DriverEdit from "../../components/utility/driverPicker/driverEdit/DriverEdit"
 import "./_createSeries.scss"
 
@@ -274,36 +272,21 @@ const CreateSeries: React.FC = () => {
         error={formErr.seriesName || backendErr.type === "seriesName" ? true : false}
         disabled={!permissions}
       />
-      <div className="driver-picker">
-        <MUIAutocomplete
-          label={inputLabel("drivers", formErr, backendErr)}
-          displayNew="always"
-          customNewLabel="Driver"
-          onNewMouseDown={() => openNewDriverEdit()}
-          options={drivers.filter(d => !form.drivers.some(fd => fd._id === d._id))}
-          value={value ? value.name : null}
-          loading={driversLoading}
-          error={formErr.drivers || backendErr.type === "drivers" ? true : false}
-          setObjValue={(value) => setValue(value)}
-          onLiClick={(value) => addDriverHandler(value)}
-          onChange={() => setFormErr(prevErrs => ({ ...prevErrs, drivers: "" }))}
-        />
-        <div className="driver-picker-list">
-          {sortAlphabetically(form.drivers).map((driver: driverType, i: number) => (
-            <DriverCard
-              key={i}
-              driver={driver}
-              onRemove={(driver) => removeDriverHandler(driver)}
-              canRemove={!!permissions}
-              onClick={() => openEditDriver(driver)}
-            />
-          ))}
-        </div>
-        <AddButton
-          onClick={() => openNewDriverEdit()}
-          absolute
-        />
-      </div>
+      <DriverPicker
+        drivers={drivers}
+        selectedDrivers={form.drivers}
+        value={value}
+        setValue={setValue}
+        loading={driversLoading}
+        label={inputLabel("drivers", formErr, backendErr)}
+        error={!!formErr.drivers || backendErr.type === "drivers"}
+        disabled={!permissions}
+        onAdd={addDriverHandler}
+        onRemove={removeDriverHandler}
+        onEdit={openEditDriver}
+        onNew={openNewDriverEdit}
+        onChange={() => setFormErr(prev => ({ ...prev, drivers: "" }))}
+      />
       <div className="button-bar">
         <Button
           variant="contained"

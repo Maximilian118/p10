@@ -29,6 +29,7 @@ const teamSchema = `
     name: String!
     nationality: String!
     inceptionDate: String!
+    drivers: [ID!]
   }
 `
 export default teamSchema

@@ -3,15 +3,19 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { Button, CircularProgress, TextField } from "@mui/material"
 import moment, { Moment } from "moment"
 import AppContext from "../../context"
-import { teamType } from "../../shared/types"
+import { teamType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import { createdByID } from "../../shared/utility"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createTeam, editTeam, removeTeam } from "../../shared/requests/teamRequests"
+import { getDrivers } from "../../shared/requests/driverRequests"
+import { initDriver } from "../../shared/init"
 import DropZone from "../../components/utility/dropZone/DropZone"
 import MUICountrySelect, { countryType, findCountryByString } from "../../components/utility/muiCountrySelect/MUICountrySelect"
 import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
+import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
+import DriverEdit from "../../components/utility/driverPicker/driverEdit/DriverEdit"
 import "./_createTeam.scss"
 
 export interface createTeamFormType {
@@ -19,6 +23,7 @@ export interface createTeamFormType {
   teamName: string
   inceptionDate: Moment | null
   nationality: countryType | null
+  drivers: driverType[]
   icon: File | string | null
   profile_picture: File | string | null
 }
@@ -27,6 +32,7 @@ export interface createTeamFormErrType {
   teamName: string
   inceptionDate: string
   nationality: string
+  drivers: string
   dropzone: string
   [key: string]: string
 }
@@ -43,14 +49,24 @@ const CreateTeam: React.FC = () => {
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
   const [ , setTeamsLoading ] = useState<boolean>(false)
+  const [ driversLoading, setDriversLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ teams, setTeams ] = useState<teamType[]>([])
-  const [ reqSent, setReqSent ] = useState<boolean>(false)
+  const [ drivers, setDrivers ] = useState<driverType[]>([])
+  const [ driverValue, setDriverValue ] = useState<driverType | null>(null)
+  const [ teamsReqSent, setTeamsReqSent ] = useState<boolean>(false)
+  const [ driversReqSent, setDriversReqSent ] = useState<boolean>(false)
+
+  // State for inline DriverEdit component.
+  const [ isDriverEdit, setIsDriverEdit ] = useState<boolean>(false)
+  const [ driverToEdit, setDriverToEdit ] = useState<driverType>(initDriver(user))
+
   const [ form, setForm ] = useState<createTeamFormType>({
     _id: editingTeam?._id || null,
     teamName: editingTeam?.name || "",
     inceptionDate: editingTeam?.stats.inceptionDate ? moment(editingTeam.stats.inceptionDate) : null,
     nationality: editingTeam?.stats.nationality ? findCountryByString(editingTeam.stats.nationality) : null,
+    drivers: editingTeam?.drivers || [],
     icon: null,
     profile_picture: null,
   })
@@ -58,16 +74,25 @@ const CreateTeam: React.FC = () => {
     teamName: "",
     inceptionDate: "",
     nationality: "",
+    drivers: "",
     dropzone: "",
   })
 
   // Fetch all teams for duplicate checking.
   useEffect(() => {
-    if (teams.length === 0 && !reqSent) {
+    if (teams.length === 0 && !teamsReqSent) {
       getTeams(setTeams, user, setUser, navigate, setTeamsLoading, setBackendErr)
-      setReqSent(true)
+      setTeamsReqSent(true)
     }
-  }, [teams, reqSent, user, setUser, navigate])
+  }, [teams, teamsReqSent, user, setUser, navigate])
+
+  // Fetch all drivers for driver picker.
+  useEffect(() => {
+    if (drivers.length === 0 && !driversReqSent) {
+      getDrivers(setDrivers, user, setUser, navigate, setDriversLoading, setBackendErr)
+      setDriversReqSent(true)
+    }
+  }, [drivers, driversReqSent, user, setUser, navigate])
 
   // Determine user's edit permissions.
   const canEdit = (): "delete" | "edit" | "" => {
@@ -85,12 +110,48 @@ const CreateTeam: React.FC = () => {
   const hasFormChanged = (): boolean => {
     if (!editingTeam) return true
 
+    // Check if drivers array has changed.
+    const driversMatch =
+      editingTeam.drivers.length === form.drivers.length &&
+      editingTeam.drivers.every(d => form.drivers.some(fd => fd._id === d._id))
+
     return (
       !!form.icon ||
       editingTeam.name !== form.teamName ||
       editingTeam.stats.nationality !== form.nationality?.label ||
-      !moment(editingTeam.stats.inceptionDate).isSame(form.inceptionDate, "day")
+      !moment(editingTeam.stats.inceptionDate).isSame(form.inceptionDate, "day") ||
+      !driversMatch
     )
+  }
+
+  // Add a driver to the team.
+  const addDriverHandler = (driver: driverType) => {
+    setForm(prevForm => ({
+      ...prevForm,
+      drivers: [driver, ...prevForm.drivers],
+    }))
+    setDriverValue(null)
+    setFormErr(prevErrs => ({ ...prevErrs, drivers: "" }))
+  }
+
+  // Remove a driver from the team.
+  const removeDriverHandler = (driver: driverType) => {
+    setForm(prevForm => ({
+      ...prevForm,
+      drivers: prevForm.drivers.filter(d => d._id !== driver._id),
+    }))
+  }
+
+  // Open inline DriverEdit to create a new driver.
+  const openNewDriverEdit = () => {
+    setDriverToEdit(initDriver(user))
+    setIsDriverEdit(true)
+  }
+
+  // Open inline DriverEdit to edit an existing driver.
+  const openEditDriver = (driver: driverType) => {
+    setDriverToEdit(driver)
+    setIsDriverEdit(true)
   }
 
   // Validate form fields.
@@ -99,6 +160,7 @@ const CreateTeam: React.FC = () => {
       teamName: "",
       inceptionDate: "",
       nationality: "",
+      drivers: "",
       dropzone: "",
     }
 
@@ -174,6 +236,25 @@ const CreateTeam: React.FC = () => {
 
   const permissions = canEdit()
 
+  // Render inline DriverEdit component when creating/editing a driver.
+  if (isDriverEdit) {
+    return (
+      <div className="content-container">
+        <DriverEdit<createTeamFormType>
+          setIsDriverEdit={setIsDriverEdit}
+          setForm={setForm}
+          driver={driverToEdit}
+          setDriver={setDriverToEdit}
+          user={user}
+          setUser={setUser}
+          backendErr={backendErr}
+          setBackendErr={setBackendErr}
+          drivers={drivers}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="content-container create-team">
       <h4>{isEditing ? "Edit" : "New"} Team</h4>
@@ -219,6 +300,21 @@ const CreateTeam: React.FC = () => {
           setForm(prev => ({ ...prev, inceptionDate: newValue }))
           setFormErr(prev => ({ ...prev, inceptionDate: "" }))
         }}
+      />
+      <DriverPicker
+        drivers={drivers}
+        selectedDrivers={form.drivers}
+        value={driverValue}
+        setValue={setDriverValue}
+        loading={driversLoading}
+        label={inputLabel("drivers", formErr, backendErr)}
+        error={!!formErr.drivers || backendErr.type === "drivers"}
+        disabled={!permissions}
+        onAdd={addDriverHandler}
+        onRemove={removeDriverHandler}
+        onEdit={openEditDriver}
+        onNew={openNewDriverEdit}
+        onChange={() => setFormErr(prev => ({ ...prev, drivers: "" }))}
       />
       <div className="button-bar">
         <Button

@@ -306,10 +306,11 @@ export const createTeam = async (
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
+            drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation NewTeam( $created_by: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!) {
-              newTeam(teamInput: { created_by: $created_by, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate }) {
+            mutation NewTeam( $created_by: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              newTeam(teamInput: { created_by: $created_by, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }
@@ -368,10 +369,11 @@ export const editTeam = async (
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
+            drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation UpdateTeam( $_id: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!) {
-              updateTeam(teamInput: { _id: $_id, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate }) {
+            mutation UpdateTeam( $_id: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              updateTeam(teamInput: { _id: $_id, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }
