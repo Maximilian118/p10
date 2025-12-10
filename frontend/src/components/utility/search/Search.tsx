@@ -8,9 +8,10 @@ interface searchType<T> {
   original: T[] // Original array of objects. Likely the result of a request.
   setSearch: React.Dispatch<React.SetStateAction<T[]>> // State of the filtered search.
   preserveOrder?: boolean // If true, preserve original order when query is empty instead of sorting alphabetically.
+  label?: string // Optional custom label for the search field.
 }
 
-const Search = <T extends { name: string }>({ original, setSearch, preserveOrder }: searchType<T>) => {
+const Search = <T extends { name: string }>({ original, setSearch, preserveOrder, label = "Search" }: searchType<T>) => {
   const [ query, setQuery ] = useState("")
 
   // Debounced fuzzy search using Fuse.js.
@@ -38,7 +39,7 @@ const Search = <T extends { name: string }>({ original, setSearch, preserveOrder
       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
       InputProps={{ disableUnderline: true }}
       className="search"
-      label="Search"
+      label={label}
       variant="filled"
     />
   )

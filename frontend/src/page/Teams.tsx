@@ -60,6 +60,7 @@ const Teams: React.FC = () => {
       <Search
         original={teams}
         setSearch={setSearch}
+        label="Search Teams"
       />
       <div className="champs-list">
         {renderTeamsList()}

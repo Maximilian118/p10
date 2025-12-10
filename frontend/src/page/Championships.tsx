@@ -80,6 +80,7 @@ const Championships: React.FC = () => {
         original={sortedChamps}
         setSearch={setSearch}
         preserveOrder
+        label="Search Championships"
       />
       <div className="champs-list">
         {renderChampsList()}

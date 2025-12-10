@@ -58,6 +58,7 @@ const DriverGroups: React.FC = () => {
       <Search
         original={groups}
         setSearch={setSearch}
+        label="Search Driver Groups"
       />
       <div className="champs-list">
         {renderGroupsList()}

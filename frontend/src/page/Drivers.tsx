@@ -60,6 +60,7 @@ const Drivers: React.FC = () => {
       <Search
         original={drivers}
         setSearch={setSearch}
+        label="Search Drivers"
       />
       <div className="champs-list">
         {renderDriversList()}
