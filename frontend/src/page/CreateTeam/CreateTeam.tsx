@@ -6,7 +6,6 @@ import AppContext from "../../context"
 import { teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
-import { initTeam } from "../../shared/init"
 import { createdByID } from "../../shared/utility"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createTeam, editTeam, removeTeam } from "../../shared/requests/teamRequests"
@@ -40,10 +39,6 @@ const CreateTeam: React.FC = () => {
   // Check if we're editing an existing team.
   const editingTeam = (location.state as { team?: teamType })?.team
   const isEditing = !!editingTeam
-
-  // Check if we came from another form that expects us to return.
-  const returnTo = (location.state as { returnTo?: string })?.returnTo
-  const driverForm = (location.state as { driverForm?: unknown })?.driverForm
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
@@ -84,6 +79,18 @@ const CreateTeam: React.FC = () => {
     if (authority && noDrivers) return "delete"
     if (authority) return "edit"
     return ""
+  }
+
+  // Check if form has changed from original team values.
+  const hasFormChanged = (): boolean => {
+    if (!editingTeam) return true
+
+    return (
+      !!form.icon ||
+      editingTeam.name !== form.teamName ||
+      editingTeam.stats.nationality !== form.nationality?.label ||
+      !moment(editingTeam.stats.inceptionDate).isSame(form.inceptionDate, "day")
+    )
   }
 
   // Validate form fields.
@@ -133,12 +140,7 @@ const CreateTeam: React.FC = () => {
     const team = await createTeam(form, user, setUser, navigate, setLoading, setBackendErr)
 
     if (team && team._id) {
-      // If we came from another form, return there with the new team.
-      if (returnTo && driverForm) {
-        navigate(returnTo, { state: { driverForm, newTeam: team } })
-      } else {
-        navigate("/teams", { state: { newTeamId: team._id } })
-      }
+      navigate("/teams", { state: { newTeamId: team._id } })
     }
   }
 
@@ -222,7 +224,7 @@ const CreateTeam: React.FC = () => {
         <Button
           variant="contained"
           color="inherit"
-          onClick={() => returnTo && driverForm ? navigate(returnTo, { state: { driverForm } }) : navigate("/teams")}
+          onClick={() => navigate("/teams")}
         >Back</Button>
         {permissions === "delete" && isEditing && (
           <Button
@@ -234,7 +236,7 @@ const CreateTeam: React.FC = () => {
         )}
         <Button
           variant="contained"
-          disabled={!permissions}
+          disabled={!permissions || (isEditing && !hasFormChanged())}
           onClick={isEditing ? onUpdateHandler : onSubmitHandler}
           startIcon={loading && <CircularProgress size={20} color="inherit" />}
         >{isEditing ? "Update" : "Submit"}</Button>

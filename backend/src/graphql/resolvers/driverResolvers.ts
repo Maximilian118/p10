@@ -12,7 +12,7 @@ import {
   throwError,
 } from "./resolverErrors"
 import DriverGroup from "../../models/driverGroup"
-import { updateTeams } from "./resolverUtility"
+import { updateTeams, syncDriverTeams } from "./resolverUtility"
 import { capitalise, clientS3, deleteS3 } from "../../shared/utility"
 
 const driverResolvers = {
@@ -229,7 +229,15 @@ const driverResolvers = {
         driver.driverID = driverID
       }
 
-      if (driver.teams !== teams) {
+      // Sync team documents bidirectionally if teams changed.
+      const oldTeamIds = driver.teams.map((t: any) => t._id || t)
+      const newTeamIds = teams
+      const teamsChanged =
+        oldTeamIds.length !== newTeamIds.length ||
+        !oldTeamIds.every((id: any) => newTeamIds.some((nid) => nid.toString() === id.toString()))
+
+      if (teamsChanged) {
+        await syncDriverTeams(driver._id, oldTeamIds, newTeamIds)
         driver.teams = teams
       }
 

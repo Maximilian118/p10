@@ -13,6 +13,7 @@ import DropZone from "../../components/utility/dropZone/DropZone"
 import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocomplete"
 import DriverCard from "../../components/cards/driverCard/DriverCard"
 import AddButton from "../../components/utility/button/addButton/AddButton"
+import DriverEdit from "../../components/utility/driverPicker/driverEdit/DriverEdit"
 import "./_createDriverGroup.scss"
 
 export interface createDriverGroupFormType {
@@ -30,20 +31,6 @@ export interface createDriverGroupFormErrType {
   [key: string]: string
 }
 
-// Serializable version of the form for navigation state (no File objects).
-export interface serializedDriverGroupFormType {
-  _id: string | null
-  groupName: string
-  drivers: driverType[]
-}
-
-// Serialize form for navigation (exclude Files).
-const serializeGroupForm = (form: createDriverGroupFormType): serializedDriverGroupFormType => ({
-  _id: form._id,
-  groupName: form.groupName,
-  drivers: form.drivers,
-})
-
 const CreateDriverGroup: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
@@ -53,10 +40,6 @@ const CreateDriverGroup: React.FC = () => {
   const editingGroup = (location.state as { group?: driverGroupType })?.group
   const isEditing = !!editingGroup
 
-  // Check if returning from CreateDriver with form state.
-  const returnedForm = (location.state as { groupForm?: serializedDriverGroupFormType })?.groupForm
-  const newDriver = (location.state as { newDriver?: driverType })?.newDriver
-
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
   const [ driversLoading, setDriversLoading ] = useState<boolean>(false)
@@ -65,18 +48,12 @@ const CreateDriverGroup: React.FC = () => {
   const [ value, setValue ] = useState<driverType | null>(null)
   const [ reqSent, setReqSent ] = useState<boolean>(false)
 
-  // Initialize form state - prioritize returned form, then editing group, then empty.
+  // State for inline DriverEdit component.
+  const [ isDriverEdit, setIsDriverEdit ] = useState<boolean>(false)
+  const [ driverToEdit, setDriverToEdit ] = useState<driverType>(initDriver(user))
+
+  // Initialize form state based on whether we're editing or creating.
   const getInitialFormState = (): createDriverGroupFormType => {
-    if (returnedForm) {
-      // Returning from CreateDriver - restore form state and add new driver if present.
-      const formDrivers = newDriver ? [newDriver, ...returnedForm.drivers] : returnedForm.drivers
-      return {
-        ...returnedForm,
-        drivers: formDrivers,
-        icon: null,
-        profile_picture: null,
-      }
-    }
     if (editingGroup) {
       return {
         _id: editingGroup._id || null,
@@ -122,6 +99,21 @@ const CreateDriverGroup: React.FC = () => {
     return ""
   }
 
+  // Check if form has changed from original group values.
+  const hasFormChanged = (): boolean => {
+    if (!editingGroup) return true
+
+    const driversMatch =
+      editingGroup.drivers.length === form.drivers.length &&
+      editingGroup.drivers.every(d => form.drivers.some(fd => fd._id === d._id))
+
+    return (
+      !!form.icon ||
+      editingGroup.name !== form.groupName ||
+      !driversMatch
+    )
+  }
+
   // Validate form fields.
   const validateForm = (): boolean => {
     const errors: createDriverGroupFormErrType = {
@@ -158,6 +150,18 @@ const CreateDriverGroup: React.FC = () => {
       ...prevForm,
       drivers: prevForm.drivers.filter(d => d._id !== driver._id),
     }))
+  }
+
+  // Open inline DriverEdit to create a new driver.
+  const openNewDriverEdit = () => {
+    setDriverToEdit(initDriver(user))
+    setIsDriverEdit(true)
+  }
+
+  // Open inline DriverEdit to edit an existing driver.
+  const openEditDriver = (driver: driverType) => {
+    setDriverToEdit(driver)
+    setIsDriverEdit(true)
   }
 
   // Handle form submission for create.
@@ -223,6 +227,25 @@ const CreateDriverGroup: React.FC = () => {
 
   const permissions = canEdit()
 
+  // Render inline DriverEdit component when creating/editing a driver.
+  if (isDriverEdit) {
+    return (
+      <div className="content-container">
+        <DriverEdit<createDriverGroupFormType>
+          setIsDriverEdit={setIsDriverEdit}
+          setForm={setForm}
+          driver={driverToEdit}
+          setDriver={setDriverToEdit}
+          user={user}
+          setUser={setUser}
+          backendErr={backendErr}
+          setBackendErr={setBackendErr}
+          drivers={drivers}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="content-container create-driver-group">
       <h4>{isEditing ? "Edit" : "New"} Driver Group</h4>
@@ -253,7 +276,7 @@ const CreateDriverGroup: React.FC = () => {
           label={inputLabel("drivers", formErr, backendErr)}
           displayNew="always"
           customNewLabel="Driver"
-          onNewMouseDown={() => navigate("/create-driver", { state: { returnTo: "/create-driver-group", groupForm: serializeGroupForm(form) } })}
+          onNewMouseDown={() => openNewDriverEdit()}
           options={drivers.filter(d => !form.drivers.some(fd => fd._id === d._id))}
           value={value ? value.name : null}
           loading={driversLoading}
@@ -269,12 +292,12 @@ const CreateDriverGroup: React.FC = () => {
               driver={driver}
               onRemove={(driver) => removeDriverHandler(driver)}
               canRemove={!!permissions}
-              onClick={() => navigate("/create-driver", { state: { driver, returnTo: "/create-driver-group", groupForm: serializeGroupForm(form) } })}
+              onClick={() => openEditDriver(driver)}
             />
           ))}
         </div>
         <AddButton
-          onClick={() => navigate("/create-driver", { state: { returnTo: "/create-driver-group", groupForm: serializeGroupForm(form) } })}
+          onClick={() => openNewDriverEdit()}
           absolute
         />
       </div>
@@ -294,7 +317,7 @@ const CreateDriverGroup: React.FC = () => {
         )}
         <Button
           variant="contained"
-          disabled={!permissions || form.drivers.length < 2}
+          disabled={!permissions || form.drivers.length < 2 || (isEditing && !hasFormChanged())}
           onClick={isEditing ? onUpdateHandler : onSubmitHandler}
           startIcon={loading && <CircularProgress size={20} color="inherit" />}
         >{isEditing ? "Update" : "Submit"}</Button>

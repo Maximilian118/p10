@@ -7,7 +7,7 @@ import AppContext from "../../context"
 import { driverType, teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
-import { initDriver } from "../../shared/init"
+import { initDriver, initTeam } from "../../shared/init"
 import { createdByID, heightCMOptions, isThreeLettersUppercase, sortAlphabetically, weightKGOptions } from "../../shared/utility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { getTeams } from "../../shared/requests/teamRequests"
@@ -19,6 +19,7 @@ import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocom
 import MUICheckbox from "../../components/utility/muiCheckbox/MUICheckbox"
 import TeamCard from "../../components/cards/teamCard/TeamCard"
 import AddButton from "../../components/utility/button/addButton/AddButton"
+import TeamEdit from "../../components/utility/teamPicker/teamEdit/TeamEdit"
 import "./_createDriver.scss"
 
 export interface createDriverFormType {
@@ -51,34 +52,6 @@ export interface createDriverFormErrType {
   [key: string]: string
 }
 
-// Serializable version of the form for navigation state (no Moment or File objects).
-export interface serializedDriverFormType {
-  _id: string | null
-  driverName: string
-  driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
-  teams: teamType[]
-  nationality: countryType | null
-  heightCM: string | null
-  weightKG: string | null
-  birthday: string | null
-  moustache: boolean
-  mullet: boolean
-}
-
-// Serialize form for navigation (Moment -> string, exclude Files).
-const serializeDriverForm = (form: createDriverFormType): serializedDriverFormType => ({
-  _id: form._id,
-  driverName: form.driverName,
-  driverID: form.driverID,
-  teams: form.teams,
-  nationality: form.nationality,
-  heightCM: form.heightCM,
-  weightKG: form.weightKG,
-  birthday: form.birthday?.toISOString() || null,
-  moustache: form.moustache,
-  mullet: form.mullet,
-})
-
 const CreateDriver: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
@@ -87,10 +60,6 @@ const CreateDriver: React.FC = () => {
   // Check if we're editing an existing driver.
   const editingDriver = (location.state as { driver?: driverType })?.driver
   const isEditing = !!editingDriver
-
-  // Check if returning from CreateTeam with form state.
-  const returnedForm = (location.state as { driverForm?: serializedDriverFormType })?.driverForm
-  const newTeam = (location.state as { newTeam?: teamType })?.newTeam
 
   // Check if we came from another form that expects us to return (e.g., CreateDriverGroup).
   const returnTo = (location.state as { returnTo?: string })?.returnTo
@@ -106,21 +75,13 @@ const CreateDriver: React.FC = () => {
   const [ teamValue, setTeamValue ] = useState<teamType | null>(null)
   const [ driversReqSent, setDriversReqSent ] = useState<boolean>(false)
   const [ teamsReqSent, setTeamsReqSent ] = useState<boolean>(false)
-  // Initialize form state - prioritize returned form from CreateTeam, then editing driver, then empty.
+
+  // State for inline TeamEdit component.
+  const [ isTeamEdit, setIsTeamEdit ] = useState<boolean>(false)
+  const [ teamToEdit, setTeamToEdit ] = useState<teamType>(initTeam(user))
+
+  // Initialize form state based on whether we're editing or creating.
   const getInitialFormState = (): createDriverFormType => {
-    if (returnedForm) {
-      // Returning from CreateTeam - restore form state and add new team if present.
-      const teams = newTeam ? [newTeam, ...returnedForm.teams] : returnedForm.teams
-      return {
-        ...returnedForm,
-        birthday: returnedForm.birthday ? moment(returnedForm.birthday) : null,
-        teams,
-        icon: null,
-        profile_picture: null,
-        bodyIcon: null,
-        bodyPicture: null,
-      }
-    }
     if (editingDriver) {
       return {
         _id: editingDriver._id || null,
@@ -198,6 +159,29 @@ const CreateDriver: React.FC = () => {
     return ""
   }
 
+  // Check if form has changed from original driver values.
+  const hasFormChanged = (): boolean => {
+    if (!editingDriver) return true
+
+    const teamsMatch =
+      editingDriver.teams.length === form.teams.length &&
+      editingDriver.teams.every(t => form.teams.some(ft => ft._id === t._id))
+
+    return (
+      !!form.icon ||
+      !!form.bodyIcon ||
+      editingDriver.name !== form.driverName ||
+      editingDriver.driverID !== form.driverID ||
+      !teamsMatch ||
+      editingDriver.stats.nationality !== form.nationality?.label ||
+      `${editingDriver.stats.heightCM}cm` !== form.heightCM ||
+      `${editingDriver.stats.weightKG}kg` !== form.weightKG ||
+      !moment(editingDriver.stats.birthday).isSame(form.birthday, "day") ||
+      editingDriver.stats.moustache !== form.moustache ||
+      editingDriver.stats.mullet !== form.mullet
+    )
+  }
+
   // Validate form fields.
   const validateForm = (): boolean => {
     const errors: createDriverFormErrType = {
@@ -269,6 +253,18 @@ const CreateDriver: React.FC = () => {
     setForm(prev => ({ ...prev, teams: prev.teams.filter(t => t._id !== team._id) }))
   }
 
+  // Open inline TeamEdit to create a new team.
+  const openNewTeamEdit = () => {
+    setTeamToEdit(initTeam(user))
+    setIsTeamEdit(true)
+  }
+
+  // Open inline TeamEdit to edit an existing team.
+  const openEditTeam = (team: teamType) => {
+    setTeamToEdit(team)
+    setIsTeamEdit(true)
+  }
+
   // Handle form submission for create.
   const onSubmitHandler = async () => {
     if (!validateForm()) return
@@ -314,6 +310,23 @@ const CreateDriver: React.FC = () => {
   }
 
   const permissions = canEdit()
+
+  // Render inline TeamEdit component when creating/editing a team.
+  if (isTeamEdit) {
+    return (
+      <div className="content-container">
+        <TeamEdit<createDriverFormType>
+          setIsEdit={setIsTeamEdit}
+          setForm={setForm}
+          team={teamToEdit}
+          setTeam={setTeamToEdit}
+          teams={teams}
+          user={user}
+          setUser={setUser}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="content-container create-driver">
@@ -376,7 +389,7 @@ const CreateDriver: React.FC = () => {
           label={inputLabel("teams", formErr, backendErr)}
           displayNew="always"
           customNewLabel="Team"
-          onNewMouseDown={() => navigate("/create-team", { state: { returnTo: "/create-driver", driverForm: serializeDriverForm(form) } })}
+          onNewMouseDown={() => openNewTeamEdit()}
           options={teams.filter(t => !form.teams.some(ft => ft._id === t._id))}
           value={teamValue ? teamValue.name : null}
           loading={teamsLoading}
@@ -392,11 +405,12 @@ const CreateDriver: React.FC = () => {
               team={team}
               onRemove={() => removeTeamHandler(team)}
               canRemove={!!permissions}
+              onClick={() => openEditTeam(team)}
             />
           ))}
         </div>
         <AddButton
-          onClick={() => navigate("/create-team", { state: { returnTo: "/create-driver", driverForm: serializeDriverForm(form) } })}
+          onClick={() => openNewTeamEdit()}
           absolute
         />
       </div>
@@ -481,7 +495,7 @@ const CreateDriver: React.FC = () => {
         )}
         <Button
           variant="contained"
-          disabled={!permissions}
+          disabled={!permissions || (isEditing && !hasFormChanged())}
           onClick={isEditing ? onUpdateHandler : onSubmitHandler}
           startIcon={loading && <CircularProgress size={20} color="inherit" />}
         >{isEditing ? "Update" : "Submit"}</Button>
