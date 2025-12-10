@@ -93,7 +93,7 @@ export const teamDeleteErrors = (
 
 // Determine what privilages the user has to edit this team.
 export const canEditTeam = (team: teamType, user: userType): "delete" | "edit" | "" => {
-  const noDrivers = team.drivers.length === 0
+  const noDrivers = !team.drivers || team.drivers.length === 0
   const creator = createdByID(team.created_by) === user._id
   const authority = user.permissions.adjudicator || creator
   // If user is admin, can do anything.

@@ -15,10 +15,11 @@ interface DriverPickerProps {
   label: string                                      // Autocomplete label
   error?: boolean                                    // Error state
   disabled?: boolean                                 // Disable all interactions
-  onAdd: (driver: driverType) => void                // Called when driver selected
-  onRemove: (driver: driverType) => void             // Called when driver removed
-  onEdit: (driver: driverType) => void               // Called when driver card clicked
-  onNew: () => void                                  // Called when "New Driver" clicked
+  readOnly?: boolean                                 // View-only mode (no add/remove/edit)
+  onAdd?: (driver: driverType) => void               // Called when driver selected
+  onRemove?: (driver: driverType) => void            // Called when driver removed
+  onEdit?: (driver: driverType) => void              // Called when driver card clicked
+  onNew?: () => void                                 // Called when "New Driver" clicked
   onChange?: () => void                              // Called on value change (for clearing errors)
 }
 
@@ -32,6 +33,7 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
   label,
   error = false,
   disabled = false,
+  readOnly = false,
   onAdd,
   onRemove,
   onEdit,
@@ -47,15 +49,15 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
     <div className="driver-picker">
       <MUIAutocomplete
         label={label}
-        displayNew="always"
+        displayNew={readOnly ? "never" : "always"}
         customNewLabel="Driver"
-        onNewMouseDown={() => onNew()}
-        options={availableDrivers}
+        onNewMouseDown={readOnly ? undefined : () => onNew?.()}
+        options={readOnly ? selectedDrivers : availableDrivers}
         value={value ? value.name : null}
         loading={loading}
         error={error}
         setObjValue={setValue}
-        onLiClick={(val) => onAdd(val)}
+        onLiClick={readOnly ? undefined : (val) => onAdd?.(val)}
         onChange={() => { if (onChange) { onChange() } }}
       />
       <div className="driver-picker-list">
@@ -63,16 +65,18 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
           <DriverCard
             key={i}
             driver={driver}
-            onRemove={(d) => onRemove(d)}
-            canRemove={!disabled}
-            onClick={() => onEdit(driver)}
+            onRemove={readOnly ? undefined : (d) => onRemove?.(d)}
+            canRemove={!disabled && !readOnly}
+            onClick={readOnly ? undefined : () => onEdit?.(driver)}
           />
         ))}
       </div>
-      <AddButton
-        onClick={() => onNew()}
-        absolute
-      />
+      {!readOnly && (
+        <AddButton
+          onClick={() => onNew?.()}
+          absolute
+        />
+      )}
     </div>
   )
 }

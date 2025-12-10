@@ -99,7 +99,7 @@ export const populateTeamFull = `
   updated_at
 `
 
-// Team population for Teams list page (includes driver details for icons).
+// Team population for Teams list page (includes full driver details for editing).
 export const populateTeamList = `
   _id
   url
@@ -111,7 +111,28 @@ export const populateTeamList = `
     _id
     icon
     profile_picture
+    body
     name
+    driverID
+    teams {
+      _id
+    }
+    series {
+      _id
+    }
+    stats {
+      nationality
+      heightCM
+      weightKG
+      birthday
+      moustache
+      mullet
+    }
+    created_by {
+      _id
+    }
+    created_at
+    updated_at
   }
   stats {
     inceptionDate
