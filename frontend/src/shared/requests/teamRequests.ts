@@ -24,7 +24,7 @@ export const newTeam = async <T extends { teams: teamType[] }>(
   let success = false
 
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.teamName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+    iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr) // prettier-ignore
 
     if (!iconURL) {
       setLoading(false)
@@ -97,7 +97,7 @@ export const updateTeam = async <T extends { teams: teamType[] }>(
   let success = false
 
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.teamName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!iconURL) {
       setLoading(false)
@@ -293,7 +293,7 @@ export const createTeam = async (
   let team: teamType | null = null
 
   if (form.icon) {
-    iconURL = await uplaodS3(form.teamName, "icon", form.icon, setBackendErr)
+    iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr)
 
     if (!iconURL) {
       setLoading(false)
@@ -357,7 +357,7 @@ export const editTeam = async (
   let success = false
 
   if (form.icon) {
-    iconURL = await uplaodS3(form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+    iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
 
     if (!iconURL) {
       setLoading(false)

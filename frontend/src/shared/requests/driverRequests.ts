@@ -27,7 +27,7 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload headshot icon to S3 (small compressed version).
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+    iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr) // prettier-ignore
 
     if (!iconURL) {
       setLoading(false)
@@ -37,7 +37,7 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload headshot profile picture to S3 (larger version).
   if (editForm.profile_picture) {
-    profilePictureURL = await uplaodS3(editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr) // prettier-ignore
+    profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr) // prettier-ignore
 
     if (!profilePictureURL) {
       setLoading(false)
@@ -47,7 +47,7 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload body image to S3.
   if (editForm.bodyIcon) {
-    bodyURL = await uplaodS3(editForm.driverName, "body", editForm.bodyIcon, setBackendErr) // prettier-ignore
+    bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.bodyIcon, setBackendErr) // prettier-ignore
 
     if (!bodyURL) {
       setLoading(false)
@@ -161,7 +161,7 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload new headshot icon to S3 if changed.
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!iconURL) {
       setLoading && setLoading(false)
@@ -171,7 +171,7 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload new headshot profile picture to S3 if changed.
   if (editForm.profile_picture) {
-    profilePictureURL = await uplaodS3(editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!profilePictureURL) {
       setLoading && setLoading(false)
@@ -181,7 +181,7 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
 
   // Upload new body image to S3 if changed.
   if (editForm.bodyIcon) {
-    bodyURL = await uplaodS3(editForm.driverName, "body", editForm.bodyIcon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.bodyIcon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!bodyURL) {
       setLoading && setLoading(false)
@@ -415,7 +415,7 @@ export const createDriver = async (
 
   // Upload headshot icon to S3 (small compressed version).
   if (form.icon) {
-    iconURL = await uplaodS3(form.driverName, "icon", form.icon, setBackendErr)
+    iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr)
     if (!iconURL) {
       setLoading(false)
       return null
@@ -424,7 +424,7 @@ export const createDriver = async (
 
   // Upload headshot profile picture to S3 (larger version).
   if (form.profile_picture) {
-    profilePictureURL = await uplaodS3(form.driverName, "profile-picture", form.profile_picture, setBackendErr)
+    profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr)
     if (!profilePictureURL) {
       setLoading(false)
       return null
@@ -433,7 +433,7 @@ export const createDriver = async (
 
   // Upload body image to S3.
   if (form.bodyIcon) {
-    bodyURL = await uplaodS3(form.driverName, "body", form.bodyIcon, setBackendErr)
+    bodyURL = await uplaodS3("drivers", form.driverName, "body", form.bodyIcon, setBackendErr)
     if (!bodyURL) {
       setLoading(false)
       return null
@@ -537,7 +537,7 @@ export const editDriver = async (
 
   // Upload new headshot icon to S3 if changed.
   if (form.icon) {
-    iconURL = await uplaodS3(form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+    iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
     if (!iconURL) {
       setLoading(false)
       return false
@@ -546,7 +546,7 @@ export const editDriver = async (
 
   // Upload new headshot profile picture to S3 if changed.
   if (form.profile_picture) {
-    profilePictureURL = await uplaodS3(form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
+    profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
     if (!profilePictureURL) {
       setLoading(false)
       return false
@@ -555,7 +555,7 @@ export const editDriver = async (
 
   // Upload new body image to S3 if changed.
   if (form.bodyIcon) {
-    bodyURL = await uplaodS3(form.driverName, "body", form.bodyIcon, setBackendErr, user, setUser, navigate, 0)
+    bodyURL = await uplaodS3("drivers", form.driverName, "body", form.bodyIcon, setBackendErr, user, setUser, navigate, 0)
     if (!bodyURL) {
       setLoading(false)
       return false

@@ -46,8 +46,10 @@ const driverResolvers = {
       driverImageErrors(icon, profile_picture, body)
       await driverNameErrors(name)
       driverIDErrors(driverID)
+      // Exclude body from falsyValErrors since it's optional.
+      const { body: _body, ...requiredFields } = args.driverInput
       falsyValErrors({
-        ...args.driverInput,
+        ...requiredFields,
         dropzone: icon,
         driverName: name,
       })
@@ -195,8 +197,10 @@ const driverResolvers = {
       // Check for errors
       driverImageErrors(icon, profile_picture, body)
       driverIDErrors(driverID)
+      // Exclude body from falsyValErrors since it's optional.
+      const { body: _body, ...requiredFields } = args.driverInput
       falsyValErrors({
-        ...args.driverInput,
+        ...requiredFields,
         dropzone: icon,
         driverName: name,
       })

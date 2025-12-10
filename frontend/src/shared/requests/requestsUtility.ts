@@ -6,12 +6,14 @@ export const formatString = (str: string) => {
 }
 
 // Format name of all files to be uploaded to s3.
-export const formatFilename = (userName: string, category: string, file: File): string => {
-  const username = formatString(userName)
+// Returns path: {entityType}/{entityName}/{category}/{filename}
+export const formatFilename = (entityType: string, entityName: string, category: string, file: File): string => {
+  const entity = formatString(entityType)
+  const name = formatString(entityName)
   const cat = formatString(category)
   const filename = formatString(file.name)
 
-  return `${username}/${cat}/${filename}`
+  return `${entity}/${name}/${cat}/${filename}`
 }
 
 export const getFilename = (url: string): string => {

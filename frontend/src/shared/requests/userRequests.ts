@@ -24,8 +24,8 @@ export const createUser = async <U extends { dropzone: string }>(
   let ppURL = ""
 
   if (form.icon && form.profile_picture) {
-    iconURL = await uplaodS3(form.name, "icon", form.icon, setBackendErr)
-    ppURL = await uplaodS3(form.name, "profile_picture", form.profile_picture, setBackendErr)
+    iconURL = await uplaodS3("users", form.name, "icon", form.icon, setBackendErr)
+    ppURL = await uplaodS3("users", form.name, "profile_picture", form.profile_picture, setBackendErr)
 
     if (!iconURL || !ppURL) {
       setFormErr((prevErrs) => {
@@ -179,8 +179,8 @@ export const updatePP = async <T extends formType>(
   let ppURL = ""
 
   if (form.icon && form.profile_picture) {
-    iconURL = await uplaodS3(user.name, "icon", form.icon, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
-    ppURL = await uplaodS3(user.name, "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
+    iconURL = await uplaodS3("users", user.name, "icon", form.icon, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
+    ppURL = await uplaodS3("users", user.name, "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
 
     if (!iconURL || !ppURL) {
       setLoading(false)

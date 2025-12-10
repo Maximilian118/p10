@@ -25,8 +25,9 @@ const putS3 = async (
 }
 
 export const uplaodS3 = async (
-  root: string, // Specify name of root folder.
-  category: string, // Specify category in the root folder.
+  entityType: string, // Entity type folder: "drivers", "teams", "series", "users", "championships"
+  entityName: string, // Name of the entity (e.g., driver name, team name)
+  category: string, // Category subfolder: "icon", "profile-picture", "body"
   file: File | null,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
   user?: userType,
@@ -44,7 +45,7 @@ export const uplaodS3 = async (
     await axios
       .post("", {
         variables: {
-          filename: formatFilename(root, category, file),
+          filename: formatFilename(entityType, entityName, category, file),
         },
         query: `
           query SignS3($filename: String!) {

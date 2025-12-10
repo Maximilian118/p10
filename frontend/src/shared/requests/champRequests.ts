@@ -104,6 +104,7 @@ export const createChamp = async (
   // Upload icon to S3 if provided
   if (form.icon) {
     iconURL = await uplaodS3(
+      "championships",
       form.champName,
       "icon",
       form.icon,
@@ -122,6 +123,7 @@ export const createChamp = async (
   // Upload profile picture to S3 if provided
   if (form.profile_picture) {
     profilePictureURL = await uplaodS3(
+      "championships",
       form.champName,
       "profile-picture",
       form.profile_picture,
@@ -303,8 +305,8 @@ export const updateChampPP = async <T extends formType>(
   let ppURL = ""
 
   if (form.icon && form.profile_picture) {
-    iconURL = await uplaodS3(form.champName || "championship", "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
-    ppURL = await uplaodS3(form.champName || "championship", "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
+    iconURL = await uplaodS3("championships", form.champName || "championship", "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
+    ppURL = await uplaodS3("championships", form.champName || "championship", "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
 
     if (!iconURL || !ppURL) {
       setLoading(false)

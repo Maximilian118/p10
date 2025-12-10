@@ -150,7 +150,7 @@ export const iconErrors = (
 
   if (icon) {
     if (
-      !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon) // prettier-ignore
+      !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon) // prettier-ignore
     ) {
       throwError(type, icon, "Icon URL is not valid... Tricky one.")
     }
@@ -176,7 +176,7 @@ export const profilePictureErrors = (
 
   if (profile_picture) {
     if (
-      !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture) // prettier-ignore
+      !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture) // prettier-ignore
     ) {
       throwError(type, profile_picture, "Profile Picture URL is not valid... Tricky one.")
     }
@@ -200,7 +200,7 @@ export const imageErrors = (url: string): void => {
     throwError(type, url, "An image is required.")
   }
 
-  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/(icon|profile-picture|body)\/[a-z0-9-]+$/i.test(url)) {
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/(icon|profile-picture|body)\/[a-z0-9-]+$/i.test(url)) {
     throwError(type, url, "Image url is not valid... Tricky one.")
   }
 }
@@ -218,7 +218,7 @@ export const driverImageErrors = (
     throwError(type, icon, "A headshot icon is required.")
   }
 
-  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon)) {
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon)) {
     throwError(type, icon, "Icon URL is not valid... Tricky one.")
   }
 
@@ -227,12 +227,12 @@ export const driverImageErrors = (
     throwError(type, profile_picture, "A headshot profile picture is required.")
   }
 
-  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture)) {
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture)) {
     throwError(type, profile_picture, "Profile picture URL is not valid... Tricky one.")
   }
 
   // Body is optional, but validate format if provided.
-  if (body && !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/body\/[a-z0-9-]+$/i.test(body)) {
+  if (body && !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/body\/[a-z0-9-]+$/i.test(body)) {
     throwError("dropzoneBody", body, "Body URL is not valid... Tricky one.")
   }
 }
@@ -244,7 +244,8 @@ export const imageUploadErrors = (filename: string): void => {
     throwError(type, filename, "No file name has been passed.")
   }
 
-  if (!/^[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+$/i.test(filename)) {
+  // Validates S3 path format: entityType/entityName/category/filename
+  if (!/^[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+$/i.test(filename)) {
     throwError(type, filename, "Image file name is not valid.")
   }
 }

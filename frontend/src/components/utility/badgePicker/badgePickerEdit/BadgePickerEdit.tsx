@@ -106,7 +106,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
 
     if (isNewBadge) {
       // Upload badge image to S3.
-      const s3Url = await uplaodS3("badges", "custom", editForm.icon, setBackendErr)
+      const s3Url = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
       if (!s3Url) {
         setLoading(false)
         return
@@ -133,7 +133,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
       // If a new image was uploaded, upload to S3 first.
       let badgeUrl = isEdit.url
       if (editForm.icon) {
-        const s3Url = await uplaodS3("badges", "custom", editForm.icon, setBackendErr)
+        const s3Url = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
         if (s3Url) {
           badgeUrl = s3Url
         }
