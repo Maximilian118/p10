@@ -2,22 +2,23 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { driverGroupType } from "../types"
-import { driverGroupEditFormType } from "../../components/utility/driverGroupPicker/driverGroupEdit/DriverGroupEdit"
-import { createDriverGroupFormType } from "../../page/CreateDriverGroup/CreateDriverGroup"
-import { populateDriverGroup } from "./requestPopulation"
+import { seriesType } from "../types"
+import { seriesEditFormType } from "../../components/utility/seriesPicker/seriesEdit/SeriesEdit"
+import { createSeriesFormType } from "../../page/CreateSeries/CreateSeries"
+import { populateSeries } from "./requestPopulation"
 import { uplaodS3 } from "./bucketRequests"
 import { capitalise, sortAlphabetically } from "../utility"
 
-export const newDriverGroup = async <T extends { driverGroup: driverGroupType | null }>(
-  editForm: driverGroupEditFormType,
+// Create a new series from the series picker (used in CreateChamp).
+export const newSeries = async <T extends { series: seriesType | null }>(
+  editForm: seriesEditFormType,
   setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
   setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-  setGroups: React.Dispatch<React.SetStateAction<driverGroupType[]>>,
+  setSeriesList: React.Dispatch<React.SetStateAction<seriesType[]>>,
   setSelected: React.Dispatch<React.SetStateAction<string>>,
 ): Promise<boolean> => {
   setLoading(true)
@@ -25,7 +26,7 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
   let success = false
 
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.groupName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+    iconURL = await uplaodS3(editForm.seriesName, "icon", editForm.icon, setBackendErr) // prettier-ignore
 
     if (!iconURL) {
       setLoading(false)
@@ -41,13 +42,13 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
           variables: {
             created_by: user._id,
             url: iconURL,
-            name: capitalise(editForm.groupName),
+            name: capitalise(editForm.seriesName),
             drivers: editForm.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation NewDriverGroup( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
-              newDriverGroup(driverGroupInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
-                ${populateDriverGroup}
+            mutation NewSeries( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
+              newSeries(seriesInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
+                ${populateSeries}
                 tokens
               }
             }
@@ -57,16 +58,16 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("newDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("newSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          const driverGroup = graphQLResponse("newDriverGroup", res, user, setUser, false) as driverGroupType // prettier-ignore
+          const series = graphQLResponse("newSeries", res, user, setUser, false) as seriesType // prettier-ignore
 
-          setGroups((prevGroups) => sortAlphabetically([...prevGroups, driverGroup]))
-          setSelected(() => driverGroup._id!)
+          setSeriesList((prevSeries) => sortAlphabetically([...prevSeries, series]))
+          setSelected(() => series._id!)
           setForm((prevForm) => {
             return {
               ...prevForm,
-              driverGroup,
+              series,
             }
           })
 
@@ -74,18 +75,19 @@ export const newDriverGroup = async <T extends { driverGroup: driverGroupType | 
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("newSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("newSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
   return success
 }
 
-export const getDriverGroups = async (
-  setGroups: React.Dispatch<React.SetStateAction<driverGroupType[]>>,
+// Get all series.
+export const getSeries = async (
+  setSeriesList: React.Dispatch<React.SetStateAction<seriesType[]>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -102,9 +104,9 @@ export const getDriverGroups = async (
           variables: {},
           query: `
             query {
-              getDriverGroups {
+              getSeries {
                 array {
-                  ${populateDriverGroup}
+                  ${populateSeries}
                 }
                 tokens
               }
@@ -115,46 +117,47 @@ export const getDriverGroups = async (
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("getDriverGroups", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("getSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          const driverGroups = graphQLResponse("getDriverGroups", res, user, setUser) as {
-            array: driverGroupType[]
+          const seriesList = graphQLResponse("getSeries", res, user, setUser) as {
+            array: seriesType[]
             token: string
             code: number
           }
 
-          if (driverGroups.array.length > 0) {
-            setGroups(driverGroups.array)
+          if (seriesList.array.length > 0) {
+            setSeriesList(seriesList.array)
           }
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("getDriverGroups", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("getSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("getDriverGroups", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("getSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
 }
 
-export const updateDriverGroup = async <T extends { driverGroup: driverGroupType | null }>(
-  group: driverGroupType, // Group that's being updated
-  editForm: driverGroupEditFormType, // Form state for Group being edited.
+// Update an existing series from the series picker.
+export const updateSeries = async <T extends { series: seriesType | null }>(
+  seriesItem: seriesType, // Series that's being updated.
+  editForm: seriesEditFormType, // Form state for series being edited.
   setForm: React.Dispatch<React.SetStateAction<T>>, // Form state for champ form.
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
   setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-  setGroups?: React.Dispatch<React.SetStateAction<driverGroupType[]>>,
+  setSeriesList?: React.Dispatch<React.SetStateAction<seriesType[]>>,
 ): Promise<boolean> => {
   setLoading(true)
   let iconURL = ""
   let success = false
 
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.groupName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    iconURL = await uplaodS3(editForm.seriesName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!iconURL) {
       setLoading(false)
@@ -162,9 +165,9 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
     }
   }
 
-  const updatedGroup = {
-    name: capitalise(editForm.groupName),
-    url: iconURL ? iconURL : group.url,
+  const updatedSeries = {
+    name: capitalise(editForm.seriesName),
+    url: iconURL ? iconURL : seriesItem.url,
     drivers: editForm.drivers.map((driver) => driver._id!),
   }
 
@@ -175,12 +178,12 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
         {
           variables: {
             ...editForm,
-            ...updatedGroup,
+            ...updatedSeries,
           },
           query: `
-            mutation UpdateDriverGroup( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
-              updateDriverGroup(driverGroupInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
-                ${populateDriverGroup}
+            mutation UpdateSeries( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
+              updateSeries(seriesInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
+                ${populateSeries}
                 tokens
               }
             }
@@ -190,32 +193,32 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("updateDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("updateSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          const driverGroup = graphQLResponse("updateDriverGroup", res, user, setUser, false) as driverGroupType // prettier-ignore
-          // Mutate the updated group in groups state.
-          if (setGroups) {
-            setGroups((prevGroups) =>
-              prevGroups.map((g) => {
-                if (g._id === driverGroup._id) {
+          const series = graphQLResponse("updateSeries", res, user, setUser, false) as seriesType // prettier-ignore
+          // Mutate the updated series in series list state.
+          if (setSeriesList) {
+            setSeriesList((prevSeries) =>
+              prevSeries.map((s) => {
+                if (s._id === series._id) {
                   return {
-                    ...g,
-                    ...driverGroup,
+                    ...s,
+                    ...series,
                   }
                 } else {
-                  return g
+                  return s
                 }
               }),
             )
           }
-          // If the driverGroup is the currently selected driver group, mutate it.
+          // If the series is the currently selected series, mutate it.
           setForm((prevForm) => {
-            const isSelected = prevForm.driverGroup?._id === group._id
+            const isSelected = prevForm.series?._id === seriesItem._id
 
             if (isSelected) {
               return {
                 ...prevForm,
-                driverGroup,
+                series,
               }
             } else {
               return prevForm
@@ -226,19 +229,20 @@ export const updateDriverGroup = async <T extends { driverGroup: driverGroupType
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("updateSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("updateSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
   return success
 }
 
-export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType | null }>(
-  group: driverGroupType,
-  setGroups: React.Dispatch<React.SetStateAction<driverGroupType[]>>,
+// Delete a series from the series picker.
+export const deleteSeries = async <T extends { series: seriesType | null }>(
+  seriesItem: seriesType,
+  setSeriesList: React.Dispatch<React.SetStateAction<seriesType[]>>,
   setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -255,11 +259,11 @@ export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType
         "",
         {
           variables: {
-            _id: group._id,
+            _id: seriesItem._id,
           },
           query: `
-            mutation DeleteDriverGroup( $_id: ID! ) {
-              deleteDriverGroup( _id: $_id ) {
+            mutation DeleteSeries( $_id: ID! ) {
+              deleteSeries( _id: $_id ) {
                 _id
                 tokens
               }
@@ -270,51 +274,51 @@ export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("deleteDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("deleteSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          graphQLResponse("deleteDriverGroup", res, user, setUser)
+          graphQLResponse("deleteSeries", res, user, setUser)
 
-          // Remove this driver group if it's currently selected as the champs driverGroup
+          // Remove this series if it's currently selected as the champs series.
           setForm((prevForm) => {
-            const isSelected = prevForm.driverGroup?._id === group._id
+            const isSelected = prevForm.series?._id === seriesItem._id
 
             return {
               ...prevForm,
-              driverGroup: isSelected ? null : prevForm.driverGroup,
+              series: isSelected ? null : prevForm.series,
             }
           })
-          // Remove this driver group from all of the available driver groups
-          setGroups((prevGroups) => prevGroups.filter((g) => g._id !== group._id))
+          // Remove this series from all of the available series.
+          setSeriesList((prevSeries) => prevSeries.filter((s) => s._id !== seriesItem._id))
 
           success = true
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("deleteSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("deleteSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
   return success
 }
 
-// Simplified create function for the standalone CreateDriverGroup page.
-export const createDriverGroup = async (
-  form: createDriverGroupFormType,
+// Simplified create function for the standalone CreateSeries page.
+export const createSeries = async (
+  form: createSeriesFormType,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
   setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-): Promise<driverGroupType | null> => {
+): Promise<seriesType | null> => {
   setLoading(true)
   let iconURL = ""
-  let driverGroup: driverGroupType | null = null
+  let series: seriesType | null = null
 
   if (form.icon) {
-    iconURL = await uplaodS3(form.groupName, "icon", form.icon, setBackendErr)
+    iconURL = await uplaodS3(form.seriesName, "icon", form.icon, setBackendErr)
 
     if (!iconURL) {
       setLoading(false)
@@ -330,13 +334,13 @@ export const createDriverGroup = async (
           variables: {
             created_by: user._id,
             url: iconURL,
-            name: capitalise(form.groupName),
+            name: capitalise(form.seriesName),
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation NewDriverGroup( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
-              newDriverGroup(driverGroupInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
-                ${populateDriverGroup}
+            mutation NewSeries( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
+              newSeries(seriesInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
+                ${populateSeries}
                 tokens
               }
             }
@@ -346,26 +350,26 @@ export const createDriverGroup = async (
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("newDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("newSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          driverGroup = graphQLResponse("newDriverGroup", res, user, setUser, false) as driverGroupType
+          series = graphQLResponse("newSeries", res, user, setUser, false) as seriesType
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("newSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("newSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
-  return driverGroup
+  return series
 }
 
-// Standalone update function for CreateDriverGroup page.
-export const editDriverGroup = async (
-  group: driverGroupType,
-  form: createDriverGroupFormType,
+// Standalone update function for CreateSeries page.
+export const editSeries = async (
+  seriesItem: seriesType,
+  form: createSeriesFormType,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -377,7 +381,7 @@ export const editDriverGroup = async (
   let success = false
 
   if (form.icon) {
-    iconURL = await uplaodS3(form.groupName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+    iconURL = await uplaodS3(form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
 
     if (!iconURL) {
       setLoading(false)
@@ -391,15 +395,15 @@ export const editDriverGroup = async (
         "",
         {
           variables: {
-            _id: group._id,
-            url: iconURL || group.url,
-            name: capitalise(form.groupName),
+            _id: seriesItem._id,
+            url: iconURL || seriesItem.url,
+            name: capitalise(form.seriesName),
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation UpdateDriverGroup( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
-              updateDriverGroup(driverGroupInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
-                ${populateDriverGroup}
+            mutation UpdateSeries( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
+              updateSeries(seriesInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
+                ${populateSeries}
                 tokens
               }
             }
@@ -409,26 +413,26 @@ export const editDriverGroup = async (
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("updateDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("updateSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          graphQLResponse("updateDriverGroup", res, user, setUser, false)
+          graphQLResponse("updateSeries", res, user, setUser, false)
           success = true
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("updateSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("updateSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)
   return success
 }
 
-// Standalone delete function for CreateDriverGroup page.
-export const removeDriverGroup = async (
-  group: driverGroupType,
+// Standalone delete function for CreateSeries page.
+export const removeSeries = async (
+  seriesItem: seriesType,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -443,10 +447,10 @@ export const removeDriverGroup = async (
       .post(
         "",
         {
-          variables: { _id: group._id },
+          variables: { _id: seriesItem._id },
           query: `
-            mutation DeleteDriverGroup( $_id: ID! ) {
-              deleteDriverGroup( _id: $_id ) {
+            mutation DeleteSeries( $_id: ID! ) {
+              deleteSeries( _id: $_id ) {
                 _id
                 tokens
               }
@@ -457,17 +461,17 @@ export const removeDriverGroup = async (
       )
       .then((res: AxiosResponse) => {
         if (res.data.errors) {
-          graphQLErrors("deleteDriverGroup", res, setUser, navigate, setBackendErr, true)
+          graphQLErrors("deleteSeries", res, setUser, navigate, setBackendErr, true)
         } else {
-          graphQLResponse("deleteDriverGroup", res, user, setUser)
+          graphQLResponse("deleteSeries", res, user, setUser)
           success = true
         }
       })
       .catch((err: unknown) => {
-        graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+        graphQLErrors("deleteSeries", err, setUser, navigate, setBackendErr, true)
       })
   } catch (err: unknown) {
-    graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+    graphQLErrors("deleteSeries", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)

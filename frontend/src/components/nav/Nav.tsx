@@ -13,7 +13,7 @@ interface navType {
 // Menu items for the drawer.
 const menuItems = [
   { text: "Championships", url: "/championships" },
-  { text: "Driver Groups", url: "/driver-groups" },
+  { text: "Series", url: "/series" },
   { text: "Teams", url: "/teams" },
   { text: "Drivers", url: "/drivers" },
 ]

@@ -8,7 +8,7 @@ const teamSchema = `
     _id: String!
     url: String!
     name: String!
-    driverGroups: [DriverGroup!]
+    series: [Series!]
     drivers: [Driver]
     stats: TeamStats!
     created_by: User!

@@ -34,8 +34,8 @@ export const driverPopulation = [
   },
 ]
 
-// Population for a Driver Group.
-export const driverGroupPopulation = [
+// Population for a Series.
+export const seriesPopulation = [
   {
     path: "created_by",
     model: "User",

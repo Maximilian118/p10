@@ -1,38 +1,40 @@
 import React, { useContext, useEffect, useState } from "react"
-import { driverGroupType } from "../shared/types"
+import { seriesType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
-import { getDriverGroups } from "../shared/requests/driverGroupRequests"
+import { getSeries } from "../shared/requests/seriesRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
-import DriverGroupListCard from "../components/cards/driverGroupListCard/DriverGroupListCard"
+import SeriesListCard from "../components/cards/seriesListCard/SeriesListCard"
 
-const DriverGroups: React.FC = () => {
+// Page for displaying all series.
+const Series: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
-  const [ groups, setGroups ] = useState<driverGroupType[]>([])
-  const [ search, setSearch ] = useState<driverGroupType[]>([])
+  const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
+  const [ search, setSearch ] = useState<seriesType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   const navigate = useNavigate()
   const location = useLocation()
-  const newGroupId = (location.state as { newGroupId?: string })?.newGroupId
+  const newSeriesId = (location.state as { newSeriesId?: string })?.newSeriesId
 
-  // Fetch all driver groups on mount.
+  // Fetch all series on mount.
   useEffect(() => {
-    getDriverGroups(setGroups, user, setUser, navigate, setLoading, setBackendErr)
+    getSeries(setSeriesList, user, setUser, navigate, setLoading, setBackendErr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Set search results when groups are fetched.
+  // Set search results when series list is fetched.
   useEffect(() => {
-    setSearch(groups)
-  }, [groups])
+    setSearch(seriesList)
+  }, [seriesList])
 
-  const renderGroupsList = () => {
+  // Render the list of series.
+  const renderSeriesList = () => {
     if (loading) {
       return <FillLoading/>
     }
@@ -42,12 +44,12 @@ const DriverGroups: React.FC = () => {
     }
 
     return (
-      search.map((group, i) => (
-        <DriverGroupListCard
+      search.map((series, i) => (
+        <SeriesListCard
           key={i}
-          group={group}
-          onClick={() => navigate(`/driver-group/${group._id}`)}
-          highlight={group._id === newGroupId}
+          series={series}
+          onClick={() => navigate(`/series/${series._id}`)}
+          highlight={series._id === newSeriesId}
         />
       ))
     )
@@ -56,19 +58,19 @@ const DriverGroups: React.FC = () => {
   return (
     <div className="content-container champs-container">
       <Search
-        original={groups}
+        original={seriesList}
         setSearch={setSearch}
-        label="Search Driver Groups"
+        label="Search Series"
       />
       <div className="champs-list">
-        {renderGroupsList()}
+        {renderSeriesList()}
       </div>
       <AddButton
-        onClick={() => navigate("/create-driver-group")}
+        onClick={() => navigate("/create-series")}
         absolute
       />
     </div>
   )
 }
 
-export default DriverGroups
+export default Series

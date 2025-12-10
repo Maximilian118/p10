@@ -1,5 +1,5 @@
-const driverGroupSchema = `
-  type DriverGroup {
+const seriesSchema = `
+  type Series {
     _id: ID!
     url: String!
     name: String!
@@ -11,12 +11,12 @@ const driverGroupSchema = `
     tokens: [String!]
   }
 
-  type DriverGroups {
-    array: [DriverGroup!]!
+  type SeriesList {
+    array: [Series!]!
     tokens: [String!]
   }
 
-  input driverGroupInput {
+  input seriesInput {
     _id: ID
     created_by: ID
     url: String
@@ -24,4 +24,4 @@ const driverGroupSchema = `
     drivers: [ID!]
   }
 `
-export default driverGroupSchema
+export default seriesSchema

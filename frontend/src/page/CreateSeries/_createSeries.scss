@@ -1,7 +1,7 @@
 @use '../../scss/mixins';
 @use '../../scss/variables';
 
-body #root .main-logged-in .content-container.create-driver-group {
+body #root .main-logged-in .content-container.create-series {
   @include mixins.flexbox-start-column;
   padding: 20px 7.5%;
   box-sizing: border-box;

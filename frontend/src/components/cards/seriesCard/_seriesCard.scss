@@ -1,7 +1,7 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-.driver-group-card, .driver-group-card-selected {
+.series-card, .series-card-selected {
   width: 100%;
   min-height: 120px;
   @include mixins.flexbox-start;
@@ -27,7 +27,7 @@
     }
   }
 
-  .driver-group-content {
+  .series-content {
     height: 100%;
     flex-grow: 1;
     @include mixins.flexbox-column;
@@ -37,13 +37,13 @@
     margin-left: 20px;
     overflow: hidden;
 
-    .driver-group-selected {
+    .series-selected {
       font-size: 15px;
       color: white;
       margin-bottom: 5px;
     }
 
-    .driver-group-title {
+    .series-title {
       width: 100%;
       color: variables.$colour-9;
       margin-bottom: 8px;
@@ -52,7 +52,7 @@
       font-size: 15px;
     }
 
-    .driver-group-drivers {
+    .series-drivers {
       width: 100%;
       @include mixins.flexbox-start;
 
@@ -61,18 +61,18 @@
       }
     }
   }
-  
+
   &:hover {
     background: rgba(0, 0, 0, 0.06);
   }
 }
 
-.driver-group-card-selected {
+.series-card-selected {
   background: variables.$mui-blue;
   cursor: default;
 
-  .driver-group-content {
-    .driver-group-title {
+  .series-content {
+    .series-title {
       color: white;
     }
   }

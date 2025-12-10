@@ -1,7 +1,7 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-.driver-group-picker {
+.series-picker {
   width: 100%;
   @include mixins.flexbox-column;
   flex-grow: 1;
@@ -15,31 +15,31 @@
     border-bottom: 2px solid variables.$background !important;
   }
 
-  .driver-group-card-selected {
+  .series-card-selected {
     position: sticky;
     top: 124px;
     z-index: 5;
   }
 
-  .driver-group-list-container {
+  .series-list-container {
     width: 100%;
     position: relative;
     flex-grow: 1;
     @include mixins.flexbox-start-column;
 
-    .driver-group-list, .driver-group-empty {
+    .series-list, .series-empty {
       width: 100%;
       @include mixins.flexbox-start-column;
       overflow-y: scroll;
       background: #ffffff;
     }
 
-    .driver-group-empty {
+    .series-empty {
       padding: 20px 7.5%;
       box-sizing: border-box;
     }
 
-    .driver-group-error {
+    .series-error {
       color: variables.$delete-hover;
     }
   }

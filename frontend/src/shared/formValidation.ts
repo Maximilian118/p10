@@ -5,7 +5,7 @@ interface formStateType {
   name?: string
   badgeName?: string
   driverName?: string
-  groupName?: string
+  seriesName?: string
   champName?: string
   teamName?: string
   email?: string
@@ -151,7 +151,7 @@ export const updateForm = <T extends formStateType, U>(
     case "name": nameCase(); break
     case "champName": nameCaseCanNumbers(); break
     case "badgeName": nameCaseCanSpecial(); break
-    case "groupName": nameCaseCanNumbers(); break
+    case "seriesName": nameCaseCanNumbers(); break
     case "driverName": nameCase(); break
     case "email": emailCase(); break
     case "password": passwordCase(); break
@@ -237,10 +237,10 @@ export const inputLabel = (
     case "awardedHow":
       label = "Awarded For"
       break
-    case "driverGroups":
-      label = "Driver Groups"
+    case "series":
+      label = "Series"
       break
-    case "groupName":
+    case "seriesName":
       label = "Name"
       break
     case "driverName":

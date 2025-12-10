@@ -10,7 +10,7 @@ export interface driverType {
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
   teams: ObjectId[]
-  driverGroups: ObjectId[]
+  series: ObjectId[]
   stats: {
     nationality: string
     heightCM: number
@@ -35,7 +35,7 @@ export interface driverInputType {
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
   teams: ObjectId[]
-  driverGroups: ObjectId[]
+  series: ObjectId[]
   nationality: string
   heightCM: number
   weightKG: number
@@ -51,7 +51,7 @@ const driverSchema = new mongoose.Schema<driverType>({
   name: { type: String, required: true }, // Name of the driver.
   driverID: { type: String, required: true },
   teams: [{ type: mongoose.Schema.ObjectId, ref: "Team" }], // Teams that this driver currently races for.
-  driverGroups: [{ type: mongoose.Schema.ObjectId, ref: "DriverGroup" }], // DriverGroups that this driver belongs to.
+  series: [{ type: mongoose.Schema.ObjectId, ref: "Series" }], // Series that this driver belongs to.
   stats: {
     // An object of stats for the driver.
     nationality: { type: String, required: true },

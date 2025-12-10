@@ -7,7 +7,7 @@ import badgeRewardOutcomes, { findDesc, findDescs, findHows } from "../../shared
 import Team from "../../models/team"
 import Driver, { driverType } from "../../models/driver"
 import { isThreeLettersUppercase } from "../../shared/utility"
-import DriverGroup from "../../models/driverGroup"
+import Series from "../../models/series"
 
 export type punctuation = `${string}.` | `${string}!` | `${string}?`
 
@@ -404,17 +404,17 @@ export const driverNameErrors = async (name: string): Promise<void> => {
   }
 }
 
-export const driverGroupNameErrors = async (name: string): Promise<void> => {
-  const type = "groupName"
+export const seriesNameErrors = async (name: string): Promise<void> => {
+  const type = "seriesName"
 
   if (!name) {
-    throwError(type, name, "The driver group must have a name!")
+    throwError(type, name, "The series must have a name!")
   }
 
-  // Find a group by the passed name.
-  if (await DriverGroup.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
+  // Find a series by the passed name.
+  if (await Series.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
     // FindOne case-insensitive.
-    throwError(type, name, "A driver group by that name already exists!")
+    throwError(type, name, "A series by that name already exists!")
   }
 }
 
@@ -480,15 +480,15 @@ export const champNameErrors = async (name: string): Promise<void> => {
   }
 }
 
-// Check if a driver is part of any championship (via driverGroup or bets).
+// Check if a driver is part of any championship (via series or bets).
 export const driverInChampErrors = async (driver: driverType): Promise<void> => {
   const type = "driverName"
 
-  // Check if any of the driver's driverGroups are linked to championships.
-  for (const groupId of driver.driverGroups) {
-    const group = await DriverGroup.findById(groupId)
-    if (group && group.championships.length > 0) {
-      throwError(type, driver, "This driver belongs to a driver group used by a championship.")
+  // Check if any of the driver's series are linked to championships.
+  for (const seriesId of driver.series) {
+    const seriesDoc = await Series.findById(seriesId)
+    if (seriesDoc && seriesDoc.championships.length > 0) {
+      throwError(type, driver, "This driver belongs to a series used by a championship.")
     }
   }
 

@@ -3,13 +3,13 @@ import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsU
 import { Button, CircularProgress } from "@mui/material"
 import { useNavigate } from "react-router-dom"
 import { presetArrays } from "../components/utility/pointsPicker/ppPresets"
-import { badgeType, driverGroupType, pointsStructureType, rulesAndRegsType } from "../shared/types"
+import { badgeType, seriesType, pointsStructureType, rulesAndRegsType } from "../shared/types"
 import { defaultRulesAndRegs } from "../shared/rulesAndRegs"
 import AppContext from "../context"
 import ChampBasicsCard from "../components/cards/champBasicsCard/ChampBasicsCard"
 import { muiStepperSteps } from "../components/utility/muiStepper/muiStepperUtility"
 import ChampHeaderCard from "../components/cards/champHeaderCard/ChampHeaderCard"
-import DriverGroupPicker from "../components/utility/driverGroupPicker/DriverGroupPicker"
+import SeriesPicker from "../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
@@ -21,7 +21,7 @@ interface createChampFormBaseType {
 }
 
 export interface createChampFormType extends createChampFormBaseType {
-  driverGroup: driverGroupType | null
+  series: seriesType | null
   icon: File | null
   profile_picture: File | null
   pointsStructure: pointsStructureType
@@ -30,7 +30,7 @@ export interface createChampFormType extends createChampFormBaseType {
 }
 
 export interface createChampFormErrType extends createChampFormBaseType {
-  driverGroup: string
+  series: string
   dropzone: string
   pointsStructure: string
   rulesAndRegs: string
@@ -46,11 +46,11 @@ const CreateChamp: React.FC = () => {
   const [ stepperBtns, setStepperBtns ] = useState<JSX.Element>(<></>) // button-bar component to be distributed across child components as needed.
   const [ badgesReqSent, setBadgesReqSent ] = useState<boolean>(false) // As we can unload the badge picker component. State to dictate wheather to send another req is in parent.
   const [ defaultBadges, setDefaultBadges ] = useState<badgeType[]>([]) // For the same reason the res of getBadges sits here.
-  const [ groups, setGroups ] = useState<driverGroupType[]>([]) // Stores all driver groups from getDriverGroups response in DriverGroupPicker.
+  const [ seriesList, setSeriesList ] = useState<seriesType[]>([]) // Stores all series from getSeries response in SeriesPicker.
   const [ form, setForm ] = useState<createChampFormType>({
     champName: "",
     rounds: 24,
-    driverGroup: null,
+    series: null,
     icon: null,
     profile_picture: null,
     pointsStructure: presetArrays(1).map(item => {
@@ -63,7 +63,7 @@ const CreateChamp: React.FC = () => {
     champBadges: [],
   })
   const [ formErr, setFormErr ] = useState<createChampFormErrType>({
-    driverGroup: "",
+    series: "",
     champName: "",
     rounds: "",
     dropzone: "",
@@ -84,8 +84,8 @@ const CreateChamp: React.FC = () => {
       return
     }
 
-    if (!form.driverGroup) {
-      setFormErr(prev => ({ ...prev, driverGroup: "A driver group is required." }))
+    if (!form.series) {
+      setFormErr(prev => ({ ...prev, series: "A series is required." }))
       return
     }
 
@@ -152,12 +152,12 @@ const CreateChamp: React.FC = () => {
           style={contentMargin}
         />
       }
-      {activeStep === 1 && 
-        <DriverGroupPicker
+      {activeStep === 1 &&
+        <SeriesPicker
           form={form}
           setForm={setForm}
-          groups={groups}
-          setGroups={setGroups}
+          seriesList={seriesList}
+          setSeriesList={setSeriesList}
           user={user}
           setUser={setUser}
           backendErr={backendErr}

@@ -2,7 +2,7 @@ import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
 import Champ, { ChampType, CompetitorEntry, Round } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
-import DriverGroup from "../../models/driverGroup"
+import Series from "../../models/series"
 import Badge from "../../models/badge"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
@@ -27,7 +27,7 @@ export interface ChampInput {
   name: string
   icon?: string
   profile_picture?: string
-  driverGroup: string
+  series: string
   pointsStructure: PointsStructureInput[]
   inviteOnly?: boolean
   maxCompetitors?: number
@@ -58,7 +58,7 @@ const champPopulation = [
   { path: "rounds.runnerUp", select: "_id name icon" },
   { path: "adjudicator.current", select: "_id name icon profile_picture permissions created_at" },
   { path: "adjudicator.history.adjudicator", select: "_id name icon" },
-  { path: "driverGroup", populate: { path: "drivers" } },
+  { path: "series", populate: { path: "drivers" } },
   { path: "champBadges" },
   { path: "waitingList", select: "_id name icon" },
   { path: "created_by", select: "_id name icon" },
@@ -116,7 +116,7 @@ const champResolvers = {
     try {
       const champs = await Champ.find({})
         .populate("adjudicator.current", "_id name icon")
-        .populate("driverGroup", "_id name")
+        .populate("series", "_id name")
         .populate("rounds.competitors.competitor", "_id icon")
         .exec()
 
@@ -140,7 +140,7 @@ const champResolvers = {
         name,
         icon,
         profile_picture,
-        driverGroup,
+        series,
         pointsStructure,
         inviteOnly,
         maxCompetitors,
@@ -156,13 +156,13 @@ const champResolvers = {
       await champNameErrors(name)
       falsyValErrors({
         champName: name,
-        driverGroup,
+        series,
       })
 
-      // Validate driver group exists.
-      const group = await DriverGroup.findById(driverGroup)
-      if (!group) {
-        return throwError("driverGroup", driverGroup, "Driver group not found.")
+      // Validate series exists.
+      const seriesDoc = await Series.findById(series)
+      if (!seriesDoc) {
+        return throwError("series", series, "Series not found.")
       }
 
       // Validate points structure.
@@ -206,7 +206,7 @@ const champResolvers = {
         season: 1,
         active: true,
         rounds: [initialRound],
-        driverGroup: new ObjectId(driverGroup),
+        series: new ObjectId(series),
         pointsStructure,
         adjudicator: {
           current: user._id,
@@ -246,9 +246,9 @@ const champResolvers = {
         await newChamp.save()
       }
 
-      // Update driver group with championship reference.
-      group.championships.push(newChamp._id)
-      await group.save()
+      // Update series with championship reference.
+      seriesDoc.championships.push(newChamp._id)
+      await seriesDoc.save()
 
       // Update user with championship reference.
       user.championships.push(newChamp._id)

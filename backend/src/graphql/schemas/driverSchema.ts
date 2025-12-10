@@ -16,7 +16,7 @@ const driverSchema = `
     name: String!
     driverID: String!
     teams: [Team]
-    driverGroups: [DriverGroup!]
+    series: [Series!]
     stats: Stats!
     created_by: User!
     created_at: String!

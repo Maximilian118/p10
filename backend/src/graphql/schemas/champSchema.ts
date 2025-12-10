@@ -166,7 +166,7 @@ const champSchema = `
     season: Int!
     active: Boolean!
     rounds: [Round!]!
-    driverGroup: DriverGroup!
+    series: Series!
     pointsStructure: [PointsStructureEntry!]!
     adjudicator: Adjudicator!
     rulesAndRegs: [Rule!]!
@@ -185,7 +185,7 @@ const champSchema = `
     name: String!
     icon: String
     profile_picture: String
-    driverGroup: ID!
+    series: ID!
     pointsStructure: [PointsStructureInput!]!
     inviteOnly: Boolean
     maxCompetitors: Int

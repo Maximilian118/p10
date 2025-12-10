@@ -27,12 +27,12 @@ export const updateTeams = async (teams: ObjectId[], driver_id?: ObjectId): Prom
 
   return foundTeams
 }
-// Loop through an array of Team ID's and ensure they all exist in the DB.
+// Loop through an array of Driver ID's and ensure they all exist in the DB.
 // Returning an array of found drivers.
 export const updateDrivers = async (
   drivers: ObjectId[],
   team_id?: ObjectId,
-  champ_id?: ObjectId,
+  series_id?: ObjectId,
 ): Promise<driverType[]> => {
   const type = "drivers"
   const foundDrivers: driverType[] = []
@@ -44,9 +44,9 @@ export const updateDrivers = async (
       throw throwError(type, _id, "One of the selected drivers doesn't exist.")
     }
 
-    if (team_id || champ_id) {
+    if (team_id || series_id) {
       team_id && driver.teams.push(team_id)
-      champ_id && driver.driverGroups.push(champ_id)
+      series_id && driver.series.push(series_id)
       driver.updated_at = moment().format()
       await driver.save()
     }

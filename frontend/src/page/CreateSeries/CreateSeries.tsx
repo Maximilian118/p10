@@ -2,9 +2,9 @@ import React, { useContext, useEffect, useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Button, CircularProgress, TextField } from "@mui/material"
 import AppContext from "../../context"
-import { driverGroupType, driverType } from "../../shared/types"
+import { seriesType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { createDriverGroup, editDriverGroup, removeDriverGroup } from "../../shared/requests/driverGroupRequests"
+import { createSeries, editSeries, removeSeries } from "../../shared/requests/seriesRequests"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import { initDriver } from "../../shared/init"
@@ -14,31 +14,32 @@ import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocom
 import DriverCard from "../../components/cards/driverCard/DriverCard"
 import AddButton from "../../components/utility/button/addButton/AddButton"
 import DriverEdit from "../../components/utility/driverPicker/driverEdit/DriverEdit"
-import "./_createDriverGroup.scss"
+import "./_createSeries.scss"
 
-export interface createDriverGroupFormType {
+export interface createSeriesFormType {
   _id: string | null
-  groupName: string
+  seriesName: string
   drivers: driverType[]
   icon: File | null
   profile_picture: File | null
 }
 
-export interface createDriverGroupFormErrType {
-  groupName: string
+export interface createSeriesFormErrType {
+  seriesName: string
   drivers: string
   dropzone: string
   [key: string]: string
 }
 
-const CreateDriverGroup: React.FC = () => {
+// Page for creating or editing a series.
+const CreateSeries: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if we're editing an existing driver group.
-  const editingGroup = (location.state as { group?: driverGroupType })?.group
-  const isEditing = !!editingGroup
+  // Check if we're editing an existing series.
+  const editingSeries = (location.state as { series?: seriesType })?.series
+  const isEditing = !!editingSeries
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
@@ -53,28 +54,28 @@ const CreateDriverGroup: React.FC = () => {
   const [ driverToEdit, setDriverToEdit ] = useState<driverType>(initDriver(user))
 
   // Initialize form state based on whether we're editing or creating.
-  const getInitialFormState = (): createDriverGroupFormType => {
-    if (editingGroup) {
+  const getInitialFormState = (): createSeriesFormType => {
+    if (editingSeries) {
       return {
-        _id: editingGroup._id || null,
-        groupName: editingGroup.name || "",
-        drivers: editingGroup.drivers || [],
+        _id: editingSeries._id || null,
+        seriesName: editingSeries.name || "",
+        drivers: editingSeries.drivers || [],
         icon: null,
         profile_picture: null,
       }
     }
     return {
       _id: null,
-      groupName: "",
+      seriesName: "",
       drivers: [],
       icon: null,
       profile_picture: null,
     }
   }
 
-  const [ form, setForm ] = useState<createDriverGroupFormType>(getInitialFormState)
-  const [ formErr, setFormErr ] = useState<createDriverGroupFormErrType>({
-    groupName: "",
+  const [ form, setForm ] = useState<createSeriesFormType>(getInitialFormState)
+  const [ formErr, setFormErr ] = useState<createSeriesFormErrType>({
+    seriesName: "",
     drivers: "",
     dropzone: "",
   })
@@ -89,9 +90,9 @@ const CreateDriverGroup: React.FC = () => {
 
   // Determine user's edit permissions.
   const canEdit = (): "delete" | "edit" | "" => {
-    if (!editingGroup) return "edit"
-    const noChampionships = (editingGroup.championships?.length || 0) === 0
-    const creator = createdByID(editingGroup.created_by) === user._id
+    if (!editingSeries) return "edit"
+    const noChampionships = (editingSeries.championships?.length || 0) === 0
+    const creator = createdByID(editingSeries.created_by) === user._id
     const authority = user.permissions.adjudicator || creator
     if (user.permissions.admin) return "delete"
     if (authority && noChampionships) return "delete"
@@ -99,31 +100,31 @@ const CreateDriverGroup: React.FC = () => {
     return ""
   }
 
-  // Check if form has changed from original group values.
+  // Check if form has changed from original series values.
   const hasFormChanged = (): boolean => {
-    if (!editingGroup) return true
+    if (!editingSeries) return true
 
     const driversMatch =
-      editingGroup.drivers.length === form.drivers.length &&
-      editingGroup.drivers.every(d => form.drivers.some(fd => fd._id === d._id))
+      editingSeries.drivers.length === form.drivers.length &&
+      editingSeries.drivers.every(d => form.drivers.some(fd => fd._id === d._id))
 
     return (
       !!form.icon ||
-      editingGroup.name !== form.groupName ||
+      editingSeries.name !== form.seriesName ||
       !driversMatch
     )
   }
 
   // Validate form fields.
   const validateForm = (): boolean => {
-    const errors: createDriverGroupFormErrType = {
-      groupName: "",
+    const errors: createSeriesFormErrType = {
+      seriesName: "",
       drivers: "",
       dropzone: "",
     }
 
-    if (!form.groupName) {
-      errors.groupName = "Please enter a group name."
+    if (!form.seriesName) {
+      errors.seriesName = "Please enter a series name."
     }
 
     if (form.drivers.length < 2) {
@@ -168,7 +169,7 @@ const CreateDriverGroup: React.FC = () => {
   const onSubmitHandler = async () => {
     if (!validateForm()) return
 
-    const driverGroup = await createDriverGroup(
+    const series = await createSeries(
       form,
       user,
       setUser,
@@ -177,18 +178,18 @@ const CreateDriverGroup: React.FC = () => {
       setBackendErr,
     )
 
-    if (driverGroup && driverGroup._id) {
-      navigate("/driver-groups", { state: { newGroupId: driverGroup._id } })
+    if (series && series._id) {
+      navigate("/series", { state: { newSeriesId: series._id } })
     }
   }
 
   // Handle form submission for update.
   const onUpdateHandler = async () => {
     if (!validateForm()) return
-    if (!editingGroup) return
+    if (!editingSeries) return
 
-    const success = await editDriverGroup(
-      editingGroup,
+    const success = await editSeries(
+      editingSeries,
       form,
       user,
       setUser,
@@ -198,21 +199,21 @@ const CreateDriverGroup: React.FC = () => {
     )
 
     if (success) {
-      navigate("/driver-groups")
+      navigate("/series")
     }
   }
 
   // Handle delete.
   const onDeleteHandler = async () => {
-    if (!editingGroup) return
+    if (!editingSeries) return
 
-    if ((editingGroup.championships?.length || 0) > 0) {
-      setFormErr(prev => ({ ...prev, groupName: "This group is still used in a championship." }))
+    if ((editingSeries.championships?.length || 0) > 0) {
+      setFormErr(prev => ({ ...prev, seriesName: "This series is still used in a championship." }))
       return
     }
 
-    const success = await removeDriverGroup(
-      editingGroup,
+    const success = await removeSeries(
+      editingSeries,
       user,
       setUser,
       navigate,
@@ -221,7 +222,7 @@ const CreateDriverGroup: React.FC = () => {
     )
 
     if (success) {
-      navigate("/driver-groups")
+      navigate("/series")
     }
   }
 
@@ -231,7 +232,7 @@ const CreateDriverGroup: React.FC = () => {
   if (isDriverEdit) {
     return (
       <div className="content-container">
-        <DriverEdit<createDriverGroupFormType>
+        <DriverEdit<createSeriesFormType>
           setIsDriverEdit={setIsDriverEdit}
           setForm={setForm}
           driver={driverToEdit}
@@ -247,28 +248,28 @@ const CreateDriverGroup: React.FC = () => {
   }
 
   return (
-    <div className="content-container create-driver-group">
-      <h4>{isEditing ? "Edit" : "New"} Driver Group</h4>
-      <DropZone<createDriverGroupFormType, createDriverGroupFormErrType>
+    <div className="content-container create-series">
+      <h4>{isEditing ? "Edit" : "New"} Series</h4>
+      <DropZone<createSeriesFormType, createSeriesFormErrType>
         form={form}
         setForm={setForm}
         formErr={formErr}
         setFormErr={setFormErr}
         backendErr={backendErr}
         setBackendErr={setBackendErr}
-        purposeText="Group Image"
-        thumbImg={editingGroup?.url || false}
+        purposeText="Series Image"
+        thumbImg={editingSeries?.url || false}
         disabled={!permissions}
       />
       <TextField
-        name="groupName"
+        name="seriesName"
         inputProps={{ maxLength: 30 }}
         className="mui-form-el"
-        label={inputLabel("groupName", formErr, backendErr)}
+        label={inputLabel("seriesName", formErr, backendErr)}
         variant="filled"
-        onChange={e => updateForm<createDriverGroupFormType, createDriverGroupFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
-        value={form.groupName}
-        error={formErr.groupName || backendErr.type === "groupName" ? true : false}
+        onChange={e => updateForm<createSeriesFormType, createSeriesFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
+        value={form.seriesName}
+        error={formErr.seriesName || backendErr.type === "seriesName" ? true : false}
         disabled={!permissions}
       />
       <div className="driver-picker">
@@ -305,7 +306,7 @@ const CreateDriverGroup: React.FC = () => {
         <Button
           variant="contained"
           color="inherit"
-          onClick={() => navigate("/driver-groups")}
+          onClick={() => navigate("/series")}
         >Back</Button>
         {permissions === "delete" && isEditing && (
           <Button
@@ -326,4 +327,4 @@ const CreateDriverGroup: React.FC = () => {
   )
 }
 
-export default CreateDriverGroup
+export default CreateSeries

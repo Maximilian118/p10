@@ -1,26 +1,26 @@
 import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
-import './_driverGroupListCard.scss'
-import { driverGroupType, driverType } from "../../../shared/types"
+import './_seriesListCard.scss'
+import { seriesType, driverType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
 import CounterIcon from "../../utility/icon/counterIcon/CounterIcon"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 
-interface driverGroupListCardType {
-  group: driverGroupType
+interface seriesListCardType {
+  series: seriesType
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
   highlight?: boolean
 }
 
-// Card for displaying a driver group in a list with driver icons underneath.
-const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick, canEdit, onEditClicked, highlight }) => {
+// Card for displaying a series in a list with driver icons underneath.
+const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit, onEditClicked, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
-  const groupDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
+  const seriesDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
   // Calculate how many driver icons can fit in the container.
   useEffect(() => {
-    const dListWidth = groupDriversRef.current?.getBoundingClientRect().width
+    const dListWidth = seriesDriversRef.current?.getBoundingClientRect().width
 
     if (dListWidth) {
       setLastIcon(Math.floor(dListWidth / 37) - 1) // -1 for 0 based indexing
@@ -28,12 +28,12 @@ const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick
   }, [])
 
   // Build class name with optional highlight animation.
-  const className = `driver-group-list-card${highlight ? ' driver-group-list-card-highlight' : ''}`
+  const className = `series-list-card${highlight ? ' series-list-card-highlight' : ''}`
 
   return (
     <div className={className} onClick={onClick}>
       <div className="main-icon-container">
-        <ImageIcon src={group.url} size="contained"/>
+        <ImageIcon src={series.url} size="contained"/>
         {canEdit && <EditButton
           onClick={e => {
             e.stopPropagation()
@@ -41,17 +41,17 @@ const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick
           }}
         />}
       </div>
-      <div className="driver-group-list-content">
-        <p className="driver-group-list-title">{group.name}</p>
-        <div ref={groupDriversRef} className="driver-group-list-drivers">
-          {group.drivers.map((driver: driverType, i: number) => {
+      <div className="series-list-content">
+        <p className="series-list-title">{series.name}</p>
+        <div ref={seriesDriversRef} className="series-list-drivers">
+          {series.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon) {
               return <ImageIcon key={i} src={driver.icon}/>
             } else if (i === lastIcon) {
               return (
                 <CounterIcon
                   key={i}
-                  counter={group.drivers.length - lastIcon}
+                  counter={series.drivers.length - lastIcon}
                 />
               )
             } else {
@@ -64,4 +64,4 @@ const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick
   )
 }
 
-export default DriverGroupListCard
+export default SeriesListCard

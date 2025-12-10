@@ -60,7 +60,7 @@ export const populateTeam = `
   _id
   url
   name
-  driverGroups {
+  series {
     _id
   }
   drivers {
@@ -82,7 +82,7 @@ export const populateTeamFull = `
   _id
   url
   name
-  driverGroups {
+  series {
     _id
   }
   drivers {
@@ -104,7 +104,7 @@ export const populateTeamList = `
   _id
   url
   name
-  driverGroups {
+  series {
     _id
   }
   drivers {
@@ -134,7 +134,7 @@ export const populateDriver = `
   teams {
     ${populateTeam}
   }
-  driverGroups {
+  series {
     _id
   }
   stats {
@@ -152,8 +152,8 @@ export const populateDriver = `
   updated_at
 `
 
-// Driver Group population template literal.
-export const populateDriverGroup = `
+// Series population template literal.
+export const populateSeries = `
   _id
   url
   name
@@ -217,7 +217,7 @@ export const populateChamp = `
       created_at
     }
   }
-  driverGroup {
+  series {
     _id
     url
     name

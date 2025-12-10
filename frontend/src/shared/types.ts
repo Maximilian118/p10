@@ -101,7 +101,7 @@ export interface teamType {
   _id?: string
   url: string
   name: string
-  driverGroups: driverGroupType[]
+  series: seriesType[]
   drivers: driverType[]
   stats: {
     inceptionDate: string
@@ -122,7 +122,7 @@ export interface driverType {
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
   teams: teamType[]
-  driverGroups: driverGroupType[]
+  series: seriesType[]
   stats: {
     nationality: string | null
     heightCM: number | null
@@ -136,7 +136,7 @@ export interface driverType {
   updated_at?: string
 }
 
-export interface driverGroupType {
+export interface seriesType {
   _id?: string
   url: string
   name: string
@@ -258,7 +258,7 @@ export interface ChampType {
   rounds: RoundType[]
 
   // Configuration
-  driverGroup: driverGroupType
+  series: seriesType
   pointsStructure: pointsStructureType
   adjudicator: AdjudicatorType
 

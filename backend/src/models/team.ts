@@ -6,7 +6,7 @@ export interface teamType {
   _id: ObjectId
   url: string
   name: string
-  driverGroups: ObjectId[]
+  series: ObjectId[]
   drivers: ObjectId[]
   stats: {
     inceptionDate: string
@@ -31,7 +31,7 @@ export interface teamInputType {
 const teamSchema = new mongoose.Schema<teamType>({
   url: { type: String, required: true }, // URL to an image in AWS S3.
   name: { type: String, required: true }, // Name of the team.
-  driverGroups: [{ type: mongoose.Schema.ObjectId, ref: "DriverGroup" }], // Groups that this team competes in.
+  series: [{ type: mongoose.Schema.ObjectId, ref: "Series" }], // Series that this team competes in.
   drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }], // Drivers that belong in this team.
   stats: {
     inceptionDate: { type: String, required: true }, // Date the team was founded.

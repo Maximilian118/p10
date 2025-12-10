@@ -4,7 +4,7 @@ import bucketSchema from "./bucketSchema"
 import champSchema from "./champSchema"
 import badgeSchema from "./badgeSchema"
 import driverSchema from "./driverSchema"
-import driverGroupSchema from "./driverGroupSchema"
+import seriesSchema from "./seriesSchema"
 import teamSchema from "./teamSchema"
 
 const Schema = buildSchema(`
@@ -12,7 +12,7 @@ const Schema = buildSchema(`
   ${bucketSchema}
   ${champSchema}
   ${badgeSchema}
-  ${driverGroupSchema}
+  ${seriesSchema}
   ${driverSchema}
   ${teamSchema}
 
@@ -21,7 +21,7 @@ const Schema = buildSchema(`
     login(email: String!, password: String): User!
     getUserById(_id: ID!): User!
     getBadgesByChamp(championship: String): Badges
-    getDriverGroups: DriverGroups
+    getSeries: SeriesList
     getDrivers: Drivers
     getTeams: Teams
     getChamps: Champs
@@ -40,9 +40,9 @@ const Schema = buildSchema(`
     joinChamp(_id: ID!): Champ!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!
-    newDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!
-    updateDriverGroup(driverGroupInput: driverGroupInput): DriverGroup!
-    deleteDriverGroup(_id: ID!): DriverGroup!
+    newSeries(seriesInput: seriesInput): Series!
+    updateSeries(seriesInput: seriesInput): Series!
+    deleteSeries(_id: ID!): Series!
     newDriver(driverInput: driverInput): Driver!
     updateDriver(driverInput: driverInput): Driver!
     deleteDriver(_id: ID!): Driver!

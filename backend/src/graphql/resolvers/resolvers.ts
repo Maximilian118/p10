@@ -1,7 +1,7 @@
 import userResolvers from "./userResolvers"
 import bucketResolvers from "./bucketResolvers"
 import badgeResolvers from "./badgeResolvers"
-import driverGroupResolvers from "./driverGroupResolvers"
+import seriesResolvers from "./seriesResolvers"
 import driverResolvers from "./driverResolvers"
 import teamResolvers from "./teamResolvers"
 import champResolvers from "./champResolvers"
@@ -10,7 +10,7 @@ const Resolvers = {
   ...userResolvers,
   ...bucketResolvers,
   ...badgeResolvers,
-  ...driverGroupResolvers,
+  ...seriesResolvers,
   ...driverResolvers,
   ...teamResolvers,
   ...champResolvers,

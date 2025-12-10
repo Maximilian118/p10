@@ -106,7 +106,7 @@ export interface ChampType {
   rounds: Round[]
 
   // Configuration
-  driverGroup: ObjectId // Which series is this championship based upon?
+  series: ObjectId // Which series is this championship based upon?
   pointsStructure: PointsStructureEntry[] // What's the points structure of this championship?
 
   adjudicator: Adjudicator
@@ -308,7 +308,7 @@ const champSchema = new mongoose.Schema<ChampType>({
   rounds: [roundSchema],
 
   // Configuration
-  driverGroup: { type: mongoose.Schema.ObjectId, required: true, ref: "DriverGroup" },
+  series: { type: mongoose.Schema.ObjectId, required: true, ref: "Series" },
   pointsStructure: [pointsStructureSchema],
   adjudicator: {
     current: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },

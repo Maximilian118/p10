@@ -1,7 +1,8 @@
 import { userType } from "./localStorage"
-import { driverGroupType, driverType, teamType } from "./types"
+import { seriesType, driverType, teamType } from "./types"
 
-export const initDriverGroup = (user: userType): driverGroupType => {
+// Initialize a new series with default values.
+export const initSeries = (user: userType): seriesType => {
   return {
     created_by: user._id,
     url: "",
@@ -11,6 +12,7 @@ export const initDriverGroup = (user: userType): driverGroupType => {
   }
 }
 
+// Initialize a new driver with default values.
 export const initDriver = (user: userType): driverType => {
   return {
     created_by: user._id,
@@ -20,7 +22,7 @@ export const initDriver = (user: userType): driverType => {
     name: "",
     driverID: "",
     teams: [],
-    driverGroups: [],
+    series: [],
     stats: {
       nationality: null,
       heightCM: null,
@@ -32,12 +34,13 @@ export const initDriver = (user: userType): driverType => {
   }
 }
 
+// Initialize a new team with default values.
 export const initTeam = (user: userType): teamType => {
   return {
     created_by: user._id,
     url: "",
     name: "",
-    driverGroups: [],
+    series: [],
     drivers: [],
     stats: {
       inceptionDate: "",

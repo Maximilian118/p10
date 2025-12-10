@@ -11,7 +11,7 @@ import {
   falsyValErrors,
   throwError,
 } from "./resolverErrors"
-import DriverGroup from "../../models/driverGroup"
+import Series from "../../models/series"
 import { updateTeams, syncDriverTeams } from "./resolverUtility"
 import { capitalise, clientS3, deleteS3 } from "../../shared/utility"
 
@@ -125,18 +125,18 @@ const driverResolvers = {
         throw throwError("driverName", driver, "This driver still has teams.")
       }
 
-      // Check if driver is part of any championship (via driverGroup or bets).
+      // Check if driver is part of any championship (via series or bets).
       await driverInChampErrors(driver)
 
-      // Remove driver from any driverGroups (allowed since not in championship).
-      for (const groupId of driver.driverGroups) {
-        const group = await DriverGroup.findById(groupId)
-        if (group) {
-          group.drivers = group.drivers.filter(
+      // Remove driver from any series (allowed since not in championship).
+      for (const seriesId of driver.series) {
+        const seriesDoc = await Series.findById(seriesId)
+        if (seriesDoc) {
+          seriesDoc.drivers = seriesDoc.drivers.filter(
             (d) => d.toString() !== driver._id.toString(),
           )
-          group.updated_at = moment().format()
-          await group.save()
+          seriesDoc.updated_at = moment().format()
+          await seriesDoc.save()
         }
       }
 

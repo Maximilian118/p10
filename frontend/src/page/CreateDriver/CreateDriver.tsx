@@ -61,9 +61,9 @@ const CreateDriver: React.FC = () => {
   const editingDriver = (location.state as { driver?: driverType })?.driver
   const isEditing = !!editingDriver
 
-  // Check if we came from another form that expects us to return (e.g., CreateDriverGroup).
+  // Check if we came from another form that expects us to return (e.g., CreateSeries).
   const returnTo = (location.state as { returnTo?: string })?.returnTo
-  const groupForm = (location.state as { groupForm?: unknown })?.groupForm
+  const seriesForm = (location.state as { seriesForm?: unknown })?.seriesForm
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
@@ -273,8 +273,8 @@ const CreateDriver: React.FC = () => {
 
     if (driver && driver._id) {
       // If we came from another form, return there with the new driver.
-      if (returnTo && groupForm) {
-        navigate(returnTo, { state: { groupForm, newDriver: driver } })
+      if (returnTo && seriesForm) {
+        navigate(returnTo, { state: { seriesForm, newDriver: driver } })
       } else {
         navigate("/drivers", { state: { newDriverId: driver._id } })
       }
@@ -483,7 +483,7 @@ const CreateDriver: React.FC = () => {
         <Button
           variant="contained"
           color="inherit"
-          onClick={() => returnTo && groupForm ? navigate(returnTo, { state: { groupForm } }) : navigate("/drivers")}
+          onClick={() => returnTo && seriesForm ? navigate(returnTo, { state: { seriesForm } }) : navigate("/drivers")}
         >Back</Button>
         {permissions === "delete" && isEditing && (
           <Button

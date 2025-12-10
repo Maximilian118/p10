@@ -1,24 +1,26 @@
 import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
-import './_driverGroupCard.scss'
-import { driverGroupType, driverType } from "../../../shared/types"
+import './_seriesCard.scss'
+import { seriesType, driverType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
 import CounterIcon from "../../utility/icon/counterIcon/CounterIcon"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 
-interface driverGroupCardType {
-  group: driverGroupType
+interface seriesCardType {
+  series: seriesType
   onClick?: (e: SyntheticEvent) => void
   selected?: boolean
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
 }
 
-const DriverGroupCard: React.FC<driverGroupCardType> = ({ group, onClick, selected, canEdit, onEditClicked }) => {
+// Card component for displaying a series in the series picker.
+const SeriesCard: React.FC<seriesCardType> = ({ series, onClick, selected, canEdit, onEditClicked }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
-  const groupDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
+  const seriesDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
+  // Calculate how many driver icons can fit in the container.
   useEffect(() => {
-    const dListWidth = groupDriversRef.current?.getBoundingClientRect().width
+    const dListWidth = seriesDriversRef.current?.getBoundingClientRect().width
 
     if (dListWidth) {
       setLastIcon(Math.floor(dListWidth / 37) - 1) // -1 for 0 based indexing
@@ -26,9 +28,9 @@ const DriverGroupCard: React.FC<driverGroupCardType> = ({ group, onClick, select
   }, [])
 
   return (
-    <div className={`driver-group-card${selected ? "-selected" : ""}`} onClick={onClick}>
+    <div className={`series-card${selected ? "-selected" : ""}`} onClick={onClick}>
       <div className="main-icon-container">
-        <ImageIcon src={group.url} size="contained"/>
+        <ImageIcon src={series.url} size="contained"/>
         {canEdit && <EditButton
           inverted={selected}
           onClick={e => {
@@ -37,19 +39,19 @@ const DriverGroupCard: React.FC<driverGroupCardType> = ({ group, onClick, select
           }}
         />}
       </div>
-      <div className="driver-group-content">
-        {selected && <p className="driver-group-selected">Selected</p>}
-        <p className="driver-group-title">{group.name}</p>
-        <div ref={groupDriversRef} className="driver-group-drivers">
-          {group.drivers.map((driver: driverType, i: number) => {
+      <div className="series-content">
+        {selected && <p className="series-selected">Selected</p>}
+        <p className="series-title">{series.name}</p>
+        <div ref={seriesDriversRef} className="series-drivers">
+          {series.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon ) {
               return <ImageIcon key={i} src={driver.icon}/>
             } else if (i === lastIcon) {
               return (
-                <CounterIcon 
-                  key={i} 
-                  inverted={selected} 
-                  counter={group.drivers.length - lastIcon}
+                <CounterIcon
+                  key={i}
+                  inverted={selected}
+                  counter={series.drivers.length - lastIcon}
                 />
               )
             } else {
@@ -62,4 +64,4 @@ const DriverGroupCard: React.FC<driverGroupCardType> = ({ group, onClick, select
   )
 }
 
-export default DriverGroupCard
+export default SeriesCard

@@ -1,7 +1,7 @@
 @use '../../../../scss/mixins';
 @use '../../../../scss/variables';
 
-.driver-group-edit {
+.series-edit {
   width: 100%;
   @include mixins.flexbox-start-column;
   flex-shrink: 0;
