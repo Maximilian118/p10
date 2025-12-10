@@ -12,6 +12,7 @@ import { capitalise, onlyNumbers } from "../utility"
 
 export const newDriver = async <T extends { drivers: driverType[] }>(
   editForm: driverEditFormType, // form state of driver
+  setEditForm: React.Dispatch<React.SetStateAction<driverEditFormType>>, // form state of driver being edited
   setForm: React.Dispatch<React.SetStateAction<T>>, // form state of driver group
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -20,40 +21,22 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
-  let profilePictureURL = ""
-  let bodyURL = ""
   let success = false
 
-  // Upload headshot icon to S3 (small compressed version).
-  if (editForm.icon) {
-    iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr)
+  if (!iconURL && editForm.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  const profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr)
+  if (!profilePictureURL && editForm.profile_picture) { setLoading(false); return false }
 
-  // Upload headshot profile picture to S3 (larger version).
-  if (editForm.profile_picture) {
-    profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr) // prettier-ignore
+  const bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.body, setBackendErr)
+  if (!bodyURL && editForm.body) { setLoading(false); return false }
 
-    if (!profilePictureURL) {
-      setLoading(false)
-      return false
-    }
-  }
-
-  // Upload body image to S3.
-  if (editForm.bodyIcon) {
-    bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.bodyIcon, setBackendErr) // prettier-ignore
-
-    if (!bodyURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
+  if (editForm.profile_picture instanceof File && profilePictureURL) setEditForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
+  if (editForm.body instanceof File && bodyURL) setEditForm((prev) => ({ ...prev, body: bodyURL }))
 
   try {
     await axios
@@ -146,6 +129,7 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 export const updateDriver = async <T extends { drivers: driverType[] }>(
   driver: driverType, // driver that's being updated
   editForm: driverEditFormType, // form state for driver
+  setEditForm: React.Dispatch<React.SetStateAction<driverEditFormType>>, // form state of driver being edited
   setForm: React.Dispatch<React.SetStateAction<T>>, // form state for driver group
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -154,45 +138,27 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
   setLoading?: React.Dispatch<React.SetStateAction<boolean>>,
 ): Promise<boolean> => {
   setLoading && setLoading(true)
-  let iconURL = ""
-  let profilePictureURL = ""
-  let bodyURL = ""
   let success = false
 
-  // Upload new headshot icon to S3 if changed.
-  if (editForm.icon) {
-    iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && editForm.icon) { setLoading && setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading && setLoading(false)
-      return false
-    }
-  }
+  const profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0)
+  if (!profilePictureURL && editForm.profile_picture) { setLoading && setLoading(false); return false }
 
-  // Upload new headshot profile picture to S3 if changed.
-  if (editForm.profile_picture) {
-    profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+  const bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.body, setBackendErr, user, setUser, navigate, 0)
+  if (!bodyURL && editForm.body) { setLoading && setLoading(false); return false }
 
-    if (!profilePictureURL) {
-      setLoading && setLoading(false)
-      return false
-    }
-  }
-
-  // Upload new body image to S3 if changed.
-  if (editForm.bodyIcon) {
-    bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.bodyIcon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
-
-    if (!bodyURL) {
-      setLoading && setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
+  if (editForm.profile_picture instanceof File && profilePictureURL) setEditForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
+  if (editForm.body instanceof File && bodyURL) setEditForm((prev) => ({ ...prev, body: bodyURL }))
 
   const updatedDriver = {
-    icon: iconURL ? iconURL : driver.icon,
-    profile_picture: profilePictureURL ? profilePictureURL : driver.profile_picture,
-    body: bodyURL ? bodyURL : driver.body,
+    icon: iconURL || driver.icon,
+    profile_picture: profilePictureURL || driver.profile_picture,
+    body: bodyURL || driver.body,
     name: editForm.driverName,
     nationality: editForm.nationality!.label,
     heightCM: onlyNumbers(editForm.heightCM!),
@@ -401,6 +367,7 @@ export const deleteDriver = async <T extends { drivers: driverType[] }>(
 // Standalone create function for CreateDriver page.
 export const createDriver = async (
   form: createDriverFormType,
+  setForm: React.Dispatch<React.SetStateAction<createDriverFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -408,37 +375,22 @@ export const createDriver = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<driverType | null> => {
   setLoading(true)
-  let iconURL = ""
-  let profilePictureURL = ""
-  let bodyURL = ""
   let driver: driverType | null = null
 
-  // Upload headshot icon to S3 (small compressed version).
-  if (form.icon) {
-    iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr)
-    if (!iconURL) {
-      setLoading(false)
-      return null
-    }
-  }
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr)
+  if (!iconURL && form.icon) { setLoading(false); return null }
 
-  // Upload headshot profile picture to S3 (larger version).
-  if (form.profile_picture) {
-    profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr)
-    if (!profilePictureURL) {
-      setLoading(false)
-      return null
-    }
-  }
+  const profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr)
+  if (!profilePictureURL && form.profile_picture) { setLoading(false); return null }
 
-  // Upload body image to S3.
-  if (form.bodyIcon) {
-    bodyURL = await uplaodS3("drivers", form.driverName, "body", form.bodyIcon, setBackendErr)
-    if (!bodyURL) {
-      setLoading(false)
-      return null
-    }
-  }
+  const bodyURL = await uplaodS3("drivers", form.driverName, "body", form.body, setBackendErr)
+  if (!bodyURL && form.body) { setLoading(false); return null }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.profile_picture instanceof File && profilePictureURL) setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
+  if (form.body instanceof File && bodyURL) setForm((prev) => ({ ...prev, body: bodyURL }))
 
   try {
     await axios
@@ -523,6 +475,7 @@ export const createDriver = async (
 export const editDriver = async (
   driver: driverType,
   form: createDriverFormType,
+  setForm: React.Dispatch<React.SetStateAction<createDriverFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -530,37 +483,22 @@ export const editDriver = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
-  let profilePictureURL = ""
-  let bodyURL = ""
   let success = false
 
-  // Upload new headshot icon to S3 if changed.
-  if (form.icon) {
-    iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && form.icon) { setLoading(false); return false }
 
-  // Upload new headshot profile picture to S3 if changed.
-  if (form.profile_picture) {
-    profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
-    if (!profilePictureURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  const profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
+  if (!profilePictureURL && form.profile_picture) { setLoading(false); return false }
 
-  // Upload new body image to S3 if changed.
-  if (form.bodyIcon) {
-    bodyURL = await uplaodS3("drivers", form.driverName, "body", form.bodyIcon, setBackendErr, user, setUser, navigate, 0)
-    if (!bodyURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  const bodyURL = await uplaodS3("drivers", form.driverName, "body", form.body, setBackendErr, user, setUser, navigate, 0)
+  if (!bodyURL && form.body) { setLoading(false); return false }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.profile_picture instanceof File && profilePictureURL) setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
+  if (form.body instanceof File && bodyURL) setForm((prev) => ({ ...prev, body: bodyURL }))
 
   try {
     await axios

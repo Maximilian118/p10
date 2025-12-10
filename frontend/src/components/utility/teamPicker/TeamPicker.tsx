@@ -78,7 +78,8 @@ const TeamPicker = <T extends driverEditFormType, U extends { teams: string }, V
     // If we're editing an existing driver.
     if (driver._id) {
       // Remove this team from the driver in db.
-      if (await updateDriver(driver, withoutTeam, setForm, user, setUser, navigate, setBackendErr) && setDriver) {
+      // Cast setEditForm since T extends driverEditFormType and updateDriver expects driverEditFormType.
+      if (await updateDriver(driver, withoutTeam, setEditForm as React.Dispatch<React.SetStateAction<driverEditFormType>>, setForm, user, setUser, navigate, setBackendErr) && setDriver) {
         // Update the driver we're editing.
         setDriver(prevDriver => {
           return {
@@ -105,7 +106,8 @@ const TeamPicker = <T extends driverEditFormType, U extends { teams: string }, V
     // If we're editing an existing driver.
     if (driver._id) {
       // Add this driver to the team in db.
-      if (await updateDriver(driver, withTeam, setForm, user, setUser, navigate, setBackendErr) && setDriver) {
+      // Cast setEditForm since T extends driverEditFormType and updateDriver expects driverEditFormType.
+      if (await updateDriver(driver, withTeam, setEditForm as React.Dispatch<React.SetStateAction<driverEditFormType>>, setForm, user, setUser, navigate, setBackendErr) && setDriver) {
         // Update the driver we're editing.
         setDriver(prevDriver => {
           return {

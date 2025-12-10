@@ -22,8 +22,8 @@ interface createChampFormBaseType {
 
 export interface createChampFormType extends createChampFormBaseType {
   series: seriesType | null
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
   pointsStructure: pointsStructureType
   rulesAndRegs: rulesAndRegsType
   champBadges: badgeType[]
@@ -102,6 +102,7 @@ const CreateChamp: React.FC = () => {
     // Call the createChamp API
     const champ = await createChamp(
       form,
+      setForm,
       user,
       setUser,
       navigate,

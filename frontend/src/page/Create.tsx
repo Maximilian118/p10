@@ -15,8 +15,8 @@ interface createFormBaseType {
 }
 
 export interface createFormType extends createFormBaseType {
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface createFormErrType extends createFormBaseType {

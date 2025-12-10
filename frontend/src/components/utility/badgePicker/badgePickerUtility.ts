@@ -4,7 +4,7 @@ import { editFormErrType } from "./badgePickerEdit/BadgePickerEdit"
 
 interface badgeErrCheckType {
   name: string
-  icon: File | null
+  icon: File | string | null
   awardedHow: string | null
 }
 
@@ -40,7 +40,7 @@ export const badgePickerErrors = (
 
   // Loop through all of the badges in champBadges and check if the current badge has any duplicate values.
   for (const b of badges) {
-    if (badge.icon) {
+    if (badge.icon instanceof File) {
       const newFilename = formatString(badge.icon.name)
 
       if (newFilename === formatString(getFilename(b.url))) {

@@ -30,8 +30,8 @@ export interface teamEditFormType {
   teamName: string
   inceptionDate: Moment | null
   nationality: countryType | null
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface teamEditFormErrType {
@@ -91,7 +91,7 @@ const TeamEdit = <T extends { teams: teamType[] }>({
       return
     }
     // Send request to update the team in DB and mutate form state
-    if (await updateTeam(team, editForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
+    if (await updateTeam(team, editForm, setEditForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
       // Redirect back to previous page and clear team information
       setIsEdit(false)
       setTeam(initTeam(user))
@@ -104,7 +104,7 @@ const TeamEdit = <T extends { teams: teamType[] }>({
       return
     }
     // Send request to add a new team to the DB and mutate form state
-    if (await newTeam(editForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
+    if (await newTeam(editForm, setEditForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
       // Redirect back to previous page and clear team information
       setIsEdit(false)
       setTeam(initTeam(user))

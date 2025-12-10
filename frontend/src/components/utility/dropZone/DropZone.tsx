@@ -24,6 +24,7 @@ interface dropZoneType<T, U> {
   iconField?: string // Custom field name for icon (defaults to 'icon').
   profilePictureField?: string // Custom field name for profile_picture (defaults to 'profile_picture').
   dropzoneErrorField?: string // Custom field name for dropzone error (defaults to 'dropzone').
+  singleOutput?: boolean // When true, only set profilePictureField (for body images).
 }
 
 interface compressedImagesType {
@@ -48,6 +49,7 @@ const DropZone = <T extends formType, U extends formErrType>({
   iconField = 'icon',
   profilePictureField = 'profile_picture',
   dropzoneErrorField = 'dropzone',
+  singleOutput = false,
 }: dropZoneType<T, U>) => {
   const [ thumb, setThumb ] = useState<string>("")
   const [ error, setError ] = useState<string>("")
@@ -61,9 +63,10 @@ const DropZone = <T extends formType, U extends formErrType>({
       setThumb(user.profile_picture)
     }
 
-    const profilePicture = form[profilePictureField as keyof T] as File | null
+    const profilePicture = form[profilePictureField as keyof T] as File | string | null
     if (profilePicture) {
-      setThumb(URL.createObjectURL(profilePicture))
+      // If string (URL), use directly. If File, create object URL.
+      setThumb(typeof profilePicture === 'string' ? profilePicture : URL.createObjectURL(profilePicture))
     } else if (thumbImg) {
       setThumb(thumbImg)
     }
@@ -98,8 +101,9 @@ const DropZone = <T extends formType, U extends formErrType>({
   // Then, setThumb with a url string for the thumbnail.
   // Then, setForm with compressed Files.
   useEffect(() => {
-    const iconFile = form[iconField as keyof T] as File | null
-    if (myFiles.length > 0 && fileRejections.length === 0 && myFiles[0].name !== iconFile?.name) {
+    const iconFile = form[iconField as keyof T] as File | string | null
+    const iconFileName = iconFile instanceof File ? iconFile.name : null
+    if (myFiles.length > 0 && fileRejections.length === 0 && myFiles[0].name !== iconFileName) {
       setLoading(true)
       // If files have been accepted, remove any backend errors.
       if (backendErr && setBackendErr && hasBackendErr(errTypes, backendErr)) {
@@ -142,13 +146,25 @@ const DropZone = <T extends formType, U extends formErrType>({
             [dropzoneErrorField]: "",
           }
         })
-        setForm(prevForm => {
-          return {
-            ...prevForm,
-            [iconField]: compressedImages.icon,
-            [profilePictureField]: compressedImages.profile_picture,
-          }
-        })
+        // Update form state with compressed files.
+        if (singleOutput) {
+          // Single output mode - only set profilePictureField (for body images).
+          setForm(prevForm => {
+            return {
+              ...prevForm,
+              [profilePictureField]: compressedImages.profile_picture,
+            }
+          })
+        } else {
+          // Default mode - set both icon and profile_picture fields.
+          setForm(prevForm => {
+            return {
+              ...prevForm,
+              [iconField]: compressedImages.icon,
+              [profilePictureField]: compressedImages.profile_picture,
+            }
+          })
+        }
 
         setMyFiles([])
         setLoading(false)
@@ -170,7 +186,7 @@ const DropZone = <T extends formType, U extends formErrType>({
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, iconField, myFiles, fileRejections, setForm, setFormErr, backendErr, setBackendErr, dropzoneErrorField, profilePictureField])
+  }, [form, iconField, myFiles, fileRejections, setForm, setFormErr, backendErr, setBackendErr, dropzoneErrorField, profilePictureField, singleOutput])
 
   // If formErr is passed, display the dropzone error if there is one.
   useEffect(() => {

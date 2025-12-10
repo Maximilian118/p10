@@ -12,6 +12,7 @@ import { capitalise, sortAlphabetically } from "../utility"
 // Create a new series from the series picker (used in CreateChamp).
 export const newSeries = async <T extends { series: seriesType | null }>(
   editForm: seriesEditFormType,
+  setEditForm: React.Dispatch<React.SetStateAction<seriesEditFormType>>,
   setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -22,17 +23,14 @@ export const newSeries = async <T extends { series: seriesType | null }>(
   setSelected: React.Dispatch<React.SetStateAction<string>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (editForm.icon) {
-    iconURL = await uplaodS3("series", editForm.seriesName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("series", editForm.seriesName, "icon", editForm.icon, setBackendErr)
+  if (!iconURL && editForm.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios
@@ -144,6 +142,7 @@ export const getSeries = async (
 export const updateSeries = async <T extends { series: seriesType | null }>(
   seriesItem: seriesType, // Series that's being updated.
   editForm: seriesEditFormType, // Form state for series being edited.
+  setEditForm: React.Dispatch<React.SetStateAction<seriesEditFormType>>, // Form state setter for series being edited.
   setForm: React.Dispatch<React.SetStateAction<T>>, // Form state for champ form.
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -153,21 +152,18 @@ export const updateSeries = async <T extends { series: seriesType | null }>(
   setSeriesList?: React.Dispatch<React.SetStateAction<seriesType[]>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (editForm.icon) {
-    iconURL = await uplaodS3("series", editForm.seriesName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("series", editForm.seriesName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && editForm.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
 
   const updatedSeries = {
     name: capitalise(editForm.seriesName),
-    url: iconURL ? iconURL : seriesItem.url,
+    url: iconURL || seriesItem.url,
     drivers: editForm.drivers.map((driver) => driver._id!),
   }
 
@@ -307,6 +303,7 @@ export const deleteSeries = async <T extends { series: seriesType | null }>(
 // Simplified create function for the standalone CreateSeries page.
 export const createSeries = async (
   form: createSeriesFormType,
+  setForm: React.Dispatch<React.SetStateAction<createSeriesFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -314,17 +311,14 @@ export const createSeries = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<seriesType | null> => {
   setLoading(true)
-  let iconURL = ""
   let series: seriesType | null = null
 
-  if (form.icon) {
-    iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr)
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr)
+  if (!iconURL && form.icon) { setLoading(false); return null }
 
-    if (!iconURL) {
-      setLoading(false)
-      return null
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios
@@ -370,6 +364,7 @@ export const createSeries = async (
 export const editSeries = async (
   seriesItem: seriesType,
   form: createSeriesFormType,
+  setForm: React.Dispatch<React.SetStateAction<createSeriesFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -377,17 +372,14 @@ export const editSeries = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (form.icon) {
-    iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && form.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios

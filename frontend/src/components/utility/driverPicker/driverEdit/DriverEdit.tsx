@@ -44,10 +44,9 @@ export interface driverEditFormType {
   birthday: Moment | null
   moustache: boolean
   mullet: boolean
-  icon: File | null
-  profile_picture: File | null
-  bodyIcon: File | null
-  bodyPicture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
+  body: File | string | null
 }
 
 export interface driverEditFormErrType {
@@ -95,8 +94,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
     mullet: driver.stats.mullet ? driver.stats.mullet : false,
     icon: null,
     profile_picture: null,
-    bodyIcon: null,
-    bodyPicture: null,
+    body: null,
   })
   const [ editFormErr, setEditFormErr ] = useState<driverEditFormErrType>({
     driverName: "",
@@ -132,7 +130,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
       return
     }
     // Send request to update a driver and mutate form state
-    if (await updateDriver(driver, editForm, setForm, user, setUser, navigate, setBackendErr, setLoading)) {
+    if (await updateDriver(driver, editForm, setEditForm, setForm, user, setUser, navigate, setBackendErr, setLoading)) {
       // Redirect back to previous page and clear driver information
       setIsDriverEdit(false)
       setDriver(initDriver(user))
@@ -145,7 +143,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
       return
     }
     // Send request to add a new driver to the DB and mutate form state
-    if (await newDriver(editForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
+    if (await newDriver(editForm, setEditForm, setForm, user, setUser, navigate, setLoading, setBackendErr)) {
       // Redirect back to previous page and clear driver information
       setIsDriverEdit(false)
       setDriver(initDriver(user))
@@ -191,8 +189,8 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
             thumbImg={driver.body ? driver.body : false}
             disabled={!canEditDriver(driver, user)}
             optional
-            iconField="bodyIcon"
-            profilePictureField="bodyPicture"
+            singleOutput
+            profilePictureField="body"
             dropzoneErrorField="dropzoneBody"
           />
         </div>

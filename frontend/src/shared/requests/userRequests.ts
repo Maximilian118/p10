@@ -20,24 +20,19 @@ export const createUser = async <U extends { dropzone: string }>(
 ): Promise<void> => {
   setLoading(true)
 
-  let iconURL = ""
-  let ppURL = ""
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("users", form.name, "icon", form.icon, setBackendErr)
+  if (!iconURL && form.icon) {
+    setFormErr((prevErrs) => ({ ...prevErrs, dropzone: "Failed to upload image." }))
+    setLoading(false)
+    return
+  }
 
-  if (form.icon && form.profile_picture) {
-    iconURL = await uplaodS3("users", form.name, "icon", form.icon, setBackendErr)
-    ppURL = await uplaodS3("users", form.name, "profile_picture", form.profile_picture, setBackendErr)
-
-    if (!iconURL || !ppURL) {
-      setFormErr((prevErrs) => {
-        return {
-          ...prevErrs,
-          dropzone: "Failed to upload image.",
-        }
-      })
-
-      setLoading(false)
-      return
-    }
+  const ppURL = await uplaodS3("users", form.name, "profile_picture", form.profile_picture, setBackendErr)
+  if (!ppURL && form.profile_picture) {
+    setFormErr((prevErrs) => ({ ...prevErrs, dropzone: "Failed to upload image." }))
+    setLoading(false)
+    return
   }
 
   try {
@@ -175,18 +170,17 @@ export const updatePP = async <T extends formType>(
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<void> => {
   setLoading(true)
-  let iconURL = ""
-  let ppURL = ""
 
-  if (form.icon && form.profile_picture) {
-    iconURL = await uplaodS3("users", user.name, "icon", form.icon, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
-    ppURL = await uplaodS3("users", user.name, "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2) // prettier-ignore
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("users", user.name, "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
+  if (!iconURL && form.icon) { setLoading(false); return }
 
-    if (!iconURL || !ppURL) {
-      setLoading(false)
-      return
-    }
-  }
+  const ppURL = await uplaodS3("users", user.name, "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
+  if (!ppURL && form.profile_picture) { setLoading(false); return }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL } as T))
+  if (form.profile_picture instanceof File && ppURL) setForm((prev) => ({ ...prev, profile_picture: ppURL } as T))
 
   try {
     await axios

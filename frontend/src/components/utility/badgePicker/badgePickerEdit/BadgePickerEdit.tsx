@@ -28,8 +28,8 @@ interface badgePickerEditType<T> {
 
 interface editFormType {
   badgeName: string
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface editFormErrType {
@@ -105,11 +105,17 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     setLoading(true)
 
     if (isNewBadge) {
-      // Upload badge image to S3.
-      const s3Url = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
-      if (!s3Url) {
-        setLoading(false)
-        return
+      // Upload badge image to S3 if it's a File.
+      let s3Url = typeof editForm.icon === "string" ? editForm.icon : ""
+      if (editForm.icon instanceof File) {
+        const uploadedUrl = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
+        if (!uploadedUrl) {
+          setLoading(false)
+          return
+        }
+        s3Url = uploadedUrl
+        // Store uploaded URL in form state for retry.
+        setEditForm(prev => ({ ...prev, icon: s3Url }))
       }
 
       // Add badge data to form (no DB call - backend creates it during createChamp).
@@ -132,11 +138,15 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
       // Editing existing badge - update form locally.
       // If a new image was uploaded, upload to S3 first.
       let badgeUrl = isEdit.url
-      if (editForm.icon) {
+      if (editForm.icon instanceof File) {
         const s3Url = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
         if (s3Url) {
           badgeUrl = s3Url
+          // Store uploaded URL in form state for retry.
+          setEditForm(prev => ({ ...prev, icon: s3Url }))
         }
+      } else if (typeof editForm.icon === "string") {
+        badgeUrl = editForm.icon
       }
 
       setForm(prevForm => ({

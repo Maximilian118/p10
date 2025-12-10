@@ -30,8 +30,8 @@ export interface seriesEditFormType {
   _id: string | null
   seriesName: string
   drivers: driverType[]
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface seriesEditFormErrType {
@@ -96,7 +96,7 @@ const SeriesEdit = <T extends { series: seriesType | null }>({
       return
     }
     // Send request to update series in the DB and mutate form state.
-    if (await updateSeries(series, editForm, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)) {
+    if (await updateSeries(series, editForm, setEditForm, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)) {
       // Redirect back to previous page and clear series information.
       setIsEdit(false)
       setSeries(initSeries(user))
@@ -110,7 +110,7 @@ const SeriesEdit = <T extends { series: seriesType | null }>({
       return
     }
     // Send request to add a new series to the DB and mutate form state.
-    if (await newSeries(editForm, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList, setSelected)) {
+    if (await newSeries(editForm, setEditForm, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList, setSelected)) {
       // Redirect back to previous page and clear series information.
       setIsEdit(false)
       setSeries(initSeries(user))

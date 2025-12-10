@@ -12,6 +12,7 @@ import { capitalise } from "../utility"
 
 export const newTeam = async <T extends { teams: teamType[] }>(
   editForm: teamEditFormType,
+  setEditForm: React.Dispatch<React.SetStateAction<teamEditFormType>>,
   setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -20,17 +21,14 @@ export const newTeam = async <T extends { teams: teamType[] }>(
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (editForm.icon) {
-    iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr) // prettier-ignore
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr)
+  if (!iconURL && editForm.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios
@@ -85,6 +83,7 @@ export const newTeam = async <T extends { teams: teamType[] }>(
 export const updateTeam = async <T extends { teams: teamType[] }>(
   team: teamType,
   editForm: teamEditFormType,
+  setEditForm: React.Dispatch<React.SetStateAction<teamEditFormType>>,
   setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -93,21 +92,18 @@ export const updateTeam = async <T extends { teams: teamType[] }>(
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (editForm.icon) {
-    iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("teams", editForm.teamName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && editForm.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
 
   const updatedTeam = {
     name: editForm.teamName,
-    url: iconURL ? iconURL : team.url,
+    url: iconURL || team.url,
     nationality: editForm.nationality?.label,
     inceptionDate: moment(editForm.inceptionDate).format(),
   }
@@ -282,6 +278,7 @@ export const deleteTeam = async <T extends { teams: teamType[] }>(
 // Standalone create function for CreateTeam page.
 export const createTeam = async (
   form: createTeamFormType,
+  setForm: React.Dispatch<React.SetStateAction<createTeamFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -289,17 +286,14 @@ export const createTeam = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<teamType | null> => {
   setLoading(true)
-  let iconURL = ""
   let team: teamType | null = null
 
-  if (form.icon) {
-    iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr)
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr)
+  if (!iconURL && form.icon) { setLoading(false); return null }
 
-    if (!iconURL) {
-      setLoading(false)
-      return null
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios
@@ -346,6 +340,7 @@ export const createTeam = async (
 export const editTeam = async (
   team: teamType,
   form: createTeamFormType,
+  setForm: React.Dispatch<React.SetStateAction<createTeamFormType>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -353,17 +348,14 @@ export const editTeam = async (
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<boolean> => {
   setLoading(true)
-  let iconURL = ""
   let success = false
 
-  if (form.icon) {
-    iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  if (!iconURL && form.icon) { setLoading(false); return false }
 
-    if (!iconURL) {
-      setLoading(false)
-      return false
-    }
-  }
+  // Store uploaded URL in form state for retry (only if File was uploaded).
+  if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
 
   try {
     await axios

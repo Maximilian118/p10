@@ -33,10 +33,9 @@ export interface createDriverFormType {
   birthday: Moment | null
   moustache: boolean
   mullet: boolean
-  icon: File | null
-  profile_picture: File | null
-  bodyIcon: File | null
-  bodyPicture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
+  body: File | string | null
 }
 
 export interface createDriverFormErrType {
@@ -96,8 +95,7 @@ const CreateDriver: React.FC = () => {
         mullet: editingDriver.stats.mullet || false,
         icon: null,
         profile_picture: null,
-        bodyIcon: null,
-        bodyPicture: null,
+        body: null,
       }
     }
     return {
@@ -113,8 +111,7 @@ const CreateDriver: React.FC = () => {
       mullet: false,
       icon: null,
       profile_picture: null,
-      bodyIcon: null,
-      bodyPicture: null,
+      body: null,
     }
   }
 
@@ -169,7 +166,7 @@ const CreateDriver: React.FC = () => {
 
     return (
       !!form.icon ||
-      !!form.bodyIcon ||
+      !!form.body ||
       editingDriver.name !== form.driverName ||
       editingDriver.driverID !== form.driverID ||
       !teamsMatch ||
@@ -269,7 +266,7 @@ const CreateDriver: React.FC = () => {
   const onSubmitHandler = async () => {
     if (!validateForm()) return
 
-    const driver = await createDriver(form, user, setUser, navigate, setLoading, setBackendErr)
+    const driver = await createDriver(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (driver && driver._id) {
       // If we came from another form, return there with the new driver.
@@ -286,7 +283,7 @@ const CreateDriver: React.FC = () => {
     if (!validateForm()) return
     if (!editingDriver) return
 
-    const success = await editDriver(editingDriver, form, user, setUser, navigate, setLoading, setBackendErr)
+    const success = await editDriver(editingDriver, form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (success) {
       navigate("/drivers")
@@ -357,8 +354,8 @@ const CreateDriver: React.FC = () => {
             thumbImg={editingDriver?.body || false}
             disabled={!permissions}
             optional
-            iconField="bodyIcon"
-            profilePictureField="bodyPicture"
+            singleOutput
+            profilePictureField="body"
             dropzoneErrorField="dropzoneBody"
           />
         </div>

@@ -24,11 +24,13 @@ const putS3 = async (
     })
 }
 
+// Uploads a file to S3 or returns existing URL if already uploaded.
+// Accepts File (uploads), string (returns as-is), or null (returns empty).
 export const uplaodS3 = async (
   entityType: string, // Entity type folder: "drivers", "teams", "series", "users", "championships"
   entityName: string, // Name of the entity (e.g., driver name, team name)
   category: string, // Category subfolder: "icon", "profile-picture", "body"
-  file: File | null,
+  file: File | string | null,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
   user?: userType,
   setUser?: React.Dispatch<React.SetStateAction<userType>>,
@@ -39,6 +41,11 @@ export const uplaodS3 = async (
 
   if (!file) {
     return url
+  }
+
+  // If already a string URL, return it directly (no upload needed).
+  if (typeof file === "string") {
+    return file
   }
 
   try {

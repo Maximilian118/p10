@@ -19,8 +19,8 @@ export interface createTeamFormType {
   teamName: string
   inceptionDate: Moment | null
   nationality: countryType | null
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface createTeamFormErrType {
@@ -137,7 +137,7 @@ const CreateTeam: React.FC = () => {
   const onSubmitHandler = async () => {
     if (!validateForm()) return
 
-    const team = await createTeam(form, user, setUser, navigate, setLoading, setBackendErr)
+    const team = await createTeam(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (team && team._id) {
       navigate("/teams", { state: { newTeamId: team._id } })
@@ -149,7 +149,7 @@ const CreateTeam: React.FC = () => {
     if (!validateForm()) return
     if (!editingTeam) return
 
-    const success = await editTeam(editingTeam, form, user, setUser, navigate, setLoading, setBackendErr)
+    const success = await editTeam(editingTeam, form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (success) {
       navigate("/teams")

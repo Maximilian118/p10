@@ -89,7 +89,8 @@ const DriverPicker = <T extends seriesEditFormType, U extends { drivers: string 
     })
     // If we're editing an existing series.
     if (series._id) {
-      await updateSeries(series, withoutDriver, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)
+      // Cast setEditForm since T extends seriesEditFormType and updateSeries expects seriesEditFormType.
+      await updateSeries(series, withoutDriver, setEditForm as React.Dispatch<React.SetStateAction<seriesEditFormType>>, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)
     }
   }
 
@@ -115,7 +116,8 @@ const DriverPicker = <T extends seriesEditFormType, U extends { drivers: string 
     })
     // If we're editing an existing series.
     if (series._id) {
-      await updateSeries(series, withDriver, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)
+      // Cast setEditForm since T extends seriesEditFormType and updateSeries expects seriesEditFormType.
+      await updateSeries(series, withDriver, setEditForm as React.Dispatch<React.SetStateAction<seriesEditFormType>>, setForm, user, setUser, navigate, setLoading, setBackendErr, setSeriesList)
     }
   }
 

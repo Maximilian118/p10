@@ -20,8 +20,8 @@ export interface createSeriesFormType {
   _id: string | null
   seriesName: string
   drivers: driverType[]
-  icon: File | null
-  profile_picture: File | null
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 export interface createSeriesFormErrType {
@@ -171,6 +171,7 @@ const CreateSeries: React.FC = () => {
 
     const series = await createSeries(
       form,
+      setForm,
       user,
       setUser,
       navigate,
@@ -191,6 +192,7 @@ const CreateSeries: React.FC = () => {
     const success = await editSeries(
       editingSeries,
       form,
+      setForm,
       user,
       setUser,
       navigate,
