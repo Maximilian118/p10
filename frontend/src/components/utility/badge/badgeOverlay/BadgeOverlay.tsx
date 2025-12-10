@@ -7,7 +7,7 @@ interface badgeOverlayType {
   rarity: number
   thickness?: number
   error?: boolean
-  style?: {}
+  style?: React.CSSProperties
 }
 
 export const getBadgeColour = (rarity: number, error?: boolean): string => {

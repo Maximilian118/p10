@@ -23,7 +23,7 @@ const TeamCard: React.FC<teamCardType> = ({ team, onClick, canEdit, onRemove, ca
         <RemoveButton
           onClick={(e) => {
             e.stopPropagation()
-            onRemove && onRemove(team)
+            if (onRemove) onRemove(team)
           }}
         />
       )}

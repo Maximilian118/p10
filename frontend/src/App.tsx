@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const location = useLocation()
 
   useEffect(() => {
-    !user.token && preloadFormImgs(location)
+    if (!user.token) preloadFormImgs(location)
   }, [user.token, location])
 
   return (

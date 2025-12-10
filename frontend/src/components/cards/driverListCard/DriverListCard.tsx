@@ -36,7 +36,7 @@ const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit
         {canEdit && <EditButton
           onClick={e => {
             e.stopPropagation()
-            onEditClicked && onEditClicked(e)
+            if (onEditClicked) onEditClicked(e)
           }}
         />}
       </div>

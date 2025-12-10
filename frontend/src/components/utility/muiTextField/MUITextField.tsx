@@ -9,7 +9,7 @@ interface MUITextFieldType{
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
   required?: boolean
-  inputProps?: {}
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>
   className?: string
 }
 // Mainly exists for perfomance purposes. E.G if each keystroke is a little big laggy on a normal TextField.

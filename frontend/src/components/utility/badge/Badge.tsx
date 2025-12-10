@@ -9,7 +9,7 @@ interface badgeCompType {
   badge: badgeType
   zoom: number
   onClick?: () => void
-  style?: {}
+  style?: React.CSSProperties
 }
 
 const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {

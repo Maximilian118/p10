@@ -34,7 +34,7 @@ export interface graphQLErrorType extends errorType {
   originalErrors: errorType[]
 }
 
-export let initGraphQLError: graphQLErrorType = {
+export const initGraphQLError: graphQLErrorType = {
   request: "",
   type: "",
   message: "",

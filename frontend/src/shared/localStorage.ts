@@ -103,7 +103,7 @@ export const logout = (
     })
   }
 
-  navigate && navigate("/login")
+  if (navigate) navigate("/login")
 
   return blankUser
 }
@@ -121,7 +121,7 @@ export const logInSuccess = (
   setUser?: React.Dispatch<React.SetStateAction<userType>>,
   log?: boolean,
 ): userType => {
-  let user = res.data.data[request]
+  const user = res.data.data[request]
 
   if (user.tokens) {
     user.token = tokensHandler(user, user.tokens)

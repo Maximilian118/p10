@@ -55,7 +55,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   useEffect(() => {
     if (form.champBadges.length === 0 && !reqSent && !badgesReqSent) {
       setReqSent(true) // Local state to ensure req doesn't send twice.
-      setBadgesReqSent && setBadgesReqSent(true) // Remote state to ensure req doesn't send again even if component unloads and reloads.
+      if (setBadgesReqSent) setBadgesReqSent(true) // Remote state to ensure req doesn't send again even if component unloads and reloads.
       getBadgesByChamp(null, user, setUser, navigate, setLoading, setBackendErr, setForm, setDefaults, setDefaultBadges) // Req
     }
   }, [form, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges])

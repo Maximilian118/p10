@@ -35,7 +35,7 @@ const SeriesCard: React.FC<seriesCardType> = ({ series, onClick, selected, canEd
           inverted={selected}
           onClick={e => {
             e.stopPropagation()
-            onEditClicked && onEditClicked(e)
+            if (onEditClicked) onEditClicked(e)
           }}
         />}
       </div>

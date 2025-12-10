@@ -42,7 +42,7 @@ const CreateTeam: React.FC = () => {
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
-  const [ teamsLoading, setTeamsLoading ] = useState<boolean>(false)
+  const [ , setTeamsLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ teams, setTeams ] = useState<teamType[]>([])
   const [ reqSent, setReqSent ] = useState<boolean>(false)

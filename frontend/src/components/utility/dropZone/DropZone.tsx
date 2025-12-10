@@ -27,11 +27,6 @@ interface dropZoneType<T, U> {
   singleOutput?: boolean // When true, only set profilePictureField (for body images).
 }
 
-interface compressedImagesType {
-  icon: File
-  profile_picture: File
-}
-
 const DropZone = <T extends formType, U extends formErrType>({
   form,
   setForm,
@@ -140,7 +135,7 @@ const DropZone = <T extends formType, U extends formErrType>({
         setImgErr(false)
         setThumb(URL.createObjectURL(compressedImages.profile_picture))
         setError("")
-        setFormErr && setFormErr((prevFormErr): U => {
+        if (setFormErr) setFormErr((prevFormErr): U => {
           return {
             ...prevFormErr,
             [dropzoneErrorField]: "",
@@ -176,7 +171,7 @@ const DropZone = <T extends formType, U extends formErrType>({
 
       setThumb("")
       setError(err)
-      setFormErr && setFormErr((prevFormErr): U => {
+      if (setFormErr) setFormErr((prevFormErr): U => {
         return {
           ...prevFormErr,
           [dropzoneErrorField]: err,
@@ -185,7 +180,6 @@ const DropZone = <T extends formType, U extends formErrType>({
 
       setLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, iconField, myFiles, fileRejections, setForm, setFormErr, backendErr, setBackendErr, dropzoneErrorField, profilePictureField, singleOutput])
 
   // If formErr is passed, display the dropzone error if there is one.

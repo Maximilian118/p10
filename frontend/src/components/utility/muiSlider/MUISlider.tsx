@@ -14,7 +14,7 @@ interface MUISliderType {
   min?: number
   max?: number
   colour?: string
-  style?: {}
+  style?: React.CSSProperties
 }
 
 const MUISlider: React.FC<MUISliderType> = ({ 

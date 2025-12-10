@@ -7,7 +7,7 @@ import AppContext from "../../context"
 import { driverType, teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
-import { initDriver, initTeam } from "../../shared/init"
+import { initTeam } from "../../shared/init"
 import { createdByID, heightCMOptions, isThreeLettersUppercase, sortAlphabetically, weightKGOptions } from "../../shared/utility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { getTeams } from "../../shared/requests/teamRequests"
@@ -66,7 +66,7 @@ const CreateDriver: React.FC = () => {
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
-  const [ driversLoading, setDriversLoading ] = useState<boolean>(false)
+  const [ , setDriversLoading ] = useState<boolean>(false)
   const [ teamsLoading, setTeamsLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ drivers, setDrivers ] = useState<driverType[]>([])

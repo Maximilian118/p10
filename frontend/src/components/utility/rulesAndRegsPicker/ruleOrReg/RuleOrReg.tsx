@@ -39,7 +39,7 @@ const RuleOrReg: React.FC<rOrrType> = ({ index, item, setEdit, isDefault }) => (
       }
       <EditButton
         size="small"
-        onClick={e => setEdit(prevEdit => {
+        onClick={() => setEdit(prevEdit => {
           return {
             ...prevEdit,
             index,

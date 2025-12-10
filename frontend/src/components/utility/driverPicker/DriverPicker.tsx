@@ -68,7 +68,7 @@ const DriverPicker = <T extends seriesEditFormType, U extends { drivers: string 
 
   // Expose requested drivers to a higher state.
   useEffect(() => {
-    setDrivers && setDrivers(localDrivers)
+    if (setDrivers) setDrivers(localDrivers)
   }, [localDrivers, setDrivers])
 
   // Remove a driver from the series.

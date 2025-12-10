@@ -23,7 +23,7 @@ const DriverCard: React.FC<driverCardType> = ({ driver, onClick, canEdit, onRemo
         <RemoveButton
           onClick={(e) => {
             e.stopPropagation()
-            onRemove && onRemove(driver)
+            if (onRemove) onRemove(driver)
           }}
         />
       )}

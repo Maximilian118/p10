@@ -64,7 +64,7 @@ const TeamPicker = <T extends driverEditFormType, U extends { teams: string }, V
   }, [localTeams, setLocalTeams, reqSent, user, setUser, navigate, setBackendErr])
 
   useEffect(() => { // Expose requested teams to a higher state.
-    setTeams && setTeams(localTeams)
+    if (setTeams) setTeams(localTeams)
   }, [localTeams, setTeams])
 
   const removeTeamHandler = async (team: teamType) => {

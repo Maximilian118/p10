@@ -36,7 +36,7 @@ const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEd
         {canEdit && <EditButton
           onClick={e => {
             e.stopPropagation()
-            onEditClicked && onEditClicked(e)
+            if (onEditClicked) onEditClicked(e)
           }}
         />}
       </div>

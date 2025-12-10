@@ -20,7 +20,7 @@ interface muiAutocompleteType<T> {
   onNewMouseDown?: React.MouseEventHandler<HTMLDivElement> // When user clicks on createNew, do something.
   onLiClick?: (value: T) => void // Custom onClick functionality for options. NOTE: Stops textArea from retaining clicked option. Useful for adding option to a list.
   disabled?: boolean
-  style?: {}
+  style?: React.CSSProperties
 }
 
 // Return JSX for the onClick element to create a new of whatever is being listed.
@@ -93,7 +93,7 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       value={value}
       disabled={disabled}
       onChange={(e: SyntheticEvent<Element, Event>, value: T | string | null) => {
-        setValue && setValue(findValueString(value))
+        if (setValue) setValue(findValueString(value))
 
         if (setObjValue && typeof value !== "string" && !onLiClick) {
           setObjValue(value)
@@ -106,10 +106,10 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
 
         onChange()
       }}
-      options={options as any}
+      options={options as (T | string)[]}
       isOptionEqualToValue={(option, value) => findValueString(option) === findValueString(value)}
       getOptionLabel={(option: T | string | null) => findValueString(option) as string}
-      renderOption={({ key, ...props }: any, option: T | string | null) => (
+      renderOption={({ key, ...props }: React.HTMLAttributes<HTMLLIElement> & { key: string }, option: T | string | null) => (
         <li key={key} {...props}>
           {typeof option !== "string" && !!option && <ImageIcon src={option.url || option.icon || ""} style={{ marginRight: 16 }}/>}
           <p>{findValueString(option)}</p>

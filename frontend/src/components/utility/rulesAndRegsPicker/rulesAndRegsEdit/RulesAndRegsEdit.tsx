@@ -194,12 +194,12 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
             style={{ margin: "0 10px" }}
             variant="contained" 
             color="inherit"
-            onClick={e => SetDelConfirm(false)}
+            onClick={() => SetDelConfirm(false)}
           >Back</Button>
           <Button
             variant="contained" 
             color="error"
-            onClick={e => deleteRRHandler(setForm)}
+            onClick={() => deleteRRHandler(setForm)}
           >Delete</Button>
         </div>
     </div>
@@ -269,7 +269,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
           variant="filled"
           error={hasErr() ? true : false}
         />
-        {isSub && <RemoveButton onClick={e => deleteSubsection(setRuleReg, index)}/>}
+        {isSub && <RemoveButton onClick={() => deleteSubsection(setRuleReg, index)}/>}
       </div>
     )
   }
@@ -285,7 +285,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
         <Button
           className="sub-add-button"
           variant="contained"
-          onClick={e => newSubsection(user, setRuleReg)}
+          onClick={() => newSubsection(user, setRuleReg)}
         >New Subsection</Button>
       </div>
       <div className="button-bar">
@@ -295,16 +295,16 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
             className="mui-button-back"
             variant="contained" 
             color="inherit"
-            onClick={e => setEdit(initEditState)}
+            onClick={() => setEdit(initEditState)}
           >Back</Button>
           {!edit.newRuleReg && <Button
             variant="contained" 
             color="error"
-            onClick={e => SetDelConfirm(true)}
+            onClick={() => SetDelConfirm(true)}
           >Delete</Button>}
           <Button
             variant="contained"
-            onClick={e => updateRRHandler(setForm, setEdit)}
+            onClick={() => updateRRHandler(setForm, setEdit)}
           >Submit</Button>
         </>}
       </div>

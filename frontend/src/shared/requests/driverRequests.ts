@@ -137,18 +137,18 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
   setLoading?: React.Dispatch<React.SetStateAction<boolean>>,
 ): Promise<boolean> => {
-  setLoading && setLoading(true)
+  if (setLoading) setLoading(true)
   let success = false
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("drivers", editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0)
-  if (!iconURL && editForm.icon) { setLoading && setLoading(false); return false }
+  if (!iconURL && editForm.icon) { if (setLoading) setLoading(false); return false }
 
   const profilePictureURL = await uplaodS3("drivers", editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0)
-  if (!profilePictureURL && editForm.profile_picture) { setLoading && setLoading(false); return false }
+  if (!profilePictureURL && editForm.profile_picture) { if (setLoading) setLoading(false); return false }
 
   const bodyURL = await uplaodS3("drivers", editForm.driverName, "body", editForm.body, setBackendErr, user, setUser, navigate, 0)
-  if (!bodyURL && editForm.body) { setLoading && setLoading(false); return false }
+  if (!bodyURL && editForm.body) { if (setLoading) setLoading(false); return false }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (editForm.icon instanceof File && iconURL) setEditForm((prev) => ({ ...prev, icon: iconURL }))
@@ -247,7 +247,7 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
     graphQLErrors("updateDriver", err, setUser, navigate, setBackendErr, true)
   }
 
-  setLoading && setLoading(false)
+  if (setLoading) setLoading(false)
   return success
 }
 

@@ -3,7 +3,7 @@ import './_badgeSpinner.scss'
 
 interface badgeSpinnerType {
   thickness?: number
-  style?: {}
+  style?: React.CSSProperties
 }
 
 const BadgeSpinner: React.FC<badgeSpinnerType> = ({ thickness, style }) => (

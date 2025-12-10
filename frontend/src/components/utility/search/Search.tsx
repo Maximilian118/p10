@@ -32,7 +32,7 @@ const Search = <T extends { name: string }>({ original, setSearch, preserveOrder
     }, 300) // Debounce 300ms.
 
     return () => clearTimeout(handler)
-  }, [query, original, setSearch])
+  }, [query, original, setSearch, preserveOrder])
   
   return (
     <TextField

@@ -101,7 +101,7 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
             <Button
               variant="contained" 
               size="small"
-              onClick={e => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
+              onClick={() => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
             >{`${!hasDefbadges(form) ? "Add" : "Remove"} defaults`}</Button>
           </div>
       </div>

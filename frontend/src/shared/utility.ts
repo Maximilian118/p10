@@ -9,7 +9,7 @@ export const getInitials = (userName: string) => {
     return "?"
   }
 
-  let names = userName.split(" ")
+  const names = userName.split(" ")
   let initials = names[0].substring(0, 1).toUpperCase()
 
   if (names.length > 1) {
@@ -51,7 +51,7 @@ export const resizeOps = () => {
 
 // Preload form images.
 // load the img for the current enpoint first and then preload the rest.
-export const preloadFormImgs = (location: Location<any>): void => {
+export const preloadFormImgs = (location: Location<unknown>): void => {
   const imgs = [
     {
       url: "https://p10-game.s3.eu-west-2.amazonaws.com/assets/f1-car1.jpg",

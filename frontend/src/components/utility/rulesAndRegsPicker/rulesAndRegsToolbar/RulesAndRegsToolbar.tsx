@@ -46,7 +46,7 @@ const RulesAndRegsToolbar = <T extends { rulesAndRegs: rulesAndRegsType }>({
         {`${hasDefs ? "Remove" : "Add"} Defaults`}
       </Button>
       <AddButton
-        onClick={e => setEdit(prevEdit => {
+        onClick={() => setEdit(prevEdit => {
           return {
             ...prevEdit,
             newRuleReg: true,

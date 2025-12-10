@@ -2,7 +2,7 @@ import { Button } from "@mui/material"
 import React from "react"
 import { useNavigate } from "react-router-dom"
 
-const PassSuccess: React.FC = props => {
+const PassSuccess: React.FC = () => {
   const navigate = useNavigate()
 
   return (

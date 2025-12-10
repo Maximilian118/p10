@@ -9,7 +9,7 @@ interface MUISelectStyle {
   setState: React.Dispatch<React.SetStateAction<number>>
   handleSelectChange?: (i: number) => void
   filled?: boolean
-  style?: {}
+  style?: React.CSSProperties
   error?: boolean
 }
 
@@ -19,7 +19,7 @@ export const MUISelect: React.FC<MUISelectStyle> = ({ label, items, setState, ha
   const handleChange = (e: SelectChangeEvent) => {
     setItem(e.target.value as string)
     setState(Number(e.target.value))
-    handleSelectChange && handleSelectChange(Number(e.target.value))
+    if (handleSelectChange) handleSelectChange(Number(e.target.value))
   }
 
   return (
