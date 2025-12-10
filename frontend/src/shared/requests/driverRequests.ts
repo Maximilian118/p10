@@ -5,6 +5,7 @@ import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./req
 import { NavigateFunction } from "react-router-dom"
 import { populateDriver } from "./requestPopulation"
 import { driverEditFormType } from "../../components/utility/driverPicker/driverEdit/DriverEdit"
+import { createDriverFormType } from "../../page/CreateDriver/CreateDriver"
 import { uplaodS3 } from "./bucketRequests"
 import moment from "moment"
 import { capitalise, onlyNumbers } from "../utility"
@@ -20,14 +21,25 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
 ): Promise<boolean> => {
   setLoading(true)
   let iconURL = ""
+  let profilePictureURL = ""
   let bodyURL = ""
   let success = false
 
-  // Upload headshot image to S3.
+  // Upload headshot icon to S3 (small compressed version).
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "headshot", editForm.icon, setBackendErr) // prettier-ignore
+    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr) // prettier-ignore
 
     if (!iconURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  // Upload headshot profile picture to S3 (larger version).
+  if (editForm.profile_picture) {
+    profilePictureURL = await uplaodS3(editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr) // prettier-ignore
+
+    if (!profilePictureURL) {
       setLoading(false)
       return false
     }
@@ -50,8 +62,9 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
         {
           variables: {
             created_by: user._id,
-            url: iconURL,
-            body: bodyURL,
+            icon: iconURL,
+            profile_picture: profilePictureURL,
+            body: bodyURL || null,
             name: capitalise(editForm.driverName),
             driverID: editForm.driverID,
             teams: editForm.teams.map((team) => team._id),
@@ -65,7 +78,8 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
           query: `
             mutation NewDriver(
               $created_by: ID!,
-              $url: String!,
+              $icon: String!,
+              $profile_picture: String!,
               $body: String,
               $name: String!,
               $driverID: String!,
@@ -80,7 +94,8 @@ export const newDriver = async <T extends { drivers: driverType[] }>(
               newDriver(
                 driverInput: {
                   created_by: $created_by,
-                  url: $url,
+                  icon: $icon,
+                  profile_picture: $profile_picture,
                   body: $body,
                   name: $name,
                   driverID: $driverID,
@@ -140,14 +155,25 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
 ): Promise<boolean> => {
   setLoading && setLoading(true)
   let iconURL = ""
+  let profilePictureURL = ""
   let bodyURL = ""
   let success = false
 
-  // Upload new headshot image to S3 if changed.
+  // Upload new headshot icon to S3 if changed.
   if (editForm.icon) {
-    iconURL = await uplaodS3(editForm.driverName, "headshot", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+    iconURL = await uplaodS3(editForm.driverName, "icon", editForm.icon, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
 
     if (!iconURL) {
+      setLoading && setLoading(false)
+      return false
+    }
+  }
+
+  // Upload new headshot profile picture to S3 if changed.
+  if (editForm.profile_picture) {
+    profilePictureURL = await uplaodS3(editForm.driverName, "profile-picture", editForm.profile_picture, setBackendErr, user, setUser, navigate, 0) // prettier-ignore
+
+    if (!profilePictureURL) {
       setLoading && setLoading(false)
       return false
     }
@@ -164,7 +190,8 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
   }
 
   const updatedDriver = {
-    url: iconURL ? iconURL : driver.url,
+    icon: iconURL ? iconURL : driver.icon,
+    profile_picture: profilePictureURL ? profilePictureURL : driver.profile_picture,
     body: bodyURL ? bodyURL : driver.body,
     name: editForm.driverName,
     nationality: editForm.nationality!.label,
@@ -186,7 +213,8 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
           query: `
             mutation UpdateDriver(
               $_id: ID,
-              $url: String,
+              $icon: String,
+              $profile_picture: String,
               $body: String,
               $name: String!,
               $driverID: String!,
@@ -201,7 +229,8 @@ export const updateDriver = async <T extends { drivers: driverType[] }>(
               updateDriver(
                 driverInput: {
                   _id: $_id,
-                  url: $url,
+                  icon: $icon,
+                  profile_picture: $profile_picture,
                   body: $body,
                   name: $name,
                   driverID: $driverID,
@@ -355,6 +384,298 @@ export const deleteDriver = async <T extends { drivers: driverType[] }>(
             }
           })
 
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteDriver", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteDriver", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Standalone create function for CreateDriver page.
+export const createDriver = async (
+  form: createDriverFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<driverType | null> => {
+  setLoading(true)
+  let iconURL = ""
+  let profilePictureURL = ""
+  let bodyURL = ""
+  let driver: driverType | null = null
+
+  // Upload headshot icon to S3 (small compressed version).
+  if (form.icon) {
+    iconURL = await uplaodS3(form.driverName, "icon", form.icon, setBackendErr)
+    if (!iconURL) {
+      setLoading(false)
+      return null
+    }
+  }
+
+  // Upload headshot profile picture to S3 (larger version).
+  if (form.profile_picture) {
+    profilePictureURL = await uplaodS3(form.driverName, "profile-picture", form.profile_picture, setBackendErr)
+    if (!profilePictureURL) {
+      setLoading(false)
+      return null
+    }
+  }
+
+  // Upload body image to S3.
+  if (form.bodyIcon) {
+    bodyURL = await uplaodS3(form.driverName, "body", form.bodyIcon, setBackendErr)
+    if (!bodyURL) {
+      setLoading(false)
+      return null
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            created_by: user._id,
+            icon: iconURL,
+            profile_picture: profilePictureURL,
+            body: bodyURL || null,
+            name: capitalise(form.driverName),
+            driverID: form.driverID,
+            teams: form.teams.map((team) => team._id),
+            nationality: form.nationality?.label,
+            heightCM: onlyNumbers(form.heightCM!),
+            weightKG: onlyNumbers(form.weightKG!),
+            birthday: moment(form.birthday).format(),
+            moustache: form.moustache,
+            mullet: form.mullet,
+          },
+          query: `
+            mutation NewDriver(
+              $created_by: ID!,
+              $icon: String!,
+              $profile_picture: String!,
+              $body: String,
+              $name: String!,
+              $driverID: String!,
+              $teams: [ID!],
+              $nationality: String!
+              $heightCM: Int!,
+              $weightKG: Int!,
+              $birthday: String!,
+              $moustache: Boolean!,
+              $mullet: Boolean!,
+            ) {
+              newDriver(
+                driverInput: {
+                  created_by: $created_by,
+                  icon: $icon,
+                  profile_picture: $profile_picture,
+                  body: $body,
+                  name: $name,
+                  driverID: $driverID,
+                  teams: $teams,
+                  nationality: $nationality,
+                  heightCM: $heightCM,
+                  weightKG: $weightKG,
+                  birthday: $birthday,
+                  moustache: $moustache,
+                  mullet: $mullet,
+                }
+              ) {
+                ${populateDriver}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("newDriver", res, setUser, navigate, setBackendErr, true)
+        } else {
+          driver = graphQLResponse("newDriver", res, user, setUser) as driverType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("newDriver", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("newDriver", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return driver
+}
+
+// Standalone update function for CreateDriver page.
+export const editDriver = async (
+  driver: driverType,
+  form: createDriverFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let iconURL = ""
+  let profilePictureURL = ""
+  let bodyURL = ""
+  let success = false
+
+  // Upload new headshot icon to S3 if changed.
+  if (form.icon) {
+    iconURL = await uplaodS3(form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+    if (!iconURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  // Upload new headshot profile picture to S3 if changed.
+  if (form.profile_picture) {
+    profilePictureURL = await uplaodS3(form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
+    if (!profilePictureURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  // Upload new body image to S3 if changed.
+  if (form.bodyIcon) {
+    bodyURL = await uplaodS3(form.driverName, "body", form.bodyIcon, setBackendErr, user, setUser, navigate, 0)
+    if (!bodyURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: driver._id,
+            icon: iconURL || driver.icon,
+            profile_picture: profilePictureURL || driver.profile_picture,
+            body: bodyURL || driver.body,
+            name: capitalise(form.driverName),
+            driverID: form.driverID,
+            teams: form.teams.map((team) => team._id!),
+            nationality: form.nationality?.label,
+            heightCM: onlyNumbers(form.heightCM!),
+            weightKG: onlyNumbers(form.weightKG!),
+            birthday: moment(form.birthday).format(),
+            moustache: form.moustache,
+            mullet: form.mullet,
+          },
+          query: `
+            mutation UpdateDriver(
+              $_id: ID,
+              $icon: String,
+              $profile_picture: String,
+              $body: String,
+              $name: String!,
+              $driverID: String!,
+              $teams: [ID!],
+              $nationality: String!,
+              $heightCM: Int!,
+              $weightKG: Int!,
+              $birthday: String!,
+              $moustache: Boolean!,
+              $mullet: Boolean!,
+            ) {
+              updateDriver(
+                driverInput: {
+                  _id: $_id,
+                  icon: $icon,
+                  profile_picture: $profile_picture,
+                  body: $body,
+                  name: $name,
+                  driverID: $driverID,
+                  teams: $teams,
+                  nationality: $nationality,
+                  heightCM: $heightCM,
+                  weightKG: $weightKG,
+                  birthday: $birthday,
+                  moustache: $moustache,
+                  mullet: $mullet,
+                }
+              ) {
+                ${populateDriver}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateDriver", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("updateDriver", res, user, setUser, false)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateDriver", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateDriver", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Standalone delete function for CreateDriver page.
+export const removeDriver = async (
+  driver: driverType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: driver._id },
+          query: `
+            mutation DeleteDriver( $_id: ID! ) {
+              deleteDriver( _id: $_id ) {
+                ${populateDriver}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteDriver", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("deleteDriver", res, user, setUser)
           success = true
         }
       })

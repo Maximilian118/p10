@@ -5,7 +5,7 @@ import Champ from "../../models/champ"
 import { ObjectId } from "mongodb"
 import badgeRewardOutcomes, { findDesc, findDescs, findHows } from "../../shared/badgeOutcomes"
 import Team from "../../models/team"
-import Driver from "../../models/driver"
+import Driver, { driverType } from "../../models/driver"
 import { isThreeLettersUppercase } from "../../shared/utility"
 import DriverGroup from "../../models/driverGroup"
 
@@ -200,8 +200,40 @@ export const imageErrors = (url: string): void => {
     throwError(type, url, "An image is required.")
   }
 
-  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/(icon|profile-picture)\/[a-z0-9-]+$/i.test(url)) {
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/(icon|profile-picture|body)\/[a-z0-9-]+$/i.test(url)) {
     throwError(type, url, "Image url is not valid... Tricky one.")
+  }
+}
+
+// Validates driver image fields (icon, profile_picture required; body optional).
+export const driverImageErrors = (
+  icon: string,
+  profile_picture: string,
+  body?: string | null,
+): void => {
+  const type = "dropzone"
+
+  // Icon is required.
+  if (!icon) {
+    throwError(type, icon, "A headshot icon is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon)) {
+    throwError(type, icon, "Icon URL is not valid... Tricky one.")
+  }
+
+  // Profile picture is required.
+  if (!profile_picture) {
+    throwError(type, profile_picture, "A headshot profile picture is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture)) {
+    throwError(type, profile_picture, "Profile picture URL is not valid... Tricky one.")
+  }
+
+  // Body is optional, but validate format if provided.
+  if (body && !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/body\/[a-z0-9-]+$/i.test(body)) {
+    throwError("dropzoneBody", body, "Body URL is not valid... Tricky one.")
   }
 }
 
@@ -445,5 +477,26 @@ export const champNameErrors = async (name: string): Promise<void> => {
 
   if (existingChamp) {
     throwError(type, name, "A championship by that name already exists!")
+  }
+}
+
+// Check if a driver is part of any championship (via driverGroup or bets).
+export const driverInChampErrors = async (driver: driverType): Promise<void> => {
+  const type = "driverName"
+
+  // Check if any of the driver's driverGroups are linked to championships.
+  for (const groupId of driver.driverGroups) {
+    const group = await DriverGroup.findById(groupId)
+    if (group && group.championships.length > 0) {
+      throwError(type, driver, "This driver belongs to a driver group used by a championship.")
+    }
+  }
+
+  // Check if driver is referenced in any championship round as a bet or winner.
+  const champWithBet = await Champ.findOne({
+    $or: [{ "rounds.competitors.bet": driver._id }, { "rounds.winner": driver._id }],
+  })
+  if (champWithBet) {
+    throwError(type, driver, "This driver has been used in championship bets.")
   }
 }

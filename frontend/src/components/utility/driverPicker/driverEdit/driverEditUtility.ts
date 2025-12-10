@@ -11,8 +11,6 @@ export const driverEditErrors = (
   update?: boolean,
 ): boolean => {
   const errors: driverEditFormErrType = {
-    url: "",
-    body: "",
     driverName: "",
     driverID: "",
     teams: "",
@@ -101,8 +99,6 @@ export const driverDeleteErrors = (
   setEditFormErr: React.Dispatch<React.SetStateAction<driverEditFormErrType>>,
 ): boolean => {
   const errors: driverEditFormErrType = {
-    url: "",
-    body: "",
     driverName: "",
     driverID: "",
     teams: "",

@@ -10,10 +10,11 @@ interface driverListCardType {
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
+  highlight?: boolean
 }
 
 // Card for displaying a driver in a list with team icons underneath.
-const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit, onEditClicked }) => {
+const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit, onEditClicked, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const driverTeamsRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -26,10 +27,12 @@ const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit
     }
   }, [])
 
+  const className = `driver-list-card${highlight ? ' driver-list-card-highlight' : ''}`
+
   return (
-    <div className="driver-list-card" onClick={onClick}>
+    <div className={className} onClick={onClick}>
       <div className="main-icon-container">
-        <ImageIcon src={driver.url} size="contained"/>
+        <ImageIcon src={driver.icon} size="contained"/>
         {canEdit && <EditButton
           onClick={e => {
             e.stopPropagation()

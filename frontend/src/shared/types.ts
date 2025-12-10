@@ -6,7 +6,7 @@ export interface userProfileType {
   name: string
   icon: string
   profile_picture: string
-  championships: champType[]
+  championships: ChampType[]
   badges: badgeType[]
   permissions: {
     admin: boolean
@@ -33,33 +33,57 @@ export interface formErrType {
   [key: string]: string | undefined | number
 }
 
-export type pointsStructureType = {
-  result: number
+// Points structure - how many points for each position.
+export type pointsStructureEntryType = {
+  position: number
   points: number
-}[]
+}
 
-export type ruleOrRegType = {
+export type pointsStructureType = pointsStructureEntryType[]
+
+// Rule history entry for tracking changes.
+export type ruleHistoryType = {
   text: string
+  updatedBy: userType
+  updated_at: string
+}
+
+// Pending changes type for rule change voting.
+export interface PendingChangesType {
+  competitor: userType
+  status: ProtestStatus
+  title: string
+  description: string
+  votes: VoteType[]
+  expiry: string
+}
+
+// Rule subsection with pending changes.
+export type ruleSubsectionType = {
+  text: string
+  pendingChanges: PendingChangesType[]
+  history: ruleHistoryType[]
   created_by: userType
   created_at: string
-  history: {
-    text: string
-    updatedBy: userType
-    updated_at: string
-  }[]
-  subsections?: ruleOrRegType[]
 }
 
-export type rulesAndRegsListType = ruleOrRegType[]
-
-export type rulesAndRegsType = {
+// Rule or regulation with history tracking.
+export type ruleOrRegType = {
   default: boolean
-  list: rulesAndRegsListType
+  text: string
+  created_by: userType
+  pendingChanges: PendingChangesType[]
+  history: ruleHistoryType[]
+  subsections: ruleSubsectionType[]
+  created_at: string
 }
+
+// rulesAndRegs is now just an array of rules.
+export type rulesAndRegsType = ruleOrRegType[]
 
 export interface badgeType {
   _id?: string
-  championship?: champType
+  championship?: ChampType
   url: string
   name: string
   rarity: number
@@ -92,7 +116,8 @@ export interface teamType {
 
 export interface driverType {
   _id?: string
-  url: string
+  icon: string
+  profile_picture: string
   body: string
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
@@ -115,7 +140,7 @@ export interface driverGroupType {
   _id?: string
   url: string
   name: string
-  championships: champType[]
+  championships: ChampType[]
   drivers: driverType[]
   created_by?: userType | string
   created_at?: string
@@ -123,195 +148,142 @@ export interface driverGroupType {
   tokens?: string[]
 }
 
-// Type for tracking adjudicator rounds
-export interface AdjudicatorRoundType {
-  season: number
+// Status types for championship.
+export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+export type ProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
+
+// Competitor entry within a round - all data for that competitor in that round.
+export interface CompetitorEntryType {
+  competitor: userType
+  bet: driverType | null
+  points: number // Points earned THIS round.
+  totalPoints: number // Cumulative points AFTER this round.
+  position: number // Position in standings AFTER this round.
+  updated_at: string | null // When they last changed their bet.
+  created_at: string | null // When they first placed their bet.
+}
+
+// A single round - self-contained snapshot.
+export interface RoundType {
   round: number
-  timestamp: string
+  status: RoundStatus
+  winner: userType | null // Competitor who scored max points (null if none).
+  runnerUp: userType | null // Runner-up competitor for this round.
+  competitors: CompetitorEntryType[]
 }
 
-// Type for tracking bets per round
-export interface BetType {
-  competitor: userType | string
-  driver: driverType | string
-  timestamp: string
+// Adjudicator history entry.
+export interface AdjudicatorHistoryType {
+  adjudicator: userType
+  fromDateTime: string
+  toDateTime: string
 }
 
-export interface champType {
+// Adjudicator type (extracted for reuse).
+export interface AdjudicatorType {
+  current: userType
+  fromDateTime: string
+  history: AdjudicatorHistoryType[]
+}
+
+// Championship history entry (archived season).
+export interface ChampHistoryType {
+  season: number
+  adjudicator: AdjudicatorType
+  drivers: driverType[]
+  rounds: RoundType[]
+  pointsStructure: pointsStructureType
+}
+
+// Automation settings for championship.
+export interface AutomationSettingsType {
+  enabled: boolean
+  bettingWindow: {
+    autoOpen: boolean
+    autoOpenTime: number
+    autoClose: boolean
+    autoCloseTime: number
+  }
+  round: {
+    autoNextRound: boolean
+    autoNextRoundTime: number
+  }
+  audio: {
+    enabled: boolean
+    triggers: {
+      bettingWindowOpen: string[]
+      bettingWindowClosed: string[]
+    }
+  }
+}
+
+// Vote for a protest.
+export interface VoteType {
+  competitor: userType
+  vote: boolean
+}
+
+// Standalone protest type (separate collection, populated).
+export interface ProtestType {
+  _id: string
+  championship: ChampType
+  competitor: userType // Who lodged the protest.
+  status: ProtestStatus
+  title: string
+  description: string
+  votes: VoteType[]
+  created_at: string
+  updated_at: string
+  tokens: string
+}
+
+// Voting settings type (shared by protests and ruleChanges).
+export interface VotingSettingsType {
+  alwaysVote: boolean
+  allowMultiple: boolean
+  expiry: number
+}
+
+export interface ChampType {
   _id: string
   name: string
   icon: string
   profile_picture: string
+
+  // Current state
   season: number
-  rounds: {
-    round: number
-    completed: boolean
-    bets: BetType[]
-  }[]
-  standings: {
-    competitor: userType
-    active: boolean
-    status: "competitor" | "guest"
-    results: {
-      round: number
-      points: number
-    }[]
-  }[]
-  adjudicator: {
-    current: userType
-    since: string
-    rounds: AdjudicatorRoundType[]
-    history: {
-      adjudicator: userType
-      since: string
-      rounds: AdjudicatorRoundType[]
-    }[]
-  }
+  active: boolean // Is the champ active?
+
+  // Core data - all rounds with competitor snapshots.
+  rounds: RoundType[]
+
+  // Configuration
   driverGroup: driverGroupType
   pointsStructure: pointsStructureType
+  adjudicator: AdjudicatorType
+
+  // Rules and regulations.
   rulesAndRegs: rulesAndRegsType
-  protests: protestType[] // Protest model
-  ruleChanges: ruleChangeType[] // RuleChange model
+
+  // Settings.
   settings: {
     inviteOnly: boolean
     maxCompetitors: number
-    inactiveCompetitors: boolean
-    protests: {
-      protestsAlwaysVote: boolean
-      allowMultipleProtests: boolean
-    }
-    ruleChanges: {
-      ruleChangeAlwaysVote: boolean
-      allowMultipleRuleChanges: boolean
-      ruleChangeExpiry: string
-    }
-    autoOpen: {
-      auto: boolean
-      dateTime: string
-    }
-    autoClose: {
-      auto: boolean
-      dateTime: string
-    }
-    audio: {
-      enabled: boolean
-      auto: boolean
-      triggers: {
-        open: string[]
-        close: string[]
-      }
-    }
-    wager: {
-      allow: boolean
-      description: string
-      max: number
-      min: number
-      equal: boolean
-    }
+    protests: VotingSettingsType
+    ruleChanges: VotingSettingsType
+    automation: AutomationSettingsType
   }
-  champBadges: badgeType[] // Badge model
-  waitingList: {
-    user: userType
-    position: number
-  }[]
-  history: {
-    seasons: number[]
-    names: {
-      name: string
-      created_at: string
-    }[]
-    rounds: {
-      round: string
-      created_at: string
-    }[]
-    stats: {
-      allTime: {
-        mostCompetitors: number // Most competitors to be a part of the champ concurrently ever.
-        mostPoints: {
-          // Most points ever awarded to a competitor in a season.
-          competitor: userType
-          points: number
-        }
-        mostBadgesGiven: {
-          competitor: userType // Most badges given to a competitor.
-          badgesNum: number
-        }
-        rarestBadgeGiven: {
-          competitor: userType // Rarest badge given to a competitor.
-          badge: userType // What badge?
-        }
-        mostWins: {
-          competitor: userType // Most wins ever.
-          amount: number
-        }
-        mostRunnerUp: {
-          competitor: userType // Most runner up ever.
-          amount: number
-        }
-        bestWinStreak: {
-          competitor: userType // The most times in a row a user has won.
-          amount: number
-        }
-        bestPointsStreak: {
-          competitor: userType // The most times in a row a user has scored points.
-          amount: number
-        }
-      }
-      seasons: {
-        season: number
-        mostCompetitors: number // Most competitors to be a part of the champ concurrently.
-        mostWins: {
-          competitor: userType // Most wins this season.
-          amount: number
-        }
-        mostRunnerUp: {
-          competitor: userType // Most runner up this season.
-          amount: number
-        }
-        bestWinStreak: {
-          competitor: userType // The most times in a row a user has won.
-          amount: number
-        }
-        bestPointsStreak: {
-          competitor: userType // The most times in a row a user has scored points.
-          amount: number
-        }
-      }[]
-    }
-  }
-  created_by?: userType | string
-  created_at: string
-  updated_at: string
-  tokens: string
-}
 
-export interface protestType {
-  _id: string
-  championship: champType
-  title: string
-  description: string
-  vote: boolean
-  voteArr: {
-    user: userType
-    approve: boolean
-  }[]
-  created_by?: userType | string
-  created_at: string
-  updated_at: string
-  tokens: string
-}
+  // Badges that can be awarded.
+  champBadges: badgeType[]
 
-export interface ruleChangeType {
-  _id: string
-  championship: champType
-  title: string
-  description: string
-  vote: boolean
-  voteArr: {
-    user: userType
-    approve: boolean
-  }[]
-  voteExipiry: string
+  // Waiting list (position is array index).
+  waitingList: userType[]
+
+  // History of each season.
+  history: ChampHistoryType[]
+
+  // Meta
   created_by?: userType | string
   created_at: string
   updated_at: string

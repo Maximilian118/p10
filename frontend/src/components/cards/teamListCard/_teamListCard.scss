@@ -49,6 +49,7 @@
 
     .team-list-drivers {
       width: 100%;
+      min-height: 32px;
       @include mixins.flexbox-start;
 
       > *:not(:first-child) {
@@ -64,5 +65,19 @@
   // Adds spacing between consecutive TeamListCards.
   & + .team-list-card {
     margin-top: 2px;
+  }
+
+  // Highlight animation for newly created teams.
+  &.team-list-card-highlight {
+    animation: highlightFade 3s ease-out forwards;
+  }
+}
+
+@keyframes highlightFade {
+  0% {
+    background: variables.$mui-success;
+  }
+  100% {
+    background: white;
   }
 }

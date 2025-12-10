@@ -43,7 +43,7 @@ const DriverGroupCard: React.FC<driverGroupCardType> = ({ group, onClick, select
         <div ref={groupDriversRef} className="driver-group-drivers">
           {group.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon ) {
-              return <ImageIcon key={i} src={driver.url}/>
+              return <ImageIcon key={i} src={driver.icon}/>
             } else if (i === lastIcon) {
               return (
                 <CounterIcon 

@@ -1,0 +1,21 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+body #root .main-logged-in .content-container.create-team {
+  @include mixins.flexbox-start-column;
+  padding: 20px 7.5% 80px;
+  box-sizing: border-box;
+  background: white;
+
+  h4 {
+    width: 100%;
+    color: variables.$colour-6;
+    margin-bottom: 40px;
+    text-align: left;
+  }
+
+  .dropzone {
+    width: 60%;
+    margin-bottom: 60px !important;
+  }
+}

@@ -55,14 +55,11 @@ const CreateChamp: React.FC = () => {
     profile_picture: null,
     pointsStructure: presetArrays(1).map(item => {
       return {
-        result: item.result,
+        position: item.result,
         points: item.value,
       }
     }),
-    rulesAndRegs: {
-      default: true,
-      list: defaultRulesAndRegs(user),
-    },
+    rulesAndRegs: defaultRulesAndRegs(user),
     champBadges: [],
   })
   const [ formErr, setFormErr ] = useState<createChampFormErrType>({
@@ -97,7 +94,7 @@ const CreateChamp: React.FC = () => {
       return
     }
 
-    if (form.rulesAndRegs.list.length === 0) {
+    if (form.rulesAndRegs.length === 0) {
       setFormErr(prev => ({ ...prev, rulesAndRegs: "At least one rule is required." }))
       return
     }

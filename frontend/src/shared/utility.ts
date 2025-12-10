@@ -1,6 +1,7 @@
 // Get the initials of the user.
 import { userType } from "./localStorage"
 import { Location } from "react-router-dom"
+import { ChampType, CompetitorEntryType } from "./types"
 
 // If just one word return one initial, if two return two.
 export const getInitials = (userName: string) => {
@@ -138,3 +139,17 @@ export const onlyNumbers = (str: string): number => Number(str.replace(/\D/g, ""
 export const sortAlphabetically = <T extends { name: string }[]>(arr: T) => arr.sort((a, b) => a.name.localeCompare(b.name)) // prettier-ignore
 // Capatalise the first letter in a string.
 export const capitalise = (s: string) => (s && s[0].toUpperCase() + s.slice(1)) || ""
+
+// Helper function to get current competitors from a championship.
+// Returns competitors from the most recent active round, sorted by totalPoints descending.
+export const getCompetitors = (champ: ChampType): CompetitorEntryType[] => {
+  // Find the current active round (first non-completed round) or fall back to the last round
+  const currentRound = champ.rounds.find((r) => r.status !== "completed") || champ.rounds[champ.rounds.length - 1]
+
+  if (!currentRound?.competitors) {
+    return []
+  }
+
+  // Sort competitors by totalPoints in descending order (highest points first)
+  return [...currentRound.competitors].sort((a, b) => b.totalPoints - a.totalPoints)
+}

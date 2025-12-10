@@ -10,10 +10,11 @@ interface driverGroupListCardType {
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
+  highlight?: boolean
 }
 
 // Card for displaying a driver group in a list with driver icons underneath.
-const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick, canEdit, onEditClicked }) => {
+const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick, canEdit, onEditClicked, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const groupDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -26,8 +27,11 @@ const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick
     }
   }, [])
 
+  // Build class name with optional highlight animation.
+  const className = `driver-group-list-card${highlight ? ' driver-group-list-card-highlight' : ''}`
+
   return (
-    <div className="driver-group-list-card" onClick={onClick}>
+    <div className={className} onClick={onClick}>
       <div className="main-icon-container">
         <ImageIcon src={group.url} size="contained"/>
         {canEdit && <EditButton
@@ -42,7 +46,7 @@ const DriverGroupListCard: React.FC<driverGroupListCardType> = ({ group, onClick
         <div ref={groupDriversRef} className="driver-group-list-drivers">
           {group.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon) {
-              return <ImageIcon key={i} src={driver.url}/>
+              return <ImageIcon key={i} src={driver.icon}/>
             } else if (i === lastIcon) {
               return (
                 <CounterIcon

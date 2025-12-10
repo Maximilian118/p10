@@ -1,446 +1,375 @@
 import mongoose from "mongoose"
 import moment from "moment"
 import { ObjectId } from "mongodb"
+import { ProtestStatus, Vote } from "./protest"
 
-// Subdocument type for adjudicator round tracking
-export interface AdjudicatorRound {
-  season: number
-  round: number
-  timestamp: string
+// Competitor entry within a round - contains all data for that competitor for that round.
+export interface CompetitorEntry {
+  competitor: ObjectId // The user _id of the competitor
+  bet: ObjectId | null // Driver they've bet on this round (null if no bet placed).
+  points: number // Points earned THIS round.
+  totalPoints: number // Cumulative points of this season AFTER this round.
+  position: number // Position in standings AFTER this round.
+  updated_at: string | null // In case the user has changed their mind during the betting process.
+  created_at: string | null // When they first placed their bet.
 }
 
-// Subdocument type for tracking bets per round
-export interface Bet {
-  competitor: ObjectId
-  driver: ObjectId
-  timestamp: string
+// Status of a round in the championship lifecycle.
+export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+
+// A single round - self-contained snapshot of the championship at that point.
+export interface Round {
+  round: number // Which round is it in the championship?
+  status: RoundStatus // Current status of the round
+  winner: ObjectId | null // Did a competitor score the maximum amout of points this round?
+  runnerUp: ObjectId | null // The runner-up competitor for this round.
+  competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
 }
 
-export interface champType {
+// Points structure - how many points for each position.
+export interface PointsStructureEntry {
+  position: number // 1 = correct pick, 2 = second closest, etc.
+  points: number // How many points for this position?
+}
+
+// Adjudicator tracking.
+export interface AdjudicatorHistory {
+  adjudicator: ObjectId // Who was the adjudicator?
+  fromDateTime: string // When was the role of adjudicator assigned to this person?
+  toDateTime: string // When was the role of adjudicator removed from this person?
+}
+
+// The vote to change a RuleOrReg or RuleOrReg Subsection
+export interface PendingChanges {
+  competitor: ObjectId // Who lodged the protest.
+  status: ProtestStatus // Current status of the protest.
+  title: string // Title of the protest.
+  description: string // Description of the protest.
+  votes: Vote[] // Votes from competitors.
+  expiry: string // Timestamp for when the protest expires
+}
+
+// Rule history entry for tracking changes.
+export interface RuleHistoryEntry {
+  text: string // What did this rule or reg previously say?
+  updatedBy: ObjectId // Who created this?
+  updated_at: string // Timestamp of when this subsection was created
+}
+
+// Subsection of a rule/regulation.
+export interface RuleSubsection {
+  text: string // Description of this rule or reg subsection
+  pendingChanges: PendingChanges[] // Open change votes for this Subsection
+  history: RuleHistoryEntry[] // History of this subsection
+  created_by: ObjectId // Who created this rule or reg
+  created_at: string // Timestamp of when this subsection was created
+}
+
+// A single rule or regulation with history tracking.
+export interface RuleOrReg {
+  default: boolean // Is this Rule a default?
+  text: string // Description of this rule or reg
+  created_by: ObjectId // Who created this rule or reg?
+  pendingChanges: PendingChanges[] // Open change votes for this RuleOrReg
+  history: RuleHistoryEntry[] // Previous itterations of this rule or reg
+  subsections: RuleSubsection[] // Any subsections this rule or reg has
+  created_at: string // Timestamp of when this rule or reg was created
+}
+
+export interface Adjudicator {
+  current: ObjectId // Which user is the adjudicator of this championship?
+  fromDateTime: string // Timestamp of when this adjudicator was assigned
+  history: AdjudicatorHistory[] // The history of this championships adjudicators
+}
+
+export interface ChampHistory {
+  season: number // Which season was it?
+  adjudicator: Adjudicator // Who was the adjudicator?
+  drivers: ObjectId[] // Which drivers were in the championship this season?
+  rounds: Round[] // All of the recorded rounds for this season
+  pointsStructure: PointsStructureEntry[] // What was the points structure?
+}
+
+// THE MAIN KAHUNA
+// Protests use one-way referencing to the Champ they were created for
+export interface ChampType {
   _id: ObjectId
-  name: string
-  icon: string
-  profile_picture: string
-  season: number
-  rounds: {
-    round: number
-    completed: boolean
-    bets: Bet[]
-  }[]
-  standings: {
-    competitor: ObjectId
-    active: boolean
-    status: "competitor" | "guest"
-    results: {
-      round: number
-      points: number
-    }[]
-  }[]
-  adjudicator: {
-    current: ObjectId
-    since: string
-    rounds: AdjudicatorRound[]
-    history: {
-      adjudicator: ObjectId
-      since: string
-      rounds: AdjudicatorRound[]
-    }[]
-  }
-  driverGroup: ObjectId
-  pointsStructure: {
-    result: number
-    points: number
-  }[]
-  rulesAndRegs: {
-    default: boolean
-    list: {
-      text: string
-      created_by: ObjectId
-      created_at: string
-      history: {
-        text: string
-        updatedBy: ObjectId
-        updated_at: string
-      }[]
-      subsections: {
-        text: string
-        created_by: ObjectId
-        created_at: string
-        history: {
-          text: string
-          updatedBy: ObjectId
-          updated_at: string
-        }[]
-      }[]
-    }[]
-  }
-  protests: ObjectId[] // Protest model
-  ruleChanges: ObjectId[] // RuleChange model
+  name: string // Name of the Championship
+  icon: string // Heavily Compressed champ image
+  profile_picture: string // Lightly Compressed champ image
+
+  // Current state
+  season: number // Current Season
+  active: boolean // Is the champ active? Can be marked as inactive by adjudicator
+
+  // The core data.
+  rounds: Round[]
+
+  // Configuration
+  driverGroup: ObjectId // Which series is this championship based upon?
+  pointsStructure: PointsStructureEntry[] // What's the points structure of this championship?
+
+  adjudicator: Adjudicator
+
+  // Rules and Regulations for this championship.
+  rulesAndRegs: RuleOrReg[]
+
   settings: {
-    inviteOnly: boolean // only allow users to join via invite from adjudicator
-    maxCompetitors: number // max competitors for a series to have at once
-    inactiveCompetitors: boolean // competitors that are inactive
+    inviteOnly: boolean // Is the championship invite only? Only adjudicator can invite users to the champ if true
+    maxCompetitors: number // The maximum amount of users that can be added as a competitor of this championship
     protests: {
-      // Active protests against other competitors
-      protestsAlwaysVote: boolean
-      allowMultipleProtests: boolean
+      alwaysVote: boolean // Do protests go straight to the voting process when lodged?
+      allowMultiple: boolean // Can a competitor lodge multiple protests at once?
+      expiry: number // Number of mins in the future protests for this champ expire
     }
     ruleChanges: {
-      // Active rule change proposals
-      ruleChangeAlwaysVote: boolean
-      allowMultipleRuleChanges: boolean
-      ruleChangeExpiry: string
+      alwaysVote: boolean // Do ruleChanges go straight to the voting process when lodged?
+      allowMultiple: boolean // Can a competitor lodge multiple ruleChanges at once?
+      expiry: number // Number of mins in the future ruleChanges for this champ expire
     }
-    autoOpen: {
-      // auto open betting window (Subject to availability on driverGroup)
-      auto: boolean
-      dateTime: string
-    }
-    autoClose: {
-      // auto close betting window (Subject to availability on driverGroup)
-      auto: boolean
-      dateTime: string
-    }
-    audio: {
-      // Play audio out of the same window for the champ (Adjudictor only)
-      enabled: boolean
-      auto: boolean // (Subject to availability on driverGroup)
-      triggers: {
-        open: string[]
-        close: string[]
+    automation: {
+      enabled: boolean // Can only enable with compatible driver groups
+      bettingWindow: {
+        autoOpen: boolean
+        autoOpenTime: number // How many mins before Qualifying starts do we open the betting window?
+        autoClose: boolean
+        autoCloseTime: number // How many mins after Qualifying starts do we close the betting window?
+      }
+      round: {
+        autoNextRound: boolean
+        autoNextRoundTime: number // How many mins after Qualifying finishes do we mark the round as "completed" and move to the next?
+      }
+      audio: {
+        enabled: boolean // enable/disable audio samples to be played through the frontend at certain trigger points.
+        triggers: {
+          bettingWindowOpen: string[] // Audio Samples in an array to be picked from at random on betting window open
+          bettingWindowClosed: string[] // Audio Samples in an array to be picked from at random on betting window closed
+        }
       }
     }
-    wager: {
-      // Allow a predetermined wager for the championship
-      allow: boolean
-      description: string
-      max: number
-      min: number
-      equal: boolean
-    }
   }
-  champBadges: ObjectId[] // Badge model
-  waitingList: {
-    // If a championship is full, allow people to wait for an opening in this queue
-    user: ObjectId
-    position: number
-  }[]
-  history: {
-    seasons: number[]
-    names: {
-      name: string
-      created_at: string
-    }[]
-    rounds: {
-      round: string
-      created_at: string
-    }[]
-    stats: {
-      allTime: {
-        mostCompetitors: number // Most competitors to be a part of the champ concurrently ever.
-        mostPoints: {
-          // Most points ever awarded to a competitor in a season.
-          competitor: ObjectId
-          points: number
-        }
-        mostBadgesGiven: {
-          competitor: ObjectId // Most badges given to a competitor.
-          badgesNum: number
-        }
-        rarestBadgeGiven: {
-          competitor: ObjectId // Rarest badge given to a competitor.
-          badge: ObjectId // What badge?
-        }
-        mostWins: {
-          competitor: ObjectId // Most wins ever.
-          amount: number
-        }
-        mostRunnerUp: {
-          competitor: ObjectId // Most runner up ever.
-          amount: number
-        }
-        bestWinStreak: {
-          competitor: ObjectId // The most times in a row a user has won.
-          amount: number
-        }
-        bestPointsStreak: {
-          competitor: ObjectId // The most times in a row a user has scored points.
-          amount: number
-        }
-      }
-      seasons: {
-        season: number
-        mostCompetitors: number // Most competitors to be a part of the champ concurrently.
-        mostWins: {
-          competitor: ObjectId // Most wins this season.
-          amount: number
-        }
-        mostRunnerUp: {
-          competitor: ObjectId // Most runner up this season.
-          amount: number
-        }
-        bestWinStreak: {
-          competitor: ObjectId // The most times in a row a user has won.
-          amount: number
-        }
-        bestPointsStreak: {
-          competitor: ObjectId // The most times in a row a user has scored points.
-          amount: number
-        }
-      }[]
-    }
-  }
+
+  // Badges that can be awarded.
+  champBadges: ObjectId[]
+
+  // A waiting list of users that would like to join the championship but can't because it's full
+  waitingList: ObjectId[]
+
+  // History of each round of each season of this championship
+  history: ChampHistory[]
+
+  // Meta
   created_by: ObjectId
   created_at: string
   updated_at: string
   tokens: string[]
-  _doc: champType
+  _doc: ChampType
 }
 
-// Subdocument schema for adjudicator round tracking
-const adjudicatorRoundSchema = new mongoose.Schema(
-  {
-    season: { type: Number, required: true },
-    round: { type: Number, required: true },
-    timestamp: { type: String, default: moment().format() },
-  },
-  { _id: false }
-)
-
-// Schema for tracking bets per round
-const betSchema = new mongoose.Schema(
+// Schema for competitor entry within a round.
+const competitorEntrySchema = new mongoose.Schema(
   {
     competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-    driver: { type: mongoose.Schema.ObjectId, required: true, ref: "Driver" },
-    timestamp: { type: String, default: moment().format() },
+    bet: { type: mongoose.Schema.ObjectId, ref: "Driver", default: null },
+    points: { type: Number, default: 0 },
+    totalPoints: { type: Number, default: 0 },
+    position: { type: Number, default: 0 },
+    updated_at: { type: String, default: null },
+    created_at: { type: String, default: null },
   },
-  { _id: false }
+  { _id: false },
 )
 
-const champSchema = new mongoose.Schema<champType>({
-  name: { type: String, required: true }, // Name of the championship.
-  icon: { type: String, default: "" }, // Icon of the champ.
-  profile_picture: { type: String, default: "" }, // Profile picture/banner of the champ.
-  season: { type: Number, required: true }, // The current season number.
-  rounds: [
-    {
-      round: { type: Number, required: true },
-      completed: { type: Boolean, default: false },
-      bets: [betSchema], // Bets placed by competitors for this round.
+// Schema for a round - self-contained snapshot.
+const roundSchema = new mongoose.Schema(
+  {
+    round: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: ["waiting", "betting_open", "betting_closed", "completed"],
+      default: "waiting",
     },
-  ],
-  standings: [
-    {
-      competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-      active: { type: Boolean, default: true },
-      status: { type: String, enum: ["competitor", "guest"], default: "competitor" },
-      results: [
-        {
-          round: { type: Number, required: true },
-          points: { type: Number, default: 0 },
-        },
-      ],
+    winner: { type: mongoose.Schema.ObjectId, ref: "User", default: null },
+    runnerUp: { type: mongoose.Schema.ObjectId, ref: "User", default: null },
+    competitors: [competitorEntrySchema],
+  },
+  { _id: false },
+)
+
+// Schema for points structure.
+const pointsStructureSchema = new mongoose.Schema(
+  {
+    position: { type: Number, required: true },
+    points: { type: Number, required: true },
+  },
+  { _id: false },
+)
+
+// Schema for adjudicator history.
+const adjudicatorHistorySchema = new mongoose.Schema(
+  {
+    adjudicator: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    fromDateTime: { type: String, required: true },
+    toDateTime: { type: String, required: true },
+  },
+  { _id: false },
+)
+
+// Schema for vote on pending changes.
+const voteSchema = new mongoose.Schema(
+  {
+    competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    vote: { type: Boolean, required: true },
+  },
+  { _id: false },
+)
+
+// Schema for pending changes to rules/subsections.
+const pendingChangesSchema = new mongoose.Schema(
+  {
+    competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    status: {
+      type: String,
+      enum: ["adjudicating", "voting", "denied", "passed"],
+      default: "adjudicating",
     },
-  ],
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    votes: [voteSchema],
+    expiry: { type: String, required: true },
+  },
+  { _id: false },
+)
+
+// Schema for rule history entry.
+const ruleHistorySchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true },
+    updatedBy: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    updated_at: { type: String, required: true },
+  },
+  { _id: false },
+)
+
+// Schema for rule subsection.
+const ruleSubsectionSchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true },
+    pendingChanges: [pendingChangesSchema],
+    history: [ruleHistorySchema],
+    created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    created_at: { type: String, default: moment().format() },
+  },
+  { _id: false },
+)
+
+// Schema for rules and regulations with history tracking.
+const ruleSchema = new mongoose.Schema(
+  {
+    default: { type: Boolean, default: false },
+    text: { type: String, required: true },
+    created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    pendingChanges: [pendingChangesSchema],
+    history: [ruleHistorySchema],
+    subsections: [ruleSubsectionSchema],
+    created_at: { type: String, default: moment().format() },
+  },
+  { _id: false },
+)
+
+// Schema for championship history (archived seasons).
+const champHistorySchema = new mongoose.Schema(
+  {
+    season: { type: Number, required: true },
+    adjudicator: {
+      current: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+      fromDateTime: { type: String, required: true },
+      history: [adjudicatorHistorySchema],
+    },
+    drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }],
+    rounds: [roundSchema],
+    pointsStructure: [pointsStructureSchema],
+  },
+  { _id: false },
+)
+
+// Main championship schema.
+const champSchema = new mongoose.Schema<ChampType>({
+  // Identity
+  name: { type: String, required: true },
+  icon: { type: String, default: "" },
+  profile_picture: { type: String, default: "" },
+
+  // Current state
+  season: { type: Number, required: true, default: 1 },
+  active: { type: Boolean, default: true },
+
+  // Core data - all round and competitor data lives here.
+  rounds: [roundSchema],
+
+  // Configuration
+  driverGroup: { type: mongoose.Schema.ObjectId, required: true, ref: "DriverGroup" },
+  pointsStructure: [pointsStructureSchema],
   adjudicator: {
-    // The adjudicator of the champ.
-    current: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Current adjudicator.
-    since: { type: String, default: moment().format() }, // How long as this user been the adjudicator?
-    rounds: [adjudicatorRoundSchema], // Which rounds has this adjudicator completed (with season, round, timestamp)?
-    history: [
-      {
-        // What's the history of adjudicators?
-        adjudicator: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-        since: { type: String, default: moment().format() },
-        rounds: [adjudicatorRoundSchema],
-      },
-    ],
+    current: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    fromDateTime: { type: String, default: moment().format() },
+    history: [adjudicatorHistorySchema],
   },
-  driverGroup: { type: mongoose.Schema.ObjectId, required: true, ref: "DriverGroup" }, // The driver group/series this championship is based on.
-  pointsStructure: [
-    {
-      // How many points are awarded for what results?
-      result: { type: Number, required: true }, // Result of a round of betting.
-      points: { type: Number, required: true }, // Amount rewarded for result.
-    },
-  ],
-  rulesAndRegs: {
-    // An array of rules and regulations for this champ.
-    default: { type: Boolean, default: true }, // Use a default set of rules and regs instead of custom.
-    list: [
-      {
-        text: { type: String, required: true }, // What is the rule/reg?
-        created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Who created this rule?
-        created_at: { type: String, default: moment().format() }, // When was this rule created?
-        history: [
-          {
-            // Earlier iterations of this rule and what it used to look like.
-            text: { type: String },
-            updatedBy: { type: mongoose.Schema.ObjectId, ref: "User" },
-            updated_at: { type: String },
-          },
-        ],
-        subsections: [
-          {
-            // Each subsection of this rule/reg. EG 4a, 4b...
-            text: { type: String, required: true },
-            created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-            created_at: { type: String, default: moment().format() },
-            history: [
-              {
-                text: { type: String },
-                updatedBy: { type: mongoose.Schema.ObjectId, ref: "User" },
-                updated_at: { type: String },
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  protests: [{ type: mongoose.Schema.ObjectId, ref: "Protest" }], // Open protests for this champ.
-  ruleChanges: [{ type: mongoose.Schema.ObjectId, ref: "RuleChange" }], // Open votes for rule/reg changes.
+
+  // Rules and regulations.
+  rulesAndRegs: [ruleSchema],
+
+  // Settings.
   settings: {
-    // Only allow users to join via invite from adjudicator.
     inviteOnly: { type: Boolean, default: false },
-    // Maximum competitors in this championship. Default 24.
-    // First-come-first-serve betting - no more than 1 competitor per car per round.
     maxCompetitors: { type: Number, default: 24 },
-    // Allow marking competitors as inactive - they stay in champ with points intact,
-    // greyed out, can't vote until marked active again. Frees space for others.
-    inactiveCompetitors: { type: Boolean, default: false },
     protests: {
-      // Do protests bypass adjudicator and go straight to voting?
-      protestsAlwaysVote: { type: Boolean, default: false },
-      // Allow multiple open protests at once?
-      allowMultipleProtests: { type: Boolean, default: false },
+      alwaysVote: { type: Boolean, default: false },
+      allowMultiple: { type: Boolean, default: false },
+      expiry: { type: Number, default: 10080 },
     },
     ruleChanges: {
-      // Do rule changes bypass adjudicator and go straight to voting?
-      ruleChangeAlwaysVote: { type: Boolean, default: true },
-      // Allow multiple open rule change votes at once?
-      allowMultipleRuleChanges: { type: Boolean, default: true },
-      // Timestamp when rule change vote times out (empty = no expiry).
-      ruleChangeExpiry: { type: String, default: "" },
+      alwaysVote: { type: Boolean, default: false },
+      allowMultiple: { type: Boolean, default: false },
+      expiry: { type: Number, default: 10080 },
     },
-    autoOpen: {
-      // Auto-open betting window before qualifying session start.
-      // Only available when driver group has live metadata from APIs.
-      auto: { type: Boolean, default: false },
-      dateTime: { type: String, default: "" },
-    },
-    autoClose: {
-      // Auto-close betting window after qualifying session start.
-      // Only available when driver group has live metadata from APIs.
-      auto: { type: Boolean, default: false },
-      dateTime: { type: String, default: "" },
-    },
-    audio: {
-      // Allow adjudicator to upload audio samples played at specific times.
+    automation: {
       enabled: { type: Boolean, default: false },
-      // Auto-play requires live metadata (determined by driver group).
-      auto: { type: Boolean, default: false },
-      triggers: {
-        open: [{ type: String }], // Audio triggers when betting opens.
-        close: [{ type: String }], // Audio triggers when betting closes.
+      bettingWindow: {
+        autoOpen: { type: Boolean, default: false },
+        autoOpenTime: { type: Number, default: 60 },
+        autoClose: { type: Boolean, default: false },
+        autoCloseTime: { type: Number, default: 5 },
       },
-    },
-    wager: {
-      // Enable wagering for this championship.
-      allow: { type: Boolean, default: false },
-      description: { type: String, default: "" },
-      min: { type: Number, default: 0 },
-      max: { type: Number, default: 0 },
-      // All competitors must wager equal amounts?
-      equal: { type: Boolean, default: false },
+      round: {
+        autoNextRound: { type: Boolean, default: false },
+        autoNextRoundTime: { type: Number, default: 120 },
+      },
+      audio: {
+        enabled: { type: Boolean, default: false },
+        triggers: {
+          bettingWindowOpen: [{ type: String }],
+          bettingWindowClosed: [{ type: String }],
+        },
+      },
     },
   },
-  champBadges: [{ type: mongoose.Schema.ObjectId, ref: "Badge" }], // All badges that can be awarded by this champ.
-  waitingList: [
-    {
-      // A waiting list of users that would like to join but the championship is at max capacity.
-      user: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-      position: { type: Number, required: true }, // Current position in the queue.
-    },
-  ],
-  history: {
-    seasons: [{ type: Number }], // Array of started season numbers.
-    names: [
-      {
-        // Array of previous names of the champ.
-        name: { type: String, required: true },
-        created_at: { type: String, default: moment().format() },
-      },
-    ],
-    rounds: [
-      {
-        // Array of started rounds of the champ.
-        round: { type: String, required: true },
-        created_at: { type: String, default: moment().format() },
-      },
-    ],
-    stats: {
-      allTime: {
-        mostCompetitors: { type: Number, default: 0 }, // Most competitors to be a part of the champ concurrently ever.
-        mostPoints: {
-          // Most points ever awarded to a competitor in a season.
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-          points: { type: Number, default: 0 },
-        },
-        mostBadgesGiven: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Most badges given to a competitor.
-          badgesNum: { type: Number, default: 0 },
-        },
-        rarestBadgeGiven: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Rarest badge given to a competitor.
-          badge: { type: mongoose.Schema.ObjectId, required: true, ref: "Badge" }, // What badge?
-        },
-        mostWins: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Most wins ever.
-          amount: { type: Number, default: 0 },
-        },
-        mostRunnerUp: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Most runner up ever.
-          amount: { type: Number, default: 0 },
-        },
-        bestWinStreak: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // The most times in a row a user has won.
-          amount: { type: Number, default: 0 },
-        },
-        bestPointsStreak: {
-          competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // The most times in a row a user has scored points.
-          amount: { type: Number, default: 0 },
-        },
-      },
-      seasons: [
-        {
-          season: { type: Number, required: true }, // The season number.
-          mostCompetitors: { type: Number, default: 0 }, // Most competitors to be a part of the champ concurrently.
-          mostWins: {
-            competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Most wins this season.
-            amount: { type: Number, default: 0 },
-          },
-          mostRunnerUp: {
-            competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // Most runner up this season.
-            amount: { type: Number, default: 0 },
-          },
-          bestWinStreak: {
-            competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // The most times in a row a user has won.
-            amount: { type: Number, default: 0 },
-          },
-          bestPointsStreak: {
-            competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // The most times in a row a user has scored points.
-            amount: { type: Number, default: 0 },
-          },
-        },
-      ],
-    },
-  },
-  created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the Championship.
-  created_at: { type: String, default: moment().format() }, // When the champ was created.
-  updated_at: { type: String, default: moment().format() }, // When champ settings were changed.
+
+  // Badges
+  champBadges: [{ type: mongoose.Schema.ObjectId, ref: "Badge" }],
+
+  // Waiting list (position is array index).
+  waitingList: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+
+  // History of each season.
+  history: [champHistorySchema],
+
+  // Meta
+  created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+  created_at: { type: String, default: moment().format() },
+  updated_at: { type: String, default: moment().format() },
 })
 
-const Champ = mongoose.model<champType>("Champ", champSchema)
+const Champ = mongoose.model<ChampType>("Champ", champSchema)
 
 export default Champ

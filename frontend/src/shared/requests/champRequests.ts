@@ -2,14 +2,14 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { champType, formType } from "../types"
+import { ChampType, formType, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 import { populateChamp } from "./requestPopulation"
 
 // Fetches all championships for the authenticated user.
 export const getChamps = async (
-  setChamps: React.Dispatch<React.SetStateAction<champType[]>>,
+  setChamps: React.Dispatch<React.SetStateAction<ChampType[]>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -33,18 +33,27 @@ export const getChamps = async (
                   icon
                   profile_picture
                   season
+                  active
                   created_at
                   updated_at
-                  standings {
-                    competitor {
-                      _id
-                      icon
+                  rounds {
+                    round
+                    status
+                    competitors {
+                      competitor {
+                        _id
+                        icon
+                      }
                     }
                   }
                   adjudicator {
                     current {
                       _id
                     }
+                  }
+                  settings {
+                    inviteOnly
+                    maxCompetitors
                   }
                 }
                 tokens
@@ -59,7 +68,7 @@ export const getChamps = async (
           graphQLErrors("getChamps", res, setUser, navigate, setBackendErr, true)
         } else {
           const champs = graphQLResponse("getChamps", res, user, setUser) as {
-            array: champType[]
+            array: ChampType[]
             token: string
             code: number
           }
@@ -87,7 +96,7 @@ export const createChamp = async (
   navigate: NavigateFunction,
   setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-): Promise<champType | null> => {
+): Promise<ChampType | null> => {
   setLoading(true)
   let iconURL = ""
   let profilePictureURL = ""
@@ -148,23 +157,17 @@ export const createChamp = async (
   })
 
   // Build rules and regs list (strip out user info - backend will add it)
-  const rulesAndRegsList = form.rulesAndRegs.list.map((rule) => ({
+  const rulesAndRegsList = form.rulesAndRegs.map((rule: ruleOrRegType) => ({
+    default: rule.default,
     text: rule.text,
     subsections:
-      rule.subsections?.map((sub) => ({
+      rule.subsections?.map((sub: ruleSubsectionType) => ({
         text: sub.text,
       })) || [],
   }))
 
-  // Generate rounds array from the number of rounds specified in form
-  const roundCount = typeof form.rounds === "string" ? parseInt(form.rounds) : form.rounds
-  const roundsArray = Array.from({ length: roundCount }, (_, i) => ({
-    round: i + 1,
-    completed: false,
-  }))
-
   try {
-    let result: champType | null = null
+    let result: ChampType | null = null
 
     await axios
       .post(
@@ -174,14 +177,10 @@ export const createChamp = async (
             name: form.champName,
             icon: iconURL,
             profile_picture: profilePictureURL,
-            rounds: roundsArray,
             driverGroup: form.driverGroup?._id,
             maxCompetitors: form.driverGroup?.drivers?.length || 24,
             pointsStructure: form.pointsStructure,
-            rulesAndRegs: {
-              default: form.rulesAndRegs.default,
-              list: rulesAndRegsList,
-            },
+            rulesAndRegs: rulesAndRegsList,
             champBadges,
           },
           query: `
@@ -189,18 +188,16 @@ export const createChamp = async (
               $name: String!,
               $icon: String,
               $profile_picture: String,
-              $rounds: [RoundInput!]!,
               $driverGroup: ID!,
               $maxCompetitors: Int,
               $pointsStructure: [PointsStructureInput!]!,
-              $rulesAndRegs: RulesAndRegsInput!,
-              $champBadges: [ChampBadgeInput!]!
+              $rulesAndRegs: [RuleInput!]!,
+              $champBadges: [ID!]
             ) {
               createChamp(champInput: {
                 name: $name,
                 icon: $icon,
                 profile_picture: $profile_picture,
-                rounds: $rounds,
                 driverGroup: $driverGroup,
                 maxCompetitors: $maxCompetitors,
                 pointsStructure: $pointsStructure,
@@ -212,6 +209,7 @@ export const createChamp = async (
                 icon
                 profile_picture
                 season
+                active
                 created_at
                 updated_at
                 tokens
@@ -225,7 +223,7 @@ export const createChamp = async (
         if (res.data.errors) {
           graphQLErrors("createChamp", res, setUser, navigate, setBackendErr, true)
         } else {
-          const champ = graphQLResponse("createChamp", res, user, setUser, false) as champType
+          const champ = graphQLResponse("createChamp", res, user, setUser, false) as ChampType
           result = champ
         }
       })
@@ -245,7 +243,7 @@ export const createChamp = async (
 // Fetches a single championship by ID with full populated data.
 export const getChamp = async (
   _id: string,
-  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -274,7 +272,7 @@ export const getChamp = async (
         if (res.data.errors) {
           graphQLErrors("getChampById", res, setUser, navigate, setBackendErr, true)
         } else {
-          const champ = graphQLResponse("getChampById", res, user, setUser) as champType
+          const champ = graphQLResponse("getChampById", res, user, setUser) as ChampType
           setChamp(champ)
         }
       })
@@ -293,7 +291,7 @@ export const updateChampPP = async <T extends formType>(
   champId: string,
   form: T,
   setForm: React.Dispatch<React.SetStateAction<T>>,
-  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -338,7 +336,7 @@ export const updateChampPP = async <T extends formType>(
         if (res.data.errors) {
           graphQLErrors("updateChampPP", res, setUser, navigate, setBackendErr, true)
         } else {
-          const updatedChamp = graphQLResponse("updateChampPP", res, user, setUser) as champType
+          const updatedChamp = graphQLResponse("updateChampPP", res, user, setUser) as ChampType
           setChamp(updatedChamp)
 
           setForm((prevForm) => {
@@ -363,7 +361,7 @@ export const updateChampPP = async <T extends formType>(
 // Joins a championship as a competitor.
 export const joinChamp = async (
   _id: string,
-  setChamp: React.Dispatch<React.SetStateAction<champType | null>>,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -391,7 +389,7 @@ export const joinChamp = async (
         if (res.data.errors) {
           graphQLErrors("joinChamp", res, setUser, navigate, setBackendErr, true)
         } else {
-          const updatedChamp = graphQLResponse("joinChamp", res, user, setUser) as champType
+          const updatedChamp = graphQLResponse("joinChamp", res, user, setUser) as ChampType
           setChamp(updatedChamp)
           success = true
         }

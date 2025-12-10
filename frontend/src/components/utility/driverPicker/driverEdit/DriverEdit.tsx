@@ -35,8 +35,6 @@ interface driverEditType<T> {
 
 export interface driverEditFormType {
   _id: string | null
-  url: string
-  body: string
   driverName: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
   teams: teamType[]
@@ -53,8 +51,6 @@ export interface driverEditFormType {
 }
 
 export interface driverEditFormErrType {
-  url: string
-  body: string
   driverName: string
   driverID: string
   teams: string
@@ -88,8 +84,6 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
   const [ editForm, setEditForm ] = useState<driverEditFormType>({
     _id: driver._id ? driver._id : null,
-    url: driver.url ? driver.url : "",
-    body: driver.body ? driver.body : "",
     driverName: driver.name ? driver.name : "",
     driverID: driver.driverID ? driver.driverID : "",
     teams: driver.teams ? driver.teams : [], // All the teams the driver currently belongs to.
@@ -105,8 +99,6 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
     bodyPicture: null,
   })
   const [ editFormErr, setEditFormErr ] = useState<driverEditFormErrType>({
-    url: "",
-    body: "",
     driverName: "",
     driverID: "",
     teams: "",
@@ -183,7 +175,7 @@ const DriverEdit = <T extends { drivers: driverType[] }>({
             backendErr={backendErr}
             setBackendErr={setBackendErr}
             purposeText="Driver Headshot"
-            thumbImg={driver.url ? driver.url : false}
+            thumbImg={driver.icon ? driver.icon : false}
             disabled={!canEditDriver(driver, user)}
           />
         </div>

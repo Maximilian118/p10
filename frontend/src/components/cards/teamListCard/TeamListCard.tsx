@@ -10,10 +10,11 @@ interface teamListCardType {
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
+  highlight?: boolean
 }
 
 // Card for displaying a team in a list with driver icons underneath.
-const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEditClicked }) => {
+const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEditClicked, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const teamDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -26,8 +27,10 @@ const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEd
     }
   }, [])
 
+  const className = `team-list-card${highlight ? ' team-list-card-highlight' : ''}`
+
   return (
-    <div className="team-list-card" onClick={onClick}>
+    <div className={className} onClick={onClick}>
       <div className="main-icon-container">
         <ImageIcon src={team.url} size="contained"/>
         {canEdit && <EditButton
@@ -42,7 +45,7 @@ const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEd
         <div ref={teamDriversRef} className="team-list-drivers">
           {team.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon) {
-              return <ImageIcon key={i} src={driver.url}/>
+              return <ImageIcon key={i} src={driver.icon}/>
             } else if (i === lastIcon) {
               return (
                 <CounterIcon

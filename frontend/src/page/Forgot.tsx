@@ -41,7 +41,7 @@ const Forgot: React.FC = () => {
             opacity: success ? 0 : 0.7 
           }}
         />
-        <div className="form-title">
+        <div className="form-title" style={{ marginBottom: 20 }}>
           <h2 style={{ marginBottom: 10 }}>Forgot</h2>
           <h2 className="clickable" onClick={() => navigate(-1)}>Back</h2>
         </div>

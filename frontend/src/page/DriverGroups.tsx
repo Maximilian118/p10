@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react"
 import { driverGroupType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import AddButton from "../components/utility/button/addButton/AddButton"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
 import { getDriverGroups } from "../shared/requests/driverGroupRequests"
@@ -18,6 +18,8 @@ const DriverGroups: React.FC = () => {
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   const navigate = useNavigate()
+  const location = useLocation()
+  const newGroupId = (location.state as { newGroupId?: string })?.newGroupId
 
   // Fetch all driver groups on mount.
   useEffect(() => {
@@ -45,6 +47,7 @@ const DriverGroups: React.FC = () => {
           key={i}
           group={group}
           onClick={() => navigate(`/driver-group/${group._id}`)}
+          highlight={group._id === newGroupId}
         />
       ))
     )

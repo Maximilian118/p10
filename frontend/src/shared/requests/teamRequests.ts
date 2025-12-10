@@ -7,6 +7,7 @@ import { teamEditFormType } from "../../components/utility/teamPicker/teamEdit/T
 import { uplaodS3 } from "./bucketRequests"
 import moment from "moment"
 import { populateTeam, populateTeamList } from "./requestPopulation"
+import { createTeamFormType } from "../../page/CreateTeam/CreateTeam"
 import { capitalise } from "../utility"
 
 export const newTeam = async <T extends { teams: teamType[] }>(
@@ -264,6 +265,182 @@ export const deleteTeam = async <T extends { teams: teamType[] }>(
             }
           })
 
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteTeam", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteTeam", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Standalone create function for CreateTeam page.
+export const createTeam = async (
+  form: createTeamFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<teamType | null> => {
+  setLoading(true)
+  let iconURL = ""
+  let team: teamType | null = null
+
+  if (form.icon) {
+    iconURL = await uplaodS3(form.teamName, "icon", form.icon, setBackendErr)
+
+    if (!iconURL) {
+      setLoading(false)
+      return null
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            created_by: user._id,
+            url: iconURL,
+            name: capitalise(form.teamName),
+            nationality: form.nationality?.label,
+            inceptionDate: moment(form.inceptionDate).format(),
+          },
+          query: `
+            mutation NewTeam( $created_by: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!) {
+              newTeam(teamInput: { created_by: $created_by, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate }) {
+                ${populateTeam}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("newTeam", res, setUser, navigate, setBackendErr, true)
+        } else {
+          team = graphQLResponse("newTeam", res, user, setUser, false) as teamType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("newTeam", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("newTeam", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return team
+}
+
+// Standalone update function for CreateTeam page.
+export const editTeam = async (
+  team: teamType,
+  form: createTeamFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let iconURL = ""
+  let success = false
+
+  if (form.icon) {
+    iconURL = await uplaodS3(form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+
+    if (!iconURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: team._id,
+            url: iconURL || team.url,
+            name: capitalise(form.teamName),
+            nationality: form.nationality?.label,
+            inceptionDate: moment(form.inceptionDate).format(),
+          },
+          query: `
+            mutation UpdateTeam( $_id: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!) {
+              updateTeam(teamInput: { _id: $_id, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate }) {
+                ${populateTeam}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateTeam", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("updateTeam", res, user, setUser, false)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateTeam", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateTeam", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Standalone delete function for CreateTeam page.
+export const removeTeam = async (
+  team: teamType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: team._id },
+          query: `
+            mutation DeleteTeam( $_id: ID! ) {
+              deleteTeam( _id: $_id ) {
+                ${populateTeam}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteTeam", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("deleteTeam", res, user, setUser)
           success = true
         }
       })

@@ -5,11 +5,13 @@ import { driverPopulation } from "../../shared/population"
 import {
   createdByErrors,
   driverIDErrors,
+  driverImageErrors,
+  driverInChampErrors,
   driverNameErrors,
   falsyValErrors,
-  imageErrors,
   throwError,
 } from "./resolverErrors"
+import DriverGroup from "../../models/driverGroup"
 import { updateTeams } from "./resolverUtility"
 import { capitalise, clientS3, deleteS3 } from "../../shared/utility"
 
@@ -25,7 +27,8 @@ const driverResolvers = {
     try {
       const {
         created_by,
-        url,
+        icon,
+        profile_picture,
         body,
         name,
         driverID,
@@ -40,19 +43,20 @@ const driverResolvers = {
 
       // Check for errors.
       await createdByErrors(req._id, created_by)
-      imageErrors(url)
+      driverImageErrors(icon, profile_picture, body)
       await driverNameErrors(name)
       driverIDErrors(driverID)
       falsyValErrors({
         ...args.driverInput,
-        dropzone: url,
+        dropzone: icon,
         driverName: name,
       })
 
       // Create a new driver DB object.
       const driver = new Driver({
         created_by,
-        url,
+        icon,
+        profile_picture,
         body,
         name,
         driverID,
@@ -118,13 +122,40 @@ const driverResolvers = {
       }
 
       if (driver.teams.length > 0) {
-        throw throwError("driverName", driver, "This driver still has drivers.")
+        throw throwError("driverName", driver, "This driver still has teams.")
       }
-      // Delete the image from s3.
-      const deleteErr = await deleteS3(clientS3(), clientS3(driver._doc.url).params, 0)
-      // If deleteS3 had any errors.
-      if (deleteErr) {
-        throw throwError("dropzone", driver._doc.url, deleteErr)
+
+      // Check if driver is part of any championship (via driverGroup or bets).
+      await driverInChampErrors(driver)
+
+      // Remove driver from any driverGroups (allowed since not in championship).
+      for (const groupId of driver.driverGroups) {
+        const group = await DriverGroup.findById(groupId)
+        if (group) {
+          group.drivers = group.drivers.filter(
+            (d) => d.toString() !== driver._id.toString(),
+          )
+          group.updated_at = moment().format()
+          await group.save()
+        }
+      }
+
+      // Delete the icon image from s3.
+      const deleteIconErr = await deleteS3(clientS3(), clientS3(driver._doc.icon).params, 0)
+      if (deleteIconErr) {
+        throw throwError("dropzone", driver._doc.icon, deleteIconErr)
+      }
+      // Delete the profile_picture from s3.
+      const deletePPErr = await deleteS3(clientS3(), clientS3(driver._doc.profile_picture).params, 0)
+      if (deletePPErr) {
+        throw throwError("dropzone", driver._doc.profile_picture, deletePPErr)
+      }
+      // Delete body image from s3 if it exists.
+      if (driver._doc.body) {
+        const deleteBodyErr = await deleteS3(clientS3(), clientS3(driver._doc.body).params, 0)
+        if (deleteBodyErr) {
+          throw throwError("dropzoneBody", driver._doc.body, deleteBodyErr)
+        }
       }
       // Delete image from DB.
       await driver.deleteOne()
@@ -148,7 +179,8 @@ const driverResolvers = {
     try {
       const {
         _id,
-        url,
+        icon,
+        profile_picture,
         body,
         name,
         driverID,
@@ -161,11 +193,11 @@ const driverResolvers = {
         mullet,
       } = args.driverInput
       // Check for errors
-      imageErrors(url)
+      driverImageErrors(icon, profile_picture, body)
       driverIDErrors(driverID)
       falsyValErrors({
         ...args.driverInput,
-        dropzone: url,
+        dropzone: icon,
         driverName: name,
       })
 
@@ -176,8 +208,12 @@ const driverResolvers = {
         throw throwError("driverName", driver, "No driver by that _id could be found.")
       }
 
-      if (driver.url !== url) {
-        driver.url = url
+      if (driver.icon !== icon) {
+        driver.icon = icon
+      }
+
+      if (driver.profile_picture !== profile_picture) {
+        driver.profile_picture = profile_picture
       }
 
       if (driver.body !== body) {

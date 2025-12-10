@@ -2,10 +2,11 @@ import React, { useState } from "react"
 import './_rulesAndRegsEdit.scss'
 import { editStateType, initEditState } from "../RulesAndRegsPicker"
 import { Button, TextField } from "@mui/material"
-import { ruleOrRegType, rulesAndRegsType } from "../../../../shared/types"
+import { ruleOrRegType, ruleSubsectionType, rulesAndRegsType } from "../../../../shared/types"
 import moment from "moment"
 import { userType } from "../../../../shared/localStorage"
 import RemoveButton from "../../button/removeButton/RemoveButton"
+import { isDefaultRorR } from "../../../../shared/rulesAndRegs"
 
 interface regsAndRulesEditType<T> {
   user: userType
@@ -15,13 +16,27 @@ interface regsAndRulesEditType<T> {
   style?: React.CSSProperties
 }
 
-const initruleReg = (user: userType, ruleReg?: ruleOrRegType | null) => {
+// Initializes a new rule or regulation with default values.
+const initruleReg = (user: userType, ruleReg?: ruleOrRegType | null): ruleOrRegType => {
   return {
+    default: ruleReg?.default ?? false,
     text: ruleReg ? ruleReg.text : "",
     created_by: user,
-    created_at: ruleReg ? ruleReg.created_at : moment().format(),
+    pendingChanges: [],
     history: [],
     subsections: ruleReg ? ruleReg.subsections : [],
+    created_at: ruleReg ? ruleReg.created_at : moment().format(),
+  }
+}
+
+// Initializes a new subsection with default values.
+const initSubsection = (user: userType): ruleSubsectionType => {
+  return {
+    text: "",
+    pendingChanges: [],
+    history: [],
+    created_by: user,
+    created_at: moment().format(),
   }
 }
 
@@ -51,23 +66,20 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
     setForm((prevForm: T) => {
       return {
         ...prevForm,
-        rulesAndRegs: {
-          ...prevForm.rulesAndRegs,
-          list: prevForm.rulesAndRegs.list.filter((item: ruleOrRegType, i: number) => i + 1 !== edit.index)
-        }
+        rulesAndRegs: prevForm.rulesAndRegs.filter((_item: ruleOrRegType, i: number) => i + 1 !== edit.index)
       }
     })
 
     setEdit(initEditState)
   }
 
-  // Delete a single subsection
+  // Delete a single subsection.
   const deleteSubsection = (setRuleReg: React.Dispatch<React.SetStateAction<ruleOrRegType>>, index: number) => {
     setRuleReg(prevRuleReg => {
       if (prevRuleReg.subsections) {
         return {
           ...prevRuleReg,
-          subsections: prevRuleReg.subsections.filter((item: ruleOrRegType, i: number) => i !== index)
+          subsections: prevRuleReg.subsections.filter((_item: ruleSubsectionType, i: number) => i !== index)
         }
       } else {
         return prevRuleReg
@@ -75,12 +87,12 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
     })
   }
 
-  // new subsection
+  // Adds a new subsection.
   const newSubsection = (user: userType, setRuleReg: React.Dispatch<React.SetStateAction<ruleOrRegType>>) => {
     setRuleReg(prevRuleReg => {
       if (prevRuleReg.subsections) {
-        const withNew = prevRuleReg.subsections
-        withNew.push(initruleReg(user))
+        const withNew = [...prevRuleReg.subsections]
+        withNew.push(initSubsection(user))
 
         return {
           ...prevRuleReg,
@@ -91,30 +103,27 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
       }
     })
 
-    // fix for wierd issue where when we setRuleReg above with a new empty subsection, form gets updated as well.
+    // Fix for weird issue where when we setRuleReg above with a new empty subsection, form gets updated as well.
     setForm(prevForm => {
       return {
         ...prevForm,
-        rulesAndRegs: {
-          ...prevForm.rulesAndRegs,
-          list: prevForm.rulesAndRegs.list.map((item: ruleOrRegType, i: number) => {
-            if (item.subsections && edit.index && edit.index - 1 === i) {
-              return {
-                ...item,
-                subsections: item.subsections.filter((r: ruleOrRegType) => r.text.trim() !== "")
-              }
-            } else {
-              return item
+        rulesAndRegs: prevForm.rulesAndRegs.map((item: ruleOrRegType, i: number) => {
+          if (item.subsections && edit.index && edit.index - 1 === i) {
+            return {
+              ...item,
+              subsections: item.subsections.filter((r: ruleSubsectionType) => r.text.trim() !== "")
             }
-          })
-        }
+          } else {
+            return item
+          }
+        })
       }
     })
   }
 
   // Update form with the ruleReg.
   const updateRRHandler = (
-    setForm: React.Dispatch<React.SetStateAction<T>>, 
+    setForm: React.Dispatch<React.SetStateAction<T>>,
     setEdit: React.Dispatch<React.SetStateAction<editStateType>>
   ): void => {
     if (ruleReg.subsections) {
@@ -129,7 +138,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
         return
       }
 
-      ruleReg.subsections.forEach((r: ruleOrRegType, i: number) => {
+      ruleReg.subsections.forEach((r: ruleSubsectionType, i: number) => {
         if (r.text.trim() === "") {
           setError({
             msg: "Please enter text.",
@@ -144,33 +153,30 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
       }
     }
 
+    // Re-evaluate the default flag based on whether the rule still matches a predefined default.
+    const updatedRuleReg = {
+      ...ruleReg,
+      default: isDefaultRorR(user, ruleReg),
+    }
+
     if (edit.index) {
       setForm(prevForm => {
         return {
           ...prevForm,
-          rulesAndRegs: {
-            ...prevForm.rulesAndRegs,
-            list: prevForm.rulesAndRegs.list.map((item: ruleOrRegType, i: number) => {
-              if (edit.index === i + 1) {
-                return ruleReg
-              } else {
-                return item
-              }
-            })
-          }
+          rulesAndRegs: prevForm.rulesAndRegs.map((item: ruleOrRegType, i: number) => {
+            if (edit.index === i + 1) {
+              return updatedRuleReg
+            } else {
+              return item
+            }
+          })
         }
       })
     } else {
       setForm(prevForm => {
-        const withNew = prevForm.rulesAndRegs.list
-        withNew.push(ruleReg)
-
         return {
           ...prevForm,
-          rulesAndRegs: {
-            ...prevForm.rulesAndRegs,
-            list: withNew
-          }
+          rulesAndRegs: [...prevForm.rulesAndRegs, updatedRuleReg]
         }
       })
     }
@@ -274,7 +280,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
         <h4>{`${edit.newRuleReg ? `New` : `Edit`} Rule or Regulation`}</h4>
       </div>
       {section(ruleReg)}
-      {ruleReg.subsections?.map((rr: ruleOrRegType, i: number) => section(ruleReg, i))}
+      {ruleReg.subsections?.map((_rr: ruleSubsectionType, i: number) => section(ruleReg, i))}
       <div className="button-bar sub-btns">
         <Button
           className="sub-add-button"

@@ -14,7 +14,8 @@ export const initDriverGroup = (user: userType): driverGroupType => {
 export const initDriver = (user: userType): driverType => {
   return {
     created_by: user._id,
-    url: "",
+    icon: "",
+    profile_picture: "",
     body: "",
     name: "",
     driverID: "",

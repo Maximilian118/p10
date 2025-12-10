@@ -47,9 +47,9 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({
       style={{ marginBottom: 157 }}
     /> : (
     <div className="rules-and-regs-picker" style={style}>
-      {form.rulesAndRegs.list.length > 0 ? 
+      {form.rulesAndRegs.length > 0 ?
         <div className="rules-and-regs-list">
-          {form.rulesAndRegs.list.map((item: ruleOrRegType, i: number) => 
+          {form.rulesAndRegs.map((item: ruleOrRegType, i: number) => 
             <RuleOrReg
               key={i} 
               index={i + 1}

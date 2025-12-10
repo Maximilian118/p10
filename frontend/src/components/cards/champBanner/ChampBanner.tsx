@@ -4,7 +4,7 @@ import DropZone from "../../utility/dropZone/DropZone"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { userType } from "../../../shared/localStorage"
 import moment from "moment"
-import { champType, formErrType, formType } from "../../../shared/types"
+import { ChampType, formErrType, formType } from "../../../shared/types"
 import { Button, CircularProgress } from "@mui/material"
 import { updateChampPP } from "../../../shared/requests/champRequests"
 import { useNavigate } from "react-router-dom"
@@ -12,8 +12,8 @@ import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 
 // Props for editable championship banner (when user is adjudicator).
 interface champBannerEditableType<T, U> {
-  champ: champType
-  setChamp: React.Dispatch<React.SetStateAction<champType | null>>
+  champ: ChampType
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   form: T
@@ -27,7 +27,7 @@ interface champBannerEditableType<T, U> {
 
 // Props for read-only championship banner (when user is not adjudicator).
 interface champBannerReadOnlyType {
-  champ: champType
+  champ: ChampType
   readOnly: true
 }
 

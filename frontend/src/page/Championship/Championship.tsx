@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { champType, formErrType, formType } from "../../shared/types"
+import { ChampType, formErrType, formType } from "../../shared/types"
+import { getCompetitors } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getChamp } from "../../shared/requests/champRequests"
 import ChampBanner from "../../components/cards/champBanner/ChampBanner"
@@ -15,7 +16,7 @@ import ActionsDrawer from "../../components/utility/actionsDrawer/ActionsDrawer"
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const { user, setUser } = useContext(AppContext)
-  const [ champ, setChamp ] = useState<champType | null>(null)
+  const [ champ, setChamp ] = useState<ChampType | null>(null)
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ form, setForm ] = useState<formType>({
@@ -89,11 +90,11 @@ const Championship: React.FC = () => {
           <ChampBanner champ={champ} readOnly />
         )}
         <div className="competitors-list">
-          {champ.standings.map((standing, i) => (
+          {getCompetitors(champ).map((c, i) => (
             <CompetitorCard
-              key={standing.competitor._id || i}
-              competitor={standing.competitor}
-              highlight={justJoined && standing.competitor._id === user._id}
+              key={c.competitor._id || i}
+              competitor={c.competitor}
+              highlight={justJoined && c.competitor._id === user._id}
             />
           ))}
         </div>

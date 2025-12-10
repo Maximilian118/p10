@@ -1,6 +1,6 @@
 import React from "react"
 import './_ruleOrReg.scss'
-import { ruleOrRegType } from "../../../../shared/types"
+import { ruleOrRegType, ruleSubsectionType } from "../../../../shared/types"
 import { editStateType } from "../RulesAndRegsPicker"
 import EditButton from "../../button/editButton/EditButton"
 import TextIcon from "../../icon/textIcon/TextIcon"
@@ -20,7 +20,7 @@ const RuleOrReg: React.FC<rOrrType> = ({ index, item, setEdit, isDefault }) => (
       </div>
       <p>{item.text}</p>
     </div>
-    {item.subsections && item.subsections.map((r: ruleOrRegType, i: number) => {
+    {item.subsections && item.subsections.map((r: ruleSubsectionType, i: number) => {
       return (
         <div key={i} className="subsection">
           <div className="title" >

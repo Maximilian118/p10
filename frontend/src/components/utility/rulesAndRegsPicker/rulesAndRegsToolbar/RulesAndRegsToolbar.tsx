@@ -2,7 +2,7 @@ import React from "react"
 import './_rulesAndRegsToolbar.scss'
 import { Button } from "@mui/material"
 import { editStateType } from "../RulesAndRegsPicker"
-import { rulesAndRegsType } from "../../../../shared/types"
+import { ruleOrRegType, rulesAndRegsType } from "../../../../shared/types"
 import { defaultRulesAndRegs, isDefaultRorR } from "../../../../shared/rulesAndRegs"
 import { userType } from "../../../../shared/localStorage"
 import AddButton from "../../button/addButton/AddButton"
@@ -19,23 +19,19 @@ const RulesAndRegsToolbar = <T extends { rulesAndRegs: rulesAndRegsType }>({
   user,
   form,
   setForm,
-  setEdit, 
-  style 
+  setEdit,
+  style
 }: rulesAndRegsToolbarType<T>) => {
-  const hasDefs = form.rulesAndRegs.list.some(rr => isDefaultRorR(user, rr))
+  const hasDefs = form.rulesAndRegs.some((rr: ruleOrRegType) => isDefaultRorR(user, rr))
 
+  // Adds or removes default rules.
   const defaultsHandler = () => {
     setForm(prevForm => {
       return {
         ...prevForm,
-        rulesAndRegs: {
-          ...prevForm.rulesAndRegs,
-          list: hasDefs ? prevForm.rulesAndRegs.list.filter(rr => !isDefaultRorR(user, rr)) :
-            [
-              ...prevForm.rulesAndRegs.list,
-              ...defaultRulesAndRegs(user),
-            ]
-        }
+        rulesAndRegs: hasDefs
+          ? prevForm.rulesAndRegs.filter((rr: ruleOrRegType) => !isDefaultRorR(user, rr))
+          : [...prevForm.rulesAndRegs, ...defaultRulesAndRegs(user)]
       }
     })
   }

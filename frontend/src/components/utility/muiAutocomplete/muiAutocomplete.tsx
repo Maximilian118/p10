@@ -53,7 +53,7 @@ const displayCreateNew = (
   return null
 }
 
-const MUIAutocomplete = <T extends { url: string, name: string }>({ 
+const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }>({ 
   label, 
   options, 
   value, 
@@ -111,7 +111,7 @@ const MUIAutocomplete = <T extends { url: string, name: string }>({
       getOptionLabel={(option: T | string | null) => findValueString(option) as string}
       renderOption={({ key, ...props }: any, option: T | string | null) => (
         <li key={key} {...props}>
-          {typeof option !== "string" && !!option && <ImageIcon src={option.url} style={{ marginRight: 16 }}/>}
+          {typeof option !== "string" && !!option && <ImageIcon src={option.url || option.icon || ""} style={{ marginRight: 16 }}/>}
           <p>{findValueString(option)}</p>
         </li>
       )}

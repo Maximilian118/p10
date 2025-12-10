@@ -1,13 +1,14 @@
 import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import './_champCard.scss'
-import { champType } from "../../../shared/types"
+import { ChampType } from "../../../shared/types"
+import { getCompetitors } from "../../../shared/utility"
 import EditButton from "../../utility/button/editButton/EditButton"
 import CounterIcon from "../../utility/icon/counterIcon/CounterIcon"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 
 interface champCardType {
-  champ: champType
+  champ: ChampType
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
@@ -42,15 +43,15 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditCli
       <div className="champ-content">
         <p className="champ-title">{champ.name}</p>
         <div ref={groupDriversRef} className="champ-drivers">
-          {champ.standings.map((s, i) => {
+          {getCompetitors(champ).map((c, i) => {
             if (i < lastIcon ) {
               return (
                 <ImageIcon
                   key={i}
-                  src={s.competitor.icon}
+                  src={c.competitor.icon}
                   onClick={e => {
                     e.stopPropagation()
-                    navigate(`/profile/${s.competitor._id}`)
+                    navigate(`/profile/${c.competitor._id}`)
                   }}
                 />
               )
@@ -58,7 +59,7 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditCli
               return (
                 <CounterIcon
                   key={i}
-                  counter={champ.standings.length - lastIcon}
+                  counter={getCompetitors(champ).length - lastIcon}
                 />
               )
             } else {

@@ -2,40 +2,62 @@ import mongoose from "mongoose"
 import moment from "moment"
 import { ObjectId } from "mongodb"
 
-export interface protestType {
-  _id: ObjectId
-  championship: ObjectId
-  title: string
-  description: string
+// Status of a protest in its lifecycle.
+export type ProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
+
+// Vote on a protest.
+export interface Vote {
+  competitor: ObjectId
   vote: boolean
-  voteArr: {
-    user: ObjectId
-    approve: boolean
-  }[]
-  created_by: ObjectId
+}
+
+export interface ProtestType {
+  _id: ObjectId
+
+  // Championship reference.
+  championship: ObjectId
+
+  // Core protest data.
+  competitor: ObjectId // Who lodged the protest.
+  status: ProtestStatus // Current status of the protest.
+  title: string // Title of the protest.
+  description: string // Description of the protest.
+  votes: Vote[] // Votes from competitors.
+  expiry: string // Timestamp for when the protest expires
+
+  // DB metadata.
   created_at: string
   updated_at: string
   tokens: string[]
-  _doc: protestType
+  _doc: ProtestType
 }
 
-const protestSchema = new mongoose.Schema<protestType>({
-  championship: { type: mongoose.Schema.ObjectId, required: true, ref: "Champ" }, // The championship this protest was created for.
-  title: { type: String, required: true }, // Title of the protest.
-  description: { type: String, required: true }, // Description of the protest.
-  vote: { type: Boolean, default: false }, // Allow the current competitors of the championship to vote on the protest.
-  voteArr: [
-    {
-      // All of the users in the champ.
-      user: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
-      approve: { type: Boolean, default: false }, // true = yes, false = no.
-    },
-  ],
-  created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // The user that created the protest.
-  created_at: { type: String, default: moment().format() }, // When the protest was created.
-  updated_at: { type: String, default: moment().format() }, // When the protest was updated.
+// Schema for a vote on a protest.
+const voteSchema = new mongoose.Schema(
+  {
+    competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+    vote: { type: Boolean, required: true },
+  },
+  { _id: false },
+)
+
+// Protest schema.
+const protestSchema = new mongoose.Schema<ProtestType>({
+  championship: { type: mongoose.Schema.ObjectId, required: true, ref: "Champ" },
+  competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+  status: {
+    type: String,
+    enum: ["adjudicating", "voting", "denied", "passed"],
+    default: "adjudicating",
+  },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  votes: [voteSchema],
+  expiry: { type: String, required: true },
+  created_at: { type: String, default: moment().format() },
+  updated_at: { type: String, default: moment().format() },
 })
 
-const Protest = mongoose.model<protestType>("Protest", protestSchema)
+const Protest = mongoose.model<ProtestType>("Protest", protestSchema)
 
 export default Protest

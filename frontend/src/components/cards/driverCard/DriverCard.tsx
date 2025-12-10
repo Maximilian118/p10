@@ -15,7 +15,7 @@ interface driverCardType {
 
 const DriverCard: React.FC<driverCardType> = ({ driver, onClick, canEdit, onRemove, canRemove }) => (
   <div className="driver-card" onClick={() => onClick && onClick(driver)}>
-    <ImageIcon src={driver.url} style={{ marginRight: 16 }}/>
+    <ImageIcon src={driver.icon} style={{ marginRight: 16 }}/>
     <p className="driver-name">{driver.name}</p>
     <div className="toolbar">
       {canEdit && <EditButton/>}

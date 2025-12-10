@@ -4,6 +4,7 @@ import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
 import { driverGroupType } from "../types"
 import { driverGroupEditFormType } from "../../components/utility/driverGroupPicker/driverGroupEdit/DriverGroupEdit"
+import { createDriverGroupFormType } from "../../page/CreateDriverGroup/CreateDriverGroup"
 import { populateDriverGroup } from "./requestPopulation"
 import { uplaodS3 } from "./bucketRequests"
 import { capitalise, sortAlphabetically } from "../utility"
@@ -285,6 +286,180 @@ export const deleteDriverGroup = async <T extends { driverGroup: driverGroupType
           // Remove this driver group from all of the available driver groups
           setGroups((prevGroups) => prevGroups.filter((g) => g._id !== group._id))
 
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteDriverGroup", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Simplified create function for the standalone CreateDriverGroup page.
+export const createDriverGroup = async (
+  form: createDriverGroupFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<driverGroupType | null> => {
+  setLoading(true)
+  let iconURL = ""
+  let driverGroup: driverGroupType | null = null
+
+  if (form.icon) {
+    iconURL = await uplaodS3(form.groupName, "icon", form.icon, setBackendErr)
+
+    if (!iconURL) {
+      setLoading(false)
+      return null
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            created_by: user._id,
+            url: iconURL,
+            name: capitalise(form.groupName),
+            drivers: form.drivers.map((driver) => driver._id!),
+          },
+          query: `
+            mutation NewDriverGroup( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
+              newDriverGroup(driverGroupInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
+                ${populateDriverGroup}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("newDriverGroup", res, setUser, navigate, setBackendErr, true)
+        } else {
+          driverGroup = graphQLResponse("newDriverGroup", res, user, setUser, false) as driverGroupType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("newDriverGroup", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return driverGroup
+}
+
+// Standalone update function for CreateDriverGroup page.
+export const editDriverGroup = async (
+  group: driverGroupType,
+  form: createDriverGroupFormType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let iconURL = ""
+  let success = false
+
+  if (form.icon) {
+    iconURL = await uplaodS3(form.groupName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+
+    if (!iconURL) {
+      setLoading(false)
+      return false
+    }
+  }
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: group._id,
+            url: iconURL || group.url,
+            name: capitalise(form.groupName),
+            drivers: form.drivers.map((driver) => driver._id!),
+          },
+          query: `
+            mutation UpdateDriverGroup( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
+              updateDriverGroup(driverGroupInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
+                ${populateDriverGroup}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateDriverGroup", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("updateDriverGroup", res, user, setUser, false)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateDriverGroup", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return success
+}
+
+// Standalone delete function for CreateDriverGroup page.
+export const removeDriverGroup = async (
+  group: driverGroupType,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  setLoading(true)
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: group._id },
+          query: `
+            mutation DeleteDriverGroup( $_id: ID! ) {
+              deleteDriverGroup( _id: $_id ) {
+                _id
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteDriverGroup", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("deleteDriverGroup", res, user, setUser)
           success = true
         }
       })

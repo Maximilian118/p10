@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react"
 import { teamType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import AddButton from "../components/utility/button/addButton/AddButton"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
 import { getTeams } from "../shared/requests/teamRequests"
@@ -12,12 +12,16 @@ import TeamListCard from "../components/cards/teamListCard/TeamListCard"
 
 const Teams: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Check for newly created team to highlight.
+  const newTeamId = (location.state as { newTeamId?: string })?.newTeamId
+
   const [ teams, setTeams ] = useState<teamType[]>([])
   const [ search, setSearch ] = useState<teamType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
-
-  const navigate = useNavigate()
 
   // Fetch all teams on mount.
   useEffect(() => {
@@ -44,7 +48,8 @@ const Teams: React.FC = () => {
         <TeamListCard
           key={i}
           team={team}
-          onClick={() => navigate(`/team/${team._id}`)}
+          onClick={() => navigate("/create-team", { state: { team } })}
+          highlight={team._id === newTeamId}
         />
       ))
     )

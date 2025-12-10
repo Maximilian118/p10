@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react"
 import { driverType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import AddButton from "../components/utility/button/addButton/AddButton"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
 import { getDrivers } from "../shared/requests/driverRequests"
@@ -12,12 +12,16 @@ import DriverListCard from "../components/cards/driverListCard/DriverListCard"
 
 const Drivers: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Check for newly created driver to highlight.
+  const newDriverId = (location.state as { newDriverId?: string })?.newDriverId
+
   const [ drivers, setDrivers ] = useState<driverType[]>([])
   const [ search, setSearch ] = useState<driverType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
-
-  const navigate = useNavigate()
 
   // Fetch all drivers on mount.
   useEffect(() => {
@@ -44,7 +48,8 @@ const Drivers: React.FC = () => {
         <DriverListCard
           key={i}
           driver={driver}
-          onClick={() => navigate(`/driver/${driver._id}`)}
+          onClick={() => navigate("/create-driver", { state: { driver } })}
+          highlight={driver._id === newDriverId}
         />
       ))
     )

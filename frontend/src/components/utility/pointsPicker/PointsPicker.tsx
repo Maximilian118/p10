@@ -15,13 +15,14 @@ interface pointsPickerType<T> {
 const PointsPicker= <T extends createChampFormType>({ setForm, formErr, backendErr }: pointsPickerType<T>) => {
   const [ preset, setPreset ] = useState(1)
 
+  // Updates the form's points structure when a preset is selected.
   const handleSelectChange = (i: number) => {
     setForm(prevForm => {
       return {
         ...prevForm,
         pointsStructure: presetArrays(i).map(item => {
           return {
-            result: item.result,
+            position: item.result,
             points: item.value,
           }
         })

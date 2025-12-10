@@ -16,8 +16,11 @@ import CreateChamp from "./page/CreateChamp"
 import Championship from "./page/Championship/Championship"
 import UserProfile from "./page/UserProfile/UserProfile"
 import DriverGroups from "./page/DriverGroups"
+import CreateDriverGroup from "./page/CreateDriverGroup/CreateDriverGroup"
 import Drivers from "./page/Drivers"
+import CreateDriver from "./page/CreateDriver/CreateDriver"
 import Teams from "./page/Teams"
+import CreateTeam from "./page/CreateTeam/CreateTeam"
 
 interface routerType {
   user: userType,
@@ -34,8 +37,11 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/create-championship" Component={CreateChamp}/>
     <Route path="/championship/:id" Component={Championship}/>
     <Route path="/driver-groups" Component={DriverGroups}/>
+    <Route path="/create-driver-group" Component={CreateDriverGroup}/>
     <Route path="/drivers" Component={Drivers}/>
+    <Route path="/create-driver" Component={CreateDriver}/>
     <Route path="/teams" Component={Teams}/>
+    <Route path="/create-team" Component={CreateTeam}/>
   </Routes>
 ) : (
   <Routes>

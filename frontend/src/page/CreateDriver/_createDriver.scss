@@ -1,0 +1,79 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+body #root .main-logged-in .content-container.create-driver {
+  @include mixins.flexbox-start-column;
+  padding: 20px 7.5% 100px;
+  box-sizing: border-box;
+  background: white;
+
+  h4 {
+    width: 100%;
+    color: variables.$colour-6;
+    margin-bottom: 40px;
+    text-align: left;
+  }
+
+  .create-driver-dropzones {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 20px;
+    margin-bottom: 40px;
+
+    .create-driver-dropzone-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .dropzone {
+        width: 100%;
+        margin-bottom: 0 !important;
+      }
+    }
+  }
+
+  .create-driver-team-picker {
+    width: 100%;
+    min-height: 200px;
+    border-radius: 4px;
+    @include mixins.flexbox-start-column;
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    overflow: hidden;
+    position: relative;
+
+    .create-driver-team-list {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.06);
+      flex-grow: 1;
+      @include mixins.flexbox-start-column;
+      overflow-y: auto;
+      padding: 8px 0 50px;
+      box-sizing: border-box;
+      border-radius: 0 0 4px 4px;
+    }
+  }
+
+  .create-driver-stats {
+    width: 100%;
+    @include mixins.flexbox-space-between;
+    margin-bottom: 20px;
+
+    > * {
+      width: 48%;
+    }
+  }
+
+  .create-driver-checkboxes {
+    @include mixins.flexbox-space-between;
+    gap: 20px;
+
+    > * {
+      @include mixins.flexbox-start;
+    }
+  }
+}

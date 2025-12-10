@@ -10,7 +10,8 @@ const driverSchema = `
 
   type Driver {
     _id: ID!
-    url: String!
+    icon: String!
+    profile_picture: String!
     body: String
     name: String!
     driverID: String!
@@ -31,7 +32,8 @@ const driverSchema = `
   input driverInput {
     _id: ID
     created_by: ID
-    url: String
+    icon: String
+    profile_picture: String
     body: String
     name: String!
     driverID: String!

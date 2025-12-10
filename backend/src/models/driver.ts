@@ -4,7 +4,8 @@ import { ObjectId } from "mongodb"
 
 export interface driverType {
   _id: ObjectId
-  url: string
+  icon: string
+  profile_picture: string
   body: string
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
@@ -28,7 +29,8 @@ export interface driverType {
 export interface driverInputType {
   _id?: ObjectId
   created_by: ObjectId
-  url: string
+  icon: string
+  profile_picture: string
   body: string
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
@@ -43,8 +45,9 @@ export interface driverInputType {
 }
 
 const driverSchema = new mongoose.Schema<driverType>({
-  url: { type: String, required: true }, // URL to headshot image in AWS S3.
-  body: { type: String, default: "" }, // URL to body image in AWS S3 (optional).
+  icon: { type: String, required: true }, // Headshot icon ~0.1MB in AWS S3.
+  profile_picture: { type: String, required: true }, // Headshot full ~1MB in AWS S3.
+  body: { type: String, default: "" }, // Body image ~1MB in AWS S3 (optional).
   name: { type: String, required: true }, // Name of the driver.
   driverID: { type: String, required: true },
   teams: [{ type: mongoose.Schema.ObjectId, ref: "Team" }], // Teams that this driver currently races for.
