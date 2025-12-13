@@ -11,8 +11,6 @@ interface rulesAndRegsPickerType<T> {
   user: userType
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
-  stepperBtns?: JSX.Element
-  style?: React.CSSProperties
 }
 
 export interface editStateType {
@@ -27,31 +25,28 @@ export const initEditState = {
   ruleReg: null,
 }
 
-const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({ 
-  user, 
-  form, 
+const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({
+  user,
+  form,
   setForm,
-  stepperBtns,
-  style,
 }: rulesAndRegsPickerType<T>) => {
   const [ edit, setEdit ] = useState<editStateType>(initEditState)
 
   const isEdit = edit.newRuleReg || edit.ruleReg
 
-  return isEdit ? 
+  return isEdit ?
     <RulesAndRegsEdit<T>
       user={user}
-      edit={edit} 
+      edit={edit}
       setEdit={setEdit}
       setForm={setForm}
-      style={{ marginBottom: 157 }}
     /> : (
-    <div className="rules-and-regs-picker" style={style}>
+    <div className="rules-and-regs-picker">
       {form.rulesAndRegs.length > 0 ?
         <div className="rules-and-regs-list">
-          {form.rulesAndRegs.map((item: ruleOrRegType, i: number) => 
+          {form.rulesAndRegs.map((item: ruleOrRegType, i: number) =>
             <RuleOrReg
-              key={i} 
+              key={i}
               index={i + 1}
               item={item}
               setEdit={setEdit}
@@ -68,9 +63,7 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({
         form={form}
         setForm={setForm}
         setEdit={setEdit}
-        style={style}
       />
-      {stepperBtns}
     </div>
   )
 }

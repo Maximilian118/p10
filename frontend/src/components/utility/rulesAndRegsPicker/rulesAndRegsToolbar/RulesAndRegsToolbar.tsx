@@ -12,7 +12,6 @@ interface rulesAndRegsToolbarType<T> {
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
   setEdit: React.Dispatch<React.SetStateAction<editStateType>>
-  style?: React.CSSProperties
 }
 
 const RulesAndRegsToolbar = <T extends { rulesAndRegs: rulesAndRegsType }>({
@@ -20,7 +19,6 @@ const RulesAndRegsToolbar = <T extends { rulesAndRegs: rulesAndRegsType }>({
   form,
   setForm,
   setEdit,
-  style
 }: rulesAndRegsToolbarType<T>) => {
   const hasDefs = form.rulesAndRegs.some((rr: ruleOrRegType) => isDefaultRorR(user, rr))
 
@@ -37,7 +35,7 @@ const RulesAndRegsToolbar = <T extends { rulesAndRegs: rulesAndRegsType }>({
   }
 
   return (
-    <div className="rules-and-regs-toolbar" style={style}>
+    <div className="rules-and-regs-toolbar">
       <Button 
         variant="contained" 
         size="small" 

@@ -1,9 +1,10 @@
-import React, { useContext, useEffect, useState } from "react"
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { Button, CircularProgress, InputAdornment, TextField } from "@mui/material"
+import { InputAdornment, TextField } from "@mui/material"
 import { Abc } from "@mui/icons-material"
 import moment, { Moment } from "moment"
 import AppContext from "../../context"
+import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { driverType, teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
@@ -19,7 +20,8 @@ import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocom
 import MUICheckbox from "../../components/utility/muiCheckbox/MUICheckbox"
 import TeamCard from "../../components/cards/teamCard/TeamCard"
 import AddButton from "../../components/utility/button/addButton/AddButton"
-import TeamEdit from "../../components/utility/teamPicker/teamEdit/TeamEdit"
+import CreateTeam from "../CreateTeam/CreateTeam"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createDriver.scss"
 
 export interface createDriverFormType {
@@ -51,13 +53,34 @@ export interface createDriverFormErrType {
   [key: string]: string
 }
 
-const CreateDriver: React.FC = () => {
+interface CreateDriverProps {
+  // Embedded mode flag - when true, uses callbacks instead of navigation.
+  embedded?: boolean
+  // Initial driver data for editing (alternative to location.state).
+  initialDriver?: driverType | null
+  // Callback when driver is successfully created/updated.
+  onSuccess?: (driver: driverType) => void
+  // Callback for back button in embedded mode.
+  onBack?: () => void
+  // Parent drivers list setter for state lifting.
+  setParentDrivers?: React.Dispatch<React.SetStateAction<driverType[]>>
+}
+
+// Component for creating or editing a driver. Can be used standalone or embedded.
+const CreateDriver: React.FC<CreateDriverProps> = ({
+  embedded = false,
+  initialDriver = null,
+  onSuccess,
+  onBack: onBackProp,
+  setParentDrivers,
+}) => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if we're editing an existing driver.
-  const editingDriver = (location.state as { driver?: driverType })?.driver
+  // Determine the driver to edit - from props (embedded) or location state (standalone).
+  const locationDriver = (location.state as { driver?: driverType })?.driver
+  const editingDriver = embedded ? initialDriver : locationDriver
   const isEditing = !!editingDriver
 
   // Check if we came from another form that expects us to return (e.g., CreateSeries).
@@ -75,7 +98,7 @@ const CreateDriver: React.FC = () => {
   const [ driversReqSent, setDriversReqSent ] = useState<boolean>(false)
   const [ teamsReqSent, setTeamsReqSent ] = useState<boolean>(false)
 
-  // State for inline TeamEdit component.
+  // State for inline CreateTeam component.
   const [ isTeamEdit, setIsTeamEdit ] = useState<boolean>(false)
   const [ teamToEdit, setTeamToEdit ] = useState<teamType>(initTeam(user))
 
@@ -180,7 +203,7 @@ const CreateDriver: React.FC = () => {
   }
 
   // Validate form fields.
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const errors: createDriverFormErrType = {
       driverName: "",
       driverID: "",
@@ -236,7 +259,7 @@ const CreateDriver: React.FC = () => {
 
     setFormErr(errors)
     return !Object.values(errors).some(error => error !== "")
-  }
+  }, [form, isEditing, drivers])
 
   // Add a team to the form.
   const addTeamHandler = (team: teamType) => {
@@ -250,48 +273,85 @@ const CreateDriver: React.FC = () => {
     setForm(prev => ({ ...prev, teams: prev.teams.filter(t => t._id !== team._id) }))
   }
 
-  // Open inline TeamEdit to create a new team.
+  // Open inline CreateTeam to create a new team.
   const openNewTeamEdit = () => {
     setTeamToEdit(initTeam(user))
     setIsTeamEdit(true)
   }
 
-  // Open inline TeamEdit to edit an existing team.
+  // Open inline CreateTeam to edit an existing team.
   const openEditTeam = (team: teamType) => {
     setTeamToEdit(team)
     setIsTeamEdit(true)
   }
 
   // Handle form submission for create.
-  const onSubmitHandler = async () => {
+  const onSubmitHandler = useCallback(async () => {
     if (!validateForm()) return
 
     const driver = await createDriver(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (driver && driver._id) {
-      // If we came from another form, return there with the new driver.
-      if (returnTo && seriesForm) {
+      // Update parent drivers list if provided.
+      if (setParentDrivers) {
+        setParentDrivers(prev => [driver, ...prev])
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(driver)
+      } else if (returnTo && seriesForm) {
+        // If we came from another form, return there with the new driver.
         navigate(returnTo, { state: { seriesForm, newDriver: driver } })
       } else {
         navigate("/drivers", { state: { newDriverId: driver._id } })
       }
     }
-  }
+  }, [form, user, setUser, navigate, setParentDrivers, embedded, onSuccess, returnTo, seriesForm, validateForm])
 
   // Handle form submission for update.
-  const onUpdateHandler = async () => {
+  const onUpdateHandler = useCallback(async () => {
     if (!validateForm()) return
     if (!editingDriver) return
 
     const success = await editDriver(editingDriver, form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (success) {
-      navigate("/drivers")
+      // Build updated driver object for callback.
+      const updatedDriver: driverType = {
+        ...editingDriver,
+        name: form.driverName,
+        driverID: form.driverID,
+        icon: form.icon && typeof form.icon === "string" ? form.icon : editingDriver.icon,
+        body: form.body && typeof form.body === "string" ? form.body : editingDriver.body,
+        teams: form.teams,
+        stats: {
+          ...editingDriver.stats,
+          nationality: form.nationality?.label || "",
+          heightCM: form.heightCM ? parseInt(form.heightCM) : 0,
+          weightKG: form.weightKG ? parseInt(form.weightKG) : 0,
+          birthday: form.birthday?.toISOString() || "",
+          moustache: form.moustache,
+          mullet: form.mullet,
+        },
+      }
+
+      // Update parent drivers list if provided.
+      if (setParentDrivers) {
+        setParentDrivers(prev => prev.map(d => d._id === updatedDriver._id ? updatedDriver : d))
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(updatedDriver)
+      } else {
+        navigate("/drivers")
+      }
     }
-  }
+  }, [editingDriver, form, user, setUser, navigate, setParentDrivers, embedded, onSuccess, validateForm])
 
   // Handle delete.
-  const onDeleteHandler = async () => {
+  const onDeleteHandler = useCallback(async () => {
     if (!editingDriver) return
 
     if (editingDriver.teams.length > 0) {
@@ -302,30 +362,92 @@ const CreateDriver: React.FC = () => {
     const success = await removeDriver(editingDriver, user, setUser, navigate, setDelLoading, setBackendErr)
 
     if (success) {
+      // Update parent drivers list if provided.
+      if (setParentDrivers) {
+        setParentDrivers(prev => prev.filter(d => d._id !== editingDriver._id))
+      }
+
+      // Embedded mode: call back callback instead of navigating.
+      if (embedded && onBackProp) {
+        onBackProp()
+      } else {
+        navigate("/drivers")
+      }
+    }
+  }, [editingDriver, user, setUser, navigate, setParentDrivers, embedded, onBackProp])
+
+  // Handle back button click.
+  const handleBack = useCallback(() => {
+    if (embedded && onBackProp) {
+      onBackProp()
+    } else if (returnTo && seriesForm) {
+      navigate(returnTo, { state: { seriesForm } })
+    } else {
       navigate("/drivers")
     }
+  }, [embedded, onBackProp, returnTo, seriesForm, navigate])
+
+  // Handle team created/updated from embedded CreateTeam.
+  const handleTeamSuccess = (team: teamType) => {
+    // Check if updating existing team in form or adding new one.
+    const existingIndex = form.teams.findIndex(t => t._id === team._id)
+    if (existingIndex >= 0) {
+      // Update existing team in form.
+      setForm(prev => ({
+        ...prev,
+        teams: prev.teams.map(t => t._id === team._id ? team : t)
+      }))
+    } else {
+      // Add new team to form.
+      setForm(prev => ({ ...prev, teams: [team, ...prev.teams] }))
+    }
+    setIsTeamEdit(false)
+    setTeamToEdit(initTeam(user))
+  }
+
+  // Handle back from embedded CreateTeam.
+  const handleTeamBack = () => {
+    setIsTeamEdit(false)
+    setTeamToEdit(initTeam(user))
   }
 
   const permissions = canEdit()
 
-  // Render inline TeamEdit component when creating/editing a team.
+  // Stable submit handler for ChampFlowContext registration.
+  const submitHandler = useCallback(async () => {
+    if (isEditing) await onUpdateHandler()
+    else await onSubmitHandler()
+  }, [isEditing, onUpdateHandler, onSubmitHandler])
+
+  // Memoized form handlers for ChampFlowContext.
+  const formHandlers = useMemo(() => ({
+    submit: submitHandler,
+    back: handleBack,
+    isEditing,
+    loading,
+    delLoading,
+    canDelete: permissions === "delete",
+    onDelete: onDeleteHandler,
+  }), [submitHandler, handleBack, isEditing, loading, delLoading, permissions, onDeleteHandler])
+
+  // Register handlers with ChampFlowContext when embedded.
+  const { showButtonBar } = useChampFlowForm(formHandlers, embedded)
+
+  // Render inline CreateTeam component when creating/editing a team.
   if (isTeamEdit) {
     return (
-      <div className="content-container">
-        <TeamEdit<createDriverFormType>
-          setIsEdit={setIsTeamEdit}
-          setForm={setForm}
-          team={teamToEdit}
-          setTeam={setTeamToEdit}
-          teams={teams}
-          user={user}
-          setUser={setUser}
-        />
-      </div>
+      <CreateTeam
+        embedded
+        initialTeam={teamToEdit._id ? teamToEdit : null}
+        onSuccess={handleTeamSuccess}
+        onBack={handleTeamBack}
+        setParentTeams={setTeams}
+      />
     )
   }
 
   return (
+  <>
     <div className="content-container create-driver">
       <h4>{isEditing ? "Edit" : "New"} Driver</h4>
       <div className="create-driver-dropzones">
@@ -476,28 +598,20 @@ const CreateDriver: React.FC = () => {
           textRight
         />
       </div>
-      <div className="button-bar">
-        <Button
-          variant="contained"
-          color="inherit"
-          onClick={() => returnTo && seriesForm ? navigate(returnTo, { state: { seriesForm } }) : navigate("/drivers")}
-        >Back</Button>
-        {permissions === "delete" && isEditing && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={onDeleteHandler}
-            startIcon={delLoading && <CircularProgress size={20} color="inherit" />}
-          >Delete</Button>
-        )}
-        <Button
-          variant="contained"
-          disabled={!permissions || (isEditing && !hasFormChanged())}
-          onClick={isEditing ? onUpdateHandler : onSubmitHandler}
-          startIcon={loading && <CircularProgress size={20} color="inherit" />}
-        >{isEditing ? "Update" : "Submit"}</Button>
-      </div>
     </div>
+    {showButtonBar && (
+      <ButtonBar
+        onBack={handleBack}
+        onDelete={onDeleteHandler}
+        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
+        showDelete={permissions === "delete" && isEditing}
+        submitDisabled={!permissions || (isEditing && !hasFormChanged())}
+        submitLabel={isEditing ? "Update" : "Submit"}
+        loading={loading}
+        delLoading={delLoading}
+      />
+    )}
+  </>
   )
 }
 

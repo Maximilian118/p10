@@ -5,14 +5,12 @@ import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import ErrorDisplay from "../../utility/errorDisplay/ErrorDisplay"
 
 interface champCompleteCardType {
-  stepperBtns?: JSX.Element
-  style?: React.CSSProperties
   backendErr?: graphQLErrorType
 }
 
-const ChampCompleteCard: React.FC<champCompleteCardType> = ({ stepperBtns, style, backendErr }) => {
+const ChampCompleteCard: React.FC<champCompleteCardType> = ({ backendErr }) => {
   return (
-    <div className="champ-complete-card" style={style}>
+    <div className="champ-complete-card">
       <div className="champ-complete-text-container">
         <div className="champ-complete-title">
           <h4>Finish</h4>
@@ -22,7 +20,6 @@ const ChampCompleteCard: React.FC<champCompleteCardType> = ({ stepperBtns, style
         edit the details of this championship after creation.</p>
       </div>
       <ErrorDisplay backendErr={backendErr}/>
-      {stepperBtns}
     </div>
   )
 }

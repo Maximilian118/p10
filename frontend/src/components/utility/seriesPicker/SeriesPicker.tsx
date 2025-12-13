@@ -5,7 +5,7 @@ import { getSeries } from "../../../shared/requests/seriesRequests"
 import { userType } from "../../../shared/localStorage"
 import { useNavigate } from "react-router-dom"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
-import SeriesEdit from "./seriesEdit/SeriesEdit"
+import CreateSeries from "../../../page/CreateSeries/CreateSeries"
 import { initSeries } from "../../../shared/init"
 import SeriesCard from "../../cards/seriesCard/SeriesCard"
 import { sortAlphabetically } from "../../../shared/utility"
@@ -17,14 +17,12 @@ import FillLoading from "../fillLoading/FillLoading"
 interface seriesPickerType<T> {
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
-  seriesList: seriesType[] // all series from backend.
+  seriesList: seriesType[]
   setSeriesList: React.Dispatch<React.SetStateAction<seriesType[]>>
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   backendErr: graphQLErrorType
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
-  stepperBtns?: JSX.Element
-  style?: React.CSSProperties
 }
 
 // Component for picking a series for a championship.
@@ -37,18 +35,17 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
   setUser,
   backendErr,
   setBackendErr,
-  stepperBtns,
-  style,
 }: seriesPickerType<T>) => {
-  const [ isEdit, setIsEdit ] = useState<boolean>(false) // Render SeriesEdit or not.
-  const [ series, setSeries ] = useState<seriesType>(initSeries(user)) // If we're editing a series rather than making a new one, populate.
+  const [ isEdit, setIsEdit ] = useState<boolean>(false)
+  const [ series, setSeries ] = useState<seriesType>(initSeries(user))
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ reqSent, setReqSent ] = useState<boolean>(false)
   const [ search, setSearch ] = useState<seriesType[]>([])
-  const [ selected, setSelected ] = useState<string>(form.series ? form.series._id! : "") // The Series that's currently selected.
+  const [ selected, setSelected ] = useState<string>(form.series ? form.series._id! : "")
 
   const navigate = useNavigate()
 
+  // Fetch all series on mount.
   useEffect(() => {
     if (seriesList.length === 0 && !reqSent) {
       getSeries(setSeriesList, user, setUser, navigate, setLoading, setBackendErr)
@@ -56,36 +53,62 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
     }
   }, [navigate, user, setUser, seriesList, setSeriesList, setBackendErr, form, reqSent])
 
-  const sortedSeries = sortAlphabetically(search ? search : seriesList) // All of the available series.
-  const selectedSeries = sortedSeries.find(s => s._id === selected) // find the single selected series from the array.
+  const sortedSeries = sortAlphabetically(search ? search : seriesList)
+  const selectedSeries = sortedSeries.find(s => s._id === selected)
 
-  return isEdit ?
-    <SeriesEdit
-      setForm={setForm}
-      user={user}
-      setUser={setUser}
-      setIsEdit={setIsEdit}
-      series={series}
-      setSeries={setSeries}
-      seriesList={seriesList}
-      setSeriesList={setSeriesList}
-      setSelected={setSelected}
-      style={style}
-    /> : (
-    <div className="series-picker" style={style}>
+  // Handle series created/updated from embedded CreateSeries.
+  const handleSeriesSuccess = (newSeries: seriesType) => {
+    // Update series list - either add new or update existing.
+    const exists = seriesList.some(s => s._id === newSeries._id)
+    if (exists) {
+      setSeriesList(prev => prev.map(s => s._id === newSeries._id ? newSeries : s))
+    } else {
+      setSeriesList(prev => [newSeries, ...prev])
+    }
+
+    // Auto-select the new/updated series.
+    setSelected(newSeries._id!)
+    setForm(prev => ({ ...prev, series: newSeries }))
+
+    // Reset edit state.
+    setIsEdit(false)
+    setSeries(initSeries(user))
+  }
+
+  // Handle back from embedded CreateSeries.
+  const handleSeriesBack = () => {
+    setIsEdit(false)
+    setSeries(initSeries(user))
+  }
+
+  // Render CreateSeries when in edit mode.
+  if (isEdit) {
+    return (
+      <CreateSeries
+        embedded
+        initialSeries={series._id ? series : null}
+        onSuccess={handleSeriesSuccess}
+        onBack={handleSeriesBack}
+        setParentSeriesList={setSeriesList}
+      />
+    )
+  }
+
+  return (
+    <div className="series-picker">
       <Search
         original={seriesList}
         setSearch={setSearch}
       />
       <div className="series-list-container">
-        {selectedSeries && ( // If a series has been selected, display that series at the top of the page.
+        {selectedSeries && (
           <SeriesCard
             selected
             series={selectedSeries}
             canEdit={!!canEditSeries(selectedSeries, user)}
             onEditClicked={() => {
               setSeries(selectedSeries)
-              setIsEdit(!isEdit)
+              setIsEdit(true)
             }}
           />
         )}
@@ -94,24 +117,22 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
           seriesList.length > 0 ?
           <div className="series-list">
             {sortedSeries
-              .filter(s => s._id !== selected) // Remove the selected series from the array.
-              .map((seriesItem: seriesType, i: number) => // Map through all of the series available.
+              .filter(s => s._id !== selected)
+              .map((seriesItem: seriesType, i: number) =>
               <SeriesCard
                 key={i}
                 series={seriesItem}
                 canEdit={!!canEditSeries(seriesItem, user)}
                 onEditClicked={() => {
                   setSeries(seriesItem)
-                  setIsEdit(!isEdit)
+                  setIsEdit(true)
                 }}
                 onClick={() => {
                   setSelected(seriesItem._id!)
-                  setForm(prevForm => {
-                    return {
-                      ...prevForm,
-                      series: seriesItem,
-                    }
-                  })
+                  setForm(prevForm => ({
+                    ...prevForm,
+                    series: seriesItem,
+                  }))
                 }}
               />
             )}
@@ -123,13 +144,11 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
             }
           </div>
         }
+        <AddButton
+          onClick={() => setIsEdit(true)}
+          absolute
+        />
       </div>
-      <AddButton
-        style={style}
-        onClick={() => setIsEdit(!isEdit)}
-        absolute
-      />
-      {stepperBtns}
     </div>
   )
 }

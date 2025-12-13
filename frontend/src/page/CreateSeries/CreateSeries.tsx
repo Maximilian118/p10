@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useState } from "react"
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { Button, CircularProgress, TextField } from "@mui/material"
+import { TextField } from "@mui/material"
 import AppContext from "../../context"
+import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { seriesType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { createSeries, editSeries, removeSeries } from "../../shared/requests/seriesRequests"
@@ -11,7 +12,8 @@ import { initDriver } from "../../shared/init"
 import { createdByID } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
-import DriverEdit from "../../components/utility/driverPicker/driverEdit/DriverEdit"
+import CreateDriver from "../CreateDriver/CreateDriver"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createSeries.scss"
 
 export interface createSeriesFormType {
@@ -29,14 +31,34 @@ export interface createSeriesFormErrType {
   [key: string]: string
 }
 
-// Page for creating or editing a series.
-const CreateSeries: React.FC = () => {
+interface CreateSeriesProps {
+  // Embedded mode flag - when true, uses callbacks instead of navigation.
+  embedded?: boolean
+  // Initial series data for editing (alternative to location.state).
+  initialSeries?: seriesType | null
+  // Callback when series is successfully created/updated.
+  onSuccess?: (series: seriesType) => void
+  // Callback for back button in embedded mode.
+  onBack?: () => void
+  // Parent series list setter for state lifting.
+  setParentSeriesList?: React.Dispatch<React.SetStateAction<seriesType[]>>
+}
+
+// Component for creating or editing a series. Can be used standalone or embedded.
+const CreateSeries: React.FC<CreateSeriesProps> = ({
+  embedded = false,
+  initialSeries = null,
+  onSuccess,
+  onBack: onBackProp,
+  setParentSeriesList,
+}) => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if we're editing an existing series.
-  const editingSeries = (location.state as { series?: seriesType })?.series
+  // Determine the series to edit - from props (embedded) or location state (standalone).
+  const locationSeries = (location.state as { series?: seriesType })?.series
+  const editingSeries = embedded ? initialSeries : locationSeries
   const isEditing = !!editingSeries
 
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -47,7 +69,7 @@ const CreateSeries: React.FC = () => {
   const [ value, setValue ] = useState<driverType | null>(null)
   const [ reqSent, setReqSent ] = useState<boolean>(false)
 
-  // State for inline DriverEdit component.
+  // State for inline CreateDriver component.
   const [ isDriverEdit, setIsDriverEdit ] = useState<boolean>(false)
   const [ driverToEdit, setDriverToEdit ] = useState<driverType>(initDriver(user))
 
@@ -114,7 +136,7 @@ const CreateSeries: React.FC = () => {
   }
 
   // Validate form fields.
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const errors: createSeriesFormErrType = {
       seriesName: "",
       drivers: "",
@@ -131,7 +153,7 @@ const CreateSeries: React.FC = () => {
 
     setFormErr(errors)
     return !Object.values(errors).some(error => error !== "")
-  }
+  }, [form.seriesName, form.drivers.length])
 
   // Add a driver to the form.
   const addDriverHandler = (driver: driverType) => {
@@ -151,20 +173,20 @@ const CreateSeries: React.FC = () => {
     }))
   }
 
-  // Open inline DriverEdit to create a new driver.
+  // Open inline CreateDriver to create a new driver.
   const openNewDriverEdit = () => {
     setDriverToEdit(initDriver(user))
     setIsDriverEdit(true)
   }
 
-  // Open inline DriverEdit to edit an existing driver.
+  // Open inline CreateDriver to edit an existing driver.
   const openEditDriver = (driver: driverType) => {
     setDriverToEdit(driver)
     setIsDriverEdit(true)
   }
 
   // Handle form submission for create.
-  const onSubmitHandler = async () => {
+  const onSubmitHandler = useCallback(async () => {
     if (!validateForm()) return
 
     const series = await createSeries(
@@ -178,12 +200,22 @@ const CreateSeries: React.FC = () => {
     )
 
     if (series && series._id) {
-      navigate("/series", { state: { newSeriesId: series._id } })
+      // Update parent series list if provided.
+      if (setParentSeriesList) {
+        setParentSeriesList(prev => [series, ...prev])
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(series)
+      } else {
+        navigate("/series", { state: { newSeriesId: series._id } })
+      }
     }
-  }
+  }, [form, user, setUser, navigate, setParentSeriesList, embedded, onSuccess, validateForm])
 
   // Handle form submission for update.
-  const onUpdateHandler = async () => {
+  const onUpdateHandler = useCallback(async () => {
     if (!validateForm()) return
     if (!editingSeries) return
 
@@ -199,12 +231,30 @@ const CreateSeries: React.FC = () => {
     )
 
     if (success) {
-      navigate("/series")
+      // Build updated series object for callback.
+      const updatedSeries: seriesType = {
+        ...editingSeries,
+        name: form.seriesName,
+        url: form.icon && typeof form.icon === "string" ? form.icon : editingSeries.url,
+        drivers: form.drivers,
+      }
+
+      // Update parent series list if provided.
+      if (setParentSeriesList) {
+        setParentSeriesList(prev => prev.map(s => s._id === updatedSeries._id ? updatedSeries : s))
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(updatedSeries)
+      } else {
+        navigate("/series")
+      }
     }
-  }
+  }, [editingSeries, form, user, setUser, navigate, setParentSeriesList, embedded, onSuccess, validateForm])
 
   // Handle delete.
-  const onDeleteHandler = async () => {
+  const onDeleteHandler = useCallback(async () => {
     if (!editingSeries) return
 
     if ((editingSeries.championships?.length || 0) > 0) {
@@ -222,32 +272,90 @@ const CreateSeries: React.FC = () => {
     )
 
     if (success) {
+      // Update parent series list if provided.
+      if (setParentSeriesList) {
+        setParentSeriesList(prev => prev.filter(s => s._id !== editingSeries._id))
+      }
+
+      // Embedded mode: call back callback instead of navigating.
+      if (embedded && onBackProp) {
+        onBackProp()
+      } else {
+        navigate("/series")
+      }
+    }
+  }, [editingSeries, user, setUser, navigate, setParentSeriesList, embedded, onBackProp])
+
+  // Handle back button click.
+  const handleBack = useCallback(() => {
+    if (embedded && onBackProp) {
+      onBackProp()
+    } else {
       navigate("/series")
     }
+  }, [embedded, onBackProp, navigate])
+
+  // Handle driver created/updated from embedded CreateDriver.
+  const handleDriverSuccess = (driver: driverType) => {
+    // Check if updating existing driver in form or adding new one.
+    const existingIndex = form.drivers.findIndex(d => d._id === driver._id)
+    if (existingIndex >= 0) {
+      // Update existing driver in form.
+      setForm(prev => ({
+        ...prev,
+        drivers: prev.drivers.map(d => d._id === driver._id ? driver : d)
+      }))
+    } else {
+      // Add new driver to form.
+      setForm(prev => ({ ...prev, drivers: [driver, ...prev.drivers] }))
+    }
+    setIsDriverEdit(false)
+    setDriverToEdit(initDriver(user))
+  }
+
+  // Handle back from embedded CreateDriver.
+  const handleDriverBack = () => {
+    setIsDriverEdit(false)
+    setDriverToEdit(initDriver(user))
   }
 
   const permissions = canEdit()
 
-  // Render inline DriverEdit component when creating/editing a driver.
+  // Stable submit handler for ChampFlowContext registration.
+  const submitHandler = useCallback(async () => {
+    if (isEditing) await onUpdateHandler()
+    else await onSubmitHandler()
+  }, [isEditing, onUpdateHandler, onSubmitHandler])
+
+  // Memoized form handlers for ChampFlowContext.
+  const formHandlers = useMemo(() => ({
+    submit: submitHandler,
+    back: handleBack,
+    isEditing,
+    loading,
+    delLoading,
+    canDelete: permissions === "delete",
+    onDelete: onDeleteHandler,
+  }), [submitHandler, handleBack, isEditing, loading, delLoading, permissions, onDeleteHandler])
+
+  // Register handlers with ChampFlowContext when embedded.
+  const { showButtonBar } = useChampFlowForm(formHandlers, embedded)
+
+  // Render inline CreateDriver component when creating/editing a driver.
   if (isDriverEdit) {
     return (
-      <div className="content-container">
-        <DriverEdit<createSeriesFormType>
-          setIsDriverEdit={setIsDriverEdit}
-          setForm={setForm}
-          driver={driverToEdit}
-          setDriver={setDriverToEdit}
-          user={user}
-          setUser={setUser}
-          backendErr={backendErr}
-          setBackendErr={setBackendErr}
-          drivers={drivers}
-        />
-      </div>
+      <CreateDriver
+        embedded
+        initialDriver={driverToEdit._id ? driverToEdit : null}
+        onSuccess={handleDriverSuccess}
+        onBack={handleDriverBack}
+        setParentDrivers={setDrivers}
+      />
     )
   }
 
   return (
+  <>
     <div className="content-container create-series">
       <h4>{isEditing ? "Edit" : "New"} Series</h4>
       <DropZone<createSeriesFormType, createSeriesFormErrType>
@@ -287,28 +395,20 @@ const CreateSeries: React.FC = () => {
         onNew={openNewDriverEdit}
         onChange={() => setFormErr(prev => ({ ...prev, drivers: "" }))}
       />
-      <div className="button-bar">
-        <Button
-          variant="contained"
-          color="inherit"
-          onClick={() => navigate("/series")}
-        >Back</Button>
-        {permissions === "delete" && isEditing && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={onDeleteHandler}
-            startIcon={delLoading && <CircularProgress size={20} color="inherit" />}
-          >Delete</Button>
-        )}
-        <Button
-          variant="contained"
-          disabled={!permissions || form.drivers.length < 2 || (isEditing && !hasFormChanged())}
-          onClick={isEditing ? onUpdateHandler : onSubmitHandler}
-          startIcon={loading && <CircularProgress size={20} color="inherit" />}
-        >{isEditing ? "Update" : "Submit"}</Button>
-      </div>
     </div>
+    {showButtonBar && (
+      <ButtonBar
+        onBack={handleBack}
+        onDelete={onDeleteHandler}
+        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
+        showDelete={permissions === "delete" && isEditing}
+        submitDisabled={!permissions || form.drivers.length < 2 || (isEditing && !hasFormChanged())}
+        submitLabel={isEditing ? "Update" : "Submit"}
+        loading={loading}
+        delLoading={delLoading}
+      />
+    )}
+  </>
   )
 }
 

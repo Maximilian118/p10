@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from "react"
+import React, { useContext, useState, useCallback, useMemo } from "react"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
-import { Button, CircularProgress } from "@mui/material"
 import { useNavigate } from "react-router-dom"
 import { presetArrays } from "../components/utility/pointsPicker/ppPresets"
 import { badgeType, seriesType, pointsStructureType, rulesAndRegsType } from "../shared/types"
 import { defaultRulesAndRegs } from "../shared/rulesAndRegs"
 import AppContext from "../context"
+import { ChampFlowProvider, FormHandlers, getActiveHandlers } from "../context/ChampFlowContext"
 import ChampBasicsCard from "../components/cards/champBasicsCard/ChampBasicsCard"
 import { muiStepperSteps } from "../components/utility/muiStepper/muiStepperUtility"
 import ChampHeaderCard from "../components/cards/champHeaderCard/ChampHeaderCard"
@@ -13,6 +13,7 @@ import SeriesPicker from "../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
+import ButtonBar from "../components/utility/buttonBar/ButtonBar"
 import { createChamp } from "../shared/requests/champRequests"
 
 interface createChampFormBaseType {
@@ -43,10 +44,10 @@ const CreateChamp: React.FC = () => {
   const [ loading, setLoading ] = useState<boolean>(false) // loading for createChamp req.
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ activeStep, setActiveStep ] = useState<number>(0) // Active step for stepper component.
-  const [ stepperBtns, setStepperBtns ] = useState<JSX.Element>(<></>) // button-bar component to be distributed across child components as needed.
   const [ badgesReqSent, setBadgesReqSent ] = useState<boolean>(false) // As we can unload the badge picker component. State to dictate wheather to send another req is in parent.
   const [ defaultBadges, setDefaultBadges ] = useState<badgeType[]>([]) // For the same reason the res of getBadges sits here.
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([]) // Stores all series from getSeries response in SeriesPicker.
+  const [ handlerStack, setHandlerStack ] = useState<FormHandlers[]>([]) // Stack of nested form handlers for ButtonBar.
   const [ form, setForm ] = useState<createChampFormType>({
     champName: "",
     rounds: 24,
@@ -73,6 +74,30 @@ const CreateChamp: React.FC = () => {
   })
 
   const navigate = useNavigate()
+
+  // Generate unique ID and push handler onto the stack.
+  const pushHandlers = useCallback((handlers: Omit<FormHandlers, 'id'>): string => {
+    const id = `handler-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const handlerWithId: FormHandlers = { ...handlers, id }
+    setHandlerStack(prev => [...prev, handlerWithId])
+    return id
+  }, [])
+
+  // Remove specific handler by ID from the stack.
+  const popHandlers = useCallback((id: string) => {
+    setHandlerStack(prev => prev.filter(h => h.id !== id))
+  }, [])
+
+  // Derive active handlers from the top of the stack.
+  const activeFormHandlers = getActiveHandlers(handlerStack)
+
+  // Memoized context value for ChampFlowProvider.
+  const champFlowContextValue = useMemo(() => ({
+    inChampFlow: true,
+    handlerStack,
+    pushHandlers,
+    popHandlers,
+  }), [handlerStack, pushHandlers, popHandlers])
 
   // Handles form submission - validates and creates the championship
   const onSubmitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -119,29 +144,11 @@ const CreateChamp: React.FC = () => {
   const firstStep = activeStep === 0
   const lastStep = muiStepperSteps.createChamp.length === activeStep
 
-  useEffect(() => {
-    setStepperBtns(() =>  <div className="button-bar">
-      <Button
-        variant="contained" 
-        color="inherit"
-        disabled={firstStep}
-        onClick={() => !firstStep && setActiveStep(prevStep => prevStep - 1)}
-      >Back</Button>
-      <Button 
-        variant="contained" 
-        type={lastStep ? "submit" : "button"}
-        onClick={() => !lastStep && setActiveStep(prevStep => prevStep + 1)}
-        startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
-      >{lastStep ? "Create Championship" : "Next"}</Button>
-    </div>)
-  }, [firstStep, lastStep, loading])
-
-  const contentMargin = { marginBottom: 78.5 }
-
   return (
+  <ChampFlowProvider value={champFlowContextValue}>
     <form className="content-container" onSubmit={e => onSubmitHandler(e)} style={{ height: "100vh" }}>
       <ChampHeaderCard activeStep={activeStep}/>
-        {activeStep === 0 && 
+        {activeStep === 0 &&
         <ChampBasicsCard
           form={form}
           setForm={setForm}
@@ -149,8 +156,6 @@ const CreateChamp: React.FC = () => {
           setFormErr={setFormErr}
           backendErr={backendErr}
           setBackendErr={setBackendErr}
-          stepperBtns={stepperBtns}
-          style={contentMargin}
         />
       }
       {activeStep === 1 &&
@@ -163,20 +168,16 @@ const CreateChamp: React.FC = () => {
           setUser={setUser}
           backendErr={backendErr}
           setBackendErr={setBackendErr}
-          stepperBtns={stepperBtns}
-          style={contentMargin}
         />
       }
-      {activeStep === 2 && 
+      {activeStep === 2 &&
         <RulesAndRegsPicker
           user={user}
           form={form}
           setForm={setForm}
-          stepperBtns={stepperBtns}
-          style={contentMargin}
         />
       }
-      {activeStep === 3 && 
+      {activeStep === 3 &&
         <BadgePicker
           form={form}
           setForm={setForm}
@@ -184,8 +185,6 @@ const CreateChamp: React.FC = () => {
           setUser={setUser}
           backendErr={backendErr}
           setBackendErr={setBackendErr}
-          stepperBtns={stepperBtns}
-          style={contentMargin}
           badgesReqSent={badgesReqSent}
           setBadgesReqSent={setBadgesReqSent}
           defaultBadges={defaultBadges}
@@ -194,11 +193,32 @@ const CreateChamp: React.FC = () => {
       }
       {activeStep === 4 &&
         <ChampCompleteCard
-          stepperBtns={stepperBtns}
           backendErr={backendErr}
         />
       }
     </form>
+    <ButtonBar
+      onBack={() => activeFormHandlers
+        ? activeFormHandlers.back()
+        : setActiveStep(prevStep => prevStep - 1)
+      }
+      onSubmit={() => activeFormHandlers
+        ? activeFormHandlers.submit()
+        : lastStep
+          ? document.querySelector<HTMLFormElement>('form.content-container')?.requestSubmit()
+          : setActiveStep(prevStep => prevStep + 1)
+      }
+      onDelete={activeFormHandlers?.canDelete ? activeFormHandlers.onDelete : undefined}
+      showDelete={!!activeFormHandlers?.canDelete && activeFormHandlers?.isEditing}
+      backDisabled={firstStep && !activeFormHandlers}
+      submitLabel={activeFormHandlers
+        ? (activeFormHandlers.isEditing ? "Update" : "Submit")
+        : (lastStep ? "Create Championship" : "Next")
+      }
+      loading={activeFormHandlers?.loading || loading}
+      delLoading={activeFormHandlers?.delLoading}
+    />
+  </ChampFlowProvider>
   )
 }
 

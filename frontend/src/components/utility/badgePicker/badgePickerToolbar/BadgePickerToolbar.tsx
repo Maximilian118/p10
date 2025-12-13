@@ -9,11 +9,10 @@ interface badgePickerToolbarType {
   setIsEdit: React.Dispatch<React.SetStateAction<boolean | badgeType>>
   draw: boolean
   setDraw: React.Dispatch<React.SetStateAction<boolean>>
-  style?: React.CSSProperties
 }
 
-const BadgePickerToolbar: React.FC<badgePickerToolbarType> = ({ setIsEdit, draw, setDraw, style }) => (
-  <div className="badge-picker-toolbar" style={style}>
+const BadgePickerToolbar: React.FC<badgePickerToolbarType> = ({ setIsEdit, draw, setDraw }) => (
+  <div className="badge-picker-toolbar">
     <Button 
       variant="contained" 
       size="small" 

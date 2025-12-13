@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useState } from "react"
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { Button, CircularProgress, TextField } from "@mui/material"
+import { TextField } from "@mui/material"
 import moment, { Moment } from "moment"
 import AppContext from "../../context"
+import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { teamType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
@@ -13,6 +14,7 @@ import DropZone from "../../components/utility/dropZone/DropZone"
 import MUICountrySelect, { countryType, findCountryByString } from "../../components/utility/muiCountrySelect/MUICountrySelect"
 import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createTeam.scss"
 
 export interface createTeamFormType {
@@ -34,13 +36,34 @@ export interface createTeamFormErrType {
   [key: string]: string
 }
 
-const CreateTeam: React.FC = () => {
+interface CreateTeamProps {
+  // Embedded mode flag - when true, uses callbacks instead of navigation.
+  embedded?: boolean
+  // Initial team data for editing (alternative to location.state).
+  initialTeam?: teamType | null
+  // Callback when team is successfully created/updated.
+  onSuccess?: (team: teamType) => void
+  // Callback for back button in embedded mode.
+  onBack?: () => void
+  // Parent teams list setter for state lifting.
+  setParentTeams?: React.Dispatch<React.SetStateAction<teamType[]>>
+}
+
+// Component for creating or editing a team. Can be used standalone or embedded.
+const CreateTeam: React.FC<CreateTeamProps> = ({
+  embedded = false,
+  initialTeam = null,
+  onSuccess,
+  onBack: onBackProp,
+  setParentTeams,
+}) => {
   const { user, setUser } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if we're editing an existing team.
-  const editingTeam = (location.state as { team?: teamType })?.team
+  // Determine the team to edit - from props (embedded) or location state (standalone).
+  const locationTeam = (location.state as { team?: teamType })?.team
+  const editingTeam = embedded ? initialTeam : locationTeam
   const isEditing = !!editingTeam
 
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -50,15 +73,31 @@ const CreateTeam: React.FC = () => {
   const [ teams, setTeams ] = useState<teamType[]>([])
   const [ teamsReqSent, setTeamsReqSent ] = useState<boolean>(false)
 
-  const [ form, setForm ] = useState<createTeamFormType>({
-    _id: editingTeam?._id || null,
-    teamName: editingTeam?.name || "",
-    inceptionDate: editingTeam?.stats.inceptionDate ? moment(editingTeam.stats.inceptionDate) : null,
-    nationality: editingTeam?.stats.nationality ? findCountryByString(editingTeam.stats.nationality) : null,
-    drivers: editingTeam?.drivers || [],
-    icon: null,
-    profile_picture: null,
-  })
+  // Initialize form state based on whether we're editing or creating.
+  const getInitialFormState = (): createTeamFormType => {
+    if (editingTeam) {
+      return {
+        _id: editingTeam._id || null,
+        teamName: editingTeam.name || "",
+        inceptionDate: editingTeam.stats.inceptionDate ? moment(editingTeam.stats.inceptionDate) : null,
+        nationality: editingTeam.stats.nationality ? findCountryByString(editingTeam.stats.nationality) : null,
+        drivers: editingTeam.drivers || [],
+        icon: null,
+        profile_picture: null,
+      }
+    }
+    return {
+      _id: null,
+      teamName: "",
+      inceptionDate: null,
+      nationality: null,
+      drivers: [],
+      icon: null,
+      profile_picture: null,
+    }
+  }
+
+  const [ form, setForm ] = useState<createTeamFormType>(getInitialFormState)
   const [ formErr, setFormErr ] = useState<createTeamFormErrType>({
     teamName: "",
     inceptionDate: "",
@@ -106,7 +145,7 @@ const CreateTeam: React.FC = () => {
   }
 
   // Validate form fields.
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const errors: createTeamFormErrType = {
       teamName: "",
       inceptionDate: "",
@@ -144,33 +183,66 @@ const CreateTeam: React.FC = () => {
 
     setFormErr(errors)
     return !Object.values(errors).some(error => error !== "")
-  }
+  }, [form, isEditing, teams])
 
   // Handle form submission for create.
-  const onSubmitHandler = async () => {
+  const onSubmitHandler = useCallback(async () => {
     if (!validateForm()) return
 
     const team = await createTeam(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (team && team._id) {
-      navigate("/teams", { state: { newTeamId: team._id } })
+      // Update parent teams list if provided.
+      if (setParentTeams) {
+        setParentTeams(prev => [team, ...prev])
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(team)
+      } else {
+        navigate("/teams", { state: { newTeamId: team._id } })
+      }
     }
-  }
+  }, [form, user, setUser, navigate, setParentTeams, embedded, onSuccess, validateForm])
 
   // Handle form submission for update.
-  const onUpdateHandler = async () => {
+  const onUpdateHandler = useCallback(async () => {
     if (!validateForm()) return
     if (!editingTeam) return
 
     const success = await editTeam(editingTeam, form, setForm, user, setUser, navigate, setLoading, setBackendErr)
 
     if (success) {
-      navigate("/teams")
+      // Build updated team object for callback.
+      const updatedTeam: teamType = {
+        ...editingTeam,
+        name: form.teamName,
+        url: form.icon && typeof form.icon === "string" ? form.icon : editingTeam.url,
+        stats: {
+          ...editingTeam.stats,
+          nationality: form.nationality?.label || "",
+          inceptionDate: form.inceptionDate?.toISOString() || "",
+        },
+        drivers: form.drivers,
+      }
+
+      // Update parent teams list if provided.
+      if (setParentTeams) {
+        setParentTeams(prev => prev.map(t => t._id === updatedTeam._id ? updatedTeam : t))
+      }
+
+      // Embedded mode: call success callback instead of navigating.
+      if (embedded && onSuccess) {
+        onSuccess(updatedTeam)
+      } else {
+        navigate("/teams")
+      }
     }
-  }
+  }, [editingTeam, form, user, setUser, navigate, setParentTeams, embedded, onSuccess, validateForm])
 
   // Handle delete.
-  const onDeleteHandler = async () => {
+  const onDeleteHandler = useCallback(async () => {
     if (!editingTeam) return
 
     if (editingTeam.drivers.length > 0) {
@@ -181,13 +253,53 @@ const CreateTeam: React.FC = () => {
     const success = await removeTeam(editingTeam, user, setUser, navigate, setDelLoading, setBackendErr)
 
     if (success) {
+      // Update parent teams list if provided.
+      if (setParentTeams) {
+        setParentTeams(prev => prev.filter(t => t._id !== editingTeam._id))
+      }
+
+      // Embedded mode: call back callback instead of navigating.
+      if (embedded && onBackProp) {
+        onBackProp()
+      } else {
+        navigate("/teams")
+      }
+    }
+  }, [editingTeam, user, setUser, navigate, setParentTeams, embedded, onBackProp])
+
+  // Handle back button click.
+  const handleBack = useCallback(() => {
+    if (embedded && onBackProp) {
+      onBackProp()
+    } else {
       navigate("/teams")
     }
-  }
+  }, [embedded, onBackProp, navigate])
 
   const permissions = canEdit()
 
+  // Stable submit handler for ChampFlowContext registration.
+  const submitHandler = useCallback(async () => {
+    if (isEditing) await onUpdateHandler()
+    else await onSubmitHandler()
+  }, [isEditing, onUpdateHandler, onSubmitHandler])
+
+  // Memoized form handlers for ChampFlowContext.
+  const formHandlers = useMemo(() => ({
+    submit: submitHandler,
+    back: handleBack,
+    isEditing,
+    loading,
+    delLoading,
+    canDelete: permissions === "delete",
+    onDelete: onDeleteHandler,
+  }), [submitHandler, handleBack, isEditing, loading, delLoading, permissions, onDeleteHandler])
+
+  // Register handlers with ChampFlowContext when embedded.
+  const { showButtonBar } = useChampFlowForm(formHandlers, embedded)
+
   return (
+  <>
     <div className="content-container create-team">
       <h4>{isEditing ? "Edit" : "New"} Team</h4>
       <DropZone<createTeamFormType, createTeamFormErrType>
@@ -233,36 +345,31 @@ const CreateTeam: React.FC = () => {
           setFormErr(prev => ({ ...prev, inceptionDate: "" }))
         }}
       />
-      <DriverPicker
-        drivers={[]}
-        selectedDrivers={form.drivers}
-        value={null}
-        setValue={() => {}}
-        label="Drivers"
-        readOnly
-      />
-      <div className="button-bar">
-        <Button
-          variant="contained"
-          color="inherit"
-          onClick={() => navigate("/teams")}
-        >Back</Button>
-        {permissions === "delete" && isEditing && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={onDeleteHandler}
-            startIcon={delLoading && <CircularProgress size={20} color="inherit" />}
-          >Delete</Button>
-        )}
-        <Button
-          variant="contained"
-          disabled={!permissions || (isEditing && !hasFormChanged())}
-          onClick={isEditing ? onUpdateHandler : onSubmitHandler}
-          startIcon={loading && <CircularProgress size={20} color="inherit" />}
-        >{isEditing ? "Update" : "Submit"}</Button>
-      </div>
+      {isEditing && (
+        <DriverPicker
+          drivers={[]}
+          selectedDrivers={form.drivers}
+          value={null}
+          setValue={() => {}}
+          label="Drivers"
+          readOnly
+          emptyMessage="No Drivers!"
+        />
+      )}
     </div>
+    {showButtonBar && (
+      <ButtonBar
+        onBack={handleBack}
+        onDelete={onDeleteHandler}
+        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
+        showDelete={permissions === "delete" && isEditing}
+        submitDisabled={!permissions || (isEditing && !hasFormChanged())}
+        submitLabel={isEditing ? "Update" : "Submit"}
+        loading={loading}
+        delLoading={delLoading}
+      />
+    )}
+  </>
   )
 }
 

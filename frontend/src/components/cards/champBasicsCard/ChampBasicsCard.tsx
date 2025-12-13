@@ -16,19 +16,15 @@ interface champBaiscsCard<T, U> {
   setFormErr: React.Dispatch<React.SetStateAction<U>>
   backendErr: graphQLErrorType
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
-  stepperBtns?: JSX.Element
-  style?: React.CSSProperties
 }
 
-const ChampBasicsCard = <T extends createChampFormType, U extends createChampFormErrType>({ 
+const ChampBasicsCard = <T extends createChampFormType, U extends createChampFormErrType>({
   form,
-  setForm, 
-  formErr, 
-  setFormErr, 
-  backendErr, 
+  setForm,
+  formErr,
+  setFormErr,
+  backendErr,
   setBackendErr,
-  stepperBtns,
-  style,
 }: champBaiscsCard<T, U>) => {
   const paginationHandler = (e: React.ChangeEvent<unknown>, value: number) => {
     setForm(prevForm => {
@@ -40,7 +36,7 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
   }
   
   return (
-    <div className="champ-basics-card" style={style}>
+    <div className="champ-basics-card">
       <DropZone<T, U> 
         form={form}
         setForm={setForm} 
@@ -85,7 +81,6 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
         formErr={formErr}
         backendErr={backendErr}
       />
-      {stepperBtns}
     </div>
   )
 }

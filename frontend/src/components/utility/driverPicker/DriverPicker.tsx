@@ -16,6 +16,7 @@ interface DriverPickerProps {
   error?: boolean                                    // Error state
   disabled?: boolean                                 // Disable all interactions
   readOnly?: boolean                                 // View-only mode (no add/remove/edit)
+  emptyMessage?: string                              // Message to show when no drivers selected
   onAdd?: (driver: driverType) => void               // Called when driver selected
   onRemove?: (driver: driverType) => void            // Called when driver removed
   onEdit?: (driver: driverType) => void              // Called when driver card clicked
@@ -34,6 +35,7 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
   error = false,
   disabled = false,
   readOnly = false,
+  emptyMessage,
   onAdd,
   onRemove,
   onEdit,
@@ -61,15 +63,19 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
         onChange={() => { if (onChange) { onChange() } }}
       />
       <div className="driver-picker-list">
-        {sortAlphabetically(selectedDrivers).map((driver: driverType, i: number) => (
-          <DriverCard
-            key={i}
-            driver={driver}
-            onRemove={readOnly ? undefined : (d) => onRemove?.(d)}
-            canRemove={!disabled && !readOnly}
-            onClick={readOnly ? undefined : () => onEdit?.(driver)}
-          />
-        ))}
+        {selectedDrivers.length === 0 && emptyMessage ? (
+          <p className="driver-picker-empty">{emptyMessage}</p>
+        ) : (
+          sortAlphabetically(selectedDrivers).map((driver: driverType, i: number) => (
+            <DriverCard
+              key={i}
+              driver={driver}
+              onRemove={readOnly ? undefined : (d) => onRemove?.(d)}
+              canRemove={!disabled && !readOnly}
+              onClick={readOnly ? undefined : () => onEdit?.(driver)}
+            />
+          ))
+        )}
       </div>
       {!readOnly && (
         <AddButton

@@ -15,18 +15,16 @@ interface badgeFilterDrawType<T> {
   setFiltered: React.Dispatch<React.SetStateAction<number[]>>
   defaultBadges?: badgeType[]
   setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
-  style?: React.CSSProperties
 }
 
-const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({ 
-  draw, 
-  setDraw, 
-  form, 
+const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
+  draw,
+  setDraw,
+  form,
   setForm,
-  defaults, 
-  filtered, 
+  defaults,
+  filtered,
   setFiltered,
-  style,
 }: badgeFilterDrawType<T>) => {
   const hasDefbadges = (form: T) => form.champBadges.some(a => defaults.map(b => b._id).includes(a._id))
 
@@ -85,7 +83,7 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
-      <div className={`badge-filter-draw ${draw ? "badge-draw-open" : ""}`} style={style}>
+      <div className={`badge-filter-draw ${draw ? "badge-draw-open" : ""}`}>
           <div className="badge-filter-options">
             {badgeRarities().map((rarity: badgeRarityType, i: number) => (
               <MUICheckbox

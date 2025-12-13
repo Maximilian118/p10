@@ -20,7 +20,6 @@ interface badgePickerEditType<T> {
   setIsEdit: React.Dispatch<React.SetStateAction<boolean | badgeType>>
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
-  style?: React.CSSProperties
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   navigate: NavigateFunction
@@ -47,7 +46,7 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
   }
 }
 
-const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, style }: badgePickerEditType<T>) => {
+const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -189,7 +188,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   }
 
   return (
-    <div className="badge-picker-edit" style={style}>
+    <div className="badge-picker-edit">
       <h4>{`${isNewBadge ? `New` : `Edit`} Badge`}</h4>
       <div className="badge-wrapper">
         <BadgeOverlay 

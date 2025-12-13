@@ -3,7 +3,7 @@
 
 body #root .main-logged-in .content-container.create-driver {
   @include mixins.flexbox-start-column;
-  padding: 20px 7.5% 100px;
+  padding: 20px 7.5%;
   box-sizing: border-box;
   background: white;
 

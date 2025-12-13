@@ -23,23 +23,19 @@ interface badgePickerType<T> {
   setBadgesReqSent?: React.Dispatch<React.SetStateAction<boolean>>
   defaultBadges?: badgeType[]
   setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
-  stepperBtns?: JSX.Element
-  style?: React.CSSProperties
 }
 
-const BadgePicker = <T extends { champBadges: badgeType[] }>({ 
-  form, 
-  setForm, 
-  user, 
-  setUser, 
+const BadgePicker = <T extends { champBadges: badgeType[] }>({
+  form,
+  setForm,
+  user,
+  setUser,
   backendErr,
   setBackendErr,
   badgesReqSent,
   setBadgesReqSent,
   defaultBadges,
   setDefaultBadges,
-  stepperBtns,
-  style,
 }: badgePickerType<T>) => {
   const [ isEdit, setIsEdit ] = useState<boolean | badgeType>(false) // Fill with badge info to edit or false to close BadgePickerEdit.
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -68,12 +64,11 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
       setIsEdit={setIsEdit}
       form={form}
       setForm={setForm}
-      style={style}
       user={user}
       setUser={setUser}
       navigate={navigate}
     /> : (
-    <div className="badge-picker" style={style}>
+    <div className="badge-picker">
       {loading ? 
         <div className="badge-picker-loading">
           <CircularProgress/>
@@ -97,7 +92,6 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         setIsEdit={setIsEdit}
         draw={draw}
         setDraw={setDraw}
-        style={stepperBtns ? style : undefined}
       />
       <BadgeFilterDraw
         draw={draw}
@@ -109,9 +103,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         setFiltered={setFiltered}
         defaultBadges={defaultBadges}
         setDefaultBadges={setDefaultBadges}
-        style={style}
       />
-      {stepperBtns}
     </div>
   )
 }

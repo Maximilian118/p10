@@ -3,7 +3,7 @@
 
 body #root .main-logged-in .content-container.create-team {
   @include mixins.flexbox-start-column;
-  padding: 20px 7.5% 80px;
+  padding: 20px 7.5%;
   box-sizing: border-box;
   background: white;
 
