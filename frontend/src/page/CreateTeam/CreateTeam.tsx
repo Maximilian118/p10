@@ -114,6 +114,20 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     }
   }, [teams, teamsReqSent, user, setUser, navigate])
 
+  // Update form with complete team data from fetched list (handles incomplete data from navigation).
+  useEffect(() => {
+    if (teams.length > 0 && editingTeam?._id) {
+      const completeTeam = teams.find(t => t._id === editingTeam._id)
+      if (completeTeam && completeTeam.drivers.length > 0) {
+        // Check if current form drivers are missing or have incomplete data (no icons).
+        const hasIncompleteDrivers = form.drivers.length === 0 || form.drivers.some(d => !d.icon)
+        if (hasIncompleteDrivers) {
+          setForm(prev => ({ ...prev, drivers: completeTeam.drivers }))
+        }
+      }
+    }
+  }, [teams, editingTeam, form.drivers])
+
   // Determine user's edit permissions.
   const canEdit = (): "delete" | "edit" | "" => {
     if (!editingTeam) return "edit"

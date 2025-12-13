@@ -11,10 +11,11 @@ interface driverCardType {
   canEdit?: boolean
   onRemove?: (driver: driverType) => void
   canRemove?: boolean
+  readOnly?: boolean
 }
 
-const DriverCard: React.FC<driverCardType> = ({ driver, onClick, canEdit, onRemove, canRemove }) => (
-  <div className="driver-card" onClick={() => onClick && onClick(driver)}>
+const DriverCard: React.FC<driverCardType> = ({ driver, onClick, canEdit, onRemove, canRemove, readOnly }) => (
+  <div className={`driver-card${readOnly ? " read-only" : ""}`} onClick={() => onClick && onClick(driver)}>
     <ImageIcon src={driver.icon} style={{ marginRight: 16 }}/>
     <p className="driver-name">{driver.name}</p>
     <div className="toolbar">

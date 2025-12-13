@@ -73,6 +73,7 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
               onRemove={readOnly ? undefined : (d) => onRemove?.(d)}
               canRemove={!disabled && !readOnly}
               onClick={readOnly ? undefined : () => onEdit?.(driver)}
+              readOnly={readOnly}
             />
           ))
         )}

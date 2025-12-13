@@ -167,6 +167,20 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     }
   }, [teams, teamsReqSent, user, setUser, navigate])
 
+  // Update form with complete driver data from fetched list (handles incomplete data from navigation).
+  useEffect(() => {
+    if (drivers.length > 0 && editingDriver?._id) {
+      const completeDriver = drivers.find(d => d._id === editingDriver._id)
+      if (completeDriver && completeDriver.teams.length > 0) {
+        // Check if current form teams are missing or have incomplete data (no URLs).
+        const hasIncompleteTeams = form.teams.length === 0 || form.teams.some(t => !t.url)
+        if (hasIncompleteTeams) {
+          setForm(prev => ({ ...prev, teams: completeDriver.teams }))
+        }
+      }
+    }
+  }, [drivers, editingDriver, form.teams])
+
   // Determine user's edit permissions.
   const canEdit = (): "delete" | "edit" | "" => {
     if (!editingDriver) return "edit"
