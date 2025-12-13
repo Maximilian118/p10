@@ -50,7 +50,7 @@ export const nameErrors = async (name: string, user?: userType): Promise<void> =
     throwError(type, name, "Please enter a name.")
   }
 
-  if (!/^[a-zA-Z\s-']{1,30}$/.test(name)) {
+  if (!/^[a-zA-Z\s.'-]{1,30}$/.test(name)) {
     if (name.length > 30) {
       throwError(type, name, "30 characters maximum.")
     }
@@ -59,13 +59,7 @@ export const nameErrors = async (name: string, user?: userType): Promise<void> =
   }
 
   if (user && name === user.name) {
-    throwError(type, name, "This is already your username.")
-  }
-
-  const dbUser = await User.findOne({ name: { $regex: `^${name}$`, $options: "i" } }) // FindOne case-insensitive.
-
-  if (dbUser) {
-    throwError(type, name, "This username is taken.")
+    throwError(type, name, "This is already your name.")
   }
 }
 

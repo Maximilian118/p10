@@ -202,7 +202,7 @@ export const inputLabel = (
 
   switch (type) {
     case "name":
-      label = "Username"
+      label = "Name"
       break
     case "champName":
       label = "Championship Name"

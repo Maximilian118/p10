@@ -29,9 +29,12 @@ const userResolvers = {
       iconErrors(icon, profile_picture)
       profilePictureErrors(profile_picture, icon)
 
+      // Consolidate double whitespaces to single and trim.
+      const cleanedName = name.replace(/\s+/g, ' ').trim()
+
       // Create a new user DB object.
       const user = new User({
-        name,
+        name: cleanedName,
         email,
         icon,
         profile_picture,
@@ -215,7 +218,8 @@ const userResolvers = {
       userErrors(user)
       await nameErrors(name, user)
 
-      user.name = name
+      // Consolidate double whitespaces to single and trim.
+      user.name = name.replace(/\s+/g, ' ').trim()
       user.updated_at = moment().format()
 
       await user.save()
