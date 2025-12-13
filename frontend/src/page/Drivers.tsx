@@ -49,6 +49,7 @@ const Drivers: React.FC = () => {
           key={i}
           driver={driver}
           onClick={() => navigate("/create-driver", { state: { driver } })}
+          onTeamClick={(team) => navigate("/create-team", { state: { team } })}
           highlight={driver._id === newDriverId}
         />
       ))

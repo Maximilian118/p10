@@ -291,7 +291,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     if (embedded && onBackProp) {
       onBackProp()
     } else {
-      navigate("/series")
+      navigate(-1)
     }
   }, [embedded, onBackProp, navigate])
 

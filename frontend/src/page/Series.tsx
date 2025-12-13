@@ -49,6 +49,7 @@ const Series: React.FC = () => {
           key={i}
           series={series}
           onClick={() => navigate(`/series/${series._id}`)}
+          onDriverClick={(driver) => navigate("/create-driver", { state: { driver } })}
           highlight={series._id === newSeriesId}
         />
       ))

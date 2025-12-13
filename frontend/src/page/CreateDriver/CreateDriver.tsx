@@ -383,7 +383,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     } else if (returnTo && seriesForm) {
       navigate(returnTo, { state: { seriesForm } })
     } else {
-      navigate("/drivers")
+      navigate(-1)
     }
   }, [embedded, onBackProp, returnTo, seriesForm, navigate])
 

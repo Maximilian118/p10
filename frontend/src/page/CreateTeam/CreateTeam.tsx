@@ -272,7 +272,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     if (embedded && onBackProp) {
       onBackProp()
     } else {
-      navigate("/teams")
+      navigate(-1)
     }
   }, [embedded, onBackProp, navigate])
 

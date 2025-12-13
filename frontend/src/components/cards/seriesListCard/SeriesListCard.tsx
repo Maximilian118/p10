@@ -10,11 +10,12 @@ interface seriesListCardType {
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
+  onDriverClick?: (driver: driverType) => void
   highlight?: boolean
 }
 
 // Card for displaying a series in a list with driver icons underneath.
-const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit, onEditClicked, highlight }) => {
+const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit, onEditClicked, onDriverClick, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const seriesDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -46,7 +47,16 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit
         <div ref={seriesDriversRef} className="series-list-drivers">
           {series.drivers.map((driver: driverType, i: number) => {
             if (i < lastIcon) {
-              return <ImageIcon key={i} src={driver.icon}/>
+              return (
+                <ImageIcon
+                  key={i}
+                  src={driver.icon}
+                  onClick={onDriverClick ? (e) => {
+                    e.stopPropagation()
+                    onDriverClick(driver)
+                  } : undefined}
+                />
+              )
             } else if (i === lastIcon) {
               return (
                 <CounterIcon
