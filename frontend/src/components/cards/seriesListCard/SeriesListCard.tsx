@@ -8,6 +8,7 @@ import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 interface seriesListCardType {
   series: seriesType
   onClick?: (e: SyntheticEvent) => void
+  selected?: boolean
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
   onDriverClick?: (driver: driverType) => void
@@ -15,7 +16,7 @@ interface seriesListCardType {
 }
 
 // Card for displaying a series in a list with driver icons underneath.
-const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit, onEditClicked, onDriverClick, highlight }) => {
+const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, selected, canEdit, onEditClicked, onDriverClick, highlight }) => {
   const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
   const seriesDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
@@ -28,14 +29,19 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit
     }
   }, [])
 
-  // Build class name with optional highlight animation.
-  const className = `series-list-card${highlight ? ' series-list-card-highlight' : ''}`
+  // Build class name with optional highlight and selected states.
+  const classNames = [
+    "series-list-card",
+    highlight && "series-list-card-highlight",
+    selected && "selected",
+  ].filter(Boolean).join(" ")
 
   return (
-    <div className={className} onClick={onClick}>
+    <div className={classNames} onClick={onClick}>
       <div className="main-icon-container">
         <ImageIcon src={series.url} size="contained"/>
         {canEdit && <EditButton
+          inverted={selected}
           onClick={e => {
             e.stopPropagation()
             if (onEditClicked) onEditClicked(e)
@@ -61,6 +67,7 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit
               return (
                 <CounterIcon
                   key={i}
+                  inverted={selected}
                   counter={series.drivers.length - lastIcon}
                 />
               )
@@ -70,6 +77,7 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, canEdit
           })}
         </div>
       </div>
+      {selected && <div className="selected-banner"><span>Selected</span></div>}
     </div>
   )
 }

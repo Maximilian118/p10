@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import CreateSeries from "../../../page/CreateSeries/CreateSeries"
 import { initSeries } from "../../../shared/init"
-import SeriesCard from "../../cards/seriesCard/SeriesCard"
+import SeriesListCard from "../../cards/seriesListCard/SeriesListCard"
 import { sortAlphabetically } from "../../../shared/utility"
 import Search from "../search/Search"
 import AddButton from "../button/addButton/AddButton"
@@ -102,7 +102,7 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
       />
       <div className="series-list-container">
         {selectedSeries && (
-          <SeriesCard
+          <SeriesListCard
             selected
             series={selectedSeries}
             canEdit={!!canEditSeries(selectedSeries, user)}
@@ -119,7 +119,7 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
             {sortedSeries
               .filter(s => s._id !== selected)
               .map((seriesItem: seriesType, i: number) =>
-              <SeriesCard
+              <SeriesListCard
                 key={i}
                 series={seriesItem}
                 canEdit={!!canEditSeries(seriesItem, user)}

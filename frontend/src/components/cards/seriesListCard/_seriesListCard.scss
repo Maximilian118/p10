@@ -61,6 +61,40 @@
     background: rgba(0, 0, 0, 0.06);
   }
 
+  .selected-banner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    background: white;
+    @include mixins.flexbox;
+
+    span {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      font-size: 12px;
+      font-weight: 500;
+      color: variables.$mui-blue;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  }
+
+  &.selected {
+    background: variables.$mui-blue;
+    cursor: default;
+
+    .series-list-content .series-list-title {
+      color: white;
+    }
+
+    &:hover {
+      background: variables.$mui-blue;
+    }
+  }
+
   // Adds spacing between consecutive SeriesListCards.
   & + .series-list-card {
     margin-top: 2px;
