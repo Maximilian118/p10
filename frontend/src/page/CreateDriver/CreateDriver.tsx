@@ -478,7 +478,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
             disabled={!permissions}
           />
         </div>
-        <div className="create-driver-dropzone-container">
+        <div className="create-driver-dropzone-container body-dropzone">
           <DropZone<createDriverFormType, createDriverFormErrType>
             form={form}
             setForm={setForm}
@@ -493,6 +493,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
             singleOutput
             profilePictureField="body"
             dropzoneErrorField="dropzoneBody"
+            objectFit="contain"
           />
         </div>
       </div>

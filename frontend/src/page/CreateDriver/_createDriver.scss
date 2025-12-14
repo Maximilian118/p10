@@ -33,6 +33,12 @@ body #root .main-logged-in .content-container.create-driver {
         width: 100%;
         margin-bottom: 0 !important;
       }
+
+      // Body DropZone - add padding for object-fit: contain.
+      &.body-dropzone .dropzone .inside-border img {
+        padding: 15%;
+        box-sizing: border-box;
+      }
     }
   }
 

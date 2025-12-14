@@ -369,7 +369,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
       </div>
       <TextField
         name="teamName"
-        inputProps={{ maxLength: 30 }}
+        inputProps={{ maxLength: 50 }}
         className="mui-form-el"
         label={inputLabel("teamName", formErr, backendErr)}
         variant="filled"
