@@ -26,20 +26,33 @@ export const compressImage = async (file: File, fileSize: number): Promise<File>
 export const errTypes = ["icon", "profile_picture", "signS3", "putS3", "Unknown", "badge", "dropzone", "dropzoneBody", "dropzoneEmblem", "dropzoneLogo", "body", "logo", "emblem"]
 
 // Determine if error class should be applied.
+// If dropzoneErrorField is provided, only show errors matching that specific field.
 export const displayError = (
   error: string,
   loading: boolean,
   backendErr?: graphQLErrorType,
+  dropzoneErrorField?: string,
 ): boolean => {
-  if (loading || !backendErr) {
+  if (loading) {
     return false
   }
 
-  if (error || hasBackendErr(errTypes, backendErr)) {
+  // Always show local errors (file rejection errors).
+  if (error) {
     return true
-  } else {
+  }
+
+  if (!backendErr) {
     return false
   }
+
+  // If a specific error field is provided, only match that exact type.
+  if (dropzoneErrorField) {
+    return backendErr.type === dropzoneErrorField
+  }
+
+  // Fallback for DropZones without a specific error field - match any dropzone-related error.
+  return hasBackendErr(errTypes, backendErr)
 }
 
 // Return more palatable dropZone errors.

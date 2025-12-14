@@ -207,7 +207,8 @@ const DropZone = <T extends formType, U extends formErrType>({
       return <p>{formatError(error)}</p>
     }
 
-    if (backendErr && hasBackendErr(errTypes, backendErr)) {
+    // Only show backend error if it matches THIS dropzone's error field.
+    if (backendErr && backendErr.type === dropzoneErrorField) {
       return <p>{backendErr.message}</p>
     }
 
@@ -226,9 +227,9 @@ const DropZone = <T extends formType, U extends formErrType>({
   return (
     <div style={style} {...getRootProps({
       className: `
-        dropzone 
-        ${disabled ? "dropzone-disabled" : ""} 
-        ${displayError(error, loading, backendErr) ? "dropzone-error" : ""}
+        dropzone
+        ${disabled ? "dropzone-disabled" : ""}
+        ${displayError(error, loading, backendErr, dropzoneErrorField) ? "dropzone-error" : ""}
       `
     })}>
       <div className={`inside-border ${isDragActive ? "drag-active" : ""}`}>

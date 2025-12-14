@@ -10,19 +10,27 @@ const bucketResolvers = {
     try {
       // Check for errors.
       imageUploadErrors(filename)
-      // Check if the file already exists in the DB.
+      // Check if the file already exists in S3.
       const duplicate = await isDuplicateS3(clientS3(), clientS3(filename).params)
-      // If the image is not in the DB already, delete the existing image files and get signed request.
+      const url = `http://${clientS3().bucket}.s3.${clientS3().region}.amazonaws.com/${filename}`
+
+      // If duplicate exists, return the existing URL without creating a new signed request.
+      // This allows the frontend to reuse the existing file.
       if (duplicate) {
-        throw throwError("dropzone", filename, "That image is already uploaded.")
+        return {
+          signedRequest: "",
+          url,
+          duplicate: true,
+        }
       }
-      // Create the putObjectCommand
+
+      // Create the putObjectCommand for new uploads.
       const command = new PutObjectCommand(clientS3(filename).params)
       // Return signedRequest for upload, image url and the result of the duplicate check.
       return {
         signedRequest: await getSignedUrl(clientS3(), command, { expiresIn: 60 }),
-        url: `http://${clientS3().bucket}.s3.${clientS3().region}.amazonaws.com/${filename}`,
-        duplicate,
+        url,
+        duplicate: false,
       }
     } catch (err) {
       throw err
