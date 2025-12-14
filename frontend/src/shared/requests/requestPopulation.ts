@@ -163,6 +163,13 @@ export const populateDriver = `
   }
   series {
     _id
+    url
+    name
+    championships {
+      _id
+      icon
+      name
+    }
   }
   stats {
     nationality

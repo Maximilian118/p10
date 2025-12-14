@@ -136,7 +136,9 @@ export const createdByID = (created_by?: userType | string): string => {
 // Remove everything but numbers from a string.
 export const onlyNumbers = (str: string): number => Number(str.replace(/\D/g, ""))
 // Sort an array of objects with name key of type string (filters out items without name).
-export const sortAlphabetically = <T extends { name?: string }[]>(arr: T) => arr.filter(item => item.name).sort((a, b) => a.name!.localeCompare(b.name!)) // prettier-ignore
+export const sortAlphabetically = <T extends { name?: string }>(arr: T[]): T[] => {
+  return arr.filter((item): item is T & { name: string } => !!item.name).sort((a, b) => a.name.localeCompare(b.name))
+}
 // Capatalise the first letter in a string.
 export const capitalise = (s: string) => (s && s[0].toUpperCase() + s.slice(1)) || ""
 

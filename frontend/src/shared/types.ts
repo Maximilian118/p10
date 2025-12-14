@@ -18,7 +18,7 @@ export interface userProfileType {
 
 export interface formType {
   icon: File | string | null
-  profile_picture: File | string | null
+  profile_picture?: File | string | null
   body?: File | string | null
   name?: string
   champName?: string

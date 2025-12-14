@@ -9,12 +9,21 @@ interface editButtonType {
   size?: "small" | "medium" | "large" | "contained"
   style?: React.CSSProperties
   inverted?: boolean
+  absolute?: boolean
 }
 
-const EditButton: React.FC<editButtonType> = ({ onClick, size, style, inverted }) => {
+// Edit button component with optional absolute positioning.
+const EditButton: React.FC<editButtonType> = ({ onClick, size, style, inverted, absolute }) => {
+  const getClassName = () => {
+    const baseSize = `button-${size ? size : "small"}`
+    if (absolute) return `${baseSize} edit-button-absolute`
+    if (inverted) return `${baseSize} edit-button-inverted`
+    return `${baseSize} edit-button`
+  }
+
   return (
     <IconButton
-      className={`button-${size ? size : "small"} edit-button${inverted ? "-inverted" : ""}`}
+      className={getClassName()}
       onClick={onClick}
       style={style}
     >

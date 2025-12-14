@@ -32,6 +32,16 @@ export const driverPopulation = [
       },
     ],
   },
+  {
+    path: "series",
+    model: "Series",
+    select: "_id url name championships",
+    populate: {
+      path: "championships",
+      model: "Champ",
+      select: "_id icon name",
+    },
+  },
 ]
 
 // Population for a Series.

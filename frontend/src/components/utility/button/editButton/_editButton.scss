@@ -25,3 +25,20 @@
     background: variables.$colour-1 !important;
   }
 }
+
+.edit-button-absolute {
+  position: absolute !important;
+  bottom: 20px;
+  right: 20px;
+  background: variables.$mui-blue !important;
+
+  svg {
+    width: 70%;
+    height: 70%;
+    color: white !important;
+  }
+
+  &:hover {
+    background: variables.$mui-blue-hover !important;
+  }
+}

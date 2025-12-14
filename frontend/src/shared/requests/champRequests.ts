@@ -278,7 +278,7 @@ export const updateChampPP = async <T extends formType>(
   const iconURL = await uplaodS3("championships", form.champName || "championship", "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
   if (!iconURL && form.icon) { setLoading(false); return }
 
-  const ppURL = await uplaodS3("championships", form.champName || "championship", "profile_picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
+  const ppURL = await uplaodS3("championships", form.champName || "championship", "profile_picture", form.profile_picture ?? null, setBackendErr, user, setUser, navigate, 2)
   if (!ppURL && form.profile_picture) { setLoading(false); return }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).

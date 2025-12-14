@@ -19,6 +19,7 @@ import Series from "./page/Series"
 import CreateSeries from "./page/CreateSeries/CreateSeries"
 import Drivers from "./page/Drivers"
 import CreateDriver from "./page/CreateDriver/CreateDriver"
+import Driver from "./page/Driver/Driver"
 import Teams from "./page/Teams"
 import CreateTeam from "./page/CreateTeam/CreateTeam"
 
@@ -39,6 +40,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/series" Component={Series}/>
     <Route path="/create-series" Component={CreateSeries}/>
     <Route path="/drivers" Component={Drivers}/>
+    <Route path="/driver/:id" Component={Driver}/>
     <Route path="/create-driver" Component={CreateDriver}/>
     <Route path="/teams" Component={Teams}/>
     <Route path="/create-team" Component={CreateTeam}/>
