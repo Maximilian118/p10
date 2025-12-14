@@ -371,7 +371,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
       />
       <TextField
         name="seriesName"
-        inputProps={{ maxLength: 30 }}
+        inputProps={{ maxLength: 50 }}
         className="mui-form-el"
         label={inputLabel("seriesName", formErr, backendErr)}
         variant="filled"

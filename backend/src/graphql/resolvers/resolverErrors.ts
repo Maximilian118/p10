@@ -68,9 +68,9 @@ export const nameCanNumbersErrors = (type: string, name: string): void => {
     throwError(type, name, "Please enter a name.")
   }
 
-  if (!/^[a-zA-Z0-9\s]{1,30}$/.test(name)) {
-    if (name.length > 30) {
-      throwError(type, name, "30 characters maximum.")
+  if (!/^[a-zA-Z0-9\s]{1,50}$/.test(name)) {
+    if (name.length > 50) {
+      throwError(type, name, "50 characters maximum.")
     }
 
     throwError(type, name, "No special characters.")
@@ -491,9 +491,9 @@ export const champNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "Please enter a championship name.")
   }
 
-  if (!/^[a-zA-Z0-9\s-']{1,30}$/.test(name)) {
-    if (name.length > 30) {
-      throwError(type, name, "30 characters maximum.")
+  if (!/^[a-zA-Z0-9\s-']{1,50}$/.test(name)) {
+    if (name.length > 50) {
+      throwError(type, name, "50 characters maximum.")
     }
 
     throwError(type, name, "No special characters except hyphens and apostrophes.")

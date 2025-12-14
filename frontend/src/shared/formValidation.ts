@@ -72,12 +72,12 @@ export const updateForm = <T extends formStateType, U>(
   }
 
   const nameCaseCanNumbers = () => {
-    if (e.target.value.length > 30) {
-      handleInput<U>(e.target.name, setFormErr, "Maximum length 30 characters.")
+    if (e.target.value.length > 50) {
+      handleInput<U>(e.target.name, setFormErr, "Maximum length 50 characters.")
       return
     }
 
-    if (/^[a-zA-Z0-9\s]{1,30}$/.test(e.target.value) || e.target.value.trim() === "") {
+    if (/^[a-zA-Z0-9\s]{1,50}$/.test(e.target.value) || e.target.value.trim() === "") {
       handleInput<U>(e.target.name, setFormErr)
     } else {
       handleInput<U>(e.target.name, setFormErr, "No special characters.")
@@ -152,6 +152,7 @@ export const updateForm = <T extends formStateType, U>(
     case "champName": nameCaseCanNumbers(); break
     case "badgeName": nameCaseCanSpecial(); break
     case "seriesName": nameCaseCanNumbers(); break
+    case "teamName": nameCaseCanNumbers(); break
     case "driverName": nameCase(); break
     case "email": emailCase(); break
     case "password": passwordCase(); break

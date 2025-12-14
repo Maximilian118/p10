@@ -47,7 +47,7 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
         purposeText="Championship Icon"
       />
       <MUITextField
-        inputProps={{ maxLength: 30 }}
+        inputProps={{ maxLength: 50 }}
         className="mui-form-el"
         name="champName"
         label={inputLabel("champName", formErr, backendErr)}
