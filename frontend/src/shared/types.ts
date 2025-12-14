@@ -98,7 +98,9 @@ export interface badgeType {
 
 export interface teamType {
   _id?: string
-  url: string
+  icon: string
+  emblem: string
+  logo?: string
   name: string
   series: seriesType[]
   drivers: driverType[]

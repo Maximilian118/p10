@@ -25,7 +25,7 @@ interface dropZoneType<T, U> {
   profilePictureField?: string // Custom field name for profile_picture (defaults to 'profile_picture').
   dropzoneErrorField?: string // Custom field name for dropzone error (defaults to 'dropzone').
   singleOutput?: boolean // When true, only set profilePictureField (for body images).
-  fillPreview?: boolean // When true, image fills circle (cover). When false, shows full image (contain).
+  objectFit?: 'cover' | 'contain' // Image fit mode for preview (defaults to 'cover').
 }
 
 const DropZone = <T extends formType, U extends formErrType>({
@@ -46,7 +46,7 @@ const DropZone = <T extends formType, U extends formErrType>({
   profilePictureField = 'profile_picture',
   dropzoneErrorField = 'dropzone',
   singleOutput = false,
-  fillPreview = false,
+  objectFit = 'cover',
 }: dropZoneType<T, U>) => {
   const [ thumb, setThumb ] = useState<string>("")
   const [ error, setError ] = useState<string>("")
@@ -212,7 +212,7 @@ const DropZone = <T extends formType, U extends formErrType>({
     }
 
     if (thumb) {
-      return dropZoneThumb(thumb, imgErr, setImgErr, user, zoom, fillPreview)
+      return dropZoneThumb(thumb, imgErr, setImgErr, user, zoom, objectFit)
     }
 
     return (

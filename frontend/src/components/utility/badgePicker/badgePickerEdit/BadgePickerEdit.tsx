@@ -208,7 +208,6 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           zoom={zoom}
           thumbImg={isNewBadge ? false : isEdit.url}
           style={{ marginBottom: 0, width: "100%" }}
-          fillPreview
         />
       </div>
       <MUISlider

@@ -33,7 +33,7 @@ const TeamListCard: React.FC<teamListCardType> = ({ team, onClick, canEdit, onEd
   return (
     <div className={className} onClick={onClick}>
       <div className="main-icon-container">
-        <ImageIcon src={team.url} size="contained"/>
+        <ImageIcon src={team.icon} size="contained"/>
         {canEdit && <EditButton
           onClick={e => {
             e.stopPropagation()

@@ -38,7 +38,8 @@ export const initDriver = (user: userType): driverType => {
 export const initTeam = (user: userType): teamType => {
   return {
     created_by: user._id,
-    url: "",
+    icon: "",
+    emblem: "",
     name: "",
     series: [],
     drivers: [],

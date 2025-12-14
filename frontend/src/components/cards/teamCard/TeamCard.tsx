@@ -15,7 +15,7 @@ interface teamCardType {
 
 const TeamCard: React.FC<teamCardType> = ({ team, onClick, canEdit, onRemove, canRemove }) => (
   <div className="team-card" onClick={() => onClick && onClick(team)}>
-    <ImageIcon src={team.url} style={{ marginRight: 16 }}/>
+    <ImageIcon src={team.icon} style={{ marginRight: 16 }}/>
     <p className="team-name">{team.name}</p>
     <div className="toolbar">
       {canEdit && <EditButton/>}

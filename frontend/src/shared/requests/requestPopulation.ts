@@ -58,7 +58,9 @@ export const populateUserProfile = `
 // Team population template literal (lean version for nested use).
 export const populateTeam = `
   _id
-  url
+  icon
+  emblem
+  logo
   name
   series {
     _id
@@ -80,7 +82,9 @@ export const populateTeam = `
 // Team population with full user details (for standalone team pages).
 export const populateTeamFull = `
   _id
-  url
+  icon
+  emblem
+  logo
   name
   series {
     _id
@@ -102,7 +106,9 @@ export const populateTeamFull = `
 // Team population for Teams list page (includes full driver details for editing).
 export const populateTeamList = `
   _id
-  url
+  icon
+  emblem
+  logo
   name
   series {
     _id

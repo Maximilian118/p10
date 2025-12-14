@@ -23,7 +23,7 @@ export const compressImage = async (file: File, fileSize: number): Promise<File>
 }
 
 // An array of strings to indicate wheather backendErrs are applicable to dropZone.
-export const errTypes = ["icon", "profile_picture", "signS3", "putS3", "Unknown", "badge", "dropzone", "dropzoneBody", "body"]
+export const errTypes = ["icon", "profile_picture", "signS3", "putS3", "Unknown", "badge", "dropzone", "dropzoneBody", "dropzoneEmblem", "dropzoneLogo", "body", "logo", "emblem"]
 
 // Determine if error class should be applied.
 export const displayError = (
@@ -63,7 +63,7 @@ export const dropZoneThumb = (
   setImgErr: React.Dispatch<React.SetStateAction<boolean>>,
   user?: userType,
   zoom?: number,
-  fillPreview?: boolean,
+  objectFit: 'cover' | 'contain' = 'cover',
 ): JSX.Element => {
   if (imgErr && user) {
     return (
@@ -86,7 +86,7 @@ export const dropZoneThumb = (
         style={{
           width: zoom ? `${zoom}%` : "100%",
           height: zoom ? `${zoom}%` : "100%",
-          objectFit: fillPreview ? "cover" : "contain",
+          objectFit,
         }}
       />
     )

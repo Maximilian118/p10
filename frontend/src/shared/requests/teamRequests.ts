@@ -77,12 +77,21 @@ export const createTeam = async (
   setLoading(true)
   let team: teamType | null = null
 
-  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr)
   if (!iconURL && form.icon) { setLoading(false); return null }
 
-  // Store uploaded URL in form state for retry (only if File was uploaded).
+  const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr)
+  if (!emblemURL && form.emblem) { setLoading(false); return null }
+
+  // Logo is optional.
+  const logoURL = await uplaodS3("teams", form.teamName, "logo", form.logo, setBackendErr)
+  if (!logoURL && form.logo) { setLoading(false); return null }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.emblem instanceof File && emblemURL) setForm((prev) => ({ ...prev, emblem: emblemURL }))
+  if (form.logo instanceof File && logoURL) setForm((prev) => ({ ...prev, logo: logoURL }))
 
   try {
     await axios
@@ -91,15 +100,17 @@ export const createTeam = async (
         {
           variables: {
             created_by: user._id,
-            url: iconURL,
+            icon: iconURL,
+            emblem: emblemURL,
+            logo: logoURL || null,
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
             drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation NewTeam( $created_by: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
-              newTeam(teamInput: { created_by: $created_by, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
+            mutation NewTeam( $created_by: ID!, $icon: String!, $emblem: String!, $logo: String, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              newTeam(teamInput: { created_by: $created_by, icon: $icon, emblem: $emblem, logo: $logo, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }
@@ -140,12 +151,21 @@ export const editTeam = async (
   setLoading(true)
   let success = false
 
-  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
   if (!iconURL && form.icon) { setLoading(false); return false }
 
-  // Store uploaded URL in form state for retry (only if File was uploaded).
+  const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr, user, setUser, navigate, 0)
+  if (!emblemURL && form.emblem) { setLoading(false); return false }
+
+  // Logo is optional.
+  const logoURL = await uplaodS3("teams", form.teamName, "logo", form.logo, setBackendErr, user, setUser, navigate, 0)
+  if (!logoURL && form.logo) { setLoading(false); return false }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.emblem instanceof File && emblemURL) setForm((prev) => ({ ...prev, emblem: emblemURL }))
+  if (form.logo instanceof File && logoURL) setForm((prev) => ({ ...prev, logo: logoURL }))
 
   try {
     await axios
@@ -154,15 +174,17 @@ export const editTeam = async (
         {
           variables: {
             _id: team._id,
-            url: iconURL || team.url,
+            icon: iconURL || team.icon,
+            emblem: emblemURL || team.emblem,
+            logo: logoURL || team.logo || null,
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
             drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation UpdateTeam( $_id: ID!, $url: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
-              updateTeam(teamInput: { _id: $_id, url: $url, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
+            mutation UpdateTeam( $_id: ID!, $icon: String!, $emblem: String!, $logo: String, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              updateTeam(teamInput: { _id: $_id, icon: $icon, emblem: $emblem, logo: $logo, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }

@@ -173,7 +173,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
       const completeDriver = drivers.find(d => d._id === editingDriver._id)
       if (completeDriver && completeDriver.teams.length > 0) {
         // Check if current form teams are missing or have incomplete data (no URLs).
-        const hasIncompleteTeams = form.teams.length === 0 || form.teams.some(t => !t.url)
+        const hasIncompleteTeams = form.teams.length === 0 || form.teams.some(t => !t.icon)
         if (hasIncompleteTeams) {
           setForm(prev => ({ ...prev, teams: completeDriver.teams }))
         }

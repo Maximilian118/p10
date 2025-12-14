@@ -6,7 +6,9 @@ const teamSchema = `
 
   type Team {
     _id: String!
-    url: String!
+    icon: String!
+    emblem: String!
+    logo: String
     name: String!
     series: [Series!]
     drivers: [Driver]
@@ -25,7 +27,9 @@ const teamSchema = `
   input teamInput {
     _id: ID
     created_by: ID
-    url: String
+    icon: String
+    emblem: String
+    logo: String
     name: String!
     nationality: String!
     inceptionDate: String!

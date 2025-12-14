@@ -231,6 +231,38 @@ export const driverImageErrors = (
   }
 }
 
+// Validates team image fields (icon and emblem required, logo optional).
+export const teamImageErrors = (
+  icon: string,
+  emblem: string,
+  logo?: string | null,
+): void => {
+  const type = "dropzone"
+
+  // Icon is required.
+  if (!icon) {
+    throwError(type, icon, "A team icon is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon)) {
+    throwError(type, icon, "Icon URL is not valid... Tricky one.")
+  }
+
+  // Emblem is required.
+  if (!emblem) {
+    throwError(type, emblem, "A team emblem is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/emblem\/[a-z0-9-]+$/i.test(emblem)) {
+    throwError(type, emblem, "Emblem URL is not valid... Tricky one.")
+  }
+
+  // Logo is optional, but validate format if provided.
+  if (logo && !/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/logo\/[a-z0-9-]+$/i.test(logo)) {
+    throwError("dropzoneLogo", logo, "Logo URL is not valid... Tricky one.")
+  }
+}
+
 export const imageUploadErrors = (filename: string): void => {
   const type = "dropzone"
 

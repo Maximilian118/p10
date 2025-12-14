@@ -4,7 +4,9 @@ import { ObjectId } from "mongodb"
 
 export interface teamType {
   _id: ObjectId
-  url: string
+  icon: string
+  emblem: string
+  logo: string
   name: string
   series: ObjectId[]
   drivers: ObjectId[]
@@ -22,7 +24,9 @@ export interface teamType {
 export interface teamInputType {
   _id?: ObjectId
   created_by: ObjectId
-  url: string
+  icon: string
+  emblem: string
+  logo?: string | null
   name: string
   nationality: string
   inceptionDate: string
@@ -30,7 +34,9 @@ export interface teamInputType {
 }
 
 const teamSchema = new mongoose.Schema<teamType>({
-  url: { type: String, required: true }, // URL to an image in AWS S3.
+  icon: { type: String, required: true }, // Compressed emblem icon URL in AWS S3.
+  emblem: { type: String, required: true }, // Full quality emblem URL in AWS S3.
+  logo: { type: String, required: false }, // Team logo with sponsors URL in AWS S3 (optional).
   name: { type: String, required: true }, // Name of the team.
   series: [{ type: mongoose.Schema.ObjectId, ref: "Series" }], // Series that this team competes in.
   drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }], // Drivers that belong in this team.

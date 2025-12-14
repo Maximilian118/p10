@@ -49,7 +49,7 @@ const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit
               return (
                 <ImageIcon
                   key={i}
-                  src={team.url}
+                  src={team.icon}
                   onClick={onTeamClick ? (e) => {
                     e.stopPropagation()
                     onTeamClick(team)
