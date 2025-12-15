@@ -4,6 +4,7 @@ import { ResponsiveLine } from "@nivo/line"
 import './_driver.scss'
 import AppContext from "../../context"
 import { driverType, teamType, ChampType } from "../../shared/types"
+import { getDriverChartData } from "./driverUtility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
@@ -89,26 +90,9 @@ const Driver: React.FC = () => {
       .filter((c, i, arr) => arr.findIndex(x => x._id === c._id) === i)
   }
 
-  // Transform driver position history to Nivo line chart format (P20 to P1 left to right).
-  const getChartData = () => {
-    const history = driver?.stats.positionHistory || []
-    const padded = [...history]
-    // Pad array to 20 positions with zeros.
-    while (padded.length < 20) {
-      padded.push(0)
-    }
-    // Convert to Nivo format: P20 → P1 (left to right).
-    return [{
-      id: 'positions',
-      data: padded.slice(0, 20).reverse().map((count, i) => ({
-        x: `P${20 - i}`,
-        y: count
-      }))
-    }]
-  }
-
-  // Check if driver has any position history data to display.
-  const hasPositionData = driver?.stats.positionHistory?.some(count => count > 0)
+  // Get chart data for driver position history.
+  const chartData = getDriverChartData(driver)
+  const hasPositionData = chartData.length > 0 && chartData.some(line => line.data.length > 0)
 
   // Render loading state.
   if (loading) {
@@ -196,7 +180,7 @@ const Driver: React.FC = () => {
       {hasPositionData && (
         <div className="driver-chart-container">
           <ResponsiveLine
-            data={getChartData()}
+            data={chartData}
             margin={{ top: 30, right: 0, bottom: 10, left: 0 }}
             curve="basis"
             colors={['#E10600']}

@@ -170,6 +170,18 @@ export const populateDriver = `
       _id
       icon
       name
+      history {
+        season
+        rounds {
+          round
+          drivers {
+            driver {
+              _id
+            }
+            positionActual
+          }
+        }
+      }
     }
   }
   stats {
