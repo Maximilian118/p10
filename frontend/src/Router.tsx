@@ -21,6 +21,7 @@ import Drivers from "./page/Drivers"
 import CreateDriver from "./page/CreateDriver/CreateDriver"
 import Driver from "./page/Driver/Driver"
 import Teams from "./page/Teams"
+import Team from "./page/Team/Team"
 import CreateTeam from "./page/CreateTeam/CreateTeam"
 
 interface routerType {
@@ -43,6 +44,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/driver/:id" Component={Driver}/>
     <Route path="/create-driver" Component={CreateDriver}/>
     <Route path="/teams" Component={Teams}/>
+    <Route path="/team/:id" Component={Team}/>
     <Route path="/create-team" Component={CreateTeam}/>
   </Routes>
 ) : (

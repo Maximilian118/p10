@@ -195,7 +195,7 @@ const champSchema = `
     settings: ChampSettings!
     champBadges: [Badge!]!
     waitingList: [User!]!
-    history: [ChampHistory!]!
+    history: [ChampHistory!]
     created_by: User
     created_at: String!
     updated_at: String!

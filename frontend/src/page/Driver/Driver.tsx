@@ -77,9 +77,9 @@ const Driver: React.FC = () => {
     navigate("/create-driver", { state: { driver } })
   }
 
-  // Navigate to team profile/edit.
+  // Navigate to team profile.
   const handleTeamClick = (team: teamType) => {
-    navigate("/create-team", { state: { team } })
+    navigate(`/team/${team._id}`, { state: { team } })
   }
 
   // Get unique championships from all series the driver is in.

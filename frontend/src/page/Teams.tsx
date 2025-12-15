@@ -48,7 +48,7 @@ const Teams: React.FC = () => {
         <TeamListCard
           key={i}
           team={team}
-          onClick={() => navigate("/create-team", { state: { team } })}
+          onClick={() => navigate(`/team/${team._id}`, { state: { team } })}
           onDriverClick={(driver) => navigate(`/driver/${driver._id}`, { state: { driver } })}
           highlight={team._id === newTeamId}
         />
