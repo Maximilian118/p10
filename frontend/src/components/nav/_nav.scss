@@ -44,14 +44,25 @@
       padding: 15px 20px;
       cursor: pointer;
       border-bottom: 2px solid #f5f5f5;
+      display: flex;
+      align-items: center;
+      gap: 12px;
 
       &:hover {
         background: variables.$colour-1;
+      }
+
+      svg {
+        color: variables.$colour-4;
       }
     }
 
     .nav-drawer-item-active {
       color: black;
+
+      svg {
+        color: variables.$colour-9;
+      }
     }
   }
 

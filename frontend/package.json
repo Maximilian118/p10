@@ -17,6 +17,7 @@
     "@mui/icons-material": "^6.1.8",
     "@mui/material": "^6.1.8",
     "@mui/x-date-pickers": "^8.19.0",
+    "@nivo/line": "^0.99.0",
     "@nivo/pie": "^0.88.0",
     "axios": "^1.7.8",
     "browser-image-compression": "^2.0.2",

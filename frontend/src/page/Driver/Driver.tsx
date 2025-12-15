@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
+import { ResponsiveLine } from "@nivo/line"
 import './_driver.scss'
 import AppContext from "../../context"
 import { driverType, teamType, ChampType } from "../../shared/types"
@@ -88,6 +89,27 @@ const Driver: React.FC = () => {
       .filter((c, i, arr) => arr.findIndex(x => x._id === c._id) === i)
   }
 
+  // Transform driver position history to Nivo line chart format (P20 to P1 left to right).
+  const getChartData = () => {
+    const history = driver?.stats.positionHistory || []
+    const padded = [...history]
+    // Pad array to 20 positions with zeros.
+    while (padded.length < 20) {
+      padded.push(0)
+    }
+    // Convert to Nivo format: P20 → P1 (left to right).
+    return [{
+      id: 'positions',
+      data: padded.slice(0, 20).reverse().map((count, i) => ({
+        x: `P${20 - i}`,
+        y: count
+      }))
+    }]
+  }
+
+  // Check if driver has any position history data to display.
+  const hasPositionData = driver?.stats.positionHistory?.some(count => count > 0)
+
   // Render loading state.
   if (loading) {
     return (
@@ -171,6 +193,27 @@ const Driver: React.FC = () => {
           </div>
         </div>
       </div>
+      {hasPositionData && (
+        <div className="driver-chart-container">
+          <ResponsiveLine
+            data={getChartData()}
+            margin={{ top: 30, right: 0, bottom: 10, left: 0 }}
+            curve="basis"
+            colors={['#E10600']}
+            lineWidth={3}
+            enablePoints={false}
+            enableGridX={false}
+            enableGridY={false}
+            axisTop={null}
+            axisRight={null}
+            axisBottom={null}
+            axisLeft={null}
+            isInteractive={false}
+            legends={[]}
+            animate={false}
+          />
+        </div>
+      )}
       <EditButton
         onClick={handleEdit}
         size="medium"

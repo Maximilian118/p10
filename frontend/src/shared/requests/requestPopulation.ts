@@ -133,6 +133,7 @@ export const populateTeamList = `
       birthday
       moustache
       mullet
+      positionHistory
     }
     created_by {
       _id
@@ -178,6 +179,7 @@ export const populateDriver = `
     birthday
     moustache
     mullet
+    positionHistory
   }
   created_by {
     _id
@@ -249,6 +251,37 @@ export const populateChamp = `
       position
       updated_at
       created_at
+    }
+    drivers {
+      driver {
+        _id
+        name
+        icon
+        driverID
+      }
+      points
+      totalPoints
+      position
+      positionDrivers
+      positionActual
+    }
+    teams {
+      team {
+        _id
+        name
+        icon
+        emblem
+      }
+      drivers {
+        _id
+        name
+        icon
+        driverID
+      }
+      points
+      totalPoints
+      position
+      positionConstructors
     }
   }
   series {
@@ -469,6 +502,37 @@ export const populateChamp = `
         position
         updated_at
         created_at
+      }
+      drivers {
+        driver {
+          _id
+          name
+          icon
+          driverID
+        }
+        points
+        totalPoints
+        position
+        positionDrivers
+        positionActual
+      }
+      teams {
+        team {
+          _id
+          name
+          icon
+          emblem
+        }
+        drivers {
+          _id
+          name
+          icon
+          driverID
+        }
+        points
+        totalPoints
+        position
+        positionConstructors
       }
     }
     pointsStructure {

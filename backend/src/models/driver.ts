@@ -18,6 +18,7 @@ export interface driverType {
     birthday: string
     moustache: boolean
     mullet: boolean
+    positionHistory: number[]
   }
   created_by: ObjectId
   created_at: string
@@ -60,6 +61,7 @@ const driverSchema = new mongoose.Schema<driverType>({
     birthday: { type: String, required: true },
     moustache: { type: Boolean, default: false },
     mullet: { type: Boolean, default: false },
+    positionHistory: { type: [Number], default: [] }, // Array of finish counts per position (index 0 = P1)
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the driver.
   created_at: { type: String, default: moment().format() }, // When the driver was created.

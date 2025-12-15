@@ -1,0 +1,44 @@
+@use '../../../scss/variables';
+
+// Drawer that slides up from the bottom.
+.actions-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: white;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease-out;
+  z-index: 10;
+}
+
+.actions-drawer-open {
+  max-height: 500px;
+  transition: max-height 0.3s ease-in;
+}
+
+.actions-drawer-item {
+  padding: 15px 20px;
+  cursor: pointer;
+  border-top: 2px solid #f5f5f5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &:hover {
+    background: variables.$colour-1;
+  }
+
+  svg {
+    color: variables.$colour-4;
+  }
+}
+
+.actions-drawer-item-active {
+  color: variables.$colour-9;
+
+  svg {
+    color: variables.$colour-9;
+  }
+}

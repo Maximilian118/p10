@@ -3,27 +3,49 @@ import moment from "moment"
 import { ObjectId } from "mongodb"
 import { ProtestStatus, Vote } from "./protest"
 
+// Status of a round in the championship lifecycle.
+export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+
 // Competitor entry within a round - contains all data for that competitor for that round.
 export interface CompetitorEntry {
   competitor: ObjectId // The user _id of the competitor
   bet: ObjectId | null // Driver they've bet on this round (null if no bet placed).
   points: number // Points earned THIS round.
-  totalPoints: number // Cumulative points of this season AFTER this round.
+  totalPoints: number // Cumulative points the user has earned this season.
   position: number // Position in standings AFTER this round.
   updated_at: string | null // In case the user has changed their mind during the betting process.
   created_at: string | null // When they first placed their bet.
 }
 
-// Status of a round in the championship lifecycle.
-export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+// Which driver qualified where this round and how many points did they earn?
+export interface DriverEntry {
+  driver: ObjectId // The _id of the driver
+  points: number // The amount of points this driver earned this round.
+  totalPoints: number // Cumulative points the driver has earned this season.
+  position: number // Which position did the driver finish in regards to the p10 game?
+  positionDrivers: number // Which position is the driver in if the drivers were competing for a p10 championship this season? I.E who has the most totalPoints after this round?
+  positionActual: number // The real life position this driver qualified in this round.
+}
+
+// Which constructor qualified where this round and how many points did their drivers earn?
+export interface TeamEntry {
+  team: ObjectId // The _id of the team
+  drivers: ObjectId[] // Which drivers were driving for this constructor this round?
+  points: number // The amount of points this constructor earned this round collectively between their drivers.
+  totalPoints: number // Cumulative points the constructor has earned this season.
+  position: number // Which position did the constructor finish in regards to the p10 game?
+  positionConstructors: number // Which position is the constructor in if the constructors were competing for a p10 championship this season? I.E which team has the most totalPoints after this round?
+}
 
 // A single round - self-contained snapshot of the championship at that point.
 export interface Round {
   round: number // Which round is it in the championship?
   status: RoundStatus // Current status of the round
+  competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
+  drivers: DriverEntry[] // All of the drivers in the champ and their data for this round.
+  teams: TeamEntry[] // All of the constructors in the champ and their data for this round.
   winner: ObjectId | null // Did a competitor score the maximum amout of points this round?
   runnerUp: ObjectId | null // The runner-up competitor for this round.
-  competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
 }
 
 // Points structure - how many points for each position.
@@ -82,7 +104,7 @@ export interface Adjudicator {
   history: AdjudicatorHistory[] // The history of this championships adjudicators
 }
 
-export interface ChampHistory {
+export interface SeasonHistory {
   season: number // Which season was it?
   adjudicator: Adjudicator // Who was the adjudicator?
   drivers: ObjectId[] // Which drivers were in the championship this season?
@@ -156,7 +178,7 @@ export interface ChampType {
   waitingList: ObjectId[]
 
   // History of each round of each season of this championship
-  history: ChampHistory[]
+  history: SeasonHistory[]
 
   // Meta
   created_by: ObjectId
@@ -180,6 +202,32 @@ const competitorEntrySchema = new mongoose.Schema(
   { _id: false },
 )
 
+// Schema for driver entry within a round - tracks driver performance.
+const driverEntrySchema = new mongoose.Schema(
+  {
+    driver: { type: mongoose.Schema.ObjectId, required: true, ref: "Driver" },
+    points: { type: Number, default: 0 },
+    totalPoints: { type: Number, default: 0 },
+    position: { type: Number, default: 0 },
+    positionDrivers: { type: Number, default: 0 },
+    positionActual: { type: Number, default: 0 },
+  },
+  { _id: false },
+)
+
+// Schema for team/constructor entry within a round - tracks team performance.
+const teamEntrySchema = new mongoose.Schema(
+  {
+    team: { type: mongoose.Schema.ObjectId, required: true, ref: "Team" },
+    drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }],
+    points: { type: Number, default: 0 },
+    totalPoints: { type: Number, default: 0 },
+    position: { type: Number, default: 0 },
+    positionConstructors: { type: Number, default: 0 },
+  },
+  { _id: false },
+)
+
 // Schema for a round - self-contained snapshot.
 const roundSchema = new mongoose.Schema(
   {
@@ -189,9 +237,11 @@ const roundSchema = new mongoose.Schema(
       enum: ["waiting", "betting_open", "betting_closed", "completed"],
       default: "waiting",
     },
+    competitors: [competitorEntrySchema],
+    drivers: [driverEntrySchema],
+    teams: [teamEntrySchema],
     winner: { type: mongoose.Schema.ObjectId, ref: "User", default: null },
     runnerUp: { type: mongoose.Schema.ObjectId, ref: "User", default: null },
-    competitors: [competitorEntrySchema],
   },
   { _id: false },
 )
@@ -278,7 +328,7 @@ const ruleSchema = new mongoose.Schema(
 )
 
 // Schema for championship history (archived seasons).
-const champHistorySchema = new mongoose.Schema(
+const SeasonHistorySchema = new mongoose.Schema(
   {
     season: { type: Number, required: true },
     adjudicator: {
@@ -362,7 +412,7 @@ const champSchema = new mongoose.Schema<ChampType>({
   waitingList: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
   // History of each season.
-  history: [champHistorySchema],
+  history: [SeasonHistorySchema],
 
   // Meta
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },

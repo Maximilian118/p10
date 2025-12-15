@@ -11,7 +11,8 @@ import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
-import ActionsDrawer from "../../components/utility/actionsDrawer/ActionsDrawer"
+import ActionsDrawer from "./ActionsDrawer/ActionsDrawer"
+import ChampSettings, { ChampView } from "./Views/ChampSettings/ChampSettings"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -29,6 +30,7 @@ const Championship: React.FC = () => {
   })
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
   const [ actionsOpen, setActionsOpen ] = useState<boolean>(false)
+  const [ view, setView ] = useState<ChampView>("competitors")
 
   const navigate = useNavigate()
 
@@ -67,8 +69,10 @@ const Championship: React.FC = () => {
     )
   }
 
-  // Determine if current user is the adjudicator.
+  // Determine if current user is the adjudicator or admin.
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
+  const isAdmin = user.permissions?.admin === true
+  const canAccessSettings = isAdjudicator || isAdmin
 
   return (
     <>
@@ -89,15 +93,30 @@ const Championship: React.FC = () => {
         ) : (
           <ChampBanner champ={champ} readOnly />
         )}
-        <div className="competitors-list">
-          {getCompetitors(champ).map((c, i) => (
-            <CompetitorCard
-              key={c.competitor._id || i}
-              competitor={c.competitor}
-              highlight={justJoined && c.competitor._id === user._id}
-            />
-          ))}
-        </div>
+
+        {view === "competitors" && (
+          <div className="competitors-list">
+            {getCompetitors(champ).map((c, i) => (
+              <CompetitorCard
+                key={c.competitor._id || i}
+                competitor={c.competitor}
+                highlight={justJoined && c.competitor._id === user._id}
+              />
+            ))}
+          </div>
+        )}
+
+        {view === "settings" && (
+          <ChampSettings
+            champ={champ}
+            user={user}
+            setUser={setUser}
+            navigate={navigate}
+            setView={setView}
+            setBackendErr={setBackendErr}
+          />
+        )}
+
         <ChampToolbar
           champ={champ}
           setChamp={setChamp}
@@ -108,9 +127,13 @@ const Championship: React.FC = () => {
           onActionsClick={() => setActionsOpen(true)}
         />
       </div>
-      <ActionsDrawer open={actionsOpen} setOpen={setActionsOpen}>
-        <p>Actions drawer content goes here</p>
-      </ActionsDrawer>
+      <ActionsDrawer
+        open={actionsOpen}
+        setOpen={setActionsOpen}
+        view={view}
+        setView={setView}
+        canAccessSettings={canAccessSettings}
+      />
     </>
   )
 }

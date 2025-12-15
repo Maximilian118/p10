@@ -30,6 +30,7 @@ export const initDriver = (user: userType): driverType => {
       birthday: null,
       moustache: false,
       mullet: false,
+      positionHistory: [],
     },
   }
 }

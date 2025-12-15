@@ -2,6 +2,10 @@ import React, { useState, useRef, useEffect } from "react"
 import UserIcon from "../utility/userIcon/UserIcon"
 import { userType } from "../../shared/localStorage"
 import { Home, Menu as MenuIcon, Close } from "@mui/icons-material"
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
+import SportsScoreIcon from "@mui/icons-material/SportsScore"
+import GroupsIcon from "@mui/icons-material/Groups"
+import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import { IconButton } from "@mui/material"
 import { useNavigate, useLocation } from "react-router-dom"
 import "./_nav.scss"
@@ -12,10 +16,10 @@ interface navType {
 
 // Menu items for the drawer.
 const menuItems = [
-  { text: "Championships", url: "/championships" },
-  { text: "Series", url: "/series" },
-  { text: "Teams", url: "/teams" },
-  { text: "Drivers", url: "/drivers" },
+  { text: "Championships", url: "/championships", icon: <EmojiEventsIcon /> },
+  { text: "Series", url: "/series", icon: <SportsScoreIcon /> },
+  { text: "Teams", url: "/teams", icon: <GroupsIcon /> },
+  { text: "Drivers", url: "/drivers", icon: <SportsMotorsportsIcon /> },
 ]
 
 const Nav: React.FC<navType> = ({ user }) => {
@@ -81,6 +85,7 @@ const Nav: React.FC<navType> = ({ user }) => {
             className={`nav-drawer-item ${location.pathname === item.url ? "nav-drawer-item-active" : ""}`}
             onClick={() => handleMenuItemClick(item.url)}
           >
+            {item.icon}
             {item.text}
           </div>
         ))}

@@ -26,6 +26,26 @@ const champSchema = `
     created_at: String
   }
 
+  # Driver entry for a round - tracks driver performance.
+  type DriverEntry {
+    driver: Driver!
+    points: Int!
+    totalPoints: Int!
+    position: Int!
+    positionDrivers: Int!
+    positionActual: Int!
+  }
+
+  # Team/constructor entry for a round - tracks team performance.
+  type TeamEntry {
+    team: Team!
+    drivers: [Driver!]!
+    points: Int!
+    totalPoints: Int!
+    position: Int!
+    positionConstructors: Int!
+  }
+
   # A single round - self-contained snapshot.
   type Round {
     round: Int!
@@ -33,6 +53,8 @@ const champSchema = `
     winner: User
     runnerUp: User
     competitors: [CompetitorEntry!]!
+    drivers: [DriverEntry!]!
+    teams: [TeamEntry!]!
   }
 
   # Points structure entry.
@@ -186,6 +208,7 @@ const champSchema = `
     icon: String
     profile_picture: String
     series: ID!
+    rounds: Int!
     pointsStructure: [PointsStructureInput!]!
     inviteOnly: Boolean
     maxCompetitors: Int
@@ -211,6 +234,13 @@ const champSchema = `
   # Response type for multiple championships.
   type Champs {
     array: [Champ!]!
+    tokens: [String!]
+  }
+
+  # Response type for deleted championship.
+  type DeletedChamp {
+    _id: ID!
+    name: String!
     tokens: [String!]
   }
 `

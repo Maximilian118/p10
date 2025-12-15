@@ -131,6 +131,7 @@ export interface driverType {
     birthday: string | null
     moustache: boolean
     mullet: boolean
+    positionHistory: number[]
   }
   created_by?: userType | string
   created_at?: string
@@ -164,6 +165,26 @@ export interface CompetitorEntryType {
   created_at: string | null // When they first placed their bet.
 }
 
+// Driver entry for a round - tracks driver performance.
+export interface DriverEntryType {
+  driver: driverType
+  points: number // Points earned THIS round.
+  totalPoints: number // Cumulative points the driver has earned this season.
+  position: number // P10 game position this round.
+  positionDrivers: number // Driver championship standing (hypothetical).
+  positionActual: number // Real-life qualifying position.
+}
+
+// Team/constructor entry for a round - tracks team performance.
+export interface TeamEntryType {
+  team: teamType
+  drivers: driverType[] // Drivers racing for this team this round.
+  points: number // Combined driver points THIS round.
+  totalPoints: number // Cumulative points the team has earned this season.
+  position: number // P10 game position this round.
+  positionConstructors: number // Constructor championship standing (hypothetical).
+}
+
 // A single round - self-contained snapshot.
 export interface RoundType {
   round: number
@@ -171,6 +192,8 @@ export interface RoundType {
   winner: userType | null // Competitor who scored max points (null if none).
   runnerUp: userType | null // Runner-up competitor for this round.
   competitors: CompetitorEntryType[]
+  drivers: DriverEntryType[]
+  teams: TeamEntryType[]
 }
 
 // Adjudicator history entry.

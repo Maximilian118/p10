@@ -1,11 +1,13 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
-import Champ, { ChampType, CompetitorEntry, Round } from "../../models/champ"
+import Champ, { ChampType, CompetitorEntry, Round, SeasonHistory } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
 import Badge from "../../models/badge"
+import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
+import { clientS3, deleteS3 } from "../../shared/utility"
 
 // Input types for the createChamp mutation.
 interface PointsStructureInput {
@@ -28,6 +30,7 @@ export interface ChampInput {
   icon?: string
   profile_picture?: string
   series: string
+  rounds: number
   pointsStructure: PointsStructureInput[]
   inviteOnly?: boolean
   maxCompetitors?: number
@@ -50,10 +53,24 @@ const createCompetitorEntry = (
   created_at: null,
 })
 
+// Generates an empty round with the given round number.
+const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = []): Round => ({
+  round: roundNumber,
+  status: "waiting",
+  competitors,
+  drivers: [],
+  teams: [],
+  winner: null,
+  runnerUp: null,
+})
+
 // Population options for championship queries.
 const champPopulation = [
   { path: "rounds.competitors.competitor", select: "_id name icon profile_picture permissions created_at" },
   { path: "rounds.competitors.bet" },
+  { path: "rounds.drivers.driver", select: "_id name icon driverID" },
+  { path: "rounds.teams.team", select: "_id name icon emblem" },
+  { path: "rounds.teams.drivers", select: "_id name icon driverID" },
   { path: "rounds.winner", select: "_id name icon" },
   { path: "rounds.runnerUp", select: "_id name icon" },
   { path: "adjudicator.current", select: "_id name icon profile_picture permissions created_at" },
@@ -77,6 +94,9 @@ const champPopulation = [
   { path: "history.drivers" },
   { path: "history.rounds.competitors.competitor", select: "_id name icon" },
   { path: "history.rounds.competitors.bet" },
+  { path: "history.rounds.drivers.driver", select: "_id name icon driverID" },
+  { path: "history.rounds.teams.team", select: "_id name icon emblem" },
+  { path: "history.rounds.teams.drivers", select: "_id name icon driverID" },
   { path: "history.rounds.winner", select: "_id name icon" },
   { path: "history.rounds.runnerUp", select: "_id name icon" },
 ]
@@ -141,6 +161,7 @@ const champResolvers = {
         icon,
         profile_picture,
         series,
+        rounds,
         pointsStructure,
         inviteOnly,
         maxCompetitors,
@@ -189,13 +210,38 @@ const champResolvers = {
           created_at: moment().format(),
         })) || []
 
-      // Create initial round with the creator as the only competitor.
-      const initialRound: Round = {
-        round: 1,
-        status: "waiting",
-        winner: null,
-        runnerUp: null,
-        competitors: [createCompetitorEntry(user._id, 0, 1)],
+      // Validate rounds count.
+      const roundCount = rounds || 1
+      if (roundCount < 1) {
+        throwError("rounds", rounds, "Rounds must be at least 1.")
+      }
+
+      // Generate N rounds - first round has the creator as competitor, rest are empty.
+      const generatedRounds: Round[] = []
+      for (let i = 1; i <= roundCount; i++) {
+        if (i === 1) {
+          // First round has the creator as the only competitor.
+          generatedRounds.push(createEmptyRound(i, [createCompetitorEntry(user._id, 0, 1)]))
+        } else {
+          // Subsequent rounds start with empty competitors (will be copied when round progresses).
+          generatedRounds.push(createEmptyRound(i))
+        }
+      }
+
+      // Build the initial adjudicator object.
+      const initialAdjudicator = {
+        current: user._id,
+        fromDateTime: moment().format(),
+        history: [],
+      }
+
+      // Build the initial season history entry.
+      const initialSeasonHistory: SeasonHistory = {
+        season: 1,
+        adjudicator: initialAdjudicator,
+        drivers: seriesDoc.drivers, // Drivers from the selected series.
+        rounds: generatedRounds,
+        pointsStructure,
       }
 
       // Create the championship document.
@@ -205,14 +251,10 @@ const champResolvers = {
         profile_picture: profile_picture || "",
         season: 1,
         active: true,
-        rounds: [initialRound],
+        rounds: generatedRounds,
         series: new ObjectId(series),
         pointsStructure,
-        adjudicator: {
-          current: user._id,
-          fromDateTime: moment().format(),
-          history: [],
-        },
+        adjudicator: initialAdjudicator,
         rulesAndRegs: processedRulesAndRegs,
         settings: {
           inviteOnly: inviteOnly || false,
@@ -220,7 +262,7 @@ const champResolvers = {
         },
         champBadges: [],
         waitingList: [],
-        history: [],
+        history: [initialSeasonHistory],
         created_by: user._id,
         created_at: moment().format(),
         updated_at: moment().format(),
@@ -381,6 +423,100 @@ const champResolvers = {
 
       return {
         ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Deletes a championship and cleans up all related data.
+  deleteChamp: async (
+    { _id, confirmName }: { _id: string; confirmName: string },
+    req: AuthRequest,
+  ): Promise<{ _id: string; name: string; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("deleteChamp", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Fetch championship.
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("deleteChamp", _id, "Championship not found!", 404)
+      }
+
+      // Fetch user to check permissions.
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Check permissions: admin can delete any champ, otherwise must be adjudicator.
+      const isAdmin = user.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "deleteChamp",
+          req._id,
+          "Only the adjudicator or an admin can delete this championship!",
+          403,
+        )
+      }
+
+      // Validate confirmName matches champ.name (case-sensitive).
+      if (confirmName !== champ.name) {
+        return throwError(
+          "deleteChamp",
+          confirmName,
+          "Championship name does not match. Deletion cancelled.",
+          400,
+        )
+      }
+
+      const champName = champ.name
+      const champId = champ._id
+
+      // Delete S3 images (icon and profile_picture).
+      if (champ.icon) {
+        const iconErr = await deleteS3(clientS3(), clientS3(champ.icon).params, 0)
+        if (iconErr) {
+          throwError("deleteChamp", champ.icon, iconErr)
+        }
+      }
+      if (champ.profile_picture) {
+        const ppErr = await deleteS3(clientS3(), clientS3(champ.profile_picture).params, 0)
+        if (ppErr) {
+          throwError("deleteChamp", champ.profile_picture, ppErr)
+        }
+      }
+
+      // Delete all Protests for this championship.
+      await Protest.deleteMany({ championship: champId })
+
+      // Remove championship from Series.championships array.
+      await Series.updateOne(
+        { _id: champ.series },
+        { $pull: { championships: champId } },
+      )
+
+      // Remove championship from all Users.championships arrays.
+      await User.updateMany(
+        { championships: champId },
+        { $pull: { championships: champId } },
+      )
+
+      // Update all Badges: set championship to null (keep badge for users who earned it).
+      await Badge.updateMany(
+        { championship: champId },
+        { $set: { championship: null } },
+      )
+
+      // Delete the championship document.
+      await Champ.findByIdAndDelete(champId)
+
+      return {
+        _id: champId.toString(),
+        name: champName,
         tokens: req.tokens,
       }
     } catch (err) {

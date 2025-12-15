@@ -152,6 +152,7 @@ export const createChamp = async (
             icon: iconURL,
             profile_picture: profilePictureURL,
             series: form.series?._id,
+            rounds: typeof form.rounds === "string" ? parseInt(form.rounds, 10) : form.rounds,
             maxCompetitors: form.series?.drivers?.length || 24,
             pointsStructure: form.pointsStructure,
             rulesAndRegs: rulesAndRegsList,
@@ -163,6 +164,7 @@ export const createChamp = async (
               $icon: String,
               $profile_picture: String,
               $series: ID!,
+              $rounds: Int!,
               $maxCompetitors: Int,
               $pointsStructure: [PointsStructureInput!]!,
               $rulesAndRegs: [RuleInput!]!,
@@ -173,6 +175,7 @@ export const createChamp = async (
                 icon: $icon,
                 profile_picture: $profile_picture,
                 series: $series,
+                rounds: $rounds,
                 maxCompetitors: $maxCompetitors,
                 pointsStructure: $pointsStructure,
                 rulesAndRegs: $rulesAndRegs,
@@ -381,4 +384,54 @@ export const joinChamp = async (
   }
 
   return success
+}
+
+// Deletes a championship (requires name confirmation).
+export const deleteChamp = async (
+  _id: string,
+  confirmName: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<{ _id: string; name: string } | null> => {
+  let result: { _id: string; name: string } | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id, confirmName },
+          query: `
+            mutation DeleteChamp($_id: ID!, $confirmName: String!) {
+              deleteChamp(_id: $_id, confirmName: $confirmName) {
+                _id
+                name
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteChamp", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const deleted = graphQLResponse("deleteChamp", res, user, setUser) as {
+            _id: string
+            name: string
+          }
+          result = deleted
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteChamp", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteChamp", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
 }
