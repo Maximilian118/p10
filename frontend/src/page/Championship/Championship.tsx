@@ -11,7 +11,7 @@ import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
-import ActionsDrawer from "./ActionsDrawer/ActionsDrawer"
+import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView } from "./Views/ChampSettings/ChampSettings"
 
 const Championship: React.FC = () => {
@@ -29,7 +29,7 @@ const Championship: React.FC = () => {
     dropzone: "",
   })
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
-  const [ actionsOpen, setActionsOpen ] = useState<boolean>(false)
+  const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
 
   const navigate = useNavigate()
@@ -124,12 +124,12 @@ const Championship: React.FC = () => {
           setUser={setUser}
           setBackendErr={setBackendErr}
           onJoinSuccess={() => setJustJoined(true)}
-          onActionsClick={() => setActionsOpen(true)}
+          onDrawerClick={() => setDrawerOpen(true)}
         />
       </div>
-      <ActionsDrawer
-        open={actionsOpen}
-        setOpen={setActionsOpen}
+      <ViewsDrawer
+        open={drawerOpen}
+        setOpen={setDrawerOpen}
         view={view}
         setView={setView}
         canAccessSettings={canAccessSettings}

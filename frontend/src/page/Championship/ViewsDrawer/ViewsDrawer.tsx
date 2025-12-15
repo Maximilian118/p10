@@ -6,9 +6,9 @@ import GavelIcon from "@mui/icons-material/Gavel"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import BarChartIcon from "@mui/icons-material/BarChart"
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"
-import "./_actionsDrawer.scss"
+import "./_viewsDrawer.scss"
 
-interface ActionsDrawerProps {
+interface ViewsDrawerProps {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   view: ChampView
@@ -16,8 +16,8 @@ interface ActionsDrawerProps {
   canAccessSettings: boolean
 }
 
-// Action item configuration.
-interface ActionItem {
+// View item configuration.
+interface ViewItem {
   icon: React.ReactNode
   label: string
   onClick: () => void
@@ -25,8 +25,8 @@ interface ActionItem {
   viewId?: ChampView
 }
 
-// Championship actions drawer - slides up from bottom.
-const ActionsDrawer: React.FC<ActionsDrawerProps> = ({
+// Championship views drawer - slides up from bottom.
+const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   open,
   setOpen,
   view,
@@ -51,8 +51,8 @@ const ActionsDrawer: React.FC<ActionsDrawerProps> = ({
     setOpen(false)
   }
 
-  // Action items for the drawer.
-  const items: ActionItem[] = [
+  // View items for the drawer.
+  const items: ViewItem[] = [
     {
       icon: <SettingsIcon />,
       label: "Settings",
@@ -87,12 +87,12 @@ const ActionsDrawer: React.FC<ActionsDrawerProps> = ({
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
-      <div className={`actions-drawer ${open ? "actions-drawer-open" : ""}`}>
+      <div className={`views-drawer ${open ? "views-drawer-open" : ""}`}>
         {visibleItems.map((item, index) => (
           <div
             key={index}
             onClick={item.onClick}
-            className={`actions-drawer-item ${item.viewId === view ? "actions-drawer-item-active" : ""}`}
+            className={`views-drawer-item ${item.viewId === view ? "views-drawer-item-active" : ""}`}
           >
             {item.icon}
             {item.label}
@@ -103,4 +103,4 @@ const ActionsDrawer: React.FC<ActionsDrawerProps> = ({
   )
 }
 
-export default ActionsDrawer
+export default ViewsDrawer

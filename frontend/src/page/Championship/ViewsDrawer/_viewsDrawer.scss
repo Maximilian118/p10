@@ -1,7 +1,7 @@
 @use '../../../scss/variables';
 
 // Drawer that slides up from the bottom.
-.actions-drawer {
+.views-drawer {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -13,12 +13,12 @@
   z-index: 10;
 }
 
-.actions-drawer-open {
+.views-drawer-open {
   max-height: 500px;
   transition: max-height 0.3s ease-in;
 }
 
-.actions-drawer-item {
+.views-drawer-item {
   padding: 15px 20px;
   cursor: pointer;
   border-top: 2px solid #f5f5f5;
@@ -35,7 +35,7 @@
   }
 }
 
-.actions-drawer-item-active {
+.views-drawer-item-active {
   color: variables.$colour-9;
 
   svg {

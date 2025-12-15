@@ -16,12 +16,12 @@ interface champToolbarType {
   setUser: React.Dispatch<React.SetStateAction<userType>>
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
   onJoinSuccess?: () => void
-  onActionsClick?: () => void
+  onDrawerClick?: () => void
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, onJoinSuccess, onActionsClick, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, onJoinSuccess, onDrawerClick, style }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -126,13 +126,13 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
         size="small"
         onClick={e => {
           e.stopPropagation()
-          if (onActionsClick) {
-            onActionsClick()
+          if (onDrawerClick) {
+            onDrawerClick()
           }
         }}
         endIcon={<FilterList />}
       >
-        Actions
+        Views
       </Button>
     </div>
   )
