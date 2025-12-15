@@ -1,26 +1,62 @@
-import React, { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import React, { useContext, useEffect, useState } from "react"
+import { useNavigate, useParams, useLocation } from "react-router-dom"
 import './_team.scss'
 import { teamType } from "../../shared/types"
 import EditButton from "../../components/utility/button/editButton/EditButton"
+import AppContext from "../../context"
+import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
+import { getTeamById } from "../../shared/requests/teamRequests"
+import FillLoading from "../../components/utility/fillLoading/FillLoading"
+import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 
 // Team profile page.
 const Team: React.FC = () => {
+  const { id } = useParams<{ id: string }>()
+  const { user, setUser } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
   // Check if team was passed via navigation state.
   const locationTeam = (location.state as { team?: teamType })?.team
 
-  const [ team ] = useState<teamType | null>(locationTeam || null)
+  const [team, setTeam] = useState<teamType | null>(locationTeam || null)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
+
+  // Always fetch team by ID to get fresh data with dominantColour.
+  useEffect(() => {
+    if (id) {
+      getTeamById(id, setTeam, user, setUser, navigate, setLoading, setBackendErr)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   // Navigate to edit form with team data.
   const handleEdit = () => {
     navigate("/create-team", { state: { team } })
   }
 
+  // Render loading state.
+  if (loading) {
+    return (
+      <div className="content-container team-profile">
+        <FillLoading />
+      </div>
+    )
+  }
+
+  // Render error state.
+  if (backendErr.message) {
+    return (
+      <div className="content-container team-profile">
+        <ErrorDisplay backendErr={backendErr} />
+      </div>
+    )
+  }
+
   return (
-    <div className="content-container team-profile">
+    <div className="content-container team-profile" style={{ background: team?.dominantColour ? team.dominantColour : "" }}>
+      <img alt="asdasd" src={team?.emblem} style={{ height: 200, padding: 40 }}/>
       <EditButton
         onClick={handleEdit}
         size="medium"

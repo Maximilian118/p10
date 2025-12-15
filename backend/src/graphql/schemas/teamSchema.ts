@@ -9,6 +9,7 @@ const teamSchema = `
     icon: String!
     emblem: String!
     logo: String
+    dominantColour: String
     name: String!
     series: [Series!]
     drivers: [Driver]

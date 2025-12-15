@@ -24,6 +24,7 @@ const Schema = buildSchema(`
     getSeries: SeriesList
     getDrivers: Drivers
     getTeams: Teams
+    getTeamById(_id: ID!): Team!
     getChamps: Champs
     getChampById(_id: ID!): Champ!
   }

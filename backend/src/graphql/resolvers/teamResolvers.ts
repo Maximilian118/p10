@@ -11,6 +11,7 @@ import {
 } from "./resolverErrors"
 import { teamPopulation } from "../../shared/population"
 import { syncTeamDrivers, updateDrivers } from "./resolverUtility"
+import { extractDominantColor } from "../../shared/colorExtraction"
 
 const teamResolvers = {
   newTeam: async (args: { teamInput: teamInputType }, req: AuthRequest): Promise<teamType> => {
@@ -25,12 +26,16 @@ const teamResolvers = {
       await createdByErrors(req._id, created_by)
       await teamNameErrors(name)
 
+      // Extract dominant color from the emblem image (higher quality than icon).
+      const dominantColour = await extractDominantColor(emblem)
+
       // Create a new team DB object.
       const team = new Team({
         created_by,
         icon,
         emblem,
         ...(logo && { logo }),
+        dominantColour,
         name,
         stats: {
           nationality,
@@ -155,6 +160,8 @@ const teamResolvers = {
 
       if (emblem !== team._doc.emblem) {
         team.emblem = emblem
+        // Re-extract dominant color when emblem changes (higher quality than icon).
+        team.dominantColour = await extractDominantColor(emblem)
       }
 
       // Update logo (can be null/undefined to remove).
@@ -190,6 +197,37 @@ const teamResolvers = {
       // Return updated team with tokens.
       return {
         ...newteam._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+  getTeamById: async ({ _id }: { _id: string }, req: AuthRequest): Promise<teamType> => {
+    if (!req.isAuth) {
+      throwError("getTeamById", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Find the team by _id.
+      const team = await Team.findById(_id).populate(teamPopulation).exec()
+
+      if (!team) {
+        throw throwError("getTeamById", _id, "Team not found!", 404)
+      }
+
+      // Check if team is missing dominantColour (pre-existing team).
+      // Extract and update it if missing or set to default.
+      if (!team.dominantColour || team.dominantColour === "#1a1a2e") {
+        // Use emblem (higher quality) instead of icon for better color accuracy.
+        const dominantColour = await extractDominantColor(team.emblem)
+        team.dominantColour = dominantColour
+        await team.save()
+      }
+
+      // Return team with tokens.
+      return {
+        ...team._doc,
         tokens: req.tokens,
       }
     } catch (err) {

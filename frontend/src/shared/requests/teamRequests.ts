@@ -5,7 +5,7 @@ import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./req
 import { NavigateFunction } from "react-router-dom"
 import { uplaodS3 } from "./bucketRequests"
 import moment from "moment"
-import { populateTeam, populateTeamList } from "./requestPopulation"
+import { populateTeam, populateTeamFull, populateTeamList } from "./requestPopulation"
 import { createTeamFormType } from "../../page/CreateTeam/CreateTeam"
 import { capitalise } from "../utility"
 
@@ -59,6 +59,53 @@ export const getTeams = async (
       })
   } catch (err: unknown) {
     graphQLErrors("getTeams", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
+// Get a single team by ID.
+export const getTeamById = async (
+  _id: string,
+  setTeam: React.Dispatch<React.SetStateAction<teamType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            query GetTeamById($_id: ID!) {
+              getTeamById(_id: $_id) {
+                ${populateTeamFull}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getTeamById", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const team = graphQLResponse("getTeamById", res, user, setUser) as teamType
+          setTeam(team)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getTeamById", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getTeamById", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)

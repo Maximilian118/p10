@@ -61,6 +61,7 @@ export const populateTeam = `
   icon
   emblem
   logo
+  dominantColour
   name
   series {
     _id
@@ -85,6 +86,7 @@ export const populateTeamFull = `
   icon
   emblem
   logo
+  dominantColour
   name
   series {
     _id
@@ -109,6 +111,7 @@ export const populateTeamList = `
   icon
   emblem
   logo
+  dominantColour
   name
   series {
     _id
@@ -283,6 +286,7 @@ export const populateChamp = `
         name
         icon
         emblem
+        dominantColour
       }
       drivers {
         _id
@@ -534,6 +538,7 @@ export const populateChamp = `
           name
           icon
           emblem
+          dominantColour
         }
         drivers {
           _id

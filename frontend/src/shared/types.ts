@@ -101,6 +101,7 @@ export interface teamType {
   icon: string
   emblem: string
   logo?: string
+  dominantColour?: string
   name: string
   series: seriesType[]
   drivers: driverType[]
