@@ -5,6 +5,7 @@ import { teamType } from "../../shared/types"
 import EditButton from "../../components/utility/button/editButton/EditButton"
 import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
+import { getContrastTextColor } from "../../shared/utils/colorUtils"
 import { getTeamById } from "../../shared/requests/teamRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
@@ -46,17 +47,31 @@ const Team: React.FC = () => {
   }
 
   // Render error state.
-  if (backendErr.message) {
+  if (backendErr.message || !team) {
     return (
       <div className="content-container team-profile">
-        <ErrorDisplay backendErr={backendErr} />
+        <ErrorDisplay backendErr={backendErr.message ? backendErr : { ...initGraphQLError, message: "Team not found" }} />
       </div>
     )
   }
 
+  // Determine text color based on background luminance.
+  const textColor = team.dominantColour
+    ? getContrastTextColor(team.dominantColour)
+    : 'white'
+
   return (
-    <div className="content-container team-profile" style={{ background: team?.dominantColour ? team.dominantColour : "" }}>
-      <img alt="asdasd" src={team?.emblem} style={{ height: 200, padding: 40 }}/>
+    <div
+      className="content-container team-profile"
+      style={{
+        background: team.dominantColour || '',
+        color: textColor
+      }}
+    >
+      <img alt={team.name} src={team.emblem} className="team-emblem"/>
+      <div className="team-profile-content">
+        <h2>{team.name}</h2>
+      </div>
       <EditButton
         onClick={handleEdit}
         size="medium"

@@ -1,5 +1,24 @@
+@use '../../scss/mixins';
+
 // Team profile page styles.
 .team-profile {
   position: relative;
+  @include mixins.flexbox-start-column;
+
+  .team-emblem {
+    height: 200px;
+  }
   
+  .team-profile-content {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+    flex-grow: 1;
+    padding: 0 7.5% 20px;
+    box-sizing: border-box;
+
+    h2 {
+      width: 100%;
+      text-align: center;
+    }
+  }
 }
