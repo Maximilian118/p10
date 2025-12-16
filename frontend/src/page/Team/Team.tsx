@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
+import { ResponsiveLine } from "@nivo/line"
 import './_team.scss'
 import { driverType, teamType } from "../../shared/types"
 import EditButton from "../../components/utility/button/editButton/EditButton"
@@ -16,7 +17,8 @@ import {
   getRunnerUps,
   getBestPosition,
   getAveragePosition,
-  getWorstPosition
+  getWorstPosition,
+  getTeamChartData
 } from "./teamUtility"
 
 // Team profile page.
@@ -69,6 +71,10 @@ const Team: React.FC = () => {
     )
   }
 
+  // Get chart data for team position history.
+  const chartData = getTeamChartData(team.drivers)
+  const hasPositionData = chartData.length > 0 && chartData.some(line => line.data.length > 0)
+
   // Determine text color based on background luminance.
   const textColor = team.dominantColour
     ? getContrastTextColor(team.dominantColour)
@@ -97,6 +103,27 @@ const Team: React.FC = () => {
           <p>Q1 DQ's: <span>-</span></p>
         </div>
       </div>
+      {hasPositionData && (
+        <div className="team-chart-container">
+          <ResponsiveLine
+            data={chartData}
+            margin={{ top: 30, right: 0, bottom: 10, left: 0 }}
+            curve="basis"
+            colors={[textColor]}
+            lineWidth={3}
+            enablePoints={false}
+            enableGridX={false}
+            enableGridY={false}
+            axisTop={null}
+            axisRight={null}
+            axisBottom={null}
+            axisLeft={null}
+            isInteractive={false}
+            legends={[]}
+            animate={false}
+          />
+        </div>
+      )}
       <EditButton
         onClick={handleEdit}
         size="medium"
