@@ -20,9 +20,9 @@ const teamResolvers = {
     }
 
     try {
-      const { created_by, icon, emblem, logo, name, nationality, inceptionDate, drivers } = args.teamInput
+      const { created_by, icon, emblem, name, nationality, inceptionDate, drivers } = args.teamInput
       // Check for errors.
-      teamImageErrors(icon, emblem, logo)
+      teamImageErrors(icon, emblem)
       await createdByErrors(req._id, created_by)
       await teamNameErrors(name)
 
@@ -34,7 +34,6 @@ const teamResolvers = {
         created_by,
         icon,
         emblem,
-        ...(logo && { logo }),
         dominantColour,
         name,
         stats: {
@@ -111,13 +110,6 @@ const teamResolvers = {
       if (emblemErr) {
         throw throwError("dropzone", team._doc.emblem, emblemErr)
       }
-      // Delete logo only if it exists.
-      if (team._doc.logo) {
-        const logoErr = await deleteS3(clientS3(), clientS3(team._doc.logo).params, 0)
-        if (logoErr) {
-          throw throwError("dropzoneLogo", team._doc.logo, logoErr)
-        }
-      }
       // Delete team from DB.
       await team.deleteOne()
 
@@ -135,9 +127,9 @@ const teamResolvers = {
       throwError("getTeams", req.isAuth, "Not Authenticated!", 401)
     }
     try {
-      const { _id, icon, emblem, logo, name, nationality, inceptionDate, drivers } = args.teamInput
+      const { _id, icon, emblem, name, nationality, inceptionDate, drivers } = args.teamInput
       // Check for errors.
-      teamImageErrors(icon, emblem, logo)
+      teamImageErrors(icon, emblem)
       falsyValErrors({
         dropzone: icon,
         dropzoneEmblem: emblem,
@@ -162,11 +154,6 @@ const teamResolvers = {
         team.emblem = emblem
         // Re-extract dominant color when emblem changes (higher quality than icon).
         team.dominantColour = await extractDominantColor(emblem)
-      }
-
-      // Update logo (can be null/undefined to remove).
-      if (logo !== team._doc.logo) {
-        team.logo = logo || ""
       }
 
       if (capitalise(team.name) !== capitalise(name)) {

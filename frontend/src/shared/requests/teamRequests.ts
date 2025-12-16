@@ -131,14 +131,9 @@ export const createTeam = async (
   const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr)
   if (!emblemURL && form.emblem) { setLoading(false); return null }
 
-  // Logo is optional.
-  const logoURL = await uplaodS3("teams", form.teamName, "logo", form.logo, setBackendErr)
-  if (!logoURL && form.logo) { setLoading(false); return null }
-
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
   if (form.emblem instanceof File && emblemURL) setForm((prev) => ({ ...prev, emblem: emblemURL }))
-  if (form.logo instanceof File && logoURL) setForm((prev) => ({ ...prev, logo: logoURL }))
 
   try {
     await axios
@@ -149,15 +144,14 @@ export const createTeam = async (
             created_by: user._id,
             icon: iconURL,
             emblem: emblemURL,
-            logo: logoURL || null,
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
             drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation NewTeam( $created_by: ID!, $icon: String!, $emblem: String!, $logo: String, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
-              newTeam(teamInput: { created_by: $created_by, icon: $icon, emblem: $emblem, logo: $logo, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
+            mutation NewTeam( $created_by: ID!, $icon: String!, $emblem: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              newTeam(teamInput: { created_by: $created_by, icon: $icon, emblem: $emblem, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }
@@ -205,14 +199,9 @@ export const editTeam = async (
   const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr, user, setUser, navigate, 0)
   if (!emblemURL && form.emblem) { setLoading(false); return false }
 
-  // Logo is optional.
-  const logoURL = await uplaodS3("teams", form.teamName, "logo", form.logo, setBackendErr, user, setUser, navigate, 0)
-  if (!logoURL && form.logo) { setLoading(false); return false }
-
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
   if (form.emblem instanceof File && emblemURL) setForm((prev) => ({ ...prev, emblem: emblemURL }))
-  if (form.logo instanceof File && logoURL) setForm((prev) => ({ ...prev, logo: logoURL }))
 
   try {
     await axios
@@ -223,15 +212,14 @@ export const editTeam = async (
             _id: team._id,
             icon: iconURL || team.icon,
             emblem: emblemURL || team.emblem,
-            logo: logoURL || team.logo || null,
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
             drivers: form.drivers.map(d => d._id),
           },
           query: `
-            mutation UpdateTeam( $_id: ID!, $icon: String!, $emblem: String!, $logo: String, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
-              updateTeam(teamInput: { _id: $_id, icon: $icon, emblem: $emblem, logo: $logo, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
+            mutation UpdateTeam( $_id: ID!, $icon: String!, $emblem: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
+              updateTeam(teamInput: { _id: $_id, icon: $icon, emblem: $emblem, name: $name, nationality: $nationality, inceptionDate: $inceptionDate, drivers: $drivers }) {
                 ${populateTeam}
                 tokens
               }

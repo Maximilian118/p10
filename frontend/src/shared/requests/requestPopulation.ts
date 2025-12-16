@@ -60,7 +60,6 @@ export const populateTeam = `
   _id
   icon
   emblem
-  logo
   dominantColour
   name
   series {
@@ -85,7 +84,6 @@ export const populateTeamFull = `
   _id
   icon
   emblem
-  logo
   dominantColour
   name
   series {
@@ -110,7 +108,6 @@ export const populateTeamList = `
   _id
   icon
   emblem
-  logo
   dominantColour
   name
   series {

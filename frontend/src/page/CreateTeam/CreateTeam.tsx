@@ -25,7 +25,6 @@ export interface createTeamFormType {
   drivers: driverType[]
   icon: File | string | null
   emblem: File | string | null
-  logo: File | string | null
 }
 
 export interface createTeamFormErrType {
@@ -35,7 +34,6 @@ export interface createTeamFormErrType {
   drivers: string
   dropzone: string
   dropzoneEmblem: string
-  dropzoneLogo: string
   [key: string]: string
 }
 
@@ -87,7 +85,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
         drivers: editingTeam.drivers || [],
         icon: null,
         emblem: null,
-        logo: null,
       }
     }
     return {
@@ -98,7 +95,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
       drivers: [],
       icon: null,
       emblem: null,
-      logo: null,
     }
   }
 
@@ -110,7 +106,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     drivers: "",
     dropzone: "",
     dropzoneEmblem: "",
-    dropzoneLogo: "",
   })
 
   // Fetch all teams for duplicate checking.
@@ -159,7 +154,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     return (
       !!form.icon ||
       !!form.emblem ||
-      !!form.logo ||
       editingTeam.name !== form.teamName ||
       editingTeam.stats.nationality !== form.nationality?.label ||
       !moment(editingTeam.stats.inceptionDate).isSame(form.inceptionDate, "day") ||
@@ -176,7 +170,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
       drivers: "",
       dropzone: "",
       dropzoneEmblem: "",
-      dropzoneLogo: "",
     }
 
     if (!form.teamName) {
@@ -197,8 +190,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     if (!form.emblem && !isEditing) {
       errors.dropzoneEmblem = "Please enter an emblem image."
     }
-
-    // Logo is optional - no validation needed.
 
     // Check for duplicate names.
     const otherTeams = teams.filter(t => t._id !== form._id)
@@ -248,7 +239,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
         name: form.teamName,
         icon: form.icon && typeof form.icon === "string" ? form.icon : editingTeam.icon,
         emblem: form.emblem && typeof form.emblem === "string" ? form.emblem : editingTeam.emblem,
-        logo: form.logo && typeof form.logo === "string" ? form.logo : editingTeam.logo,
         stats: {
           ...editingTeam.stats,
           nationality: form.nationality?.label || "",
@@ -332,41 +322,19 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
   <>
     <div className="content-container create-team">
       <h4>{isEditing ? "Edit" : "New"} Team</h4>
-      <div className="create-team-dropzones">
-        <div className="create-team-dropzone-container">
-          <DropZone<createTeamFormType, createTeamFormErrType>
-            form={form}
-            setForm={setForm}
-            formErr={formErr}
-            setFormErr={setFormErr}
-            backendErr={backendErr}
-            setBackendErr={setBackendErr}
-            purposeText="Team Emblem"
-            thumbImg={editingTeam?.emblem || false}
-            disabled={!permissions}
-            profilePictureField="emblem"
-            dropzoneErrorField="dropzoneEmblem"
-          />
-        </div>
-        <div className="create-team-dropzone-container logo-dropzone">
-          <DropZone<createTeamFormType, createTeamFormErrType>
-            form={form}
-            setForm={setForm}
-            formErr={formErr}
-            setFormErr={setFormErr}
-            backendErr={backendErr}
-            setBackendErr={setBackendErr}
-            purposeText="Team Logo"
-            thumbImg={editingTeam?.logo || false}
-            disabled={!permissions}
-            optional
-            singleOutput
-            profilePictureField="logo"
-            dropzoneErrorField="dropzoneLogo"
-            objectFit="contain"
-          />
-        </div>
-      </div>
+      <DropZone<createTeamFormType, createTeamFormErrType>
+        form={form}
+        setForm={setForm}
+        formErr={formErr}
+        setFormErr={setFormErr}
+        backendErr={backendErr}
+        setBackendErr={setBackendErr}
+        purposeText="Team Emblem"
+        thumbImg={editingTeam?.emblem || false}
+        disabled={!permissions}
+        profilePictureField="emblem"
+        dropzoneErrorField="dropzoneEmblem"
+      />
       <TextField
         name="teamName"
         inputProps={{ maxLength: 50 }}

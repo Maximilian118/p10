@@ -8,7 +8,6 @@ const teamSchema = `
     _id: String!
     icon: String!
     emblem: String!
-    logo: String
     dominantColour: String
     name: String!
     series: [Series!]
@@ -30,7 +29,6 @@ const teamSchema = `
     created_by: ID
     icon: String
     emblem: String
-    logo: String
     name: String!
     nationality: String!
     inceptionDate: String!

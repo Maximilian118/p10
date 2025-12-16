@@ -6,7 +6,6 @@ export interface teamType {
   _id: ObjectId
   icon: string
   emblem: string
-  logo: string
   dominantColour: string
   name: string
   series: ObjectId[]
@@ -27,7 +26,6 @@ export interface teamInputType {
   created_by: ObjectId
   icon: string
   emblem: string
-  logo?: string | null
   name: string
   nationality: string
   inceptionDate: string
@@ -37,7 +35,6 @@ export interface teamInputType {
 const teamSchema = new mongoose.Schema<teamType>({
   icon: { type: String, required: true }, // Compressed emblem icon URL in AWS S3.
   emblem: { type: String, required: true }, // Full quality emblem URL in AWS S3.
-  logo: { type: String, required: false }, // Team logo with sponsors URL in AWS S3 (optional).
   dominantColour: { type: String, required: false, default: "#1a1a2e" }, // Dominant color extracted from the icon.
   name: { type: String, required: true }, // Name of the team.
   series: [{ type: mongoose.Schema.ObjectId, ref: "Series" }], // Series that this team competes in.

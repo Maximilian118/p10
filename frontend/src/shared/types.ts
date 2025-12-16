@@ -100,7 +100,6 @@ export interface teamType {
   _id?: string
   icon: string
   emblem: string
-  logo?: string
   dominantColour?: string
   name: string
   series: seriesType[]

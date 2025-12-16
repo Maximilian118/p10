@@ -14,32 +14,9 @@ body #root .main-logged-in .content-container.create-team {
     text-align: left;
   }
 
-  .create-team-dropzones {
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    flex-wrap: nowrap;
-    gap: 20px;
-    margin-bottom: 40px;
-
-    .create-team-dropzone-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      .dropzone {
-        width: 100%;
-        margin-bottom: 0 !important;
-      }
-
-      // Logo DropZone - add padding for object-fit: contain.
-      &.logo-dropzone .dropzone .inside-border img {
-        padding: 15%;
-        box-sizing: border-box;
-      }
-    }
+  .dropzone {
+    width: 60%;
+    margin-bottom: 60px !important;
   }
 
   .driver-picker {
