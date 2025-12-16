@@ -1,6 +1,5 @@
 @use '../../scss/mixins';
 
-// Team profile page styles.
 .team-profile {
   position: relative;
   @include mixins.flexbox-start-column;
@@ -19,6 +18,7 @@
     h2 {
       width: 100%;
       text-align: center;
+      margin-bottom: 20px;
     }
   }
 }

@@ -91,6 +91,8 @@ export const populateTeamFull = `
   }
   drivers {
     _id
+    icon
+    name
   }
   stats {
     inceptionDate

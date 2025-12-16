@@ -1,9 +1,9 @@
-import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
+import React, { SyntheticEvent } from "react"
 import './_seriesListCard.scss'
 import { seriesType, driverType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
-import CounterIcon from "../../utility/icon/counterIcon/CounterIcon"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
+import IconList from "../../utility/iconList/IconList"
 
 interface seriesListCardType {
   series: seriesType
@@ -17,17 +17,6 @@ interface seriesListCardType {
 
 // Card for displaying a series in a list with driver icons underneath.
 const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, selected, canEdit, onEditClicked, onDriverClick, highlight }) => {
-  const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
-  const seriesDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
-
-  // Calculate how many driver icons can fit in the container.
-  useEffect(() => {
-    const dListWidth = seriesDriversRef.current?.getBoundingClientRect().width
-
-    if (dListWidth) {
-      setLastIcon(Math.floor(dListWidth / 37) - 1) // -1 for 0 based indexing
-    }
-  }, [])
 
   // Build class name with optional highlight and selected states.
   const classNames = [
@@ -50,32 +39,7 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, selecte
       </div>
       <div className="series-list-content">
         <p className="series-list-title">{series.name}</p>
-        <div ref={seriesDriversRef} className="series-list-drivers">
-          {series.drivers.map((driver: driverType, i: number) => {
-            if (i < lastIcon) {
-              return (
-                <ImageIcon
-                  key={i}
-                  src={driver.icon}
-                  onClick={onDriverClick ? (e) => {
-                    e.stopPropagation()
-                    onDriverClick(driver)
-                  } : undefined}
-                />
-              )
-            } else if (i === lastIcon) {
-              return (
-                <CounterIcon
-                  key={i}
-                  inverted={selected}
-                  counter={series.drivers.length - lastIcon}
-                />
-              )
-            } else {
-              return null
-            }
-          })}
-        </div>
+        <IconList items={series.drivers} onItemClick={onDriverClick} counterInverted={selected} />
       </div>
       {selected && <div className="selected-banner"><span>Selected</span></div>}
     </div>

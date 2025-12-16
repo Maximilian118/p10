@@ -1,11 +1,12 @@
-import React, { SyntheticEvent, useEffect, useRef, useState } from "react"
+import React, { SyntheticEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import './_champCard.scss'
 import { ChampType } from "../../../shared/types"
+import { userType } from "../../../shared/localStorage"
 import { getCompetitors } from "../../../shared/utility"
 import EditButton from "../../utility/button/editButton/EditButton"
-import CounterIcon from "../../utility/icon/counterIcon/CounterIcon"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
+import IconList from "../../utility/iconList/IconList"
 
 interface champCardType {
   champ: ChampType
@@ -16,16 +17,14 @@ interface champCardType {
 
 const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditClicked }) => {
   const navigate = useNavigate()
-  const [ lastIcon, setLastIcon ] = useState<number>(10) // Last Icon to be rendered before CounterIcon.
-  const groupDriversRef = useRef<HTMLDivElement>(null) // Ref of the Icon list container.
 
-  useEffect(() => {
-    const dListWidth = groupDriversRef.current?.getBoundingClientRect().width
+  // Extract competitor users for the icon list.
+  const competitors = getCompetitors(champ).map(c => c.competitor)
 
-    if (dListWidth) {
-      setLastIcon(Math.floor(dListWidth / 37) - 1) // -1 for 0 based indexing
-    }
-  }, [])
+  // Navigate to competitor profile.
+  const handleCompetitorClick = (competitor: userType) => {
+    navigate(`/profile/${competitor._id}`)
+  }
 
   return (
     <div className="champ-card" onClick={onClick}>
@@ -42,31 +41,7 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditCli
       </div>
       <div className="champ-content">
         <p className="champ-title">{champ.name}</p>
-        <div ref={groupDriversRef} className="champ-drivers">
-          {getCompetitors(champ).map((c, i) => {
-            if (i < lastIcon ) {
-              return (
-                <ImageIcon
-                  key={i}
-                  src={c.competitor.icon}
-                  onClick={e => {
-                    e.stopPropagation()
-                    navigate(`/profile/${c.competitor._id}`)
-                  }}
-                />
-              )
-            } else if (i === lastIcon) {
-              return (
-                <CounterIcon
-                  key={i}
-                  counter={getCompetitors(champ).length - lastIcon}
-                />
-              )
-            } else {
-              return null
-            }
-          })}
-        </div>
+        <IconList items={competitors} onItemClick={handleCompetitorClick} />
       </div>
     </div>
   )

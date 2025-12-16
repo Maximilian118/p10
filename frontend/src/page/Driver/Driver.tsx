@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react"
+import React, { useContext, useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import { ResponsiveLine } from "@nivo/line"
 import './_driver.scss'
@@ -11,7 +11,7 @@ import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import EditButton from "../../components/utility/button/editButton/EditButton"
 import ImageIcon from "../../components/utility/icon/imageIcon/ImageIcon"
-import CounterIcon from "../../components/utility/icon/counterIcon/CounterIcon"
+import IconList from "../../components/utility/iconList/IconList"
 
 // Driver profile page displaying driver stats and body image.
 const Driver: React.FC = () => {
@@ -26,12 +26,10 @@ const Driver: React.FC = () => {
   const [ driver, setDriver ] = useState<driverType | null>(locationDriver || null)
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
-  const [ lastTeamIcon, setLastTeamIcon ] = useState<number>(10)
-  const driverTeamsRef = useRef<HTMLDivElement>(null)
 
-  // Fetch driver if not passed via location state.
+  // Always fetch fresh driver data to ensure full population.
   useEffect(() => {
-    if (!locationDriver && id) {
+    if (id) {
       const fetchDriver = async () => {
         // Temporary state to capture fetched drivers.
         let fetchedDrivers: driverType[] = []
@@ -62,15 +60,7 @@ const Driver: React.FC = () => {
       fetchDriver()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, locationDriver])
-
-  // Calculate how many team icons can fit in the container.
-  useEffect(() => {
-    const teamsWidth = driverTeamsRef.current?.getBoundingClientRect().width
-    if (teamsWidth) {
-      setLastTeamIcon(Math.floor(teamsWidth / 37) - 1)
-    }
-  }, [driver])
+  }, [id])
 
   // Navigate to edit form with driver data.
   const handleEdit = () => {
@@ -129,31 +119,7 @@ const Driver: React.FC = () => {
           <h2>{driver.name}</h2>
         </div>
         <div className="driver-stats">
-          <div ref={driverTeamsRef} className="driver-teams">
-            {driver.teams.map((team: teamType, i: number) => {
-              if (i < lastTeamIcon) {
-                return (
-                  <ImageIcon
-                    key={i}
-                    src={team.icon}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleTeamClick(team)
-                    }}
-                  />
-                )
-              } else if (i === lastTeamIcon) {
-                return (
-                  <CounterIcon
-                    key={i}
-                    counter={driver.teams.length - lastTeamIcon}
-                  />
-                )
-              } else {
-                return null
-              }
-            })}
-          </div>
+          <IconList items={driver.teams} onItemClick={handleTeamClick} />
           <p>P10 Finishes: <span>18</span></p>
           <p>Best Streak: <span>2</span></p>
           <p>Runner-Up: <span>35</span></p>

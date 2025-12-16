@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import './_team.scss'
-import { teamType } from "../../shared/types"
+import { driverType, teamType } from "../../shared/types"
 import EditButton from "../../components/utility/button/editButton/EditButton"
 import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
@@ -9,6 +9,7 @@ import { getContrastTextColor } from "../../shared/utils/colorUtils"
 import { getTeamById } from "../../shared/requests/teamRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
+import IconList from "../../components/utility/iconList/IconList"
 
 // Team profile page.
 const Team: React.FC = () => {
@@ -35,6 +36,11 @@ const Team: React.FC = () => {
   // Navigate to edit form with team data.
   const handleEdit = () => {
     navigate("/create-team", { state: { team } })
+  }
+
+  // Navigate to driver profile.
+  const handleDriverClick = (driver: driverType) => {
+    navigate(`/driver/${driver._id}`)
   }
 
   // Render loading state.
@@ -71,6 +77,7 @@ const Team: React.FC = () => {
       <img alt={team.name} src={team.emblem} className="team-emblem"/>
       <div className="team-profile-content">
         <h2>{team.name}</h2>
+        <IconList items={team.drivers} onItemClick={handleDriverClick} centered/>
       </div>
       <EditButton
         onClick={handleEdit}

@@ -1,0 +1,19 @@
+@use '../../../scss/mixins';
+
+.icon-list {
+  width: 100%;
+  min-height: 32px;
+  @include mixins.flexbox-start;
+
+  .image-icon {
+    background: white;
+  }
+
+  > *:not(:first-child) {
+    margin-left: 5px;
+  }
+
+  &.centered {
+    justify-content: center;
+  }
+}
