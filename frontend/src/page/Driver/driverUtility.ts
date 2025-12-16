@@ -12,6 +12,84 @@ interface ChartLine {
   data: ChartDataPoint[]
 }
 
+// Get P10 finishes for driver.
+export const getDriverP10Finishes = (driver: driverType | null): number => {
+  return driver?.stats?.positionHistory?.[9] || 0
+}
+
+// Get P9 finishes (runner-ups) for driver.
+export const getDriverRunnerUps = (driver: driverType | null): number => {
+  return driver?.stats?.positionHistory?.[8] || 0
+}
+
+// Find best position driver achieved.
+export const getDriverBestPosition = (driver: driverType | null): number | null => {
+  const history = driver?.stats?.positionHistory
+  if (!history) return null
+
+  for (let i = 0; i < history.length; i++) {
+    if (history[i] > 0) return i + 1
+  }
+  return null
+}
+
+// Find worst position driver achieved.
+export const getDriverWorstPosition = (driver: driverType | null): number | null => {
+  const history = driver?.stats?.positionHistory
+  if (!history) return null
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i] > 0) return i + 1
+  }
+  return null
+}
+
+// Calculate weighted average position.
+export const getDriverAveragePosition = (driver: driverType | null): number | null => {
+  const history = driver?.stats?.positionHistory
+  if (!history) return null
+
+  let totalCount = 0
+  let weightedSum = 0
+
+  history.forEach((count, idx) => {
+    if (count > 0) {
+      totalCount += count
+      weightedSum += (idx + 1) * count
+    }
+  })
+
+  return totalCount > 0 ? Math.round(weightedSum / totalCount) : null
+}
+
+// Find best consecutive P10 streak from championship round history.
+export const getDriverBestStreak = (driver: driverType | null): number => {
+  if (!driver?.series) return 0
+
+  let bestStreak = 0
+
+  driver.series.forEach(series => {
+    series.championships?.forEach(champ => {
+      champ.history?.forEach(season => {
+        let currentStreak = 0
+
+        season.rounds?.forEach(round => {
+          const entry = round.drivers?.find(d => d.driver._id === driver._id)
+
+          if (entry?.positionActual === 10) {
+            currentStreak++
+            bestStreak = Math.max(bestStreak, currentStreak)
+          } else {
+            currentStreak = 0
+          }
+        })
+      })
+    })
+  })
+
+  return bestStreak
+}
+
 // Extract driver position history from championship data for Nivo line chart.
 // Returns one line per series, showing positionActual over time from latest season.
 export const getDriverChartData = (driver: driverType | null): ChartLine[] => {

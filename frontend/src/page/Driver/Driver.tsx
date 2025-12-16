@@ -4,7 +4,15 @@ import { ResponsiveLine } from "@nivo/line"
 import './_driver.scss'
 import AppContext from "../../context"
 import { driverType, teamType, ChampType } from "../../shared/types"
-import { getDriverChartData } from "./driverUtility"
+import {
+  getDriverChartData,
+  getDriverP10Finishes,
+  getDriverBestStreak,
+  getDriverRunnerUps,
+  getDriverBestPosition,
+  getDriverAveragePosition,
+  getDriverWorstPosition
+} from "./driverUtility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
@@ -120,16 +128,16 @@ const Driver: React.FC = () => {
         </div>
         <div className="driver-stats">
           <IconList items={driver.teams} onItemClick={handleTeamClick} />
-          <p>P10 Finishes: <span>18</span></p>
-          <p>Best Streak: <span>2</span></p>
-          <p>Runner-Up: <span>35</span></p>
-          <p>Best: <span>P10</span></p>
-          <p>Average: <span>P12</span></p>
-          <p>Worst: <span>P18</span></p>
+          <p>P10 Finishes: <span>{getDriverP10Finishes(driver)}</span></p>
+          <p>Best Streak: <span>{getDriverBestStreak(driver)}</span></p>
+          <p>Runner-Up: <span>{getDriverRunnerUps(driver)}</span></p>
+          <p>Best: <span>{getDriverBestPosition(driver) ? `P${getDriverBestPosition(driver)}` : '-'}</span></p>
+          <p>Average: <span>{getDriverAveragePosition(driver) ? `P${getDriverAveragePosition(driver)}` : '-'}</span></p>
+          <p>Worst: <span>{getDriverWorstPosition(driver) ? `P${getDriverWorstPosition(driver)}` : '-'}</span></p>
           {driver.series.some(s => s.name === "FIA Formula One World Championship") && (
             <>
-              <p>Q2 DQ's: <span>2</span></p>
-              <p>Q1 DQ's: <span>2</span></p>
+              <p>Q2 DQ's: <span>-</span></p>
+              <p>Q1 DQ's: <span>-</span></p>
             </>
           )}
           <div className="driver-championships">
