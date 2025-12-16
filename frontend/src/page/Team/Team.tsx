@@ -10,6 +10,14 @@ import { getTeamById } from "../../shared/requests/teamRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import IconList from "../../components/utility/iconList/IconList"
+import {
+  getP10Finishes,
+  getBestStreak,
+  getRunnerUps,
+  getBestPosition,
+  getAveragePosition,
+  getWorstPosition
+} from "./teamUtility"
 
 // Team profile page.
 const Team: React.FC = () => {
@@ -78,6 +86,16 @@ const Team: React.FC = () => {
       <div className="team-profile-content">
         <h2>{team.name}</h2>
         <IconList items={team.drivers} onItemClick={handleDriverClick} centered/>
+        <div className="team-stats">
+          <p>P10 Finishes: <span>{getP10Finishes(team.drivers)}</span></p>
+          <p>Best Streak: <span>{getBestStreak(team.drivers)}</span></p>
+          <p>Runner-Up: <span>{getRunnerUps(team.drivers)}</span></p>
+          <p>Best: <span>{getBestPosition(team.drivers) ? `P${getBestPosition(team.drivers)}` : '-'}</span></p>
+          <p>Average: <span>{getAveragePosition(team.drivers) ? `P${getAveragePosition(team.drivers)}` : '-'}</span></p>
+          <p>Worst: <span>{getWorstPosition(team.drivers) ? `P${getWorstPosition(team.drivers)}` : '-'}</span></p>
+          <p>Q2 DQ's: <span>-</span></p>
+          <p>Q1 DQ's: <span>-</span></p>
+        </div>
       </div>
       <EditButton
         onClick={handleEdit}

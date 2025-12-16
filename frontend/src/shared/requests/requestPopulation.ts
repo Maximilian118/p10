@@ -93,6 +93,26 @@ export const populateTeamFull = `
     _id
     icon
     name
+    stats {
+      positionHistory
+    }
+    series {
+      _id
+      championships {
+        _id
+        history {
+          season
+          rounds {
+            drivers {
+              driver {
+                _id
+              }
+              positionActual
+            }
+          }
+        }
+      }
+    }
   }
   stats {
     inceptionDate

@@ -20,5 +20,19 @@
       text-align: center;
       margin-bottom: 20px;
     }
+
+    .team-stats {
+      width: 100%;
+      @include mixins.flexbox-start-column;
+      padding-top: 80px;
+
+      p {
+        margin: 5px 0;
+      }
+
+      span {
+        font-weight: bold;
+      }
+    }
   }
 }
