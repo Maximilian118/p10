@@ -18,7 +18,9 @@ import {
   getBestPosition,
   getAveragePosition,
   getWorstPosition,
-  getTeamChartData
+  getTeamChartData,
+  getQ1DQs,
+  getQ2DQs
 } from "./teamUtility"
 
 // Team profile page.
@@ -99,8 +101,12 @@ const Team: React.FC = () => {
           <p>Best: <span>{getBestPosition(team.drivers) ? `P${getBestPosition(team.drivers)}` : '-'}</span></p>
           <p>Average: <span>{getAveragePosition(team.drivers) ? `P${getAveragePosition(team.drivers)}` : '-'}</span></p>
           <p>Worst: <span>{getWorstPosition(team.drivers) ? `P${getWorstPosition(team.drivers)}` : '-'}</span></p>
-          <p>Q2 DQ's: <span>-</span></p>
-          <p>Q1 DQ's: <span>-</span></p>
+          {team.series?.some(s => s.name === "FIA Formula One World Championship") && (
+            <>
+              <p>Q2 DQ's: <span>{getQ2DQs(team.drivers)}</span></p>
+              <p>Q1 DQ's: <span>{getQ1DQs(team.drivers)}</span></p>
+            </>
+          )}
         </div>
       </div>
       {hasPositionData && (

@@ -14,6 +14,11 @@ export const teamPopulation = [
       },
     ],
   },
+  {
+    path: "series",
+    model: "Series",
+    select: "_id url name",
+  },
 ]
 
 // Population for a Driver.

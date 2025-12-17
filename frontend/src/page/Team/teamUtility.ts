@@ -98,6 +98,50 @@ export const getBestStreak = (drivers: driverType[]): number => {
   return bestStreak
 }
 
+// Count Q1 eliminations (P16-P20) across all team drivers.
+export const getQ1DQs = (drivers: driverType[]): number => {
+  let count = 0
+
+  drivers.forEach(driver => {
+    driver.series?.forEach(series => {
+      series.championships?.forEach(champ => {
+        champ.history?.forEach(season => {
+          season.rounds?.forEach(round => {
+            const entry = round.drivers?.find(d => d.driver._id === driver._id)
+            if (entry?.positionActual && entry.positionActual >= 16) {
+              count++
+            }
+          })
+        })
+      })
+    })
+  })
+
+  return count
+}
+
+// Count Q2 eliminations (P11-P15) across all team drivers.
+export const getQ2DQs = (drivers: driverType[]): number => {
+  let count = 0
+
+  drivers.forEach(driver => {
+    driver.series?.forEach(series => {
+      series.championships?.forEach(champ => {
+        champ.history?.forEach(season => {
+          season.rounds?.forEach(round => {
+            const entry = round.drivers?.find(d => d.driver._id === driver._id)
+            if (entry?.positionActual && entry.positionActual >= 11 && entry.positionActual <= 15) {
+              count++
+            }
+          })
+        })
+      })
+    })
+  })
+
+  return count
+}
+
 // Extract team position history from championship data for Nivo line chart.
 // Aggregates all team drivers' positions by round, averaging when multiple drivers compete.
 export const getTeamChartData = (drivers: driverType[]): ChartLine[] => {

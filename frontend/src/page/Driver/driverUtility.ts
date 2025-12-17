@@ -90,6 +90,50 @@ export const getDriverBestStreak = (driver: driverType | null): number => {
   return bestStreak
 }
 
+// Count Q1 eliminations (P16-P20) for driver.
+export const getDriverQ1DQs = (driver: driverType | null): number => {
+  if (!driver?.series) return 0
+
+  let count = 0
+
+  driver.series.forEach(series => {
+    series.championships?.forEach(champ => {
+      champ.history?.forEach(season => {
+        season.rounds?.forEach(round => {
+          const entry = round.drivers?.find(d => d.driver._id === driver._id)
+          if (entry?.positionActual && entry.positionActual >= 16) {
+            count++
+          }
+        })
+      })
+    })
+  })
+
+  return count
+}
+
+// Count Q2 eliminations (P11-P15) for driver.
+export const getDriverQ2DQs = (driver: driverType | null): number => {
+  if (!driver?.series) return 0
+
+  let count = 0
+
+  driver.series.forEach(series => {
+    series.championships?.forEach(champ => {
+      champ.history?.forEach(season => {
+        season.rounds?.forEach(round => {
+          const entry = round.drivers?.find(d => d.driver._id === driver._id)
+          if (entry?.positionActual && entry.positionActual >= 11 && entry.positionActual <= 15) {
+            count++
+          }
+        })
+      })
+    })
+  })
+
+  return count
+}
+
 // Extract driver position history from championship data for Nivo line chart.
 // Returns one line per series, showing positionActual over time from latest season.
 export const getDriverChartData = (driver: driverType | null): ChartLine[] => {

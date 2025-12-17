@@ -88,6 +88,7 @@ export const populateTeamFull = `
   name
   series {
     _id
+    name
   }
   drivers {
     _id

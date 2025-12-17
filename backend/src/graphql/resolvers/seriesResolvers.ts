@@ -1,6 +1,7 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
 import Series, { seriesInputType, seriesType } from "../../models/series"
+import Driver from "../../models/driver"
 import { seriesPopulation } from "../../shared/population"
 import { capitalise, clientS3, deleteS3 } from "../../shared/utility"
 import {
@@ -13,7 +14,12 @@ import {
   nameCanNumbersErrors,
   throwError,
 } from "./resolverErrors"
-import { updateDrivers } from "./resolverUtility"
+import {
+  updateDrivers,
+  syncSeriesDrivers,
+  getTeamsForDrivers,
+  recalculateMultipleTeamsSeries,
+} from "./resolverUtility"
 
 const seriesResolvers = {
   // prettier-ignore
@@ -43,6 +49,10 @@ const seriesResolvers = {
       // Save the new series to the DB.
       const newSeries = await series.save()
       await newSeries.populate(seriesPopulation)
+
+      // Recalculate team.series for all teams whose drivers now compete in this series.
+      const affectedTeamIds = await getTeamsForDrivers(drivers)
+      await recalculateMultipleTeamsSeries(affectedTeamIds)
 
       // Return the new series with tokens.
       return {
@@ -110,8 +120,15 @@ const seriesResolvers = {
       }
 
       if (series.drivers !== drivers) {
-        await updateDrivers(drivers) // Not passing team_id or series_id meaning we're just checking if each of the drivers in the new drivers array actually exist.
+        // Validate that all new drivers exist.
+        await updateDrivers(drivers)
+        // Get affected teams before syncing (from both old and new drivers).
+        const affectedTeamIds = await getTeamsForDrivers([...series.drivers, ...drivers])
+        // Sync series-driver relationship bidirectionally.
+        await syncSeriesDrivers(series._id, series.drivers, drivers)
         series.drivers = drivers
+        // Recalculate team.series for all affected teams.
+        await recalculateMultipleTeamsSeries(affectedTeamIds)
       }
 
       series.updated_at = moment().format()
@@ -150,14 +167,30 @@ const seriesResolvers = {
         throw throwError("drivers", series, "Series has too many drivers.")
       }
 
+      // Get all teams affected by this series deletion.
+      const affectedTeamIds = await getTeamsForDrivers(series.drivers)
+
+      // Remove this series from all drivers' series arrays.
+      for (const driverId of series.drivers) {
+        const driver = await Driver.findById(driverId)
+        if (driver) {
+          driver.series = driver.series.filter((s) => s.toString() !== series._id.toString())
+          driver.updated_at = moment().format()
+          await driver.save()
+        }
+      }
+
       // Delete the image from s3.
       const deleteErr = await deleteS3(clientS3(), clientS3(series._doc.url).params, 0)
       // If deleteS3 had any errors.
       if (deleteErr) {
         throw throwError("dropzone", series._doc.url, deleteErr)
       }
-      // Delete image from DB.
+      // Delete series from DB.
       await series.deleteOne()
+
+      // Recalculate team.series for all affected teams.
+      await recalculateMultipleTeamsSeries(affectedTeamIds)
 
       // Return deleted series with tokens.
       return {

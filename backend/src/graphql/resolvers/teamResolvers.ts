@@ -10,7 +10,7 @@ import {
   falsyValErrors,
 } from "./resolverErrors"
 import { teamPopulation } from "../../shared/population"
-import { syncTeamDrivers, updateDrivers } from "./resolverUtility"
+import { syncTeamDrivers, updateDrivers, recalculateTeamSeries } from "./resolverUtility"
 import { extractDominantColor } from "../../shared/colorExtraction"
 
 const teamResolvers = {
@@ -50,6 +50,8 @@ const teamResolvers = {
         await updateDrivers(drivers, team._id)
         team.drivers = drivers
         await team.save()
+        // Calculate initial team.series based on drivers' series.
+        await recalculateTeamSeries(team._id)
       }
 
       // Return the new team with tokens.
@@ -175,6 +177,8 @@ const teamResolvers = {
         const newDriverIds = drivers
         await syncTeamDrivers(team._id, oldDriverIds, newDriverIds)
         team.drivers = newDriverIds
+        // Recalculate team.series based on new driver composition.
+        await recalculateTeamSeries(team._id)
       }
 
       team.updated_at = moment().format()

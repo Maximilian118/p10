@@ -11,7 +11,9 @@ import {
   getDriverRunnerUps,
   getDriverBestPosition,
   getDriverAveragePosition,
-  getDriverWorstPosition
+  getDriverWorstPosition,
+  getDriverQ1DQs,
+  getDriverQ2DQs
 } from "./driverUtility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getDrivers } from "../../shared/requests/driverRequests"
@@ -136,8 +138,8 @@ const Driver: React.FC = () => {
           <p>Worst: <span>{getDriverWorstPosition(driver) ? `P${getDriverWorstPosition(driver)}` : '-'}</span></p>
           {driver.series.some(s => s.name === "FIA Formula One World Championship") && (
             <>
-              <p>Q2 DQ's: <span>-</span></p>
-              <p>Q1 DQ's: <span>-</span></p>
+              <p>Q2 DQ's: <span>{getDriverQ2DQs(driver)}</span></p>
+              <p>Q1 DQ's: <span>{getDriverQ1DQs(driver)}</span></p>
             </>
           )}
           <div className="driver-championships">

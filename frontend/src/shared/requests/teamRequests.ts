@@ -126,10 +126,16 @@ export const createTeam = async (
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr)
-  if (!iconURL && form.icon) { setLoading(false); return null }
+  if (!iconURL && form.icon) {
+    setLoading(false)
+    return null
+  }
 
   const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr)
-  if (!emblemURL && form.emblem) { setLoading(false); return null }
+  if (!emblemURL && form.emblem) {
+    setLoading(false)
+    return null
+  }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
@@ -147,7 +153,7 @@ export const createTeam = async (
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
-            drivers: form.drivers.map(d => d._id),
+            drivers: form.drivers.map((d) => d._id),
           },
           query: `
             mutation NewTeam( $created_by: ID!, $icon: String!, $emblem: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {
@@ -193,11 +199,37 @@ export const editTeam = async (
   let success = false
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
-  const iconURL = await uplaodS3("teams", form.teamName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
-  if (!iconURL && form.icon) { setLoading(false); return false }
+  const iconURL = await uplaodS3(
+    "teams",
+    form.teamName,
+    "icon",
+    form.icon,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+    0,
+  )
+  if (!iconURL && form.icon) {
+    setLoading(false)
+    return false
+  }
 
-  const emblemURL = await uplaodS3("teams", form.teamName, "emblem", form.emblem, setBackendErr, user, setUser, navigate, 0)
-  if (!emblemURL && form.emblem) { setLoading(false); return false }
+  const emblemURL = await uplaodS3(
+    "teams",
+    form.teamName,
+    "emblem",
+    form.emblem,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+    0,
+  )
+  if (!emblemURL && form.emblem) {
+    setLoading(false)
+    return false
+  }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
@@ -215,7 +247,7 @@ export const editTeam = async (
             name: capitalise(form.teamName),
             nationality: form.nationality?.label,
             inceptionDate: moment(form.inceptionDate).format(),
-            drivers: form.drivers.map(d => d._id),
+            drivers: form.drivers.map((d) => d._id),
           },
           query: `
             mutation UpdateTeam( $_id: ID!, $icon: String!, $emblem: String!, $name: String!, $nationality: String!, $inceptionDate: String!, $drivers: [ID!]) {

@@ -12,7 +12,7 @@ import {
   throwError,
 } from "./resolverErrors"
 import Series from "../../models/series"
-import { updateTeams, syncDriverTeams } from "./resolverUtility"
+import { updateTeams, syncDriverTeams, recalculateMultipleTeamsSeries } from "./resolverUtility"
 import { capitalise, clientS3, deleteS3 } from "../../shared/utility"
 
 const driverResolvers = {
@@ -77,6 +77,10 @@ const driverResolvers = {
       // Save the new driver to the DB.
       const newDriver = await driver.save()
       await newDriver.populate(driverPopulation)
+      // Recalculate team.series for all teams this driver belongs to.
+      if (teams && teams.length > 0) {
+        await recalculateMultipleTeamsSeries(teams)
+      }
       // Return the new driver with tokens.
       return {
         ...newDriver._doc,
@@ -243,6 +247,8 @@ const driverResolvers = {
       if (teamsChanged) {
         await syncDriverTeams(driver._id, oldTeamIds, newTeamIds)
         driver.teams = teams
+        // Recalculate team.series for all affected teams (both old and new).
+        await recalculateMultipleTeamsSeries([...oldTeamIds, ...newTeamIds])
       }
 
       if (driver.stats.nationality !== nationality) {
