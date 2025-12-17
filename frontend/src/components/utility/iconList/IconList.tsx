@@ -14,11 +14,12 @@ interface IconListProps<T extends IconItem> {
   onItemClick?: (item: T) => void
   counterInverted?: boolean
   centered?: boolean
+  iconBackground?: string
 }
 
 // Displays a row of icons with overflow counter.
 // Automatically calculates how many icons fit based on container width.
-function IconList<T extends IconItem>({ items, onItemClick, counterInverted, centered }: IconListProps<T>) {
+function IconList<T extends IconItem>({ items, onItemClick, counterInverted, centered, iconBackground }: IconListProps<T>) {
   const [lastIcon, setLastIcon] = useState<number>(10)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -41,6 +42,7 @@ function IconList<T extends IconItem>({ items, onItemClick, counterInverted, cen
             <ImageIcon
               key={item._id || i}
               src={item.icon}
+              style={iconBackground ? { background: iconBackground } : undefined}
               onClick={onItemClick ? (e: SyntheticEvent) => {
                 e.stopPropagation()
                 onItemClick(item)

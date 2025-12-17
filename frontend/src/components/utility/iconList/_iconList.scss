@@ -5,10 +5,6 @@
   min-height: 32px;
   @include mixins.flexbox-start;
 
-  .image-icon {
-    background: white;
-  }
-
   > *:not(:first-child) {
     margin-left: 5px;
   }

@@ -91,7 +91,7 @@ const Team: React.FC = () => {
       <img alt={team.name} src={team.emblem} className="team-emblem"/>
       <div className="team-profile-content">
         <h2>{team.name}</h2>
-        <IconList items={team.drivers} onItemClick={handleDriverClick} centered/>
+        <IconList items={team.drivers} onItemClick={handleDriverClick} centered iconBackground="#FFFFFF"/>
         <div className="team-stats">
           <p>P10 Finishes: <span>{getP10Finishes(team.drivers)}</span></p>
           <p>Best Streak: <span>{getBestStreak(team.drivers)}</span></p>
