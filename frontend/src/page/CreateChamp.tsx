@@ -15,6 +15,7 @@ import BadgePicker from "../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
 import { createChamp } from "../shared/requests/champRequests"
+import Toggle from "../components/utility/toggle/Toggle"
 
 interface createChampFormBaseType {
   champName: string
@@ -28,6 +29,7 @@ export interface createChampFormType extends createChampFormBaseType {
   pointsStructure: pointsStructureType
   rulesAndRegs: rulesAndRegsType
   champBadges: badgeType[]
+  inviteOnly: boolean
 }
 
 export interface createChampFormErrType extends createChampFormBaseType {
@@ -62,6 +64,7 @@ const CreateChamp: React.FC = () => {
     }),
     rulesAndRegs: defaultRulesAndRegs(user),
     champBadges: [],
+    inviteOnly: false,
   })
   const [ formErr, setFormErr ] = useState<createChampFormErrType>({
     series: "",
@@ -192,9 +195,16 @@ const CreateChamp: React.FC = () => {
         />
       }
       {activeStep === 4 &&
-        <ChampCompleteCard
-          backendErr={backendErr}
-        />
+        <>
+          <ChampCompleteCard
+            backendErr={backendErr}
+          />
+          <Toggle
+            text="Invite Only"
+            checked={form.inviteOnly}
+            onChange={(checked) => setForm(prev => ({ ...prev, inviteOnly: checked }))}
+          />
+        </>
       }
     </form>
     <ButtonBar

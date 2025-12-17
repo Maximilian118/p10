@@ -157,6 +157,7 @@ export const createChamp = async (
             pointsStructure: form.pointsStructure,
             rulesAndRegs: rulesAndRegsList,
             champBadges,
+            inviteOnly: form.inviteOnly,
           },
           query: `
             mutation CreateChamp(
@@ -168,7 +169,8 @@ export const createChamp = async (
               $maxCompetitors: Int,
               $pointsStructure: [PointsStructureInput!]!,
               $rulesAndRegs: [RuleInput!]!,
-              $champBadges: [ID!]
+              $champBadges: [ID!],
+              $inviteOnly: Boolean
             ) {
               createChamp(champInput: {
                 name: $name,
@@ -179,7 +181,8 @@ export const createChamp = async (
                 maxCompetitors: $maxCompetitors,
                 pointsStructure: $pointsStructure,
                 rulesAndRegs: $rulesAndRegs,
-                champBadges: $champBadges
+                champBadges: $champBadges,
+                inviteOnly: $inviteOnly
               }) {
                 _id
                 name
