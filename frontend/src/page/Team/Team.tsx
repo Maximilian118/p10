@@ -8,6 +8,7 @@ import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getContrastTextColor } from "../../shared/utils/colorUtils"
 import { getTeamById } from "../../shared/requests/teamRequests"
+import { createdByID } from "../../shared/utility"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import IconList from "../../components/utility/iconList/IconList"
@@ -82,6 +83,11 @@ const Team: React.FC = () => {
     ? getContrastTextColor(team.dominantColour)
     : 'white'
 
+  // Check if user has permission to edit this team.
+  const canEdit = user.permissions.admin
+    || user.permissions.adjudicator
+    || createdByID(team.created_by) === user._id
+
   return (
     <div
       className="content-container team-profile"
@@ -130,11 +136,13 @@ const Team: React.FC = () => {
           />
         </div>
       )}
-      <EditButton
-        onClick={handleEdit}
-        size="medium"
-        absolute
-      />
+      {canEdit &&
+        <EditButton
+          onClick={handleEdit}
+          size="medium"
+          absolute
+        />
+      }
     </div>
   )
 }

@@ -22,6 +22,7 @@ import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import EditButton from "../../components/utility/button/editButton/EditButton"
 import ImageIcon from "../../components/utility/icon/imageIcon/ImageIcon"
 import IconList from "../../components/utility/iconList/IconList"
+import { createdByID } from "../../shared/utility"
 
 // Driver profile page displaying driver stats and body image.
 const Driver: React.FC = () => {
@@ -93,6 +94,11 @@ const Driver: React.FC = () => {
   // Get chart data for driver position history.
   const chartData = getDriverChartData(driver)
   const hasPositionData = chartData.length > 0 && chartData.some(line => line.data.length > 0)
+
+  // Check if user has permission to edit this driver.
+  const canEdit = user.permissions.admin
+    || user.permissions.adjudicator
+    || createdByID(driver?.created_by) === user._id
 
   // Render loading state.
   if (loading) {
@@ -174,11 +180,13 @@ const Driver: React.FC = () => {
           />
         </div>
       )}
-      <EditButton
-        onClick={handleEdit}
-        size="medium"
-        absolute
-      />
+      {canEdit &&
+        <EditButton
+          onClick={handleEdit}
+          size="medium"
+          absolute
+        />
+      }
     </div>
   )
 }
