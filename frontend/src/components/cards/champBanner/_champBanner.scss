@@ -25,13 +25,39 @@
     p {
       width: 100%;
       color: variables.$colour-6;
-      margin-bottom: 2px;
       overflow-wrap: break-word;
       word-wrap: break-word;
     }
 
     h5 {
       font-weight: 300;
+    }
+
+    .champ-banner-stats {
+      width: 100%;
+      display: flex;
+      justify-content: start;
+      gap: 6px;
+      margin-top: 15px;
+
+      @media (min-width: 400px) {
+        gap: 15px;
+      }
+
+      .champ-stat {
+        @include mixins.flexbox;
+        gap: 4px;
+        color: variables.$colour-6;
+
+        svg {
+          font-size: 18px;
+        }
+
+        span {
+          font-size: 14px;
+          font-weight: 500;
+        }
+      }
     }
   }
 }

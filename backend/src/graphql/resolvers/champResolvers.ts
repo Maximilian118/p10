@@ -8,6 +8,7 @@ import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 import { clientS3, deleteS3 } from "../../shared/utility"
+import { champPopulation } from "../../shared/population"
 
 // Input types for the createChamp mutation.
 interface PointsStructureInput {
@@ -63,43 +64,6 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
   winner: null,
   runnerUp: null,
 })
-
-// Population options for championship queries.
-const champPopulation = [
-  { path: "rounds.competitors.competitor", select: "_id name icon profile_picture permissions created_at" },
-  { path: "rounds.competitors.bet" },
-  { path: "rounds.drivers.driver", select: "_id name icon driverID" },
-  { path: "rounds.teams.team", select: "_id name icon emblem" },
-  { path: "rounds.teams.drivers", select: "_id name icon driverID" },
-  { path: "rounds.winner", select: "_id name icon" },
-  { path: "rounds.runnerUp", select: "_id name icon" },
-  { path: "adjudicator.current", select: "_id name icon profile_picture permissions created_at" },
-  { path: "adjudicator.history.adjudicator", select: "_id name icon" },
-  { path: "series", populate: { path: "drivers" } },
-  { path: "champBadges" },
-  { path: "waitingList", select: "_id name icon" },
-  { path: "created_by", select: "_id name icon" },
-  // Rules and regulations population.
-  { path: "rulesAndRegs.created_by", select: "_id name icon" },
-  { path: "rulesAndRegs.history.updatedBy", select: "_id name icon" },
-  { path: "rulesAndRegs.pendingChanges.competitor", select: "_id name icon" },
-  { path: "rulesAndRegs.pendingChanges.votes.competitor", select: "_id name icon" },
-  { path: "rulesAndRegs.subsections.created_by", select: "_id name icon" },
-  { path: "rulesAndRegs.subsections.history.updatedBy", select: "_id name icon" },
-  { path: "rulesAndRegs.subsections.pendingChanges.competitor", select: "_id name icon" },
-  { path: "rulesAndRegs.subsections.pendingChanges.votes.competitor", select: "_id name icon" },
-  // History population.
-  { path: "history.adjudicator.current", select: "_id name icon" },
-  { path: "history.adjudicator.history.adjudicator", select: "_id name icon" },
-  { path: "history.drivers" },
-  { path: "history.rounds.competitors.competitor", select: "_id name icon" },
-  { path: "history.rounds.competitors.bet" },
-  { path: "history.rounds.drivers.driver", select: "_id name icon driverID" },
-  { path: "history.rounds.teams.team", select: "_id name icon emblem" },
-  { path: "history.rounds.teams.drivers", select: "_id name icon driverID" },
-  { path: "history.rounds.winner", select: "_id name icon" },
-  { path: "history.rounds.runnerUp", select: "_id name icon" },
-]
 
 const champResolvers = {
   // Fetches a championship by ID with all populated references.
@@ -494,22 +458,13 @@ const champResolvers = {
       await Protest.deleteMany({ championship: champId })
 
       // Remove championship from Series.championships array.
-      await Series.updateOne(
-        { _id: champ.series },
-        { $pull: { championships: champId } },
-      )
+      await Series.updateOne({ _id: champ.series }, { $pull: { championships: champId } })
 
       // Remove championship from all Users.championships arrays.
-      await User.updateMany(
-        { championships: champId },
-        { $pull: { championships: champId } },
-      )
+      await User.updateMany({ championships: champId }, { $pull: { championships: champId } })
 
       // Update all Badges: set championship to null (keep badge for users who earned it).
-      await Badge.updateMany(
-        { championship: champId },
-        { $set: { championship: null } },
-      )
+      await Badge.updateMany({ championship: champId }, { $set: { championship: null } })
 
       // Delete the championship document.
       await Champ.findByIdAndDelete(champId)

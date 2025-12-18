@@ -101,15 +101,40 @@ export const createChamp = async (
   setLoading(true)
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
-  const iconURL = await uplaodS3("championships", form.champName, "icon", form.icon, setBackendErr, user, setUser, navigate)
-  if (!iconURL && form.icon) { setLoading(false); return null }
+  const iconURL = await uplaodS3(
+    "championships",
+    form.champName,
+    "icon",
+    form.icon,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+  )
+  if (!iconURL && form.icon) {
+    setLoading(false)
+    return null
+  }
 
-  const profilePictureURL = await uplaodS3("championships", form.champName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate)
-  if (!profilePictureURL && form.profile_picture) { setLoading(false); return null }
+  const profilePictureURL = await uplaodS3(
+    "championships",
+    form.champName,
+    "profile-picture",
+    form.profile_picture,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+  )
+  if (!profilePictureURL && form.profile_picture) {
+    setLoading(false)
+    return null
+  }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
-  if (form.profile_picture instanceof File && profilePictureURL) setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
+  if (form.profile_picture instanceof File && profilePictureURL)
+    setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
 
   // Build badge input - full data for custom badges, just _id for defaults.
   const champBadges = form.champBadges.map((badge) => {
@@ -221,7 +246,7 @@ export const createChamp = async (
 }
 
 // Fetches a single championship by ID with full populated data.
-export const getChamp = async (
+export const getChampById = async (
   _id: string,
   setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
@@ -281,15 +306,42 @@ export const updateChampPP = async <T extends formType>(
   setLoading(true)
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
-  const iconURL = await uplaodS3("championships", form.champName || "championship", "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
-  if (!iconURL && form.icon) { setLoading(false); return }
+  const iconURL = await uplaodS3(
+    "championships",
+    form.champName || "championship",
+    "icon",
+    form.icon,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+    2,
+  )
+  if (!iconURL && form.icon) {
+    setLoading(false)
+    return
+  }
 
-  const ppURL = await uplaodS3("championships", form.champName || "championship", "profile_picture", form.profile_picture ?? null, setBackendErr, user, setUser, navigate, 2)
-  if (!ppURL && form.profile_picture) { setLoading(false); return }
+  const ppURL = await uplaodS3(
+    "championships",
+    form.champName || "championship",
+    "profile_picture",
+    form.profile_picture ?? null,
+    setBackendErr,
+    user,
+    setUser,
+    navigate,
+    2,
+  )
+  if (!ppURL && form.profile_picture) {
+    setLoading(false)
+    return
+  }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
-  if (form.profile_picture instanceof File && ppURL) setForm((prev) => ({ ...prev, profile_picture: ppURL }))
+  if (form.profile_picture instanceof File && ppURL)
+    setForm((prev) => ({ ...prev, profile_picture: ppURL }))
 
   // Only proceed if we have both URLs (either newly uploaded or existing).
   if (!iconURL || !ppURL) {

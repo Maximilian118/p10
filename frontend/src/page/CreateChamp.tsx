@@ -112,6 +112,11 @@ const CreateChamp: React.FC = () => {
       return
     }
 
+    if (!form.icon || !form.profile_picture) {
+      setFormErr(prev => ({ ...prev, dropzone: "Championship icon is required." }))
+      return
+    }
+
     if (!form.series) {
       setFormErr(prev => ({ ...prev, series: "A series is required." }))
       return

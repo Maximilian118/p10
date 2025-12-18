@@ -330,6 +330,12 @@ export const populateChamp = `
       profile_picture
       name
       driverID
+      teams {
+        _id
+        name
+        icon
+        emblem
+      }
     }
   }
   pointsStructure {

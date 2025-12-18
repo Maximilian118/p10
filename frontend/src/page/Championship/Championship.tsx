@@ -5,7 +5,6 @@ import AppContext from "../../context"
 import { ChampType, formErrType, formType } from "../../shared/types"
 import { getCompetitors } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { getChamp } from "../../shared/requests/champRequests"
 import ChampBanner from "../../components/cards/champBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
@@ -13,6 +12,7 @@ import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView } from "./Views/ChampSettings/ChampSettings"
+import { getChampById } from "../../shared/requests/champRequests"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -37,7 +37,7 @@ const Championship: React.FC = () => {
   // Fetch championship data when ID changes.
   useEffect(() => {
     if (id) {
-      getChamp(id, setChamp, user, setUser, navigate, setLoading, setBackendErr)
+      getChampById(id, setChamp, user, setUser, navigate, setLoading, setBackendErr)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
