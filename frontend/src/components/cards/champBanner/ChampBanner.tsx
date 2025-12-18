@@ -26,12 +26,14 @@ interface champBannerEditableType<T, U> {
   setFormErr: React.Dispatch<React.SetStateAction<U>>
   backendErr: graphQLErrorType
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+  onBannerClick?: () => void
   readOnly?: false
 }
 
 // Props for read-only championship banner (when user is not adjudicator).
 interface champBannerReadOnlyType {
   champ: ChampType
+  onBannerClick?: () => void
   readOnly: true
 }
 
@@ -67,13 +69,13 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ } = props
+    const { champ, onBannerClick } = props
     return (
       <div className="champ-banner">
-        <div className="champ-banner-icon-container">
+        <div className="champ-banner-icon-container" onClick={onBannerClick}>
           <ImageIcon src={champ.icon} size="contained" />
         </div>
-        <div className="champ-banner-info">
+        <div className="champ-banner-info" onClick={onBannerClick}>
           <p>{champ.name}</p>
           <ChampBannerStats champ={champ} />
         </div>
@@ -82,7 +84,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick } = props
 
   // Handles profile picture upload for championship.
   const uploadPPHandler = async () => {
@@ -127,7 +129,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         thumbImg={champ.icon}
         style={{ width: 100, margin: 20 }}
       />
-      <div className="champ-banner-info">
+      <div className="champ-banner-info" onClick={onBannerClick}>
         {filesInForm(form)}
       </div>
     </div>

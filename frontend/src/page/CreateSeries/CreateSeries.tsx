@@ -143,6 +143,11 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
       dropzone: "",
     }
 
+    // Series image is required when creating.
+    if (!form.icon && !isEditing) {
+      errors.dropzone = "Please enter a series image."
+    }
+
     if (!form.seriesName) {
       errors.seriesName = "Please enter a series name."
     }
@@ -153,7 +158,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
 
     setFormErr(errors)
     return !Object.values(errors).some(error => error !== "")
-  }, [form.seriesName, form.drivers.length])
+  }, [form.seriesName, form.drivers.length, form.icon, isEditing])
 
   // Add a driver to the form.
   const addDriverHandler = (driver: driverType) => {

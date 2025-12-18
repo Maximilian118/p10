@@ -89,9 +89,10 @@ const Championship: React.FC = () => {
             setFormErr={setFormErr}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
+            onBannerClick={() => setView("competitors")}
           />
         ) : (
-          <ChampBanner champ={champ} readOnly />
+          <ChampBanner champ={champ} readOnly onBannerClick={() => setView("competitors")} />
         )}
 
         {view === "competitors" && (
