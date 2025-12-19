@@ -1,12 +1,12 @@
 @use '../../../../scss/mixins';
 @use '../../../../scss/variables';
 
-// Championship settings component styles
+// Championship settings component styles.
 .champ-settings {
   width: 100%;
   @include mixins.flexbox-column;
   gap: 24px;
-  padding-bottom: 80px; // Space for toolbar
+  padding: 20px 7.5% 80px;
 
   &__header {
     @include mixins.flexbox-column;
@@ -20,18 +20,9 @@
     }
   }
 
-  &__back-btn {
-    color: variables.$colour-4;
-    text-transform: none;
-    font-size: 0.9rem;
-
-    &:hover {
-      background-color: rgba(0, 0, 0, 0.05);
-    }
-  }
-
   &__content {
     width: 100%;
+    flex-grow: 1;
     @include mixins.flexbox-column;
     gap: 16px;
   }
@@ -41,69 +32,13 @@
     font-style: italic;
   }
 
-  &__danger-zone {
-    width: 100%;
-    margin-top: 32px;
-    padding: 20px;
-    border: 1px solid variables.$error;
-    border-radius: 8px;
-    @include mixins.flexbox-column;
-    align-items: flex-start;
-    gap: 12px;
-
-    h3 {
-      margin: 0;
-      color: variables.$error;
-      font-size: 1.1rem;
-    }
-
-    p {
-      margin: 0;
-      color: variables.$colour-4;
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
-  }
-
-  &__confirm-label {
-    margin-top: 8px;
-
-    strong {
-      color: variables.$colour-9;
-      font-family: monospace;
-    }
-  }
-
-  &__input {
-    width: 100%;
-
-    .MuiOutlinedInput-root {
-      background-color: white;
-
-      fieldset {
-        border-color: variables.$colour-2;
-      }
-
-      &:hover fieldset {
-        border-color: variables.$colour-4;
-      }
-
-      &.Mui-focused fieldset {
-        border-color: variables.$error;
-      }
-
-      input {
-        color: variables.$colour-9;
-
-        &::placeholder {
-          color: variables.$colour-4;
-          opacity: 0.7;
-        }
-      }
-    }
-  }
-
   &__delete-btn {
-    margin-top: 8px;
+    width: 60%;
+    margin-top: auto;
+    background-color: variables.$f1-red !important;
+
+    &:hover {
+      background-color: variables.$f1-red-hover !important;
+    }
   }
 }

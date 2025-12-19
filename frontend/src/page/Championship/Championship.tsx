@@ -12,6 +12,7 @@ import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView } from "./Views/ChampSettings/ChampSettings"
+import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
 import { getChampById } from "../../shared/requests/champRequests"
 
 const Championship: React.FC = () => {
@@ -135,9 +136,16 @@ const Championship: React.FC = () => {
           <ChampSettings
             champ={champ}
             user={user}
+            setView={navigateToView}
+          />
+        )}
+
+        {view === "deleteChamp" && (
+          <DeleteChamp
+            champ={champ}
+            user={user}
             setUser={setUser}
             navigate={navigate}
-            setView={navigateToView}
             setBackendErr={setBackendErr}
           />
         )}

@@ -1,0 +1,107 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+// Delete championship view styles.
+.delete-champ {
+  width: 100%;
+  flex-grow: 1;
+  background-color: variables.$f1-red;
+  color: white;
+  @include mixins.flexbox-start-column;
+  padding: 20px 7.5% 80px;
+  box-sizing: border-box;
+  gap: 24px;
+
+  &__warning {
+    @include mixins.flexbox-column;
+    gap: 12px;
+
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+  }
+
+  &__icon {
+    font-size: 48px !important;
+  }
+
+  &__content {
+    @include mixins.flexbox-column;
+    gap: 12px;
+
+    p {
+      margin: 0;
+      text-align: center;
+      line-height: 1.5;
+
+      strong {
+        font-weight: 700;
+      }
+    }
+  }
+
+  &__confirm {
+    width: 100%;
+    margin-top: 60px;
+    @include mixins.flexbox-column;
+    gap: 12px;
+
+    p {
+      margin: 0;
+
+      strong {
+        font-family: monospace;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    }
+  }
+
+  &__input {
+    width: 100%;
+
+    .MuiOutlinedInput-root {
+      background-color: white;
+
+      fieldset {
+        border-color: white;
+      }
+
+      &:hover fieldset {
+        border-color: white;
+      }
+
+      &.Mui-focused fieldset {
+        border-color: white;
+        border-width: 2px;
+      }
+
+      input {
+        color: variables.$colour-9;
+
+        &::placeholder {
+          color: variables.$colour-4;
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+
+  &__btn {
+    width: 100%;
+    background-color: white !important;
+    color: variables.$f1-red !important;
+    font-weight: 600 !important;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    &.Mui-disabled {
+      background-color: rgba(255, 255, 255, 0.5) !important;
+      color: rgba(variables.$f1-red, 0.5) !important;
+    }
+  }
+}
