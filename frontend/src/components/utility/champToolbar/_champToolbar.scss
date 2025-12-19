@@ -19,6 +19,15 @@
     margin-left: 10px;
   }
 
+  .champ-toolbar-back {
+    background-color: variables.$colour-4 !important;
+    margin-right: auto;
+
+    &:hover {
+      background-color: darken(variables.$colour-4, 10%) !important;
+    }
+  }
+
   .champ-toolbar-join {
     background-color: variables.$mui-success !important;
 

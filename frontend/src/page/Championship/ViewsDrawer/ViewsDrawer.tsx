@@ -13,7 +13,8 @@ interface ViewsDrawerProps {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   view: ChampView
-  setView: React.Dispatch<React.SetStateAction<ChampView>>
+  setView: (view: ChampView) => void
+  onBackToDefault: () => void
   canAccessSettings: boolean
 }
 
@@ -32,6 +33,7 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   setOpen,
   view,
   setView,
+  onBackToDefault,
   canAccessSettings,
 }) => {
   // Close drawer when clicking outside.
@@ -84,7 +86,10 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
     {
       icon: <ArrowBackIcon />,
       label: "Back",
-      onClick: handleClose,
+      onClick: () => {
+        setOpen(false)
+        onBackToDefault()
+      },
     },
   ]
 

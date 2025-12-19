@@ -2,7 +2,7 @@ import React from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
 import { Button } from "@mui/material"
-import { FilterList, GroupAdd, Lock, Block } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack } from "@mui/icons-material"
 import { ChampType } from "../../../shared/types"
 import { getCompetitors } from "../../../shared/utility"
 import { userType } from "../../../shared/localStorage"
@@ -17,13 +17,14 @@ interface champToolbarType {
   setUser: React.Dispatch<React.SetStateAction<userType>>
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
   view: ChampView
+  onBack?: () => void
   onJoinSuccess?: () => void
   onDrawerClick?: () => void
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onJoinSuccess, onDrawerClick, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, style }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -122,6 +123,22 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
 
   return (
     <div className="champ-toolbar" style={style}>
+      {view !== "competitors" && (
+        <Button
+          variant="contained"
+          size="small"
+          className="champ-toolbar-back"
+          onClick={e => {
+            e.stopPropagation()
+            if (onBack) {
+              onBack()
+            }
+          }}
+          startIcon={<ArrowBack />}
+        >
+          Back
+        </Button>
+      )}
       {view === "competitors" && renderJoinButton()}
       <Button
         variant="contained"

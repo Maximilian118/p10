@@ -31,8 +31,32 @@ const Championship: React.FC = () => {
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
+  const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
 
   const navigate = useNavigate()
+
+  // Navigate to a new view while tracking history.
+  const navigateToView = (newView: ChampView) => {
+    if (newView !== view) {
+      setViewHistory(prev => [...prev, view])
+      setView(newView)
+    }
+  }
+
+  // Navigate back to the previous view.
+  const navigateBack = () => {
+    if (viewHistory.length > 0) {
+      const previousView = viewHistory[viewHistory.length - 1]
+      setViewHistory(prev => prev.slice(0, -1))
+      setView(previousView)
+    }
+  }
+
+  // Navigate directly to the default view and clear history.
+  const navigateToDefault = () => {
+    setView("competitors")
+    setViewHistory([])
+  }
 
   // Fetch championship data when ID changes.
   useEffect(() => {
@@ -89,10 +113,10 @@ const Championship: React.FC = () => {
             setFormErr={setFormErr}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
-            onBannerClick={() => setView("competitors")}
+            onBannerClick={() => navigateToView("competitors")}
           />
         ) : (
-          <ChampBanner champ={champ} readOnly onBannerClick={() => setView("competitors")} />
+          <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} />
         )}
 
         {view === "competitors" && (
@@ -113,7 +137,7 @@ const Championship: React.FC = () => {
             user={user}
             setUser={setUser}
             navigate={navigate}
-            setView={setView}
+            setView={navigateToView}
             setBackendErr={setBackendErr}
           />
         )}
@@ -125,6 +149,7 @@ const Championship: React.FC = () => {
           setUser={setUser}
           setBackendErr={setBackendErr}
           view={view}
+          onBack={navigateBack}
           onJoinSuccess={() => setJustJoined(true)}
           onDrawerClick={() => setDrawerOpen(true)}
         />
@@ -133,7 +158,8 @@ const Championship: React.FC = () => {
         open={drawerOpen}
         setOpen={setDrawerOpen}
         view={view}
-        setView={setView}
+        setView={navigateToView}
+        onBackToDefault={navigateToDefault}
         canAccessSettings={canAccessSettings}
       />
     </>
