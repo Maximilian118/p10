@@ -124,6 +124,7 @@ const Championship: React.FC = () => {
           user={user}
           setUser={setUser}
           setBackendErr={setBackendErr}
+          view={view}
           onJoinSuccess={() => setJustJoined(true)}
           onDrawerClick={() => setDrawerOpen(true)}
         />

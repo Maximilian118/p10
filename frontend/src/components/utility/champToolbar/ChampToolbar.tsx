@@ -8,6 +8,7 @@ import { getCompetitors } from "../../../shared/utility"
 import { userType } from "../../../shared/localStorage"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../shared/requests/champRequests"
+import { ChampView } from "../../../page/Championship/Views/ChampSettings/ChampSettings"
 
 interface champToolbarType {
   champ: ChampType
@@ -15,13 +16,14 @@ interface champToolbarType {
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+  view: ChampView
   onJoinSuccess?: () => void
   onDrawerClick?: () => void
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, onJoinSuccess, onDrawerClick, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onJoinSuccess, onDrawerClick, style }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -120,7 +122,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
 
   return (
     <div className="champ-toolbar" style={style}>
-      {renderJoinButton()}
+      {view === "competitors" && renderJoinButton()}
       <Button
         variant="contained"
         size="small"
