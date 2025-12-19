@@ -394,6 +394,56 @@ const champResolvers = {
     }
   },
 
+  // Updates championship settings (adjudicator only).
+  updateChampSettings: async (
+    { _id, inviteOnly }: { _id: string; inviteOnly?: boolean },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("updateChampSettings", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("updateChampSettings", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is the adjudicator.
+      if (champ.adjudicator.current.toString() !== req._id) {
+        return throwError(
+          "updateChampSettings",
+          req._id,
+          "Only the adjudicator can update championship settings!",
+          403,
+        )
+      }
+
+      // Update inviteOnly if provided.
+      if (typeof inviteOnly === "boolean") {
+        champ.settings.inviteOnly = inviteOnly
+      }
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("updateChampSettings", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Deletes a championship and cleans up all related data.
   deleteChamp: async (
     { _id, confirmName }: { _id: string; confirmName: string },

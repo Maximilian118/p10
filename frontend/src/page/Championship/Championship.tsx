@@ -135,8 +135,12 @@ const Championship: React.FC = () => {
         {view === "settings" && (
           <ChampSettings
             champ={champ}
+            setChamp={setChamp}
             user={user}
+            setUser={setUser}
+            navigate={navigate}
             setView={navigateToView}
+            setBackendErr={setBackendErr}
           />
         )}
 

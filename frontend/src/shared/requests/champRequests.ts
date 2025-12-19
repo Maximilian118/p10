@@ -441,6 +441,53 @@ export const joinChamp = async (
   return success
 }
 
+// Updates championship settings (adjudicator only).
+export const updateChampSettings = async (
+  _id: string,
+  inviteOnly: boolean,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id, inviteOnly },
+          query: `
+            mutation UpdateChampSettings($_id: ID!, $inviteOnly: Boolean) {
+              updateChampSettings(_id: $_id, inviteOnly: $inviteOnly) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateChampSettings", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("updateChampSettings", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateChampSettings", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateChampSettings", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}
+
 // Deletes a championship (requires name confirmation).
 export const deleteChamp = async (
   _id: string,

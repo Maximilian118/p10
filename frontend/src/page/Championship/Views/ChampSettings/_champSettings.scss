@@ -6,7 +6,7 @@
   width: 100%;
   @include mixins.flexbox-column;
   gap: 24px;
-  padding: 20px 7.5% 80px;
+  padding: 0px 7.5% 80px;
 
   &__header {
     @include mixins.flexbox-column;
