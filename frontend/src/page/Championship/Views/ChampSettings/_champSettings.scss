@@ -1,40 +1,39 @@
 @use '../../../../scss/mixins';
 @use '../../../../scss/variables';
 
-// Championship settings component styles.
-.champ-settings {
+// Championship settings card styles.
+.champ-settings-card {
   width: 100%;
-  @include mixins.flexbox-column;
-  padding-bottom: 80px;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  flex-grow: 1;
+  background: white;
+  padding: 20px 7.5% 80px;
   box-sizing: border-box;
 
-  &__header {
-    @include mixins.flexbox-column;
-    align-items: flex-start;
-    gap: 8px;
+  .mui-form-pagination {
+    background: none !important;
+    width: 100% !important;
+    height: 32px !important;
+    @include mixins.flexbox;
+    position: relative;
+    z-index: 1 !important;
 
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      color: variables.$colour-9;
+    ul {
+      width: 100%;
+      @include mixins.flexbox-space-between;
+      flex-wrap: nowrap;
+    }
+
+    li {
+      width: 11.1%;
+      @include mixins.flexbox;
     }
   }
 
-  &__content {
-    width: 100%;
-    flex-grow: 1;
-    @include mixins.flexbox-column;
-    gap: 16px;
-  }
-
-  &__placeholder {
-    color: variables.$colour-4;
-    font-style: italic;
-  }
-
   &__delete-btn {
-    width: 60%;
-    margin-top: 20px !important;
+    width: 100%;
+    margin-top: 40px;
     background-color: variables.$f1-red !important;
 
     &:hover {

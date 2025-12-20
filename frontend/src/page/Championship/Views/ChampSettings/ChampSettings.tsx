@@ -1,93 +1,124 @@
 import React from "react"
-import { NavigateFunction } from "react-router-dom"
 import "./_champSettings.scss"
-import { ChampType } from "../../../../shared/types"
+import { ChampType, pointsStructureType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
-import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
-import { updateChampSettings } from "../../../../shared/requests/champRequests"
-import { Button } from "@mui/material"
+import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
-import Toggle from "../../../../components/utility/toggle/Toggle"
-import UpdateChampName from "./settingsComponents/UpdateChampName"
+import MUITextField from "../../../../components/utility/muiTextField/MUITextField"
+import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
+import PointsPicker from "../../../../components/utility/pointsPicker/PointsPicker"
+import { inputLabel, updateSettingsForm } from "../../../../shared/formValidation"
+import { identifyPresetFromStructure } from "../../../../components/utility/pointsPicker/ppPresets"
 
 // View type for the Championship page.
 export type ChampView = "competitors" | "settings" | "deleteChamp"
 
-interface ChampSettingsProps {
-  champ: ChampType
-  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>
-  user: userType
-  setUser: React.Dispatch<React.SetStateAction<userType>>
-  navigate: NavigateFunction
-  setView: (view: ChampView) => void
-  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+// Form type for championship settings.
+export interface ChampSettingsFormType {
+  champName: string
+  rounds: number
+  pointsStructure: pointsStructureType
 }
 
-// Championship settings component - displays settings and delete option.
+// Form error type for championship settings.
+export interface ChampSettingsFormErrType {
+  champName: string
+  rounds: string
+  pointsStructure: string
+  [key: string]: string
+}
+
+interface ChampSettingsProps {
+  champ: ChampType
+  user: userType
+  setView: (view: ChampView) => void
+  settingsForm: ChampSettingsFormType
+  setSettingsForm: React.Dispatch<React.SetStateAction<ChampSettingsFormType>>
+  settingsFormErr: ChampSettingsFormErrType
+  setSettingsFormErr: React.Dispatch<React.SetStateAction<ChampSettingsFormErrType>>
+}
+
+// Championship settings component - card-based layout.
 const ChampSettings: React.FC<ChampSettingsProps> = ({
   champ,
-  setChamp,
   user,
-  setUser,
-  navigate,
   setView,
-  setBackendErr,
+  settingsForm,
+  setSettingsForm,
+  settingsFormErr,
+  setSettingsFormErr,
 }) => {
   // Check if user has permission to delete (admin or adjudicator).
   const isAdmin = user.permissions?.admin === true
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
   const canDelete = isAdmin || isAdjudicator
 
-  // Handle invite only toggle change with optimistic update.
-  const handleInviteOnlyChange = async (checked: boolean) => {
-    const previousValue = champ.settings.inviteOnly
+  // Calculate round constraints for mid-season editing.
+  const nonWaitingRounds = champ.rounds.filter(r => r.status !== "waiting").length
+  const minRounds = nonWaitingRounds + 1
 
-    // Optimistically update the UI.
-    setChamp(prev => prev ? {
-      ...prev,
-      settings: { ...prev.settings, inviteOnly: checked }
-    } : null)
+  // Check if all rounds are "waiting" (season hasn't started).
+  const allRoundsWaiting = champ.rounds.every(r => r.status === "waiting")
 
-    // Send request to backend.
-    const success = await updateChampSettings(
-      champ._id,
-      { inviteOnly: checked },
-      setChamp,
-      user,
-      setUser,
-      navigate,
-      setBackendErr,
-    )
+  // Identify current preset from champ's points structure.
+  const currentPreset = identifyPresetFromStructure(champ.pointsStructure)
 
-    // Revert on failure.
-    if (!success) {
-      setChamp(prev => prev ? {
-        ...prev,
-        settings: { ...prev.settings, inviteOnly: previousValue }
-      } : null)
-    }
+  // Handle round pagination change with validation.
+  const handleRoundsChange = (_e: React.ChangeEvent<unknown>, value: number) => {
+    if (value < minRounds) return
+    if (value > 30) return
+    setSettingsForm(prev => ({ ...prev, rounds: value }))
   }
 
   return (
-    <div className="champ-settings">
-      <UpdateChampName
-        champ={champ}
-        setChamp={setChamp}
-        user={user}
-        setUser={setUser}
-        navigate={navigate}
-        setBackendErr={setBackendErr}
+    <div className="champ-settings-card">
+      <MUITextField
+        inputProps={{ maxLength: 50 }}
+        className="mui-form-el"
+        name="champName"
+        label={inputLabel("champName", settingsFormErr, initGraphQLError)}
+        value={settingsForm.champName}
+        onBlur={e => updateSettingsForm(e, settingsForm, setSettingsForm, setSettingsFormErr)}
+        error={!!settingsFormErr.champName}
       />
-      <Toggle
-        text="Invite Only"
-        checked={champ.settings.inviteOnly}
-        onChange={handleInviteOnlyChange}
+
+      <FormElContainer
+        name="rounds"
+        content={
+          <Pagination
+            count={30}
+            page={settingsForm.rounds}
+            className="mui-form-pagination"
+            color="primary"
+            onChange={handleRoundsChange}
+            siblingCount={1}
+            boundaryCount={1}
+          />
+        }
+        formErr={settingsFormErr}
+        backendErr={initGraphQLError}
+      />
+
+      <FormElContainer
+        name="pointsStructure"
+        content={
+          <PointsPicker
+            setForm={setSettingsForm}
+            formErr={settingsFormErr}
+            backendErr={initGraphQLError}
+            disabled={!allRoundsWaiting}
+            initialPreset={currentPreset}
+          />
+        }
+        formErr={settingsFormErr}
+        backendErr={initGraphQLError}
       />
 
       {canDelete && (
         <Button
           variant="contained"
-          className="champ-settings__delete-btn"
+          className="champ-settings-card__delete-btn"
           onClick={() => setView("deleteChamp")}
           startIcon={<DeleteForeverIcon />}
         >

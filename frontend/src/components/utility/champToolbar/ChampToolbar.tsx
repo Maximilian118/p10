@@ -2,13 +2,13 @@ import React from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
 import { Button } from "@mui/material"
-import { FilterList, GroupAdd, Lock, Block, ArrowBack } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save } from "@mui/icons-material"
 import { ChampType } from "../../../shared/types"
 import { getCompetitors } from "../../../shared/utility"
 import { userType } from "../../../shared/localStorage"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../shared/requests/champRequests"
-import { ChampView } from "../../../page/Championship/Views/ChampSettings/ChampSettings"
+import { ChampView, ChampSettingsFormErrType } from "../../../page/Championship/Views/ChampSettings/ChampSettings"
 
 interface champToolbarType {
   champ: ChampType
@@ -20,11 +20,14 @@ interface champToolbarType {
   onBack?: () => void
   onJoinSuccess?: () => void
   onDrawerClick?: () => void
+  settingsFormErr?: ChampSettingsFormErrType
+  onSettingsSubmit?: () => void
+  settingsChanged?: boolean
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, settingsFormErr, onSettingsSubmit, settingsChanged, style }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -140,6 +143,21 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
         </Button>
       )}
       {view === "competitors" && renderJoinButton()}
+      {view === "settings" && onSettingsSubmit && (
+        <Button
+          variant="contained"
+          size="small"
+          className="champ-toolbar-save"
+          onClick={e => {
+            e.stopPropagation()
+            onSettingsSubmit()
+          }}
+          disabled={!settingsChanged || Object.values(settingsFormErr || {}).some(err => !!err)}
+          startIcon={<Save />}
+        >
+          Save Changes
+        </Button>
+      )}
       <Button
         variant="contained"
         size="small"

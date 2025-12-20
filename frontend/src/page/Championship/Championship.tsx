@@ -11,9 +11,10 @@ import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
 import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
-import ChampSettings, { ChampView } from "./Views/ChampSettings/ChampSettings"
+import ChampSettings, { ChampView, ChampSettingsFormType, ChampSettingsFormErrType } from "./Views/ChampSettings/ChampSettings"
 import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
-import { getChampById } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
+import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +29,19 @@ const Championship: React.FC = () => {
   })
   const [ formErr, setFormErr ] = useState<formErrType>({
     dropzone: "",
+  })
+  const [ settingsForm, setSettingsForm ] = useState<ChampSettingsFormType>({
+    champName: "",
+    rounds: 1,
+    pointsStructure: presetArrays(1).map(item => ({
+      position: item.result,
+      points: item.value,
+    })),
+  })
+  const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
+    champName: "",
+    rounds: "",
+    pointsStructure: "",
   })
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
@@ -66,6 +80,42 @@ const Championship: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Initialize settings form when champ data is loaded.
+  useEffect(() => {
+    if (champ) {
+      setSettingsForm({
+        champName: champ.name,
+        rounds: champ.rounds.length,
+        pointsStructure: champ.pointsStructure,
+      })
+    }
+  }, [champ])
+
+  // Check if settings form has changes compared to champ data.
+  const settingsChanged = champ
+    ? settingsForm.champName !== champ.name ||
+      settingsForm.rounds !== champ.rounds.length ||
+      JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure)
+    : false
+
+  // Handle settings form submission.
+  const handleSettingsSubmit = async () => {
+    if (!champ) return
+
+    const updates: { name?: string } = {}
+
+    // Only include changed fields.
+    if (settingsForm.champName !== champ.name) {
+      updates.name = settingsForm.champName
+    }
+
+    // Handle rounds changes and pointsStructure changes would need backend support.
+
+    if (Object.keys(updates).length > 0) {
+      await updateChampSettings(champ._id, updates, setChamp, user, setUser, navigate, setBackendErr)
+    }
+  }
 
   // Render loading state.
   if (loading) {
@@ -135,12 +185,12 @@ const Championship: React.FC = () => {
         {view === "settings" && (
           <ChampSettings
             champ={champ}
-            setChamp={setChamp}
             user={user}
-            setUser={setUser}
-            navigate={navigate}
             setView={navigateToView}
-            setBackendErr={setBackendErr}
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            settingsFormErr={settingsFormErr}
+            setSettingsFormErr={setSettingsFormErr}
           />
         )}
 
@@ -164,6 +214,9 @@ const Championship: React.FC = () => {
           onBack={navigateBack}
           onJoinSuccess={() => setJustJoined(true)}
           onDrawerClick={() => setDrawerOpen(true)}
+          settingsFormErr={settingsFormErr}
+          onSettingsSubmit={handleSettingsSubmit}
+          settingsChanged={settingsChanged}
         />
       </div>
       <ViewsDrawer

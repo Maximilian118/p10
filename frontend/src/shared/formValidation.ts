@@ -271,3 +271,42 @@ export const inputLabel = (
 
   return `${label}${errorMessage && `: ${errorMessage}`}`
 }
+
+// Update settings form on blur - validates and updates form state.
+export const updateSettingsForm = <T extends formStateType, U>(
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  form: T,
+  setForm: React.Dispatch<React.SetStateAction<T>>,
+  setFormErr: React.Dispatch<React.SetStateAction<U>>,
+): void => {
+  const value = e.target.value
+  const name = e.target.name
+
+  // Update form state.
+  setForm((prevForm): T => ({
+    ...prevForm,
+    [name]: value,
+  }))
+
+  // Validate based on field name.
+  const validateChampName = () => {
+    if (value.length > 50) {
+      handleInput<U>(name, setFormErr, "Maximum length 50 characters.")
+      return
+    }
+
+    if (/^[a-zA-Z0-9\s]{1,50}$/.test(value) || value.trim() === "") {
+      handleInput<U>(name, setFormErr)
+    } else {
+      handleInput<U>(name, setFormErr, "No special characters.")
+    }
+  }
+
+  switch (name) {
+    case "champName":
+      validateChampName()
+      break
+    default:
+      handleInput<U>(name, setFormErr)
+  }
+}

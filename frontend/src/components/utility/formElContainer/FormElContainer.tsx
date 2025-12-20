@@ -2,13 +2,12 @@ import React from "react"
 import './_formElContainer.scss'
 import { TextField } from "@mui/material"
 import { inputLabel } from "../../../shared/formValidation"
-import { formErrType } from "../../../shared/types"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 
 interface formElContainerType {
   name: string
   content: JSX.Element
-  formErr: formErrType
+  formErr: { [key: string]: string | undefined | number }
   backendErr: graphQLErrorType
 }
 

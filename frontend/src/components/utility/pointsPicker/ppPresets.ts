@@ -1,3 +1,5 @@
+import { pointsStructureType } from "../../../shared/types"
+
 export const presetNames: string[] = ["Tight Arse", "Default", "F1", "Moto GP", "Abundant"]
 
 export const nivoColours = (fillAmount: number, error?: boolean): string[] => {
@@ -45,4 +47,18 @@ export const presetArrays = (preset: number): nivoDataType[] => {
     case 4: return nivoDataArr(presetNames[4], [48, 36, 24, 22, 20, 18, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1])
     default: return nivoDataArr(presetNames[1], [16, 12, 8, 6, 5, 4, 3, 2])
   }
+}
+
+// Identifies which preset matches a given points structure.
+export const identifyPresetFromStructure = (pointsStructure: pointsStructureType): number => {
+  const points = pointsStructure.map(p => p.points)
+
+  for (let i = 0; i < presetNames.length; i++) {
+    const presetPoints = presetArrays(i).map(p => p.value)
+    if (points.length === presetPoints.length && points.every((p, idx) => p === presetPoints[idx])) {
+      return i
+    }
+  }
+
+  return 1 // Default if no match found
 }

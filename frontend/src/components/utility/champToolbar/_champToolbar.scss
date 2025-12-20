@@ -35,4 +35,19 @@
       background-color: variables.$mui-success-hover !important;
     }
   }
+
+  .champ-toolbar-save {
+    background-color: variables.$mui-success !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+
+    &:hover {
+      background-color: variables.$mui-success-hover !important;
+    }
+
+    &:disabled {
+      background-color: variables.$colour-4 !important;
+      color: rgba(0, 0, 0, 0.26) !important;
+    }
+  }
 }

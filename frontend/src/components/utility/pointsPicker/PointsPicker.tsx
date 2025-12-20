@@ -1,19 +1,33 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import './_pointsPicker.scss'
-import { createChampFormErrType, createChampFormType } from "../../../page/CreateChamp"
+import { pointsStructureType } from "../../../shared/types"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { ResponsivePie } from '@nivo/pie'
 import {nivoColours, presetArrays, presetNames} from "./ppPresets"
 import { MUISelect } from "../../utility/muiSelect/MUISelect"
 
-interface pointsPickerType<T> {
-  setForm: React.Dispatch<React.SetStateAction<T>>
-  formErr: createChampFormErrType
-  backendErr: graphQLErrorType
+// Base type for forms that have points structure.
+interface PointsStructureForm {
+  pointsStructure: pointsStructureType
 }
 
-const PointsPicker= <T extends createChampFormType>({ setForm, formErr, backendErr }: pointsPickerType<T>) => {
-  const [ preset, setPreset ] = useState(1)
+interface pointsPickerType<T extends PointsStructureForm> {
+  setForm: React.Dispatch<React.SetStateAction<T>>
+  formErr: { pointsStructure?: string; [key: string]: string | undefined | number }
+  backendErr: graphQLErrorType
+  disabled?: boolean
+  initialPreset?: number
+}
+
+const PointsPicker= <T extends PointsStructureForm>({ setForm, formErr, backendErr, disabled, initialPreset }: pointsPickerType<T>) => {
+  const [ preset, setPreset ] = useState(initialPreset ?? 1)
+
+  // Sync preset state when initialPreset prop changes.
+  useEffect(() => {
+    if (initialPreset !== undefined) {
+      setPreset(initialPreset)
+    }
+  }, [initialPreset])
 
   // Updates the form's points structure when a preset is selected.
   const handleSelectChange = (i: number) => {
@@ -41,6 +55,8 @@ const PointsPicker= <T extends createChampFormType>({ setForm, formErr, backendE
         handleSelectChange={handleSelectChange}
         style={{ position: "absolute", zIndex: 1 }}
         error={error}
+        disabled={disabled}
+        initialValue={initialPreset}
       />
       <ResponsivePie
         data={presetArrays(preset)}

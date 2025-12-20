@@ -11,10 +11,12 @@ interface MUISelectStyle {
   filled?: boolean
   style?: React.CSSProperties
   error?: boolean
+  disabled?: boolean
+  initialValue?: number
 }
 
-export const MUISelect: React.FC<MUISelectStyle> = ({ label, items, setState, handleSelectChange, filled, style, error }) => {
-  const [ item, setItem ] = React.useState('1')
+export const MUISelect: React.FC<MUISelectStyle> = ({ label, items, setState, handleSelectChange, filled, style, error, disabled, initialValue }) => {
+  const [ item, setItem ] = React.useState(String(initialValue ?? 1))
 
   const handleChange = (e: SelectChangeEvent) => {
     setItem(e.target.value as string)
@@ -23,7 +25,7 @@ export const MUISelect: React.FC<MUISelectStyle> = ({ label, items, setState, ha
   }
 
   return (
-    <FormControl variant='standard' style={{ ...style, minWidth: 110 }} error={error}>
+    <FormControl variant='standard' style={{ ...style, minWidth: 110 }} error={error} disabled={disabled}>
       <Select
         labelId="demo-simple-select-label"
         id="demo-simple-select"
@@ -32,6 +34,7 @@ export const MUISelect: React.FC<MUISelectStyle> = ({ label, items, setState, ha
         label={label}
         onChange={handleChange}
         error={error}
+        disabled={disabled}
       >
         {items.map((item, i) => <MenuItem key={i} value={i}>{item}</MenuItem>)}
       </Select>
