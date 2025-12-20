@@ -8,6 +8,7 @@ import { updateChampSettings } from "../../../../shared/requests/champRequests"
 import { Button } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
 import Toggle from "../../../../components/utility/toggle/Toggle"
+import UpdateChampName from "./settingsComponents/UpdateChampName"
 
 // View type for the Championship page.
 export type ChampView = "competitors" | "settings" | "deleteChamp"
@@ -50,7 +51,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
     // Send request to backend.
     const success = await updateChampSettings(
       champ._id,
-      checked,
+      { inviteOnly: checked },
       setChamp,
       user,
       setUser,
@@ -69,6 +70,14 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
 
   return (
     <div className="champ-settings">
+      <UpdateChampName
+        champ={champ}
+        setChamp={setChamp}
+        user={user}
+        setUser={setUser}
+        navigate={navigate}
+        setBackendErr={setBackendErr}
+      />
       <Toggle
         text="Invite Only"
         checked={champ.settings.inviteOnly}

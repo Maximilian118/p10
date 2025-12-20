@@ -441,10 +441,16 @@ export const joinChamp = async (
   return success
 }
 
+// Settings update options.
+interface ChampSettingsUpdate {
+  name?: string
+  inviteOnly?: boolean
+}
+
 // Updates championship settings (adjudicator only).
 export const updateChampSettings = async (
   _id: string,
-  inviteOnly: boolean,
+  settings: ChampSettingsUpdate,
   setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
@@ -458,10 +464,10 @@ export const updateChampSettings = async (
       .post(
         "",
         {
-          variables: { _id, inviteOnly },
+          variables: { _id, ...settings },
           query: `
-            mutation UpdateChampSettings($_id: ID!, $inviteOnly: Boolean) {
-              updateChampSettings(_id: $_id, inviteOnly: $inviteOnly) {
+            mutation UpdateChampSettings($_id: ID!, $name: String, $inviteOnly: Boolean) {
+              updateChampSettings(_id: $_id, name: $name, inviteOnly: $inviteOnly) {
                 ${populateChamp}
               }
             }

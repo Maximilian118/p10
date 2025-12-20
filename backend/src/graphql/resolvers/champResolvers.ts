@@ -396,7 +396,7 @@ const champResolvers = {
 
   // Updates championship settings (adjudicator only).
   updateChampSettings: async (
-    { _id, inviteOnly }: { _id: string; inviteOnly?: boolean },
+    { _id, name, inviteOnly }: { _id: string; name?: string; inviteOnly?: boolean },
     req: AuthRequest,
   ): Promise<ChampType> => {
     if (!req.isAuth) {
@@ -418,6 +418,12 @@ const champResolvers = {
           "Only the adjudicator can update championship settings!",
           403,
         )
+      }
+
+      // Update name if provided and different.
+      if (name && name !== champ.name) {
+        await champNameErrors(name)
+        champ.name = name
       }
 
       // Update inviteOnly if provided.

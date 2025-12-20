@@ -51,8 +51,7 @@ const UpdateEmailCard = <T extends formType, U extends formErrType>({ user, setU
       <Button
         variant="contained" 
         type="submit"
-        className="mui-form-btn"
-        style={{ margin: "5px 0 0 0", flexShrink: 0 }}
+        style={{ flexShrink: 0 }}
         startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         onClick={e => updateEmailHandler(e)}
         color={success ? "success" : "primary"}

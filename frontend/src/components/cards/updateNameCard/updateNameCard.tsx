@@ -52,8 +52,7 @@ const UpdateNameCard = <T extends formType, U extends formErrType>({ user, setUs
       <Button
         variant="contained" 
         type="submit"
-        className="mui-form-btn"
-        style={{ margin: "5px 0 0 0", flexShrink: 0 }}
+        style={{ flexShrink: 0 }}
         startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         onClick={e => updateNameHandler(e)}
         color={success ? "success" : "primary"}
