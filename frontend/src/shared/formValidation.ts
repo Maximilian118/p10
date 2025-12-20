@@ -223,6 +223,9 @@ export const inputLabel = (
     case "rounds":
       label = "Rounds in a Season"
       break
+    case "maxCompetitors":
+      label = "Maximum Competitors"
+      break
     case "pointsStructure":
       label = "Points Structure"
       break
@@ -283,10 +286,12 @@ export const updateSettingsForm = <T extends formStateType, U>(
   const name = e.target.name
 
   // Update form state.
-  setForm((prevForm): T => ({
-    ...prevForm,
-    [name]: value,
-  }))
+  setForm(
+    (prevForm): T => ({
+      ...prevForm,
+      [name]: value,
+    }),
+  )
 
   // Validate based on field name.
   const validateChampName = () => {

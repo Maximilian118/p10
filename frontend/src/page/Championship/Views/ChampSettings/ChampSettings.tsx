@@ -3,6 +3,7 @@ import "./_champSettings.scss"
 import { ChampType, pointsStructureType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { getCompetitors } from "../../../../shared/utility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
 import ImageIcon from "@mui/icons-material/Image"
@@ -19,6 +20,7 @@ export type ChampView = "competitors" | "settings" | "deleteChamp"
 export interface ChampSettingsFormType {
   champName: string
   rounds: number
+  maxCompetitors: number
   pointsStructure: pointsStructureType
   icon: File | string | null
   profile_picture: File | string | null
@@ -28,6 +30,7 @@ export interface ChampSettingsFormType {
 export interface ChampSettingsFormErrType {
   champName: string
   rounds: string
+  maxCompetitors: string
   pointsStructure: string
   dropzone: string
   [key: string]: string
@@ -77,6 +80,15 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
     setSettingsForm(prev => ({ ...prev, rounds: value }))
   }
 
+  // Handle max competitors pagination change with validation.
+  const handleMaxCompetitorsChange = (_e: React.ChangeEvent<unknown>, value: number) => {
+    // Can't set below current competitor count.
+    const currentCompetitors = getCompetitors(champ).length
+    if (value < currentCompetitors) return
+    if (value > 99) return
+    setSettingsForm(prev => ({ ...prev, maxCompetitors: value }))
+  }
+
   return (
     <div className="champ-settings-card">
       <MUITextField
@@ -88,7 +100,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         onBlur={e => updateSettingsForm(e, settingsForm, setSettingsForm, setSettingsFormErr)}
         error={!!settingsFormErr.champName}
       />
-
       <FormElContainer
         name="rounds"
         content={
@@ -98,6 +109,23 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
             className="mui-form-pagination"
             color="primary"
             onChange={handleRoundsChange}
+            siblingCount={1}
+            boundaryCount={1}
+          />
+        }
+        formErr={settingsFormErr}
+        backendErr={initGraphQLError}
+      />
+
+      <FormElContainer
+        name="maxCompetitors"
+        content={
+          <Pagination
+            count={99}
+            page={settingsForm.maxCompetitors}
+            className="mui-form-pagination"
+            color="primary"
+            onChange={handleMaxCompetitorsChange}
             siblingCount={1}
             boundaryCount={1}
           />
@@ -120,7 +148,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
-
       <Button
         variant="contained"
         className="champ-settings-card__icon-btn"
@@ -129,7 +156,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       >
         Change Championship Icon
       </Button>
-
       {canDelete && (
         <Button
           variant="contained"

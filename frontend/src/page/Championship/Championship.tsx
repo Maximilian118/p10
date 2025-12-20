@@ -34,6 +34,7 @@ const Championship: React.FC = () => {
   const [ settingsForm, setSettingsForm ] = useState<ChampSettingsFormType>({
     champName: "",
     rounds: 1,
+    maxCompetitors: 24,
     pointsStructure: presetArrays(1).map(item => ({
       position: item.result,
       points: item.value,
@@ -44,6 +45,7 @@ const Championship: React.FC = () => {
   const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
     champName: "",
     rounds: "",
+    maxCompetitors: "",
     pointsStructure: "",
     dropzone: "",
   })
@@ -94,6 +96,7 @@ const Championship: React.FC = () => {
       setSettingsForm({
         champName: champ.name,
         rounds: champ.rounds.length,
+        maxCompetitors: champ.settings.maxCompetitors,
         pointsStructure: champ.pointsStructure,
         icon: null,
         profile_picture: null,
@@ -105,6 +108,7 @@ const Championship: React.FC = () => {
   const settingsChanged = champ
     ? settingsForm.champName !== champ.name ||
       settingsForm.rounds !== champ.rounds.length ||
+      settingsForm.maxCompetitors !== champ.settings.maxCompetitors ||
       JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure) ||
       settingsForm.icon !== null ||
       settingsForm.profile_picture !== null
@@ -118,6 +122,7 @@ const Championship: React.FC = () => {
     const updates: {
       name?: string
       rounds?: number
+      maxCompetitors?: number
       pointsStructure?: typeof settingsForm.pointsStructure
       icon?: string
       profile_picture?: string
@@ -129,6 +134,10 @@ const Championship: React.FC = () => {
 
     if (settingsForm.rounds !== champ.rounds.length) {
       updates.rounds = settingsForm.rounds
+    }
+
+    if (settingsForm.maxCompetitors !== champ.settings.maxCompetitors) {
+      updates.maxCompetitors = settingsForm.maxCompetitors
     }
 
     if (JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure)) {
@@ -186,6 +195,13 @@ const Championship: React.FC = () => {
 
       if (updates.pointsStructure) {
         optimisticChamp.pointsStructure = updates.pointsStructure
+      }
+
+      if (updates.maxCompetitors) {
+        optimisticChamp.settings = {
+          ...optimisticChamp.settings,
+          maxCompetitors: updates.maxCompetitors,
+        }
       }
 
       if (updates.icon) {

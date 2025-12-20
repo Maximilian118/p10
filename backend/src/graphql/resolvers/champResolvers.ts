@@ -401,6 +401,7 @@ const champResolvers = {
       name,
       inviteOnly,
       rounds,
+      maxCompetitors,
       pointsStructure,
       icon,
       profile_picture,
@@ -409,6 +410,7 @@ const champResolvers = {
       name?: string
       inviteOnly?: boolean
       rounds?: number
+      maxCompetitors?: number
       pointsStructure?: PointsStructureInput[]
       icon?: string
       profile_picture?: string
@@ -455,6 +457,27 @@ const champResolvers = {
       // Update profile_picture if provided.
       if (profile_picture) {
         champ.profile_picture = profile_picture
+      }
+
+      // Update maxCompetitors if provided.
+      if (typeof maxCompetitors === "number") {
+        // Validate: can't set below current competitor count.
+        const currentCompetitorCount = champ.rounds.reduce((acc, round) => {
+          return Math.max(acc, round.competitors?.length || 0)
+        }, 0)
+        if (maxCompetitors < currentCompetitorCount) {
+          return throwError(
+            "maxCompetitors",
+            maxCompetitors,
+            `Cannot set max competitors below current count of ${currentCompetitorCount}.`,
+            400,
+          )
+        }
+        // Validate: maximum 99 competitors.
+        if (maxCompetitors > 99) {
+          return throwError("maxCompetitors", maxCompetitors, "Maximum 99 competitors allowed.", 400)
+        }
+        champ.settings.maxCompetitors = maxCompetitors
       }
 
       // Calculate non-waiting rounds count for validation.

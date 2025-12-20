@@ -446,6 +446,7 @@ interface ChampSettingsUpdate {
   name?: string
   inviteOnly?: boolean
   rounds?: number
+  maxCompetitors?: number
   pointsStructure?: pointsStructureType
   icon?: string
   profile_picture?: string
@@ -475,6 +476,7 @@ export const updateChampSettings = async (
               $name: String,
               $inviteOnly: Boolean,
               $rounds: Int,
+              $maxCompetitors: Int,
               $pointsStructure: [PointsStructureInput!],
               $icon: String,
               $profile_picture: String
@@ -484,6 +486,7 @@ export const updateChampSettings = async (
                 name: $name,
                 inviteOnly: $inviteOnly,
                 rounds: $rounds,
+                maxCompetitors: $maxCompetitors,
                 pointsStructure: $pointsStructure,
                 icon: $icon,
                 profile_picture: $profile_picture
