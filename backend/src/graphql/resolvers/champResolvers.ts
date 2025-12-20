@@ -179,6 +179,9 @@ const champResolvers = {
       if (roundCount < 1) {
         throwError("rounds", rounds, "Rounds must be at least 1.")
       }
+      if (roundCount > 99) {
+        throwError("rounds", rounds, "Maximum 99 rounds allowed.")
+      }
 
       // Generate N rounds - first round has the creator as competitor, rest are empty.
       const generatedRounds: Round[] = []
@@ -486,9 +489,9 @@ const champResolvers = {
 
       // Update rounds if provided.
       if (typeof rounds === "number") {
-        // Validate: maximum 30 rounds.
-        if (rounds > 30) {
-          return throwError("rounds", rounds, "Maximum 30 rounds allowed.", 400)
+        // Validate: maximum 99 rounds.
+        if (rounds > 99) {
+          return throwError("rounds", rounds, "Maximum 99 rounds allowed.", 400)
         }
 
         // Validate: minimum is non-waiting rounds + 1 (must keep at least 1 waiting round).

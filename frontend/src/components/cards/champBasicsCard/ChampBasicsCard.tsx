@@ -58,8 +58,8 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
       <FormElContainer
         name="rounds"
         content={
-          <Pagination 
-            count={30}
+          <Pagination
+            count={99}
             page={form.rounds as number}
             className="mui-form-pagination"
             color="primary"

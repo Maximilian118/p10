@@ -76,7 +76,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
   // Handle round pagination change with validation.
   const handleRoundsChange = (_e: React.ChangeEvent<unknown>, value: number) => {
     if (value < minRounds) return
-    if (value > 30) return
+    if (value > 99) return
     setSettingsForm(prev => ({ ...prev, rounds: value }))
   }
 
@@ -104,7 +104,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         name="rounds"
         content={
           <Pagination
-            count={30}
+            count={99}
             page={settingsForm.rounds}
             className="mui-form-pagination"
             color="primary"
