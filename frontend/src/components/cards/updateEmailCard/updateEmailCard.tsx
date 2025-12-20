@@ -25,6 +25,9 @@ const UpdateEmailCard = <T extends formType, U extends formErrType>({ user, setU
 
   const navigate = useNavigate()
 
+  // Check if email has changed from original.
+  const hasChanged = form.email !== user.email && form.email?.trim() !== ""
+
   const updateEmailHandler = async (
     e: React.FormEvent<HTMLButtonElement>
   ): Promise<void> => {
@@ -49,11 +52,12 @@ const UpdateEmailCard = <T extends formType, U extends formErrType>({ user, setU
         color={success ? "success" : "primary"}
       />
       <Button
-        variant="contained" 
+        variant="contained"
         type="submit"
         style={{ flexShrink: 0 }}
         startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         onClick={e => updateEmailHandler(e)}
+        disabled={!hasChanged || loading}
         color={success ? "success" : "primary"}
       >{success ? "Success!" : "Confirm"}</Button>
     </form>

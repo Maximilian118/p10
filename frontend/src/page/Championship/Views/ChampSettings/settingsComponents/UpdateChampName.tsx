@@ -88,7 +88,7 @@ const UpdateChampName: React.FC<UpdateChampNameProps> = ({
         disabled={!hasChanged || loading}
         color={success ? "success" : "primary"}
       >
-        {success ? "Updated!" : "Update"}
+        Update
       </Button>
     </form>
   )

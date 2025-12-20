@@ -25,6 +25,9 @@ const UpdateNameCard = <T extends formType, U extends formErrType>({ user, setUs
 
   const navigate = useNavigate()
 
+  // Check if name has changed from original.
+  const hasChanged = form.name !== user.name && form.name?.trim() !== ""
+
   const updateNameHandler = async (
     e: React.FormEvent<HTMLButtonElement>
   ): Promise<void> => {
@@ -50,11 +53,12 @@ const UpdateNameCard = <T extends formType, U extends formErrType>({ user, setUs
         color={success ? "success" : "primary"}
       />
       <Button
-        variant="contained" 
+        variant="contained"
         type="submit"
         style={{ flexShrink: 0 }}
         startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         onClick={e => updateNameHandler(e)}
+        disabled={!hasChanged || loading}
         color={success ? "success" : "primary"}
       >{success ? "Success!" : "Confirm"}</Button>
     </form>
