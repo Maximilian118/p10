@@ -99,21 +99,92 @@ const Championship: React.FC = () => {
       JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure)
     : false
 
-  // Handle settings form submission.
+  // Handle settings form submission with optimistic updates.
   const handleSettingsSubmit = async () => {
     if (!champ) return
 
-    const updates: { name?: string } = {}
+    // Build updates object with only changed fields.
+    const updates: {
+      name?: string
+      rounds?: number
+      pointsStructure?: typeof settingsForm.pointsStructure
+    } = {}
 
-    // Only include changed fields.
     if (settingsForm.champName !== champ.name) {
       updates.name = settingsForm.champName
     }
 
-    // Handle rounds changes and pointsStructure changes would need backend support.
+    if (settingsForm.rounds !== champ.rounds.length) {
+      updates.rounds = settingsForm.rounds
+    }
 
-    if (Object.keys(updates).length > 0) {
-      await updateChampSettings(champ._id, updates, setChamp, user, setUser, navigate, setBackendErr)
+    if (JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure)) {
+      updates.pointsStructure = settingsForm.pointsStructure
+    }
+
+    // Exit early if no changes.
+    if (Object.keys(updates).length === 0) return
+
+    // Store previous state for rollback.
+    const previousChamp = champ
+
+    // Optimistic update: immediately reflect changes in UI.
+    setChamp(prev => {
+      if (!prev) return prev
+
+      const optimisticChamp = { ...prev }
+
+      if (updates.name) {
+        optimisticChamp.name = updates.name
+      }
+
+      if (updates.pointsStructure) {
+        optimisticChamp.pointsStructure = updates.pointsStructure
+      }
+
+      if (updates.rounds) {
+        const currentRoundsCount = prev.rounds.length
+
+        if (updates.rounds > currentRoundsCount) {
+          // Add new waiting rounds.
+          const newRounds = [...prev.rounds]
+          for (let i = currentRoundsCount + 1; i <= updates.rounds; i++) {
+            newRounds.push({
+              round: i,
+              status: "waiting" as const,
+              winner: null,
+              runnerUp: null,
+              competitors: [],
+              drivers: [],
+              teams: [],
+            })
+          }
+          optimisticChamp.rounds = newRounds
+        } else if (updates.rounds < currentRoundsCount) {
+          // Remove rounds from the end.
+          optimisticChamp.rounds = prev.rounds.slice(0, updates.rounds)
+        }
+      }
+
+      return optimisticChamp
+    })
+
+    // Make the API request.
+    const result = await updateChampSettings(
+      champ._id,
+      updates,
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      // Success: update with server response (may include additional changes).
+      setChamp(result)
+    } else {
+      // Failure: rollback to previous state.
+      setChamp(previousChamp)
     }
   }
 

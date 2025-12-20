@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { ChampType, formType, ruleOrRegType, ruleSubsectionType } from "../types"
+import { ChampType, formType, pointsStructureType, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 import { populateChamp } from "./requestPopulation"
@@ -445,19 +445,21 @@ export const joinChamp = async (
 interface ChampSettingsUpdate {
   name?: string
   inviteOnly?: boolean
+  rounds?: number
+  pointsStructure?: pointsStructureType
 }
 
 // Updates championship settings (adjudicator only).
+// Returns the updated champ on success, or null on failure.
 export const updateChampSettings = async (
   _id: string,
   settings: ChampSettingsUpdate,
-  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-): Promise<boolean> => {
-  let success = false
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
 
   try {
     await axios
@@ -466,8 +468,20 @@ export const updateChampSettings = async (
         {
           variables: { _id, ...settings },
           query: `
-            mutation UpdateChampSettings($_id: ID!, $name: String, $inviteOnly: Boolean) {
-              updateChampSettings(_id: $_id, name: $name, inviteOnly: $inviteOnly) {
+            mutation UpdateChampSettings(
+              $_id: ID!,
+              $name: String,
+              $inviteOnly: Boolean,
+              $rounds: Int,
+              $pointsStructure: [PointsStructureInput!]
+            ) {
+              updateChampSettings(
+                _id: $_id,
+                name: $name,
+                inviteOnly: $inviteOnly,
+                rounds: $rounds,
+                pointsStructure: $pointsStructure
+              ) {
                 ${populateChamp}
               }
             }
@@ -479,9 +493,7 @@ export const updateChampSettings = async (
         if (res.data.errors) {
           graphQLErrors("updateChampSettings", res, setUser, navigate, setBackendErr, true)
         } else {
-          const updatedChamp = graphQLResponse("updateChampSettings", res, user, setUser) as ChampType
-          setChamp(updatedChamp)
-          success = true
+          result = graphQLResponse("updateChampSettings", res, user, setUser) as ChampType
         }
       })
       .catch((err: unknown) => {
@@ -491,7 +503,7 @@ export const updateChampSettings = async (
     graphQLErrors("updateChampSettings", err, setUser, navigate, setBackendErr, true)
   }
 
-  return success
+  return result
 }
 
 // Deletes a championship (requires name confirmation).

@@ -11,7 +11,7 @@ import { clientS3, deleteS3 } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 
 // Input types for the createChamp mutation.
-interface PointsStructureInput {
+export interface PointsStructureInput {
   position: number
   points: number
 }
@@ -396,7 +396,19 @@ const champResolvers = {
 
   // Updates championship settings (adjudicator only).
   updateChampSettings: async (
-    { _id, name, inviteOnly }: { _id: string; name?: string; inviteOnly?: boolean },
+    {
+      _id,
+      name,
+      inviteOnly,
+      rounds,
+      pointsStructure,
+    }: {
+      _id: string
+      name?: string
+      inviteOnly?: boolean
+      rounds?: number
+      pointsStructure?: PointsStructureInput[]
+    },
     req: AuthRequest,
   ): Promise<ChampType> => {
     if (!req.isAuth) {
@@ -429,6 +441,57 @@ const champResolvers = {
       // Update inviteOnly if provided.
       if (typeof inviteOnly === "boolean") {
         champ.settings.inviteOnly = inviteOnly
+      }
+
+      // Calculate non-waiting rounds count for validation.
+      const nonWaitingRoundsCount = champ.rounds.filter((r) => r.status !== "waiting").length
+      const allRoundsWaiting = nonWaitingRoundsCount === 0
+
+      // Update rounds if provided.
+      if (typeof rounds === "number") {
+        // Validate: maximum 30 rounds.
+        if (rounds > 30) {
+          return throwError("rounds", rounds, "Maximum 30 rounds allowed.", 400)
+        }
+
+        // Validate: minimum is non-waiting rounds + 1 (must keep at least 1 waiting round).
+        const minRounds = nonWaitingRoundsCount + 1
+        if (rounds < minRounds) {
+          return throwError(
+            "rounds",
+            rounds,
+            `Cannot reduce rounds below ${minRounds}. Must keep at least 1 waiting round.`,
+            400,
+          )
+        }
+
+        const currentRoundsCount = champ.rounds.length
+
+        if (rounds > currentRoundsCount) {
+          // Add new waiting rounds.
+          for (let i = currentRoundsCount + 1; i <= rounds; i++) {
+            champ.rounds.push(createEmptyRound(i))
+          }
+        } else if (rounds < currentRoundsCount) {
+          // Remove rounds from the end (only waiting rounds can be removed).
+          // Slice to keep only the first 'rounds' number of rounds.
+          champ.rounds = champ.rounds.slice(0, rounds)
+        }
+      }
+
+      // Update points structure if provided.
+      if (pointsStructure && pointsStructure.length > 0) {
+        // Validate: can only change points structure if season hasn't started.
+        if (!allRoundsWaiting) {
+          return throwError(
+            "pointsStructure",
+            pointsStructure,
+            "Cannot change points structure after the season has started.",
+            400,
+          )
+        }
+
+        champ.pointsStructure = pointsStructure
       }
 
       champ.updated_at = moment().format()
