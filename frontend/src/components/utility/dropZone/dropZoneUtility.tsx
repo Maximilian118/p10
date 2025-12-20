@@ -14,7 +14,9 @@ export const compressImage = async (file: File, fileSize: number): Promise<File>
   }
 
   try {
-    compressedFile = await imageCompression(file, options)
+    const compressed = await imageCompression(file, options)
+    // Convert Blob to File to maintain consistent return type.
+    compressedFile = new File([compressed], file.name, { type: compressed.type })
   } catch (err) {
     console.log(err)
   }

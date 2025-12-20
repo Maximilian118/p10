@@ -447,6 +447,8 @@ interface ChampSettingsUpdate {
   inviteOnly?: boolean
   rounds?: number
   pointsStructure?: pointsStructureType
+  icon?: string
+  profile_picture?: string
 }
 
 // Updates championship settings (adjudicator only).
@@ -473,14 +475,18 @@ export const updateChampSettings = async (
               $name: String,
               $inviteOnly: Boolean,
               $rounds: Int,
-              $pointsStructure: [PointsStructureInput!]
+              $pointsStructure: [PointsStructureInput!],
+              $icon: String,
+              $profile_picture: String
             ) {
               updateChampSettings(
                 _id: $_id,
                 name: $name,
                 inviteOnly: $inviteOnly,
                 rounds: $rounds,
-                pointsStructure: $pointsStructure
+                pointsStructure: $pointsStructure,
+                icon: $icon,
+                profile_picture: $profile_picture
               ) {
                 ${populateChamp}
               }

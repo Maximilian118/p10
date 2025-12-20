@@ -186,13 +186,13 @@ export const editDriver = async (
   let success = false
 
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
-  const iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  const iconURL = await uplaodS3("drivers", form.driverName, "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
   if (!iconURL && form.icon) { setLoading(false); return false }
 
-  const profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 0)
+  const profilePictureURL = await uplaodS3("drivers", form.driverName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
   if (!profilePictureURL && form.profile_picture) { setLoading(false); return false }
 
-  const bodyURL = await uplaodS3("drivers", form.driverName, "body", form.body, setBackendErr, user, setUser, navigate, 0)
+  const bodyURL = await uplaodS3("drivers", form.driverName, "body", form.body, setBackendErr, user, setUser, navigate, 2)
   if (!bodyURL && form.body) { setLoading(false); return false }
 
   // Store uploaded URLs in form state for retry (only if File was uploaded).

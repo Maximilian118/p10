@@ -208,7 +208,7 @@ export const editTeam = async (
     user,
     setUser,
     navigate,
-    0,
+    2,
   )
   if (!iconURL && form.icon) {
     setLoading(false)
@@ -224,7 +224,7 @@ export const editTeam = async (
     user,
     setUser,
     navigate,
-    0,
+    2,
   )
   if (!emblemURL && form.emblem) {
     setLoading(false)

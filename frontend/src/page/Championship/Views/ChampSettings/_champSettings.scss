@@ -31,9 +31,14 @@
     }
   }
 
+  &__icon-btn {
+    width: 100%;
+    margin-bottom: 20px !important;
+  }
+
   &__delete-btn {
     width: 100%;
-    margin-top: 40px;
+    margin-top: 10px;
     background-color: variables.$f1-red !important;
 
     &:hover {

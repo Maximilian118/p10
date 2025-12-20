@@ -138,7 +138,7 @@ export const editSeries = async (
   let success = false
 
   // Upload image to S3 (uplaodS3 handles File/string/null internally).
-  const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 0)
+  const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
   if (!iconURL && form.icon) { setLoading(false); return false }
 
   // Store uploaded URL in form state for retry (only if File was uploaded).

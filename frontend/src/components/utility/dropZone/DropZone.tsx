@@ -26,6 +26,7 @@ interface dropZoneType<T, U> {
   dropzoneErrorField?: string // Custom field name for dropzone error (defaults to 'dropzone').
   singleOutput?: boolean // When true, only set profilePictureField (for body images).
   objectFit?: 'cover' | 'contain' // Image fit mode for preview (defaults to 'cover').
+  openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose the open file dialog function for external triggering.
 }
 
 const DropZone = <T extends formType, U extends formErrType>({
@@ -47,6 +48,7 @@ const DropZone = <T extends formType, U extends formErrType>({
   dropzoneErrorField = 'dropzone',
   singleOutput = false,
   objectFit = 'cover',
+  openRef,
 }: dropZoneType<T, U>) => {
   const [ thumb, setThumb ] = useState<string>("")
   const [ error, setError ] = useState<string>("")
@@ -82,7 +84,7 @@ const DropZone = <T extends formType, U extends formErrType>({
   }, [myFiles])
 
   // Init DropZone with the necessary arguments.
-  const { fileRejections, getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { fileRejections, getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: { // Only allow these file types.
       'image/jpeg': [],
       'image/png': [],
@@ -93,6 +95,13 @@ const DropZone = <T extends formType, U extends formErrType>({
     maxSize: 10000000, // Maximum file size = 10mb.
     onDrop, // onDrop use own state instead of accaptedFiles.
   })
+
+  // Expose the open function via ref for external triggering.
+  useEffect(() => {
+    if (openRef) {
+      openRef.current = open
+    }
+  }, [open, openRef])
 
   // When a file is accepted, compress into two different sizes.
   // Then, setThumb with a url string for the thumbnail.

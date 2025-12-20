@@ -5,6 +5,7 @@ import { userType } from "../../../../shared/localStorage"
 import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
+import ImageIcon from "@mui/icons-material/Image"
 import MUITextField from "../../../../components/utility/muiTextField/MUITextField"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
 import PointsPicker from "../../../../components/utility/pointsPicker/PointsPicker"
@@ -19,6 +20,8 @@ export interface ChampSettingsFormType {
   champName: string
   rounds: number
   pointsStructure: pointsStructureType
+  icon: File | string | null
+  profile_picture: File | string | null
 }
 
 // Form error type for championship settings.
@@ -26,6 +29,7 @@ export interface ChampSettingsFormErrType {
   champName: string
   rounds: string
   pointsStructure: string
+  dropzone: string
   [key: string]: string
 }
 
@@ -37,6 +41,7 @@ interface ChampSettingsProps {
   setSettingsForm: React.Dispatch<React.SetStateAction<ChampSettingsFormType>>
   settingsFormErr: ChampSettingsFormErrType
   setSettingsFormErr: React.Dispatch<React.SetStateAction<ChampSettingsFormErrType>>
+  dropzoneOpenRef: React.MutableRefObject<(() => void) | null>
 }
 
 // Championship settings component - card-based layout.
@@ -48,6 +53,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
   setSettingsForm,
   settingsFormErr,
   setSettingsFormErr,
+  dropzoneOpenRef,
 }) => {
   // Check if user has permission to delete (admin or adjudicator).
   const isAdmin = user.permissions?.admin === true
@@ -114,6 +120,15 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
+
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => dropzoneOpenRef.current?.()}
+        startIcon={<ImageIcon />}
+      >
+        Change Championship Icon
+      </Button>
 
       {canDelete && (
         <Button

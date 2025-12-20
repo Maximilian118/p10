@@ -402,12 +402,16 @@ const champResolvers = {
       inviteOnly,
       rounds,
       pointsStructure,
+      icon,
+      profile_picture,
     }: {
       _id: string
       name?: string
       inviteOnly?: boolean
       rounds?: number
       pointsStructure?: PointsStructureInput[]
+      icon?: string
+      profile_picture?: string
     },
     req: AuthRequest,
   ): Promise<ChampType> => {
@@ -441,6 +445,16 @@ const champResolvers = {
       // Update inviteOnly if provided.
       if (typeof inviteOnly === "boolean") {
         champ.settings.inviteOnly = inviteOnly
+      }
+
+      // Update icon if provided.
+      if (icon) {
+        champ.icon = icon
+      }
+
+      // Update profile_picture if provided.
+      if (profile_picture) {
+        champ.profile_picture = profile_picture
       }
 
       // Calculate non-waiting rounds count for validation.

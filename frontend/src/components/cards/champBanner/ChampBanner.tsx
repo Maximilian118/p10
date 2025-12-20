@@ -28,6 +28,8 @@ interface champBannerEditableType<T, U> {
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
   onBannerClick?: () => void
   readOnly?: false
+  settingsMode?: boolean // When true, hide confirmation UI (Save Changes button handles submission).
+  openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose DropZone's open function.
 }
 
 // Props for read-only championship banner (when user is not adjudicator).
@@ -84,15 +86,26 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef } = props
 
   // Handles profile picture upload for championship.
   const uploadPPHandler = async () => {
     await updateChampPP(champ._id, form, setForm, setChamp, user, setUser, navigate, setLoading, setBackendErr)
   }
 
-  // Renders content based on whether files are selected.
+  // Renders content based on whether files are selected and current mode.
   const filesInForm = (form: T): JSX.Element => {
+    // In settings mode, always show stats (Save Changes button handles submission).
+    if (settingsMode) {
+      return (
+        <>
+          <p>{champ.name}</p>
+          <ChampBannerStats champ={champ} />
+        </>
+      )
+    }
+
+    // In normal mode, show confirmation UI when files are selected.
     if (!form.icon && !form.profile_picture) {
       return (
         <>
@@ -128,6 +141,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         purposeText="Championship"
         thumbImg={champ.icon}
         style={{ width: 100, margin: 20 }}
+        openRef={openRef}
       />
       <div className="champ-banner-info" onClick={onBannerClick}>
         {filesInForm(form)}
