@@ -13,6 +13,7 @@ import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView, ChampSettingsFormType, ChampSettingsFormErrType } from "./Views/ChampSettings/ChampSettings"
 import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
+import Automation from "./Views/Automation/Automation"
 import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
@@ -396,6 +397,14 @@ const Championship: React.FC = () => {
             setUser={setUser}
             navigate={navigate}
             setBackendErr={setBackendErr}
+          />
+        )}
+
+        {view === "automation" && (
+          <Automation
+            champ={champ}
+            user={user}
+            setView={navigateToView}
           />
         )}
 

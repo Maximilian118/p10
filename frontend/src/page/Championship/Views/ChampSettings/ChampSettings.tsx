@@ -7,6 +7,7 @@ import { getCompetitors } from "../../../../shared/utility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
 import ImageIcon from "@mui/icons-material/Image"
+import AutoModeIcon from '@mui/icons-material/AutoMode';
 import MUITextField from "../../../../components/utility/muiTextField/MUITextField"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
 import PointsPicker from "../../../../components/utility/pointsPicker/PointsPicker"
@@ -15,7 +16,7 @@ import { identifyPresetFromStructure } from "../../../../components/utility/poin
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 
 // View type for the Championship page.
-export type ChampView = "competitors" | "settings" | "deleteChamp"
+export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation"
 
 // Form type for championship settings.
 export interface ChampSettingsFormType {
@@ -169,6 +170,15 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         checked={settingsForm.active}
         onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
       />
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => setView("automation")}
+        startIcon={<AutoModeIcon />}
+        disabled={champ.series.name !== "FIA Formula One World Championship"}
+      >
+        Automation
+      </Button>
       {canDelete && (
         <Button
           variant="contained"
