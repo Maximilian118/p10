@@ -1,7 +1,7 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-.champ-header-card {
+.create-champ-header {
   width: 100%;
   @include mixins.flexbox-end-column;
   flex-shrink: 0;
@@ -14,7 +14,7 @@
   top: -60px;
   z-index: 5;
 
-  .champ-header-stepper {
+  .create-champ-header-stepper {
     width: 85%;
     @include mixins.flexbox;
     margin-top: 20px;

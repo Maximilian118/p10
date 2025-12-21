@@ -6,29 +6,61 @@
   background: white;
   @include mixins.flexbox;
   margin-bottom: 2px;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  // Dynamic height: 140px when shrink-ratio=0, 70px when shrink-ratio=1.
+  // Using simplified calc to avoid SCSS math evaluation issues.
+  height: calc(140px - 70px * var(--shrink-ratio, 0));
 
   .champ-banner-icon-container {
-    width: 100px;
-    height: 100px;
-    margin: 20px;
+    // Dynamic size: 100px when shrink-ratio=0, 50px when shrink-ratio=1.
+    width: calc(100px - 50px * var(--shrink-ratio, 0));
+    height: calc(100px - 50px * var(--shrink-ratio, 0));
+    // Vertical margin shrinks (20px -> 10px), horizontal stays 20px.
+    margin: calc(20px - 10px * var(--shrink-ratio, 0)) 20px;
     flex-shrink: 0;
     cursor: pointer;
+  }
+
+  // DropZone styles (editable mode) - overrides default dropzone sizing.
+  .dropzone {
+    // Dynamic size: 100px when shrink-ratio=0, 50px when shrink-ratio=1.
+    width: calc(100px - 50px * var(--shrink-ratio, 0));
+    height: calc(100px - 50px * var(--shrink-ratio, 0));
+    // Vertical margin shrinks (20px -> 10px), horizontal stays 20px.
+    margin: calc(20px - 10px * var(--shrink-ratio, 0)) 20px;
   }
 
   .champ-banner-info {
     height: 100%;
     flex-grow: 1;
-    @include mixins.flexbox-column;
+    @include mixins.flexbox-space-between-column;
     align-items: start;
     overflow: hidden;
     padding-right: 20px;
     cursor: pointer;
 
-    p {
+    .champ-name-container {
       width: 100%;
-      color: variables.$colour-6;
-      overflow-wrap: break-word;
-      word-wrap: break-word;
+      flex-grow: 1;
+      margin-top: 10px;
+      @include mixins.flexbox-column;
+      overflow: hidden;
+
+      p {
+        width: 100%;
+        color: variables.$colour-6;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+      }
+
+      // When shrunk past threshold, switch to single line with ellipsis.
+      &.shrunk p {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
 
     h5 {
@@ -40,7 +72,9 @@
       display: flex;
       justify-content: start;
       gap: 6px;
-      margin-top: 15px;
+      margin-bottom: 10px;
+      // Keep stats vertically centered when name is hidden.
+      align-self: center;
 
       @media (min-width: 400px) {
         gap: 15px;

@@ -16,6 +16,7 @@ import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
 import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
+import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -55,6 +56,9 @@ const Championship: React.FC = () => {
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
+
+  // Scroll-based shrinking for banner.
+  const { shrinkRatio, handleScroll } = useScrollShrink({ threshold: 70 })
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
@@ -320,43 +324,46 @@ const Championship: React.FC = () => {
 
   return (
     <>
-      <div className="content-container">
-        {isAdjudicator ? (
-          view === "settings" ? (
-            <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
-              champ={champ}
-              setChamp={setChamp}
-              user={user}
-              setUser={setUser}
-              form={settingsForm}
-              setForm={setSettingsForm}
-              formErr={settingsFormErr}
-              setFormErr={setSettingsFormErr}
-              backendErr={backendErr}
-              setBackendErr={setBackendErr}
-              onBannerClick={() => navigateToView("competitors")}
-              settingsMode={true}
-              openRef={dropzoneOpenRef}
-            />
-          ) : (
-            <ChampBanner<formType, formErrType>
-              champ={champ}
-              setChamp={setChamp}
-              user={user}
-              setUser={setUser}
-              form={form}
-              setForm={setForm}
-              formErr={formErr}
-              setFormErr={setFormErr}
-              backendErr={backendErr}
-              setBackendErr={setBackendErr}
-              onBannerClick={() => navigateToView("competitors")}
-            />
-          )
+      {/* Banner outside scroll container to avoid feedback loop when shrinking */}
+      {isAdjudicator ? (
+        view === "settings" ? (
+          <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            form={settingsForm}
+            setForm={setSettingsForm}
+            formErr={settingsFormErr}
+            setFormErr={setSettingsFormErr}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            onBannerClick={() => navigateToView("competitors")}
+            settingsMode={true}
+            openRef={dropzoneOpenRef}
+            shrinkRatio={shrinkRatio}
+          />
         ) : (
-          <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} />
-        )}
+          <ChampBanner<formType, formErrType>
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            form={form}
+            setForm={setForm}
+            formErr={formErr}
+            setFormErr={setFormErr}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            onBannerClick={() => navigateToView("competitors")}
+            shrinkRatio={shrinkRatio}
+          />
+        )
+      ) : (
+        <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} shrinkRatio={shrinkRatio} />
+      )}
 
+      <div className="content-container" onScroll={handleScroll}>
         {view === "competitors" && (
           <div className="competitors-list">
             {getCompetitors(champ).map((c, i) => (

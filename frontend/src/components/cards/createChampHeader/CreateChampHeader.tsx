@@ -1,21 +1,21 @@
 import React from "react"
-import './_champHeaderCard.scss'
+import './_createChampHeader.scss'
 import MUIStepper from "../../utility/muiStepper/MUIStepper"
 import { muiStepperSteps } from "../../utility/muiStepper/muiStepperUtility"
 
-interface champHeaderCardType {
+interface createChampHeaderType {
   activeStep: number
 }
 
-const ChampHeaderCard: React.FC<champHeaderCardType> = ({ activeStep }) => (
-  <div className="champ-header-card">
+const CreateChampHeader: React.FC<createChampHeaderType> = ({ activeStep }) => (
+  <div className="create-champ-header">
     <div className="form-title">
       <h2 style={{ marginBottom: 10 }}>Create Championship</h2>
     </div>
-    <div className="champ-header-stepper">
+    <div className="create-champ-header-stepper">
       <MUIStepper steps={muiStepperSteps.createChamp} activeStep={activeStep}/>
     </div>
   </div>
 )
 
-export default ChampHeaderCard
+export default CreateChampHeader

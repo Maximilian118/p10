@@ -8,7 +8,7 @@ import AppContext from "../context"
 import { ChampFlowProvider, FormHandlers, getActiveHandlers } from "../context/ChampFlowContext"
 import ChampBasicsCard from "../components/cards/champBasicsCard/ChampBasicsCard"
 import { muiStepperSteps } from "../components/utility/muiStepper/muiStepperUtility"
-import ChampHeaderCard from "../components/cards/champHeaderCard/ChampHeaderCard"
+import CreateChampHeader from "../components/cards/createChampHeader/CreateChampHeader"
 import SeriesPicker from "../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../components/utility/badgePicker/BadgePicker"
@@ -155,7 +155,7 @@ const CreateChamp: React.FC = () => {
   return (
   <ChampFlowProvider value={champFlowContextValue}>
     <form className="content-container" onSubmit={e => onSubmitHandler(e)} style={{ height: "100vh" }}>
-      <ChampHeaderCard activeStep={activeStep}/>
+      <CreateChampHeader activeStep={activeStep}/>
         {activeStep === 0 &&
         <ChampBasicsCard
           form={form}

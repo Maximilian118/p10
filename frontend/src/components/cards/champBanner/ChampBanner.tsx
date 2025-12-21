@@ -30,6 +30,7 @@ interface champBannerEditableType<T, U> {
   readOnly?: false
   settingsMode?: boolean // When true, hide confirmation UI (Save Changes button handles submission).
   openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose DropZone's open function.
+  shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
 }
 
 // Props for read-only championship banner (when user is not adjudicator).
@@ -37,6 +38,7 @@ interface champBannerReadOnlyType {
   champ: ChampType
   onBannerClick?: () => void
   readOnly: true
+  shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
 }
 
 type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnlyType
@@ -71,14 +73,16 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ, onBannerClick } = props
+    const { champ, onBannerClick, shrinkRatio } = props
     return (
-      <div className="champ-banner">
+      <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
         <div className="champ-banner-icon-container" onClick={onBannerClick}>
           <ImageIcon src={champ.icon} size="contained" />
         </div>
         <div className="champ-banner-info" onClick={onBannerClick}>
-          <p>{champ.name}</p>
+          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+            <p>{champ.name}</p>
+          </div>
           <ChampBannerStats champ={champ} />
         </div>
       </div>
@@ -86,7 +90,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, shrinkRatio } = props
 
   // Handles profile picture upload for championship.
   const uploadPPHandler = async () => {
@@ -99,7 +103,9 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (settingsMode) {
       return (
         <>
-          <p>{champ.name}</p>
+          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+            <p>{champ.name}</p>
+          </div>
           <ChampBannerStats champ={champ} />
         </>
       )
@@ -109,7 +115,9 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (!form.icon && !form.profile_picture) {
       return (
         <>
-          <p>{champ.name}</p>
+          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+            <p>{champ.name}</p>
+          </div>
           <ChampBannerStats champ={champ} />
         </>
       )
@@ -130,7 +138,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   return (
-    <div className="champ-banner">
+    <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
       <DropZone<T, U>
         form={form}
         setForm={setForm}
@@ -140,7 +148,6 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         setBackendErr={setBackendErr}
         purposeText="Championship"
         thumbImg={champ.icon}
-        style={{ width: 100, margin: 20 }}
         openRef={openRef}
       />
       <div className="champ-banner-info" onClick={onBannerClick}>
