@@ -41,6 +41,8 @@ const Championship: React.FC = () => {
     })),
     icon: null,
     profile_picture: null,
+    inviteOnly: false,
+    active: true,
   })
   const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
     champName: "",
@@ -100,6 +102,8 @@ const Championship: React.FC = () => {
         pointsStructure: champ.pointsStructure,
         icon: null,
         profile_picture: null,
+        inviteOnly: champ.settings.inviteOnly,
+        active: champ.active,
       })
     }
   }, [champ])
@@ -111,7 +115,9 @@ const Championship: React.FC = () => {
       settingsForm.maxCompetitors !== champ.settings.maxCompetitors ||
       JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure) ||
       settingsForm.icon !== null ||
-      settingsForm.profile_picture !== null
+      settingsForm.profile_picture !== null ||
+      settingsForm.inviteOnly !== champ.settings.inviteOnly ||
+      settingsForm.active !== champ.active
     : false
 
   // Handle settings form submission with optimistic updates.
@@ -126,6 +132,8 @@ const Championship: React.FC = () => {
       pointsStructure?: typeof settingsForm.pointsStructure
       icon?: string
       profile_picture?: string
+      inviteOnly?: boolean
+      active?: boolean
     } = {}
 
     if (settingsForm.champName !== champ.name) {
@@ -142,6 +150,14 @@ const Championship: React.FC = () => {
 
     if (JSON.stringify(settingsForm.pointsStructure) !== JSON.stringify(champ.pointsStructure)) {
       updates.pointsStructure = settingsForm.pointsStructure
+    }
+
+    if (settingsForm.inviteOnly !== champ.settings.inviteOnly) {
+      updates.inviteOnly = settingsForm.inviteOnly
+    }
+
+    if (settingsForm.active !== champ.active) {
+      updates.active = settingsForm.active
     }
 
     // Upload images to S3 if changed.
@@ -202,6 +218,17 @@ const Championship: React.FC = () => {
           ...optimisticChamp.settings,
           maxCompetitors: updates.maxCompetitors,
         }
+      }
+
+      if (typeof updates.inviteOnly === "boolean") {
+        optimisticChamp.settings = {
+          ...optimisticChamp.settings,
+          inviteOnly: updates.inviteOnly,
+        }
+      }
+
+      if (typeof updates.active === "boolean") {
+        optimisticChamp.active = updates.active
       }
 
       if (updates.icon) {

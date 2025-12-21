@@ -445,6 +445,7 @@ export const joinChamp = async (
 interface ChampSettingsUpdate {
   name?: string
   inviteOnly?: boolean
+  active?: boolean
   rounds?: number
   maxCompetitors?: number
   pointsStructure?: pointsStructureType
@@ -475,6 +476,7 @@ export const updateChampSettings = async (
               $_id: ID!,
               $name: String,
               $inviteOnly: Boolean,
+              $active: Boolean,
               $rounds: Int,
               $maxCompetitors: Int,
               $pointsStructure: [PointsStructureInput!],
@@ -485,6 +487,7 @@ export const updateChampSettings = async (
                 _id: $_id,
                 name: $name,
                 inviteOnly: $inviteOnly,
+                active: $active,
                 rounds: $rounds,
                 maxCompetitors: $maxCompetitors,
                 pointsStructure: $pointsStructure,

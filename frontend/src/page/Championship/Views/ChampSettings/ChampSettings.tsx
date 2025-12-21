@@ -12,6 +12,7 @@ import FormElContainer from "../../../../components/utility/formElContainer/Form
 import PointsPicker from "../../../../components/utility/pointsPicker/PointsPicker"
 import { inputLabel, updateSettingsForm } from "../../../../shared/formValidation"
 import { identifyPresetFromStructure } from "../../../../components/utility/pointsPicker/ppPresets"
+import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 
 // View type for the Championship page.
 export type ChampView = "competitors" | "settings" | "deleteChamp"
@@ -24,6 +25,8 @@ export interface ChampSettingsFormType {
   pointsStructure: pointsStructureType
   icon: File | string | null
   profile_picture: File | string | null
+  inviteOnly: boolean
+  active: boolean
 }
 
 // Form error type for championship settings.
@@ -91,6 +94,14 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
 
   return (
     <div className="champ-settings-card">
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => dropzoneOpenRef.current?.()}
+        startIcon={<ImageIcon />}
+      >
+        Change Championship Icon
+      </Button>
       <MUITextField
         inputProps={{ maxLength: 50 }}
         className="mui-form-el"
@@ -116,7 +127,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
-
       <FormElContainer
         name="maxCompetitors"
         content={
@@ -133,7 +143,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
-
       <FormElContainer
         name="pointsStructure"
         content={
@@ -148,14 +157,18 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
-      <Button
-        variant="contained"
-        className="champ-settings-card__icon-btn"
-        onClick={() => dropzoneOpenRef.current?.()}
-        startIcon={<ImageIcon />}
-      >
-        Change Championship Icon
-      </Button>
+      <MUISwitch
+        text="Invite Only"
+        fullWidth
+        checked={settingsForm.inviteOnly}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, inviteOnly: checked }))}
+      />
+      <MUISwitch
+        text="Championship Active"
+        fullWidth
+        checked={settingsForm.active}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
+      />
       {canDelete && (
         <Button
           variant="contained"

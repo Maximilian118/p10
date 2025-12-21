@@ -4,8 +4,21 @@
 .mui-switch {
   @include mixins.flexbox;
 
+  // Full width variant
+  &__full-width {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0 7.5% 20px;
+    box-sizing: border-box;
+  }
+
+  // Style the switch thumb for better visibility when unchecked
+  .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+    background-color: variables.$colour-2;
+  }
+
   p {
-    font-size: 12px;
+    font-size: 14px;
     color: variables.$colour-6;
   }
 }

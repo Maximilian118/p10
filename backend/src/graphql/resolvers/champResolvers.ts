@@ -403,6 +403,7 @@ const champResolvers = {
       _id,
       name,
       inviteOnly,
+      active,
       rounds,
       maxCompetitors,
       pointsStructure,
@@ -412,6 +413,7 @@ const champResolvers = {
       _id: string
       name?: string
       inviteOnly?: boolean
+      active?: boolean
       rounds?: number
       maxCompetitors?: number
       pointsStructure?: PointsStructureInput[]
@@ -450,6 +452,11 @@ const champResolvers = {
       // Update inviteOnly if provided.
       if (typeof inviteOnly === "boolean") {
         champ.settings.inviteOnly = inviteOnly
+      }
+
+      // Update active if provided.
+      if (typeof active === "boolean") {
+        champ.active = active
       }
 
       // Update icon if provided.
