@@ -387,13 +387,13 @@ const champSchema = new mongoose.Schema<ChampType>({
       enabled: { type: Boolean, default: false },
       bettingWindow: {
         autoOpen: { type: Boolean, default: false },
-        autoOpenTime: { type: Number, default: 60 },
+        autoOpenTime: { type: Number, default: 10 },
         autoClose: { type: Boolean, default: false },
         autoCloseTime: { type: Number, default: 5 },
       },
       round: {
         autoNextRound: { type: Boolean, default: false },
-        autoNextRoundTime: { type: Number, default: 120 },
+        autoNextRoundTime: { type: Number, default: 60 },
       },
       audio: {
         enabled: { type: Boolean, default: false },

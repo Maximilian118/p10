@@ -13,7 +13,10 @@ import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView, ChampSettingsFormType, ChampSettingsFormErrType } from "./Views/ChampSettings/ChampSettings"
 import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
-import Automation from "./Views/Automation/Automation"
+import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/Automation/Automation"
+import Protests from "./Views/Protests/Protests"
+import RuleChanges from "./Views/RuleChanges/RuleChanges"
+import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
 import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
@@ -52,6 +55,36 @@ const Championship: React.FC = () => {
     maxCompetitors: "",
     pointsStructure: "",
     dropzone: "",
+  })
+  const [ automationForm, setAutomationForm ] = useState<AutomationFormType>({
+    enabled: false,
+    autoOpen: false,
+    autoOpenTime: 10,
+    autoClose: false,
+    autoCloseTime: 5,
+    autoNextRound: false,
+    autoNextRoundTime: 60,
+  })
+  const [ automationFormErr, setAutomationFormErr ] = useState<AutomationFormErrType>({
+    autoOpenTime: "",
+    autoCloseTime: "",
+    autoNextRoundTime: "",
+  })
+  const [ protestsForm, setProtestsForm ] = useState<ProtestsFormType>({
+    alwaysVote: false,
+    allowMultiple: false,
+    expiry: 7,
+  })
+  const [ protestsFormErr, setProtestsFormErr ] = useState<ProtestsFormErrType>({
+    expiry: "",
+  })
+  const [ ruleChangesForm, setRuleChangesForm ] = useState<RuleChangesFormType>({
+    alwaysVote: false,
+    allowMultiple: false,
+    expiry: 7,
+  })
+  const [ ruleChangesFormErr, setRuleChangesFormErr ] = useState<RuleChangesFormErrType>({
+    expiry: "",
   })
 
   // Ref to expose DropZone's open function for external triggering.
@@ -113,6 +146,47 @@ const Championship: React.FC = () => {
     }
   }, [champ])
 
+  // Initialize automation form when champ data is loaded.
+  useEffect(() => {
+    if (champ) {
+      setAutomationForm({
+        enabled: champ.settings.automation?.enabled ?? false,
+        autoOpen: champ.settings.automation?.bettingWindow?.autoOpen ?? false,
+        autoOpenTime: champ.settings.automation?.bettingWindow?.autoOpenTime ?? 10,
+        autoClose: champ.settings.automation?.bettingWindow?.autoClose ?? false,
+        autoCloseTime: champ.settings.automation?.bettingWindow?.autoCloseTime ?? 5,
+        autoNextRound: champ.settings.automation?.round?.autoNextRound ?? false,
+        autoNextRoundTime: champ.settings.automation?.round?.autoNextRoundTime ?? 60,
+      })
+    }
+  }, [champ])
+
+  // Initialize protests form when champ data is loaded.
+  useEffect(() => {
+    if (champ) {
+      // Convert expiry from minutes to days (divide by 1440).
+      const expiryDays = Math.round((champ.settings.protests?.expiry ?? 10080) / 1440)
+      setProtestsForm({
+        alwaysVote: champ.settings.protests?.alwaysVote ?? false,
+        allowMultiple: champ.settings.protests?.allowMultiple ?? false,
+        expiry: expiryDays,
+      })
+    }
+  }, [champ])
+
+  // Initialize rule changes form when champ data is loaded.
+  useEffect(() => {
+    if (champ) {
+      // Convert expiry from minutes to days (divide by 1440).
+      const expiryDays = Math.round((champ.settings.ruleChanges?.expiry ?? 10080) / 1440)
+      setRuleChangesForm({
+        alwaysVote: champ.settings.ruleChanges?.alwaysVote ?? false,
+        allowMultiple: champ.settings.ruleChanges?.allowMultiple ?? false,
+        expiry: expiryDays,
+      })
+    }
+  }, [champ])
+
   // Check if settings form has changes compared to champ data.
   const settingsChanged = champ
     ? settingsForm.champName !== champ.name ||
@@ -123,6 +197,31 @@ const Championship: React.FC = () => {
       settingsForm.profile_picture !== null ||
       settingsForm.inviteOnly !== champ.settings.inviteOnly ||
       settingsForm.active !== champ.active
+    : false
+
+  // Check if automation form has changes compared to champ data.
+  const automationChanged = champ
+    ? automationForm.enabled !== (champ.settings.automation?.enabled ?? false) ||
+      automationForm.autoOpen !== (champ.settings.automation?.bettingWindow?.autoOpen ?? false) ||
+      automationForm.autoOpenTime !== (champ.settings.automation?.bettingWindow?.autoOpenTime ?? 10) ||
+      automationForm.autoClose !== (champ.settings.automation?.bettingWindow?.autoClose ?? false) ||
+      automationForm.autoCloseTime !== (champ.settings.automation?.bettingWindow?.autoCloseTime ?? 5) ||
+      automationForm.autoNextRound !== (champ.settings.automation?.round?.autoNextRound ?? false) ||
+      automationForm.autoNextRoundTime !== (champ.settings.automation?.round?.autoNextRoundTime ?? 60)
+    : false
+
+  // Check if protests form has changes compared to champ data.
+  const protestsChanged = champ
+    ? protestsForm.alwaysVote !== (champ.settings.protests?.alwaysVote ?? false) ||
+      protestsForm.allowMultiple !== (champ.settings.protests?.allowMultiple ?? false) ||
+      protestsForm.expiry !== Math.round((champ.settings.protests?.expiry ?? 10080) / 1440)
+    : false
+
+  // Check if rule changes form has changes compared to champ data.
+  const ruleChangesChanged = champ
+    ? ruleChangesForm.alwaysVote !== (champ.settings.ruleChanges?.alwaysVote ?? false) ||
+      ruleChangesForm.allowMultiple !== (champ.settings.ruleChanges?.allowMultiple ?? false) ||
+      ruleChangesForm.expiry !== Math.round((champ.settings.ruleChanges?.expiry ?? 10080) / 1440)
     : false
 
   // Handle settings form submission with optimistic updates.
@@ -291,6 +390,249 @@ const Championship: React.FC = () => {
     }
   }
 
+  // Handle automation form submission with optimistic updates.
+  const handleAutomationSubmit = async () => {
+    if (!champ) return
+
+    // Build automation updates object with only changed fields.
+    const automationUpdates: {
+      enabled?: boolean
+      bettingWindow?: {
+        autoOpen?: boolean
+        autoOpenTime?: number
+        autoClose?: boolean
+        autoCloseTime?: number
+      }
+      round?: {
+        autoNextRound?: boolean
+        autoNextRoundTime?: number
+      }
+    } = {}
+
+    if (automationForm.enabled !== (champ.settings.automation?.enabled ?? false)) {
+      automationUpdates.enabled = automationForm.enabled
+    }
+
+    // Check betting window fields for changes.
+    const bettingWindowUpdates: typeof automationUpdates.bettingWindow = {}
+
+    if (automationForm.autoOpen !== (champ.settings.automation?.bettingWindow?.autoOpen ?? false)) {
+      bettingWindowUpdates.autoOpen = automationForm.autoOpen
+    }
+    if (automationForm.autoOpenTime !== (champ.settings.automation?.bettingWindow?.autoOpenTime ?? 10)) {
+      bettingWindowUpdates.autoOpenTime = automationForm.autoOpenTime
+    }
+    if (automationForm.autoClose !== (champ.settings.automation?.bettingWindow?.autoClose ?? false)) {
+      bettingWindowUpdates.autoClose = automationForm.autoClose
+    }
+    if (automationForm.autoCloseTime !== (champ.settings.automation?.bettingWindow?.autoCloseTime ?? 5)) {
+      bettingWindowUpdates.autoCloseTime = automationForm.autoCloseTime
+    }
+
+    if (Object.keys(bettingWindowUpdates).length > 0) {
+      automationUpdates.bettingWindow = bettingWindowUpdates
+    }
+
+    // Check round automation fields for changes.
+    const roundUpdates: typeof automationUpdates.round = {}
+
+    if (automationForm.autoNextRound !== (champ.settings.automation?.round?.autoNextRound ?? false)) {
+      roundUpdates.autoNextRound = automationForm.autoNextRound
+    }
+    if (automationForm.autoNextRoundTime !== (champ.settings.automation?.round?.autoNextRoundTime ?? 60)) {
+      roundUpdates.autoNextRoundTime = automationForm.autoNextRoundTime
+    }
+
+    if (Object.keys(roundUpdates).length > 0) {
+      automationUpdates.round = roundUpdates
+    }
+
+    // Exit early if no changes.
+    if (Object.keys(automationUpdates).length === 0) return
+
+    // Store previous state for rollback.
+    const previousChamp = champ
+
+    // Optimistic update: immediately reflect changes in UI.
+    setChamp(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          automation: {
+            ...prev.settings.automation,
+            enabled: automationUpdates.enabled ?? prev.settings.automation?.enabled ?? false,
+            bettingWindow: {
+              ...prev.settings.automation.bettingWindow,
+              autoOpen: automationUpdates.bettingWindow?.autoOpen ?? prev.settings.automation.bettingWindow.autoOpen,
+              autoOpenTime: automationUpdates.bettingWindow?.autoOpenTime ?? prev.settings.automation.bettingWindow.autoOpenTime,
+              autoClose: automationUpdates.bettingWindow?.autoClose ?? prev.settings.automation.bettingWindow.autoClose,
+              autoCloseTime: automationUpdates.bettingWindow?.autoCloseTime ?? prev.settings.automation.bettingWindow.autoCloseTime,
+            },
+            round: {
+              ...prev.settings.automation.round,
+              autoNextRound: automationUpdates.round?.autoNextRound ?? prev.settings.automation.round.autoNextRound,
+              autoNextRoundTime: automationUpdates.round?.autoNextRoundTime ?? prev.settings.automation.round.autoNextRoundTime,
+            },
+          },
+        },
+      }
+    })
+
+    // Make the API request using updateChampSettings with automation parameter.
+    const result = await updateChampSettings(
+      champ._id,
+      { automation: automationUpdates },
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      // Success: update with server response.
+      setChamp(result)
+    } else {
+      // Failure: rollback to previous state.
+      setChamp(previousChamp)
+    }
+  }
+
+  // Handle protests form submission with optimistic updates.
+  const handleProtestsSubmit = async () => {
+    if (!champ) return
+
+    // Build protests updates object with only changed fields.
+    const protestsUpdates: {
+      alwaysVote?: boolean
+      allowMultiple?: boolean
+      expiry?: number
+    } = {}
+
+    if (protestsForm.alwaysVote !== (champ.settings.protests?.alwaysVote ?? false)) {
+      protestsUpdates.alwaysVote = protestsForm.alwaysVote
+    }
+
+    if (protestsForm.allowMultiple !== (champ.settings.protests?.allowMultiple ?? false)) {
+      protestsUpdates.allowMultiple = protestsForm.allowMultiple
+    }
+
+    // Convert days to minutes for the API.
+    const currentExpiryDays = Math.round((champ.settings.protests?.expiry ?? 10080) / 1440)
+    if (protestsForm.expiry !== currentExpiryDays) {
+      protestsUpdates.expiry = protestsForm.expiry * 1440
+    }
+
+    // Exit early if no changes.
+    if (Object.keys(protestsUpdates).length === 0) return
+
+    // Store previous state for rollback.
+    const previousChamp = champ
+
+    // Optimistic update: immediately reflect changes in UI.
+    setChamp(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          protests: {
+            ...prev.settings.protests,
+            alwaysVote: protestsUpdates.alwaysVote ?? prev.settings.protests.alwaysVote,
+            allowMultiple: protestsUpdates.allowMultiple ?? prev.settings.protests.allowMultiple,
+            expiry: protestsUpdates.expiry ?? prev.settings.protests.expiry,
+          },
+        },
+      }
+    })
+
+    // Make the API request.
+    const result = await updateChampSettings(
+      champ._id,
+      { protests: protestsUpdates },
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      // Success: update with server response.
+      setChamp(result)
+    } else {
+      // Failure: rollback to previous state.
+      setChamp(previousChamp)
+    }
+  }
+
+  // Handle rule changes form submission with optimistic updates.
+  const handleRuleChangesSubmit = async () => {
+    if (!champ) return
+
+    // Build rule changes updates object with only changed fields.
+    const ruleChangesUpdates: {
+      alwaysVote?: boolean
+      allowMultiple?: boolean
+      expiry?: number
+    } = {}
+
+    if (ruleChangesForm.alwaysVote !== (champ.settings.ruleChanges?.alwaysVote ?? false)) {
+      ruleChangesUpdates.alwaysVote = ruleChangesForm.alwaysVote
+    }
+
+    if (ruleChangesForm.allowMultiple !== (champ.settings.ruleChanges?.allowMultiple ?? false)) {
+      ruleChangesUpdates.allowMultiple = ruleChangesForm.allowMultiple
+    }
+
+    // Convert days to minutes for the API.
+    const currentExpiryDays = Math.round((champ.settings.ruleChanges?.expiry ?? 10080) / 1440)
+    if (ruleChangesForm.expiry !== currentExpiryDays) {
+      ruleChangesUpdates.expiry = ruleChangesForm.expiry * 1440
+    }
+
+    // Exit early if no changes.
+    if (Object.keys(ruleChangesUpdates).length === 0) return
+
+    // Store previous state for rollback.
+    const previousChamp = champ
+
+    // Optimistic update: immediately reflect changes in UI.
+    setChamp(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          ruleChanges: {
+            ...prev.settings.ruleChanges,
+            alwaysVote: ruleChangesUpdates.alwaysVote ?? prev.settings.ruleChanges.alwaysVote,
+            allowMultiple: ruleChangesUpdates.allowMultiple ?? prev.settings.ruleChanges.allowMultiple,
+            expiry: ruleChangesUpdates.expiry ?? prev.settings.ruleChanges.expiry,
+          },
+        },
+      }
+    })
+
+    // Make the API request.
+    const result = await updateChampSettings(
+      champ._id,
+      { ruleChanges: ruleChangesUpdates },
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      // Success: update with server response.
+      setChamp(result)
+    } else {
+      // Failure: rollback to previous state.
+      setChamp(previousChamp)
+    }
+  }
+
   // Render loading state.
   if (loading) {
     return (
@@ -405,6 +747,34 @@ const Championship: React.FC = () => {
             champ={champ}
             user={user}
             setView={navigateToView}
+            automationForm={automationForm}
+            setAutomationForm={setAutomationForm}
+            automationFormErr={automationFormErr}
+            setAutomationFormErr={setAutomationFormErr}
+          />
+        )}
+
+        {view === "protests" && (
+          <Protests
+            champ={champ}
+            user={user}
+            setView={navigateToView}
+            protestsForm={protestsForm}
+            setProtestsForm={setProtestsForm}
+            protestsFormErr={protestsFormErr}
+            setProtestsFormErr={setProtestsFormErr}
+          />
+        )}
+
+        {view === "ruleChanges" && (
+          <RuleChanges
+            champ={champ}
+            user={user}
+            setView={navigateToView}
+            ruleChangesForm={ruleChangesForm}
+            setRuleChangesForm={setRuleChangesForm}
+            ruleChangesFormErr={ruleChangesFormErr}
+            setRuleChangesFormErr={setRuleChangesFormErr}
           />
         )}
 
@@ -421,6 +791,15 @@ const Championship: React.FC = () => {
           settingsFormErr={settingsFormErr}
           onSettingsSubmit={handleSettingsSubmit}
           settingsChanged={settingsChanged}
+          automationFormErr={automationFormErr}
+          onAutomationSubmit={handleAutomationSubmit}
+          automationChanged={automationChanged}
+          protestsFormErr={protestsFormErr}
+          onProtestsSubmit={handleProtestsSubmit}
+          protestsChanged={protestsChanged}
+          ruleChangesFormErr={ruleChangesFormErr}
+          onRuleChangesSubmit={handleRuleChangesSubmit}
+          ruleChangesChanged={ruleChangesChanged}
         />
       </div>
       <ViewsDrawer

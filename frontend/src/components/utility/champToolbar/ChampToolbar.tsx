@@ -9,6 +9,8 @@ import { userType } from "../../../shared/localStorage"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../shared/requests/champRequests"
 import { ChampView, ChampSettingsFormErrType } from "../../../page/Championship/Views/ChampSettings/ChampSettings"
+import { AutomationFormErrType } from "../../../page/Championship/Views/Automation/Automation"
+import { ProtestsFormErrType, RuleChangesFormErrType } from "../../../shared/formValidation"
 
 interface champToolbarType {
   champ: ChampType
@@ -23,11 +25,20 @@ interface champToolbarType {
   settingsFormErr?: ChampSettingsFormErrType
   onSettingsSubmit?: () => void
   settingsChanged?: boolean
+  automationFormErr?: AutomationFormErrType
+  onAutomationSubmit?: () => void
+  automationChanged?: boolean
+  protestsFormErr?: ProtestsFormErrType
+  onProtestsSubmit?: () => void
+  protestsChanged?: boolean
+  ruleChangesFormErr?: RuleChangesFormErrType
+  onRuleChangesSubmit?: () => void
+  ruleChangesChanged?: boolean
   style?: React.CSSProperties
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, settingsFormErr, onSettingsSubmit, settingsChanged, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, settingsFormErr, onSettingsSubmit, settingsChanged, automationFormErr, onAutomationSubmit, automationChanged, protestsFormErr, onProtestsSubmit, protestsChanged, ruleChangesFormErr, onRuleChangesSubmit, ruleChangesChanged, style }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -153,6 +164,51 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
             onSettingsSubmit()
           }}
           disabled={!settingsChanged || Object.values(settingsFormErr || {}).some(err => !!err)}
+          startIcon={<Save />}
+        >
+          Save Changes
+        </Button>
+      )}
+      {view === "automation" && onAutomationSubmit && (
+        <Button
+          variant="contained"
+          size="small"
+          className="champ-toolbar-save"
+          onClick={e => {
+            e.stopPropagation()
+            onAutomationSubmit()
+          }}
+          disabled={!automationChanged || Object.values(automationFormErr || {}).some(err => !!err)}
+          startIcon={<Save />}
+        >
+          Save Changes
+        </Button>
+      )}
+      {view === "protests" && onProtestsSubmit && (
+        <Button
+          variant="contained"
+          size="small"
+          className="champ-toolbar-save"
+          onClick={e => {
+            e.stopPropagation()
+            onProtestsSubmit()
+          }}
+          disabled={!protestsChanged || Object.values(protestsFormErr || {}).some(err => !!err)}
+          startIcon={<Save />}
+        >
+          Save Changes
+        </Button>
+      )}
+      {view === "ruleChanges" && onRuleChangesSubmit && (
+        <Button
+          variant="contained"
+          size="small"
+          className="champ-toolbar-save"
+          onClick={e => {
+            e.stopPropagation()
+            onRuleChangesSubmit()
+          }}
+          disabled={!ruleChangesChanged || Object.values(ruleChangesFormErr || {}).some(err => !!err)}
           startIcon={<Save />}
         >
           Save Changes

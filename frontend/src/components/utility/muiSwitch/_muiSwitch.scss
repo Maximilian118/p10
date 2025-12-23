@@ -12,6 +12,23 @@
     box-sizing: border-box;
   }
 
+  // Display border bottom using pseudo-element for extended width
+  &__border-bottom {
+    position: relative;
+    margin-bottom: 20px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200%;
+      height: 2px;
+      background-color: variables.$background;
+    }
+  }
+
   // Style the switch thumb for better visibility when unchecked
   .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
     background-color: variables.$colour-2;

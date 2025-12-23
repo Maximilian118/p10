@@ -451,6 +451,29 @@ interface ChampSettingsUpdate {
   pointsStructure?: pointsStructureType
   icon?: string
   profile_picture?: string
+  automation?: {
+    enabled?: boolean
+    bettingWindow?: {
+      autoOpen?: boolean
+      autoOpenTime?: number
+      autoClose?: boolean
+      autoCloseTime?: number
+    }
+    round?: {
+      autoNextRound?: boolean
+      autoNextRoundTime?: number
+    }
+  }
+  protests?: {
+    alwaysVote?: boolean
+    allowMultiple?: boolean
+    expiry?: number
+  }
+  ruleChanges?: {
+    alwaysVote?: boolean
+    allowMultiple?: boolean
+    expiry?: number
+  }
 }
 
 // Updates championship settings (adjudicator only).
@@ -470,30 +493,10 @@ export const updateChampSettings = async (
       .post(
         "",
         {
-          variables: { _id, ...settings },
+          variables: { _id, settings },
           query: `
-            mutation UpdateChampSettings(
-              $_id: ID!,
-              $name: String,
-              $inviteOnly: Boolean,
-              $active: Boolean,
-              $rounds: Int,
-              $maxCompetitors: Int,
-              $pointsStructure: [PointsStructureInput!],
-              $icon: String,
-              $profile_picture: String
-            ) {
-              updateChampSettings(
-                _id: $_id,
-                name: $name,
-                inviteOnly: $inviteOnly,
-                active: $active,
-                rounds: $rounds,
-                maxCompetitors: $maxCompetitors,
-                pointsStructure: $pointsStructure,
-                icon: $icon,
-                profile_picture: $profile_picture
-              ) {
+            mutation UpdateChampSettings($_id: ID!, $settings: ChampSettingsInput!) {
+              updateChampSettings(_id: $_id, settings: $settings) {
                 ${populateChamp}
               }
             }

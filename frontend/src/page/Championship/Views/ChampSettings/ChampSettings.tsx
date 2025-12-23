@@ -7,7 +7,9 @@ import { getCompetitors } from "../../../../shared/utility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
 import ImageIcon from "@mui/icons-material/Image"
-import AutoModeIcon from '@mui/icons-material/AutoMode';
+import AutoModeIcon from '@mui/icons-material/AutoMode'
+import ReportProblemIcon from '@mui/icons-material/ReportProblem'
+import GavelIcon from '@mui/icons-material/Gavel'
 import MUITextField from "../../../../components/utility/muiTextField/MUITextField"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
 import PointsPicker from "../../../../components/utility/pointsPicker/PointsPicker"
@@ -16,7 +18,7 @@ import { identifyPresetFromStructure } from "../../../../components/utility/poin
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 
 // View type for the Championship page.
-export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation"
+export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges"
 
 // Form type for championship settings.
 export interface ChampSettingsFormType {
@@ -178,6 +180,22 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         disabled={champ.series.name !== "FIA Formula One World Championship"}
       >
         Automation
+      </Button>
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => setView("protests")}
+        startIcon={<ReportProblemIcon />}
+      >
+        Protests
+      </Button>
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => setView("ruleChanges")}
+        startIcon={<GavelIcon />}
+      >
+        Rule Changes
       </Button>
       {canDelete && (
         <Button

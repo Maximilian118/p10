@@ -268,6 +268,21 @@ export const inputLabel = (
     case "birthday":
       label = "DOB"
       break
+    case "autoOpenTime":
+      label = "Mins before Qualifying Starts"
+      break
+    case "autoCloseTime":
+      label = "Mins after Qualifying Starts"
+      break
+    case "autoNextRoundTime":
+      label = "Mins after Qualifying Finishes"
+      break
+    case "protestsExpiry":
+      label = "Expiry (Days)"
+      break
+    case "ruleChangesExpiry":
+      label = "Expiry (Days)"
+      break
     default:
       break
   }
@@ -314,4 +329,28 @@ export const updateSettingsForm = <T extends formStateType, U>(
     default:
       handleInput<U>(name, setFormErr)
   }
+}
+
+// Protests form state and error types.
+export interface ProtestsFormType {
+  alwaysVote: boolean
+  allowMultiple: boolean
+  expiry: number
+}
+
+export interface ProtestsFormErrType {
+  expiry: string
+  [key: string]: string
+}
+
+// Rule changes form state and error types.
+export interface RuleChangesFormType {
+  alwaysVote: boolean
+  allowMultiple: boolean
+  expiry: number
+}
+
+export interface RuleChangesFormErrType {
+  expiry: string
+  [key: string]: string
 }

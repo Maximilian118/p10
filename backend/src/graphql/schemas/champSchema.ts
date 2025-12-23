@@ -231,6 +231,49 @@ const champSchema = `
     subsections: [RuleSubsectionInput!]
   }
 
+  # Input for updating betting window settings.
+  input BettingWindowSettingsInput {
+    autoOpen: Boolean
+    autoOpenTime: Int
+    autoClose: Boolean
+    autoCloseTime: Int
+  }
+
+  # Input for updating round automation settings.
+  input RoundAutomationSettingsInput {
+    autoNextRound: Boolean
+    autoNextRoundTime: Int
+  }
+
+  # Input for updating automation settings.
+  input AutomationSettingsInput {
+    enabled: Boolean
+    bettingWindow: BettingWindowSettingsInput
+    round: RoundAutomationSettingsInput
+  }
+
+  # Input for updating voting settings (protests and ruleChanges).
+  input VotingSettingsInput {
+    alwaysVote: Boolean
+    allowMultiple: Boolean
+    expiry: Int
+  }
+
+  # Input for updating championship settings.
+  input ChampSettingsInput {
+    name: String
+    icon: String
+    profile_picture: String
+    rounds: Int
+    maxCompetitors: Int
+    pointsStructure: [PointsStructureInput!]
+    inviteOnly: Boolean
+    active: Boolean
+    automation: AutomationSettingsInput
+    protests: VotingSettingsInput
+    ruleChanges: VotingSettingsInput
+  }
+
   # Response type for multiple championships.
   type Champs {
     array: [Champ!]!

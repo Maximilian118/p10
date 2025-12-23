@@ -348,7 +348,7 @@ const champResolvers = {
     }
   },
 
-  // Updates championship profile picture (adjudicator only).
+  // Updates championship profile picture (admin or adjudicator only).
   updateChampPP: async (
     { _id, icon, profile_picture }: { _id: string; icon: string; profile_picture: string },
     req: AuthRequest,
@@ -364,12 +364,16 @@ const champResolvers = {
         return throwError("updateChampPP", _id, "Championship not found!", 404)
       }
 
-      // Verify user is the adjudicator.
-      if (champ.adjudicator.current.toString() !== req._id) {
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
         return throwError(
           "updateChampPP",
           req._id,
-          "Only the adjudicator can update championship images!",
+          "Only an admin or the adjudicator can update championship images!",
           403,
         )
       }
@@ -397,10 +401,50 @@ const champResolvers = {
     }
   },
 
-  // Updates championship settings (adjudicator only).
+  // Updates championship settings (admin or adjudicator only).
   updateChampSettings: async (
     {
       _id,
+      settings,
+    }: {
+      _id: string
+      settings: {
+        name?: string
+        inviteOnly?: boolean
+        active?: boolean
+        rounds?: number
+        maxCompetitors?: number
+        pointsStructure?: PointsStructureInput[]
+        icon?: string
+        profile_picture?: string
+        automation?: {
+          enabled?: boolean
+          bettingWindow?: {
+            autoOpen?: boolean
+            autoOpenTime?: number
+            autoClose?: boolean
+            autoCloseTime?: number
+          }
+          round?: {
+            autoNextRound?: boolean
+            autoNextRoundTime?: number
+          }
+        }
+        protests?: {
+          alwaysVote?: boolean
+          allowMultiple?: boolean
+          expiry?: number
+        }
+        ruleChanges?: {
+          alwaysVote?: boolean
+          allowMultiple?: boolean
+          expiry?: number
+        }
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    const {
       name,
       inviteOnly,
       active,
@@ -409,19 +453,10 @@ const champResolvers = {
       pointsStructure,
       icon,
       profile_picture,
-    }: {
-      _id: string
-      name?: string
-      inviteOnly?: boolean
-      active?: boolean
-      rounds?: number
-      maxCompetitors?: number
-      pointsStructure?: PointsStructureInput[]
-      icon?: string
-      profile_picture?: string
-    },
-    req: AuthRequest,
-  ): Promise<ChampType> => {
+      automation,
+      protests,
+      ruleChanges,
+    } = settings
     if (!req.isAuth) {
       throwError("updateChampSettings", req.isAuth, "Not Authenticated!", 401)
     }
@@ -433,12 +468,16 @@ const champResolvers = {
         return throwError("updateChampSettings", _id, "Championship not found!", 404)
       }
 
-      // Verify user is the adjudicator.
-      if (champ.adjudicator.current.toString() !== req._id) {
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
         return throwError(
           "updateChampSettings",
           req._id,
-          "Only the adjudicator can update championship settings!",
+          "Only an admin or the adjudicator can update championship settings!",
           403,
         )
       }
@@ -539,6 +578,126 @@ const champResolvers = {
         }
 
         champ.pointsStructure = pointsStructure
+      }
+
+      // Update automation settings if provided.
+      if (automation) {
+        if (typeof automation.enabled === "boolean") {
+          champ.settings.automation.enabled = automation.enabled
+        }
+
+        // Update betting window settings if provided.
+        if (automation.bettingWindow) {
+          const { autoOpen, autoOpenTime, autoClose, autoCloseTime } = automation.bettingWindow
+
+          if (typeof autoOpen === "boolean") {
+            champ.settings.automation.bettingWindow.autoOpen = autoOpen
+          }
+
+          if (typeof autoOpenTime === "number") {
+            // Validate: maximum 30 minutes before qualifying.
+            if (autoOpenTime < 1 || autoOpenTime > 30) {
+              return throwError(
+                "autoOpenTime",
+                autoOpenTime,
+                "Auto open time must be between 1 and 30 minutes.",
+                400,
+              )
+            }
+            champ.settings.automation.bettingWindow.autoOpenTime = autoOpenTime
+          }
+
+          if (typeof autoClose === "boolean") {
+            champ.settings.automation.bettingWindow.autoClose = autoClose
+          }
+
+          if (typeof autoCloseTime === "number") {
+            // Validate: maximum 10 minutes after qualifying starts.
+            if (autoCloseTime < 1 || autoCloseTime > 10) {
+              return throwError(
+                "autoCloseTime",
+                autoCloseTime,
+                "Auto close time must be between 1 and 10 minutes.",
+                400,
+              )
+            }
+            champ.settings.automation.bettingWindow.autoCloseTime = autoCloseTime
+          }
+        }
+
+        // Update round automation settings if provided.
+        if (automation.round) {
+          const { autoNextRound, autoNextRoundTime } = automation.round
+
+          if (typeof autoNextRound === "boolean") {
+            champ.settings.automation.round.autoNextRound = autoNextRound
+          }
+
+          if (typeof autoNextRoundTime === "number") {
+            // Validate: between 1 and 99 minutes after qualifying finishes.
+            if (autoNextRoundTime < 1 || autoNextRoundTime > 99) {
+              return throwError(
+                "autoNextRoundTime",
+                autoNextRoundTime,
+                "Auto next round time must be between 1 and 99 minutes.",
+                400,
+              )
+            }
+            champ.settings.automation.round.autoNextRoundTime = autoNextRoundTime
+          }
+        }
+      }
+
+      // Update protests settings if provided.
+      if (protests) {
+        const { alwaysVote, allowMultiple, expiry } = protests
+
+        if (typeof alwaysVote === "boolean") {
+          champ.settings.protests.alwaysVote = alwaysVote
+        }
+
+        if (typeof allowMultiple === "boolean") {
+          champ.settings.protests.allowMultiple = allowMultiple
+        }
+
+        if (typeof expiry === "number") {
+          // Validate: expiry must be between 1 and 30 days (1440 to 43200 minutes).
+          if (expiry < 1440 || expiry > 43200) {
+            return throwError(
+              "protestsExpiry",
+              expiry,
+              "Protests expiry must be between 1 and 30 days.",
+              400,
+            )
+          }
+          champ.settings.protests.expiry = expiry
+        }
+      }
+
+      // Update rule changes settings if provided.
+      if (ruleChanges) {
+        const { alwaysVote, allowMultiple, expiry } = ruleChanges
+
+        if (typeof alwaysVote === "boolean") {
+          champ.settings.ruleChanges.alwaysVote = alwaysVote
+        }
+
+        if (typeof allowMultiple === "boolean") {
+          champ.settings.ruleChanges.allowMultiple = allowMultiple
+        }
+
+        if (typeof expiry === "number") {
+          // Validate: expiry must be between 1 and 30 days (1440 to 43200 minutes).
+          if (expiry < 1440 || expiry > 43200) {
+            return throwError(
+              "ruleChangesExpiry",
+              expiry,
+              "Rule changes expiry must be between 1 and 30 days.",
+              400,
+            )
+          }
+          champ.settings.ruleChanges.expiry = expiry
+        }
       }
 
       champ.updated_at = moment().format()
