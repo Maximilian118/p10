@@ -76,7 +76,7 @@ const Championship: React.FC = () => {
     expiry: 7,
   })
   const [ protestsFormErr, setProtestsFormErr ] = useState<ProtestsFormErrType>({
-    expiry: "",
+    protestsExpiry: "",
   })
   const [ ruleChangesForm, setRuleChangesForm ] = useState<RuleChangesFormType>({
     alwaysVote: false,
@@ -84,7 +84,7 @@ const Championship: React.FC = () => {
     expiry: 7,
   })
   const [ ruleChangesFormErr, setRuleChangesFormErr ] = useState<RuleChangesFormErrType>({
-    expiry: "",
+    ruleChangesExpiry: "",
   })
 
   // Ref to expose DropZone's open function for external triggering.

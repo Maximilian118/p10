@@ -339,7 +339,7 @@ export interface ProtestsFormType {
 }
 
 export interface ProtestsFormErrType {
-  expiry: string
+  protestsExpiry: string
   [key: string]: string
 }
 
@@ -351,6 +351,6 @@ export interface RuleChangesFormType {
 }
 
 export interface RuleChangesFormErrType {
-  expiry: string
+  ruleChangesExpiry: string
   [key: string]: string
 }
