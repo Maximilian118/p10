@@ -1,0 +1,31 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+.points-container {
+  width: 30px;
+  height: 30px;
+  margin: 10px;
+  color: variables.$colour-9;
+  @include mixins.flexbox;
+  position: relative;
+
+  .pts, .last {
+    position: absolute;
+    font-size: 8px;
+  }
+
+  .last {
+    top: -5px;
+    color: variables.$mui-success-hover;
+  }
+
+  .pts {
+    bottom: -5px;
+  }
+
+  .total {
+    &.gold { color: variables.$gold; }
+    &.silver { color: variables.$silver; }
+    &.bronze { color: variables.$bronze; }
+  }
+}

@@ -11,18 +11,10 @@
   padding: 5px 7.5%;
   box-sizing: border-box;
 
-  .competitor-icon-container {
-    width: 50px;
-    height: 50px;
-    flex-shrink: 0;
-    @include mixins.flexbox;
-  }
-
   .competitor-name {
     color: variables.$colour-9;
     text-transform: capitalize;
     font-size: 14px;
-    margin-left: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

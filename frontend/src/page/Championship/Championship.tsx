@@ -726,7 +726,7 @@ const Championship: React.FC = () => {
             {getCompetitors(champ).map((c, i) => (
               <CompetitorCard
                 key={c.competitor._id || i}
-                competitor={c.competitor}
+                competitorEntry={c}
                 highlight={justJoined && c.competitor._id === user._id}
               />
             ))}
