@@ -16,6 +16,7 @@ import PointsPicker from "../../../../components/utility/pointsPicker/PointsPick
 import { inputLabel, updateSettingsForm } from "../../../../shared/formValidation"
 import { identifyPresetFromStructure } from "../../../../components/utility/pointsPicker/ppPresets"
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
+import SeriesCard from "../../../../components/cards/seriesCard/SeriesCard"
 
 // View type for the Championship page.
 export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges"
@@ -97,14 +98,16 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
 
   return (
     <div className="champ-settings-card">
-      <Button
-        variant="contained"
-        className="champ-settings-card__icon-btn"
-        onClick={() => dropzoneOpenRef.current?.()}
-        startIcon={<ImageIcon />}
-      >
-        Change Championship Icon
-      </Button>
+      <FormElContainer
+        name="series"
+        content={
+          <SeriesCard
+            series={champ.series}
+          />  
+        }
+        formErr={settingsFormErr}
+        backendErr={initGraphQLError}
+      />
       <MUITextField
         inputProps={{ maxLength: 50 }}
         className="mui-form-el"
@@ -160,18 +163,14 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
       />
-      <MUISwitch
-        text="Invite Only"
-        fullWidth
-        checked={settingsForm.inviteOnly}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, inviteOnly: checked }))}
-      />
-      <MUISwitch
-        text="Championship Active"
-        fullWidth
-        checked={settingsForm.active}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
-      />
+      <Button
+        variant="contained"
+        className="champ-settings-card__icon-btn"
+        onClick={() => dropzoneOpenRef.current?.()}
+        startIcon={<ImageIcon />}
+      >
+        Change Icon
+      </Button>
       <Button
         variant="contained"
         className="champ-settings-card__icon-btn"
@@ -197,6 +196,18 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       >
         Rule Changes
       </Button>
+      <MUISwitch
+        text="Invite Only"
+        fullWidth
+        checked={settingsForm.inviteOnly}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, inviteOnly: checked }))}
+      />
+      <MUISwitch
+        text="Championship Active"
+        fullWidth
+        checked={settingsForm.active}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
+      />
       {canDelete && (
         <Button
           variant="contained"

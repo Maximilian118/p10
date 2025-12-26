@@ -287,7 +287,7 @@ export const inputLabel = (
       break
   }
 
-  return `${label}${errorMessage && `: ${errorMessage}`}`
+  return `${label}${errorMessage ? `: ${errorMessage}` : ''}`
 }
 
 // Update settings form on blur - validates and updates form state.
