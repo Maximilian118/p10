@@ -440,6 +440,7 @@ const champResolvers = {
           allowMultiple?: boolean
           expiry?: number
         }
+        series?: string
       }
     },
     req: AuthRequest,
@@ -456,6 +457,7 @@ const champResolvers = {
       automation,
       protests,
       ruleChanges,
+      series,
     } = settings
     if (!req.isAuth) {
       throwError("updateChampSettings", req.isAuth, "Not Authenticated!", 401)
@@ -506,6 +508,44 @@ const champResolvers = {
       // Update profile_picture if provided.
       if (profile_picture) {
         champ.profile_picture = profile_picture
+      }
+
+      // Update series if provided and different.
+      if (series && series !== champ.series.toString()) {
+        // Only allow series change if all rounds are waiting.
+        const allWaiting = champ.rounds.every((r) => r.status === "waiting")
+        if (!allWaiting) {
+          return throwError(
+            "updateChampSettings",
+            series,
+            "Cannot change series after season has started!",
+            400,
+          )
+        }
+
+        // Validate new series exists.
+        const newSeries = await Series.findById(series)
+        if (!newSeries) {
+          return throwError("updateChampSettings", series, "Series not found!", 404)
+        }
+
+        // Remove championship from old series.championships array.
+        await Series.findByIdAndUpdate(champ.series, {
+          $pull: { championships: champ._id },
+        })
+
+        // Add championship to new series.championships array.
+        await Series.findByIdAndUpdate(series, {
+          $push: { championships: champ._id },
+        })
+
+        // Update championship's series reference.
+        champ.series = new ObjectId(series)
+
+        // If automation was enabled but new series doesn't support it, disable.
+        if (champ.settings.automation?.enabled && newSeries.name !== "FIA Formula One World Championship") {
+          champ.settings.automation.enabled = false
+        }
       }
 
       // Update maxCompetitors if provided.

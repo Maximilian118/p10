@@ -47,3 +47,24 @@
     color: #d32f2f !important;
   }
 }
+
+// Clickable state for interactive FormElContainers.
+.form-el-container.clickable {
+  cursor: pointer;
+
+  &:hover {
+    background: variables.$colour-1;
+  }
+
+  &:focus {
+    outline: 2px solid variables.$mui-blue;
+    outline-offset: -2px;
+  }
+}
+
+// Disabled state for FormElContainers.
+.form-el-container.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

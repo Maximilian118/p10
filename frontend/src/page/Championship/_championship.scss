@@ -13,3 +13,11 @@
   @include mixins.flexbox-column;
   padding-bottom: 80px;
 }
+
+// SeriesPicker overrides for Championship context.
+.series-picker {
+  .search {
+    position: sticky;
+    top: 0;
+  }
+}

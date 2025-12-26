@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { ChampType, formErrType, formType } from "../../shared/types"
+import { ChampType, formErrType, formType, seriesType } from "../../shared/types"
 import { getCompetitors } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "../../components/cards/champBanner/ChampBanner"
@@ -16,6 +16,7 @@ import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
 import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/Automation/Automation"
 import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
+import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
 import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
@@ -48,6 +49,7 @@ const Championship: React.FC = () => {
     profile_picture: null,
     inviteOnly: false,
     active: true,
+    series: null,
   })
   const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
     champName: "",
@@ -86,6 +88,7 @@ const Championship: React.FC = () => {
   const [ ruleChangesFormErr, setRuleChangesFormErr ] = useState<RuleChangesFormErrType>({
     ruleChangesExpiry: "",
   })
+  const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -142,6 +145,7 @@ const Championship: React.FC = () => {
         profile_picture: null,
         inviteOnly: champ.settings.inviteOnly,
         active: champ.active,
+        series: champ.series,
       })
     }
   }, [champ])
@@ -196,7 +200,8 @@ const Championship: React.FC = () => {
       settingsForm.icon !== null ||
       settingsForm.profile_picture !== null ||
       settingsForm.inviteOnly !== champ.settings.inviteOnly ||
-      settingsForm.active !== champ.active
+      settingsForm.active !== champ.active ||
+      settingsForm.series?._id !== champ.series._id
     : false
 
   // Check if automation form has changes compared to champ data.
@@ -238,6 +243,7 @@ const Championship: React.FC = () => {
       profile_picture?: string
       inviteOnly?: boolean
       active?: boolean
+      series?: string
     } = {}
 
     if (settingsForm.champName !== champ.name) {
@@ -262,6 +268,10 @@ const Championship: React.FC = () => {
 
     if (settingsForm.active !== champ.active) {
       updates.active = settingsForm.active
+    }
+
+    if (settingsForm.series?._id !== champ.series._id && settingsForm.series?._id) {
+      updates.series = settingsForm.series._id
     }
 
     // Upload images to S3 if changed.
@@ -365,6 +375,10 @@ const Championship: React.FC = () => {
           // Remove rounds from the end.
           optimisticChamp.rounds = prev.rounds.slice(0, updates.rounds)
         }
+      }
+
+      if (updates.series && settingsForm.series) {
+        optimisticChamp.series = settingsForm.series
       }
 
       return optimisticChamp
@@ -775,6 +789,19 @@ const Championship: React.FC = () => {
             setRuleChangesForm={setRuleChangesForm}
             ruleChangesFormErr={ruleChangesFormErr}
             setRuleChangesFormErr={setRuleChangesFormErr}
+          />
+        )}
+
+        {view === "series" && (
+          <SeriesPicker
+            form={settingsForm}
+            setForm={setSettingsForm}
+            seriesList={seriesList}
+            setSeriesList={setSeriesList}
+            user={user}
+            setUser={setUser}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
           />
         )}
 

@@ -272,6 +272,7 @@ const champSchema = `
     automation: AutomationSettingsInput
     protests: VotingSettingsInput
     ruleChanges: VotingSettingsInput
+    series: ID
   }
 
   # Response type for multiple championships.

@@ -3,7 +3,7 @@
 
 .series-list-card {
   width: 100%;
-  min-height: 60px;
+  min-height: 106px;
   @include mixins.flexbox-start;
   background: white;
   cursor: pointer;
@@ -20,6 +20,10 @@
     flex-shrink: 0;
     position: relative;
     @include mixins.flexbox;
+
+    .icon-contained {
+      background: white;
+    }
 
     > :last-child {
       position: absolute;
@@ -45,6 +49,8 @@
       text-transform: capitalize;
       overflow-wrap: break-word;
       font-size: 15px;
+      padding-right: 10px;
+      box-sizing: border-box;
     }
 
     .series-list-drivers {
@@ -92,6 +98,16 @@
 
     &:hover {
       background: variables.$mui-blue;
+    }
+  }
+
+  // Disabled state for display-only usage (e.g., inside FormElContainer).
+  &.disabled {
+    cursor: default;
+    pointer-events: none;
+
+    &:hover {
+      background: white;
     }
   }
 

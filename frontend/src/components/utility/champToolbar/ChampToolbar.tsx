@@ -154,7 +154,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
         </Button>
       )}
       {view === "competitors" && renderJoinButton()}
-      {view === "settings" && onSettingsSubmit && (
+      {(view === "settings" || view === "series") && onSettingsSubmit && (
         <Button
           variant="contained"
           size="small"

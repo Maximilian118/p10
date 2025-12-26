@@ -53,8 +53,14 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
     }
   }, [navigate, user, setUser, seriesList, setSeriesList, setBackendErr, form, reqSent])
 
+  // Sort alphabetically, then move selected series to the top.
   const sortedSeries = sortAlphabetically(search ? search : seriesList)
-  const selectedSeries = sortedSeries.find(s => s._id === selected)
+  const orderedSeries = selected
+    ? [
+        ...sortedSeries.filter(s => s._id === selected),
+        ...sortedSeries.filter(s => s._id !== selected),
+      ]
+    : sortedSeries
 
   // Handle series created/updated from embedded CreateSeries.
   const handleSeriesSuccess = (newSeries: seriesType) => {
@@ -101,41 +107,32 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
         setSearch={setSearch}
       />
       <div className="series-list-container">
-        {selectedSeries && (
-          <SeriesListCard
-            selected
-            series={selectedSeries}
-            canEdit={!!canEditSeries(selectedSeries, user)}
-            onEditClicked={() => {
-              setSeries(selectedSeries)
-              setIsEdit(true)
-            }}
-          />
-        )}
         {loading ?
           <FillLoading/> :
           seriesList.length > 0 ?
           <div className="series-list">
-            {sortedSeries
-              .filter(s => s._id !== selected)
-              .map((seriesItem: seriesType, i: number) =>
-              <SeriesListCard
-                key={i}
-                series={seriesItem}
-                canEdit={!!canEditSeries(seriesItem, user)}
-                onEditClicked={() => {
-                  setSeries(seriesItem)
-                  setIsEdit(true)
-                }}
-                onClick={() => {
-                  setSelected(seriesItem._id!)
-                  setForm(prevForm => ({
-                    ...prevForm,
-                    series: seriesItem,
-                  }))
-                }}
-              />
-            )}
+            {orderedSeries.map((seriesItem: seriesType, i: number) => {
+              const isSelected = seriesItem._id === selected
+              return (
+                <SeriesListCard
+                  key={seriesItem._id || i}
+                  series={seriesItem}
+                  selected={isSelected}
+                  canEdit={!!canEditSeries(seriesItem, user)}
+                  onEditClicked={() => {
+                    setSeries(seriesItem)
+                    setIsEdit(true)
+                  }}
+                  onClick={isSelected ? undefined : () => {
+                    setSelected(seriesItem._id!)
+                    setForm(prevForm => ({
+                      ...prevForm,
+                      series: seriesItem,
+                    }))
+                  }}
+                />
+              )
+            })}
           </div> :
           <div className="series-empty">
             {backendErr.message ?

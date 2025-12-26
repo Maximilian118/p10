@@ -1,6 +1,6 @@
 import React from "react"
 import "./_champSettings.scss"
-import { ChampType, pointsStructureType } from "../../../../shared/types"
+import { ChampType, pointsStructureType, seriesType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
 import { getCompetitors } from "../../../../shared/utility"
@@ -16,10 +16,10 @@ import PointsPicker from "../../../../components/utility/pointsPicker/PointsPick
 import { inputLabel, updateSettingsForm } from "../../../../shared/formValidation"
 import { identifyPresetFromStructure } from "../../../../components/utility/pointsPicker/ppPresets"
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
-import SeriesCard from "../../../../components/cards/seriesCard/SeriesCard"
+import SeriesListCard from "../../../../components/cards/seriesListCard/SeriesListCard"
 
 // View type for the Championship page.
-export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges"
+export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges" | "series"
 
 // Form type for championship settings.
 export interface ChampSettingsFormType {
@@ -31,6 +31,7 @@ export interface ChampSettingsFormType {
   profile_picture: File | string | null
   inviteOnly: boolean
   active: boolean
+  series: seriesType | null
 }
 
 // Form error type for championship settings.
@@ -101,12 +102,16 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       <FormElContainer
         name="series"
         content={
-          <SeriesCard
-            series={champ.series}
-          />  
+          <SeriesListCard
+            series={settingsForm.series || champ.series}
+            style={{ background: "none", padding: "0 0 0 10px" }}
+            disabled
+          />
         }
         formErr={settingsFormErr}
         backendErr={initGraphQLError}
+        onClick={() => setView("series")}
+        disabled={!allRoundsWaiting}
       />
       <MUITextField
         inputProps={{ maxLength: 50 }}
