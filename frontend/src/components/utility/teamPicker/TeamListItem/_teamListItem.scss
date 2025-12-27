@@ -1,0 +1,37 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.team-list-item {
+  width: 100%;
+  min-height: 50px;
+  @include mixins.flexbox-start;
+  background: white;
+  padding: 5px 10px;
+  box-sizing: border-box;
+  position: relative;
+  transition: variables.$trans-speed;
+
+  &.clickable {
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .team-list-item-name {
+    flex-grow: 1;
+    color: variables.$colour-9;
+    text-transform: capitalize;
+    font-size: 14px;
+    margin-left: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Adds spacing between consecutive list items.
+  & + .team-list-item {
+    margin-top: 2px;
+  }
+}

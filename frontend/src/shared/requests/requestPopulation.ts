@@ -335,6 +335,11 @@ export const populateChamp = `
         name
         icon
         emblem
+        drivers {
+          _id
+          icon
+          name
+        }
       }
     }
   }

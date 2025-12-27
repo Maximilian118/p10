@@ -7,8 +7,8 @@
   @include mixins.flexbox;
 }
 
-// List of competitors in the championship standings.
-.competitors-list {
+// List of competitors/drivers/teams in the championship standings.
+.championship-list {
   width: 100%;
   @include mixins.flexbox-column;
   padding-bottom: 80px;

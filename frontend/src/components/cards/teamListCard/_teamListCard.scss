@@ -68,8 +68,15 @@
   }
 
   // Highlight animation for newly created teams.
-  &.team-list-card-highlight {
+  &__highlight {
     animation: highlightFade 1.5s ease-out forwards;
+  }
+
+  // Entry modifier when showing points.
+  &__entry {
+    .team-list-content {
+      margin-left: 10px;
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import React from "react"
 import './_driverPicker.scss'
 import MUIAutocomplete from "../muiAutocomplete/muiAutocomplete"
 import { driverType } from "../../../shared/types"
-import DriverCard from "../../cards/driverCard/DriverCard"
+import DriverListItem from "./DriverListItem/DriverListItem"
 import { sortAlphabetically } from "../../../shared/utility"
 import AddButton from "../button/addButton/AddButton"
 
@@ -67,7 +67,7 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
           <p className="driver-picker-empty">{emptyMessage}</p>
         ) : (
           sortAlphabetically(selectedDrivers).map((driver: driverType, i: number) => (
-            <DriverCard
+            <DriverListItem
               key={i}
               driver={driver}
               onRemove={readOnly ? undefined : (d) => onRemove?.(d)}

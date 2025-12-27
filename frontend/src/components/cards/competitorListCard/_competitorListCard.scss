@@ -1,9 +1,9 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-.competitor-card {
+.competitor-list-card {
   width: 100%;
-  min-height: 80px;
+  min-height: 88px;
   @include mixins.flexbox-start;
   background: white;
   cursor: pointer;
@@ -14,23 +14,24 @@
   .competitor-name {
     color: variables.$colour-9;
     text-transform: capitalize;
-    font-size: 14px;
+    font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-left: 10px;
   }
 
   &:hover {
     background: rgba(0, 0, 0, 0.06);
   }
 
-  // Adds spacing between consecutive CompetitorCards
-  & + .competitor-card {
+  // Adds spacing between consecutive cards.
+  & + .competitor-list-card {
     margin-top: 2px;
   }
 
   // Highlight animation for newly added competitors.
-  &.competitor-card-highlight {
+  &__highlight {
     animation: highlightFade 1.5s ease-out forwards;
   }
 }

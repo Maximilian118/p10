@@ -1,12 +1,14 @@
 import React, { SyntheticEvent } from "react"
 import './_driverListCard.scss'
-import { driverType, teamType } from "../../../shared/types"
+import { driverType, DriverEntryType, teamType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
+import Points from "../../utility/points/Points"
 
 interface driverListCardType {
   driver: driverType
+  entry?: DriverEntryType
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
@@ -15,12 +17,9 @@ interface driverListCardType {
 }
 
 // Card for displaying a driver in a list with team icons underneath.
-const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit, onEditClicked, onTeamClick, highlight }) => {
-
-  const className = `driver-list-card${highlight ? ' driver-list-card-highlight' : ''}`
-
+const DriverListCard: React.FC<driverListCardType> = ({ driver, entry, onClick, canEdit, onEditClicked, onTeamClick, highlight }) => {
   return (
-    <div className={className} onClick={onClick}>
+    <div className={`driver-list-card${highlight ? ' driver-list-card__highlight' : ''}${entry ? ' driver-list-card__entry' : ''}`} onClick={onClick}>
       <div className="main-icon-container">
         <ImageIcon src={driver.icon} size="contained"/>
         {canEdit && <EditButton
@@ -30,6 +29,7 @@ const DriverListCard: React.FC<driverListCardType> = ({ driver, onClick, canEdit
           }}
         />}
       </div>
+      {entry && <Points total={entry.totalPoints} last={entry.points} position={entry.position} />}
       <div className="driver-list-content">
         <p className="driver-list-title">{driver.name}</p>
         <IconList items={driver.teams} onItemClick={onTeamClick} />

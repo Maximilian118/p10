@@ -3,13 +3,16 @@ import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
 import { ChampType, formErrType, formType, seriesType } from "../../shared/types"
-import { getCompetitors } from "../../shared/utility"
+import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "../../components/cards/champBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ChampToolbar from "../../components/utility/champToolbar/ChampToolbar"
-import CompetitorCard from "../../components/cards/competitorCard/CompetitorCard"
+import CompetitorListCard from "../../components/cards/competitorListCard/CompetitorListCard"
+import DriverListCard from "../../components/cards/driverListCard/DriverListCard"
+import TeamListCard from "../../components/cards/teamListCard/TeamListCard"
+import RoundsBar, { StandingsView } from "./RoundsBar/RoundsBar"
 import ViewsDrawer from "./ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView, ChampSettingsFormType, ChampSettingsFormErrType } from "./Views/ChampSettings/ChampSettings"
 import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
@@ -107,6 +110,10 @@ const Championship: React.FC = () => {
     ruleChangesExpiry: "",
   })
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
+
+  // RoundsBar state - which round to view and which standings type.
+  const [ viewedRoundIndex, setViewedRoundIndex ] = useState<number | null>(null)
+  const [ standingsView, setStandingsView ] = useState<StandingsView>("competitors")
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -374,6 +381,14 @@ const Championship: React.FC = () => {
   const isAdmin = user.permissions?.admin === true
   const canAccessSettings = isAdjudicator || isAdmin
 
+  // Compute round viewing state.
+  const currentRoundIndex = champ.rounds.findIndex(r => r.status !== "completed")
+  const effectiveCurrentIndex = currentRoundIndex === -1 ? champ.rounds.length - 1 : currentRoundIndex
+  const viewedIndex = viewedRoundIndex ?? effectiveCurrentIndex
+  const viewedRound = champ.rounds[viewedIndex]
+  // Round number is 1-indexed for display.
+  const viewedRoundNumber = viewedRound?.round ?? effectiveCurrentIndex + 1
+
   return (
     <>
       {/* Banner outside scroll container to avoid feedback loop when shrinking */}
@@ -394,6 +409,7 @@ const Championship: React.FC = () => {
             settingsMode={true}
             openRef={dropzoneOpenRef}
             shrinkRatio={shrinkRatio}
+            viewedRoundNumber={viewedRoundNumber}
           />
         ) : (
           <ChampBanner<formType, formErrType>
@@ -409,23 +425,56 @@ const Championship: React.FC = () => {
             setBackendErr={setBackendErr}
             onBannerClick={() => navigateToView("competitors")}
             shrinkRatio={shrinkRatio}
+            viewedRoundNumber={viewedRoundNumber}
           />
         )
       ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} shrinkRatio={shrinkRatio} />
+        <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} shrinkRatio={shrinkRatio} viewedRoundNumber={viewedRoundNumber} />
+      )}
+
+      {view === "competitors" && (
+        <RoundsBar
+          totalRounds={champ.rounds.length}
+          viewedRoundIndex={viewedIndex}
+          currentRoundIndex={effectiveCurrentIndex}
+          standingsView={standingsView}
+          setViewedRoundIndex={setViewedRoundIndex}
+          setStandingsView={setStandingsView}
+          isAdjudicator={isAdjudicator}
+        />
       )}
 
       <div className="content-container" onScroll={handleScroll}>
         {view === "competitors" && (
-          <div className="competitors-list">
-            {getCompetitors(champ).map((c, i) => (
-              <CompetitorCard
-                key={c.competitor._id || i}
-                competitorEntry={c}
-                highlight={justJoined && c.competitor._id === user._id}
-              />
-            ))}
-          </div>
+          <div className="championship-list">
+              {standingsView === "competitors" && viewedRound &&
+                getCompetitorsFromRound(viewedRound).map((c, i) => (
+                  <CompetitorListCard
+                    key={c.competitor._id || i}
+                    highlight={justJoined && c.competitor._id === user._id}
+                    entry={c}
+                  />
+                ))
+              }
+              {standingsView === "drivers" && viewedRound &&
+                getAllDriversForRound(champ.series, viewedRound).map((d, i) => (
+                  <DriverListCard
+                    key={d.driver._id || i}
+                    driver={d.driver}
+                    entry={d}
+                  />
+                ))
+              }
+              {standingsView === "teams" && viewedRound &&
+                getAllTeamsForRound(champ.series, viewedRound).map((t, i) => (
+                  <TeamListCard
+                    key={t.team._id || i}
+                    team={t.team}
+                    entry={t}
+                  />
+                ))
+              }
+            </div>
         )}
 
         {view === "settings" && (

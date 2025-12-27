@@ -9,7 +9,7 @@ import { driverType, teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import { initTeam } from "../../shared/init"
-import { createdByID, heightCMOptions, isThreeLettersUppercase, sortAlphabetically, weightKGOptions } from "../../shared/utility"
+import { createdByID, heightCMOptions, isThreeLettersUppercase, weightKGOptions } from "../../shared/utility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createDriver, editDriver, removeDriver } from "../../shared/requests/driverRequests"
@@ -18,8 +18,7 @@ import MUICountrySelect, { countryType, findCountryByString } from "../../compon
 import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
 import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocomplete"
 import MUICheckbox from "../../components/utility/muiCheckbox/MUICheckbox"
-import TeamCard from "../../components/cards/teamCard/TeamCard"
-import AddButton from "../../components/utility/button/addButton/AddButton"
+import TeamPicker from "../../components/utility/teamPicker/TeamPicker"
 import CreateTeam from "../CreateTeam/CreateTeam"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createDriver.scss"
@@ -518,36 +517,21 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
           setFormErr(prev => ({ ...prev, nationality: "" }))
         }}
       />
-      <div className="create-driver-team-picker">
-        <MUIAutocomplete
-          label={inputLabel("teams", formErr, backendErr)}
-          displayNew="always"
-          customNewLabel="Team"
-          onNewMouseDown={() => openNewTeamEdit()}
-          options={teams.filter(t => !form.teams.some(ft => ft._id === t._id))}
-          value={teamValue ? teamValue.name : null}
-          loading={teamsLoading}
-          error={formErr.teams || backendErr.type === "teams" ? true : false}
-          setObjValue={(value) => setTeamValue(value)}
-          onLiClick={(value) => addTeamHandler(value)}
-          onChange={() => setFormErr(prev => ({ ...prev, teams: "" }))}
-        />
-        <div className="create-driver-team-list">
-          {sortAlphabetically(form.teams).map((team: teamType, i: number) => (
-            <TeamCard
-              key={i}
-              team={team}
-              onRemove={() => removeTeamHandler(team)}
-              canRemove={!!permissions}
-              onClick={() => openEditTeam(team)}
-            />
-          ))}
-        </div>
-        <AddButton
-          onClick={() => openNewTeamEdit()}
-          absolute
-        />
-      </div>
+      <TeamPicker
+        teams={teams}
+        selectedTeams={form.teams}
+        value={teamValue}
+        setValue={setTeamValue}
+        loading={teamsLoading}
+        label={inputLabel("teams", formErr, backendErr)}
+        error={formErr.teams || backendErr.type === "teams" ? true : false}
+        disabled={!permissions}
+        onAdd={addTeamHandler}
+        onRemove={removeTeamHandler}
+        onEdit={openEditTeam}
+        onNew={openNewTeamEdit}
+        onChange={() => setFormErr(prev => ({ ...prev, teams: "" }))}
+      />
       <div className="create-driver-stats">
         <MUIAutocomplete
           label={inputLabel("heightCM", formErr, backendErr)}

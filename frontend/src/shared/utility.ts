@@ -1,7 +1,7 @@
 // Get the initials of the user.
 import { userType } from "./localStorage"
 import { Location } from "react-router-dom"
-import { ChampType, CompetitorEntryType } from "./types"
+import { ChampType, CompetitorEntryType, RoundType, DriverEntryType, TeamEntryType, seriesType, teamType, driverType } from "./types"
 
 // If just one word return one initial, if two return two.
 export const getInitials = (userName: string) => {
@@ -154,4 +154,99 @@ export const getCompetitors = (champ: ChampType): CompetitorEntryType[] => {
 
   // Sort competitors by totalPoints in descending order (highest points first)
   return [...currentRound.competitors].sort((a, b) => b.totalPoints - a.totalPoints)
+}
+
+// Get competitors from a specific round, sorted by position (1st place first).
+export const getCompetitorsFromRound = (round: RoundType): CompetitorEntryType[] => {
+  if (!round?.competitors) return []
+  return [...round.competitors].sort((a, b) => a.position - b.position)
+}
+
+// Get drivers from a specific round, sorted by position (1st place first).
+export const getDriversFromRound = (round: RoundType): DriverEntryType[] => {
+  if (!round?.drivers) return []
+  return [...round.drivers].sort((a, b) => a.position - b.position)
+}
+
+// Get teams from a specific round, sorted by position (1st place first).
+export const getTeamsFromRound = (round: RoundType): TeamEntryType[] => {
+  if (!round?.teams) return []
+  return [...round.teams].sort((a, b) => a.position - b.position)
+}
+
+// Get all drivers from series, with entry data if available in round.
+export const getAllDriversForRound = (
+  series: seriesType,
+  round: RoundType
+): DriverEntryType[] => {
+  const entryMap = new Map(round.drivers?.map(d => [d.driver._id, d]) || [])
+
+  const sorted = series.drivers.map(driver => {
+    const existing = entryMap.get(driver._id)
+    if (existing) return existing
+    // Create default entry with 0 points.
+    return {
+      driver,
+      points: 0,
+      totalPoints: 0,
+      position: 0,
+      positionDrivers: 0,
+      positionActual: 0,
+    }
+  }).sort((a, b) => b.totalPoints - a.totalPoints || a.driver.name.localeCompare(b.driver.name))
+
+  // Assign positions based on sorted order.
+  return sorted.map((entry, i) => ({ ...entry, position: i + 1 }))
+}
+
+// Get all unique teams from series drivers, with entry data if available.
+export const getAllTeamsForRound = (
+  series: seriesType,
+  round: RoundType
+): TeamEntryType[] => {
+  const entryMap = new Map(round.teams?.map(t => [t.team._id, t]) || [])
+
+  // Collect unique teams and their drivers from series data.
+  const teamsMap = new Map<string, teamType>()
+  const teamDriversMap = new Map<string, driverType[]>()
+
+  series.drivers.forEach(driver => {
+    driver.teams.forEach(team => {
+      if (team._id) {
+        if (!teamsMap.has(team._id)) {
+          teamsMap.set(team._id, team)
+          teamDriversMap.set(team._id, [])
+        }
+        // Add this driver to the team's drivers list.
+        teamDriversMap.get(team._id)!.push(driver)
+      }
+    })
+  })
+
+  const sorted = Array.from(teamsMap.values()).map(team => {
+    const existing = entryMap.get(team._id)
+    // Build team with drivers populated from series data.
+    const teamWithDrivers = {
+      ...team,
+      drivers: teamDriversMap.get(team._id!) || [],
+    }
+    if (existing) {
+      return {
+        ...existing,
+        team: teamWithDrivers,
+      }
+    }
+    // Create default entry with 0 points.
+    return {
+      team: teamWithDrivers,
+      drivers: teamDriversMap.get(team._id!) || [],
+      points: 0,
+      totalPoints: 0,
+      position: 0,
+      positionConstructors: 0,
+    }
+  }).sort((a, b) => b.totalPoints - a.totalPoints || a.team.name.localeCompare(b.team.name))
+
+  // Assign positions based on sorted order.
+  return sorted.map((entry, i) => ({ ...entry, position: i + 1 }))
 }

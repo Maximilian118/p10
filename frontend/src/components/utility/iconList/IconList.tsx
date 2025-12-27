@@ -36,7 +36,7 @@ function IconList<T extends IconItem>({ items, onItemClick, counterInverted, cen
 
   return (
     <div ref={containerRef} className={className}>
-      {items.map((item: T, i: number) => {
+      {(items || []).map((item: T, i: number) => {
         if (i < lastIcon) {
           return (
             <ImageIcon

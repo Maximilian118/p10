@@ -31,6 +31,7 @@ interface champBannerEditableType<T, U> {
   settingsMode?: boolean // When true, hide confirmation UI (Save Changes button handles submission).
   openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose DropZone's open function.
   shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
+  viewedRoundNumber?: number // When provided, shows this round number instead of current.
 }
 
 // Props for read-only championship banner (when user is not adjudicator).
@@ -39,31 +40,37 @@ interface champBannerReadOnlyType {
   onBannerClick?: () => void
   readOnly: true
   shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
+  viewedRoundNumber?: number // When provided, shows this round number instead of current.
 }
 
 type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnlyType
 
 // Renders quick stats for the championship banner.
-const ChampBannerStats = ({ champ }: { champ: ChampType }) => (
-  <div className="champ-banner-stats">
-    <div className="champ-stat">
-      <RotateRightIcon />
-      <span>{champ.rounds.find(r => r.status !== "completed")?.round || champ.rounds.length}/{champ.rounds.length}</span>
+const ChampBannerStats = ({ champ, viewedRoundNumber }: { champ: ChampType; viewedRoundNumber?: number }) => {
+  // Use viewedRoundNumber if provided, otherwise calculate current round.
+  const displayedRound = viewedRoundNumber ?? (champ.rounds.find(r => r.status !== "completed")?.round || champ.rounds.length)
+
+  return (
+    <div className="champ-banner-stats">
+      <div className="champ-stat">
+        <RotateRightIcon />
+        <span>{displayedRound}/{champ.rounds.length}</span>
+      </div>
+      <div className="champ-stat">
+        <PersonIcon />
+        <span>{getCompetitors(champ).length}/{champ.settings.maxCompetitors}</span>
+      </div>
+      <div className="champ-stat">
+        <SportsMotorsportsIcon />
+        <span>{champ.series.drivers.length}</span>
+      </div>
+      <div className="champ-stat">
+        <WorkspacePremiumIcon />
+        <span>{champ.champBadges.length}</span>
+      </div>
     </div>
-    <div className="champ-stat">
-      <PersonIcon />
-      <span>{getCompetitors(champ).length}/{champ.settings.maxCompetitors}</span>
-    </div>
-    <div className="champ-stat">
-      <SportsMotorsportsIcon />
-      <span>{champ.series.drivers.length}</span>
-    </div>
-    <div className="champ-stat">
-      <WorkspacePremiumIcon />
-      <span>{champ.champBadges.length}</span>
-    </div>
-  </div>
-)
+  )
+}
 
 // Displays championship banner with profile picture, name, and stats.
 // Editable mode allows adjudicator to update the profile picture.
@@ -73,7 +80,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ, onBannerClick, shrinkRatio } = props
+    const { champ, onBannerClick, shrinkRatio, viewedRoundNumber } = props
     const isShrunk = (shrinkRatio ?? 0) > 0
     return (
       <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
@@ -84,14 +91,14 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} />
+          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
         </div>
       </div>
     )
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, shrinkRatio } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, shrinkRatio, viewedRoundNumber } = props
 
   // Handles profile picture upload for championship.
   const uploadPPHandler = async () => {
@@ -107,7 +114,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} />
+          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
         </>
       )
     }
@@ -119,7 +126,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} />
+          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
         </>
       )
     } else {

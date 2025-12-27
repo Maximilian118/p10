@@ -1,5 +1,5 @@
-@use '../../../../scss/variables';
-@use '../../../../scss/mixins';
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
 
 .points-container {
   width: 30px;
@@ -8,6 +8,7 @@
   color: variables.$colour-9;
   @include mixins.flexbox;
   position: relative;
+  flex-shrink: 0;
 
   .pts, .last {
     position: absolute;

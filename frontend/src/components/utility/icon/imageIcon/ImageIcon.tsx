@@ -5,7 +5,7 @@ import './_imageIcon.scss'
 interface iconType {
   src: string
   id?: string
-  size?: "small" | "medium" | "large" | "contained"
+  size?: "small" | "medium" | "large" | "x-large" | "contained"
   style?: React.CSSProperties
   onClick?: (e: SyntheticEvent) => void
   background?: boolean

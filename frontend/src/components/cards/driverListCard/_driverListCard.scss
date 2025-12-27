@@ -67,8 +67,15 @@
   }
 
   // Highlight animation for newly created drivers.
-  &.driver-list-card-highlight {
+  &__highlight {
     animation: highlightFade 1.5s ease-out forwards;
+  }
+
+  // Entry modifier when showing points.
+  &__entry {
+    .driver-list-content {
+      margin-left: 10px;
+    }
   }
 }
 
