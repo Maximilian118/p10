@@ -100,13 +100,16 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   // Editable mode for adjudicator.
   const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, shrinkRatio, viewedRoundNumber } = props
 
+  // Is the "Are you sure" check dispalying or not?
+  const isNormalView = !form.icon && !form.profile_picture
+
   // Handles profile picture upload for championship.
   const uploadPPHandler = async () => {
     await updateChampPP(champ._id, form, setForm, setChamp, user, setUser, navigate, setLoading, setBackendErr)
   }
 
   // Renders content based on whether files are selected and current mode.
-  const filesInForm = (form: T): JSX.Element => {
+  const filesInForm = (): JSX.Element => {
     // In settings mode, always show stats (Save Changes button handles submission).
     if (settingsMode) {
       return (
@@ -120,7 +123,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     }
 
     // In normal mode, show confirmation UI when files are selected.
-    if (!form.icon && !form.profile_picture) {
+    if (isNormalView) {
       return (
         <>
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
@@ -132,7 +135,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     } else {
       return (
         <>
-          <p>Are you sure?</p>
+          <p style={{ marginBottom: 10 }}>Are you sure?</p>
           <Button
             variant="contained"
             className="mui-form-btn"
@@ -160,8 +163,8 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         openRef={openRef}
         disabled={isShrunk}
       />
-      <div className="champ-banner-info" onClick={isShrunk ? undefined : onBannerClick}>
-        {filesInForm(form)}
+      <div className="champ-banner-info" style={{ justifyContent: isNormalView ? "space-between" : "center" }} onClick={isShrunk ? undefined : onBannerClick}>
+        {filesInForm()}
       </div>
     </div>
   )

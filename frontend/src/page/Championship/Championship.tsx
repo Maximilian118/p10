@@ -150,6 +150,12 @@ const Championship: React.FC = () => {
     setViewHistory([])
   }
 
+  // Handle banner click - navigate to default and reset standings view.
+  const handleBannerClick = () => {
+    navigateToDefault()
+    setStandingsView("competitors")
+  }
+
   // Fetch championship data when ID changes.
   useEffect(() => {
     if (id) {
@@ -405,7 +411,7 @@ const Championship: React.FC = () => {
             setFormErr={setSettingsFormErr}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
-            onBannerClick={() => navigateToView("competitors")}
+            onBannerClick={handleBannerClick}
             settingsMode={true}
             openRef={dropzoneOpenRef}
             shrinkRatio={shrinkRatio}
@@ -423,13 +429,13 @@ const Championship: React.FC = () => {
             setFormErr={setFormErr}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
-            onBannerClick={() => navigateToView("competitors")}
+            onBannerClick={handleBannerClick}
             shrinkRatio={shrinkRatio}
             viewedRoundNumber={viewedRoundNumber}
           />
         )
       ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={() => navigateToView("competitors")} shrinkRatio={shrinkRatio} viewedRoundNumber={viewedRoundNumber} />
+        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={shrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
       {view === "competitors" && (
