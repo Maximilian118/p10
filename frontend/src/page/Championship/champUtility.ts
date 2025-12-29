@@ -148,7 +148,10 @@ export interface RuleChangesUpdatesType {
 // ============================================
 
 // Build settings updates object with only changed fields (excluding file uploads).
-export const buildSettingsUpdates = (form: ChampSettingsFormType, champ: ChampType): SettingsUpdatesType => {
+export const buildSettingsUpdates = (
+  form: ChampSettingsFormType,
+  champ: ChampType,
+): SettingsUpdatesType => {
   const updates: SettingsUpdatesType = {}
 
   if (form.champName !== champ.name) {
@@ -183,7 +186,10 @@ export const buildSettingsUpdates = (form: ChampSettingsFormType, champ: ChampTy
 }
 
 // Build automation updates object with only changed fields.
-export const buildAutomationUpdates = (form: AutomationFormType, champ: ChampType): AutomationUpdatesType => {
+export const buildAutomationUpdates = (
+  form: AutomationFormType,
+  champ: ChampType,
+): AutomationUpdatesType => {
   const updates: AutomationUpdatesType = {}
 
   if (form.enabled !== (champ.settings.automation?.enabled ?? false)) {
@@ -226,7 +232,10 @@ export const buildAutomationUpdates = (form: AutomationFormType, champ: ChampTyp
 }
 
 // Build protests updates object with only changed fields.
-export const buildProtestsUpdates = (form: ProtestsFormType, champ: ChampType): ProtestsUpdatesType => {
+export const buildProtestsUpdates = (
+  form: ProtestsFormType,
+  champ: ChampType,
+): ProtestsUpdatesType => {
   const updates: ProtestsUpdatesType = {}
 
   if (form.alwaysVote !== (champ.settings.protests?.alwaysVote ?? false)) {
@@ -246,7 +255,10 @@ export const buildProtestsUpdates = (form: ProtestsFormType, champ: ChampType): 
 }
 
 // Build rule changes updates object with only changed fields.
-export const buildRuleChangesUpdates = (form: RuleChangesFormType, champ: ChampType): RuleChangesUpdatesType => {
+export const buildRuleChangesUpdates = (
+  form: RuleChangesFormType,
+  champ: ChampType,
+): RuleChangesUpdatesType => {
   const updates: RuleChangesUpdatesType = {}
 
   if (form.alwaysVote !== (champ.settings.ruleChanges?.alwaysVote ?? false)) {
@@ -273,7 +285,7 @@ export const buildRuleChangesUpdates = (form: RuleChangesFormType, champ: ChampT
 export const applySettingsOptimistically = (
   champ: ChampType,
   updates: SettingsUpdatesType,
-  form: ChampSettingsFormType
+  form: ChampSettingsFormType,
 ): ChampType => {
   const optimisticChamp = { ...champ }
 
@@ -343,7 +355,7 @@ export const applySettingsOptimistically = (
 // Apply automation updates optimistically to championship state.
 export const applyAutomationOptimistically = (
   champ: ChampType,
-  updates: AutomationUpdatesType
+  updates: AutomationUpdatesType,
 ): ChampType => {
   return {
     ...champ,
@@ -354,15 +366,23 @@ export const applyAutomationOptimistically = (
         enabled: updates.enabled ?? champ.settings.automation?.enabled ?? false,
         bettingWindow: {
           ...champ.settings.automation.bettingWindow,
-          autoOpen: updates.bettingWindow?.autoOpen ?? champ.settings.automation.bettingWindow.autoOpen,
-          autoOpenTime: updates.bettingWindow?.autoOpenTime ?? champ.settings.automation.bettingWindow.autoOpenTime,
-          autoClose: updates.bettingWindow?.autoClose ?? champ.settings.automation.bettingWindow.autoClose,
-          autoCloseTime: updates.bettingWindow?.autoCloseTime ?? champ.settings.automation.bettingWindow.autoCloseTime,
+          autoOpen:
+            updates.bettingWindow?.autoOpen ?? champ.settings.automation.bettingWindow.autoOpen,
+          autoOpenTime:
+            updates.bettingWindow?.autoOpenTime ??
+            champ.settings.automation.bettingWindow.autoOpenTime,
+          autoClose:
+            updates.bettingWindow?.autoClose ?? champ.settings.automation.bettingWindow.autoClose,
+          autoCloseTime:
+            updates.bettingWindow?.autoCloseTime ??
+            champ.settings.automation.bettingWindow.autoCloseTime,
         },
         round: {
           ...champ.settings.automation.round,
-          autoNextRound: updates.round?.autoNextRound ?? champ.settings.automation.round.autoNextRound,
-          autoNextRoundTime: updates.round?.autoNextRoundTime ?? champ.settings.automation.round.autoNextRoundTime,
+          autoNextRound:
+            updates.round?.autoNextRound ?? champ.settings.automation.round.autoNextRound,
+          autoNextRoundTime:
+            updates.round?.autoNextRoundTime ?? champ.settings.automation.round.autoNextRoundTime,
         },
       },
     },
@@ -372,7 +392,7 @@ export const applyAutomationOptimistically = (
 // Apply protests updates optimistically to championship state.
 export const applyProtestsOptimistically = (
   champ: ChampType,
-  updates: ProtestsUpdatesType
+  updates: ProtestsUpdatesType,
 ): ChampType => {
   return {
     ...champ,
@@ -391,7 +411,7 @@ export const applyProtestsOptimistically = (
 // Apply rule changes updates optimistically to championship state.
 export const applyRuleChangesOptimistically = (
   champ: ChampType,
-  updates: RuleChangesUpdatesType
+  updates: RuleChangesUpdatesType,
 ): ChampType => {
   return {
     ...champ,

@@ -1,0 +1,20 @@
+.arrows {
+  width: 24px;
+  height: 24px;
+  position: relative;
+
+  .arrow-2 {
+    position: absolute;
+    top: 0;
+  }
+
+  // Right-facing arrows.
+  &--right .arrow-2 {
+    left: 6px;
+  }
+
+  // Left-facing arrows.
+  &--left .arrow-2 {
+    right: 6px;
+  }
+}

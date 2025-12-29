@@ -3,90 +3,51 @@
 
 .rounds-bar {
   width: 100%;
-  height: 60px;
   @include mixins.flexbox-space-between;
   background: white;
   flex-shrink: 0;
   margin-bottom: 2px;
 
-  // Navigation buttons (left and right)
-  .rounds-bar-nav-btn {
-    min-width: 40px;
-    height: 40px;
-    border: 1px solid variables.$mui-border;
-    border-radius: 4px;
-    color: variables.$colour-6;
-    background-color: variables.$colour-0;
-    transition: all variables.$trans-speed;
-
-    &:hover:not(:disabled) {
-      background-color: variables.$colour-1;
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+  // Shared styles for nav and view buttons.
+  .rounds-bar-nav-btn, .rounds-bar-toggle-group, .rounds-bar-view-btn {
+    height: 45px;
+    border: 0px;
+    border-radius: 0px;
+    white-space: nowrap;
 
     &.Mui-selected {
       background-color: variables.$mui-blue;
-      color: white;
+      color: white !important;
 
       &:hover {
         background-color: variables.$mui-blue-hover;
       }
     }
+
+    &:disabled {
+      border: 0px;
+    }
   }
 
-  // Toggle group for view selection
-  .rounds-bar-toggle-group {
-    .rounds-bar-view-btn {
-      min-width: 40px;
-      height: 40px;
-      border: 1px solid variables.$mui-border;
-      color: variables.$colour-6;
-      background-color: variables.$colour-0;
-      transition: all variables.$trans-speed;
+  .rounds-bar-view-btn {
+    width: 50px;
+  }
 
-      &:hover:not(:disabled) {
-        background-color: variables.$colour-1;
-      }
-
-      &.Mui-selected {
-        background-color: variables.$mui-blue;
-        color: white;
-
-        &:hover {
-          background-color: variables.$mui-blue-hover;
-        }
-      }
-    }
+  .rounds-bar-nav-btn {
+    flex: 1;
+    min-width: 0;
   }
 
   // Start next round button (adjudicator only)
   .rounds-bar-start-btn {
     @include mixins.flexbox;
-    gap: 2px;
-    padding: 0 8px;
+    background: variables.$mui-success;
+    color: white;
 
     .rounds-bar-favicon {
       width: 20px;
       height: 20px;
       animation: spin 2s linear infinite;
     }
-
-    .rounds-bar-start-arrow {
-      font-size: 16px;
-    }
-  }
-}
-
-// Rotating animation for favicon
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }

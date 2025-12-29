@@ -1,12 +1,11 @@
 import React from "react"
 import "./_roundsBar.scss"
 import { ToggleButton, ToggleButtonGroup } from "@mui/material"
-import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft"
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight"
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
+import Arrows from "../../../components/utility/arrows/Arrows"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import GroupsIcon from "@mui/icons-material/Groups"
-import CloseIcon from "@mui/icons-material/Close"
+import { AccessTime } from "@mui/icons-material"
 
 export type StandingsView = "competitors" | "drivers" | "teams"
 
@@ -23,7 +22,6 @@ interface RoundsBarProps {
 
 // Navigation bar for browsing championship rounds and switching between standings views.
 const RoundsBar: React.FC<RoundsBarProps> = ({
-  totalRounds,
   viewedRoundIndex,
   currentRoundIndex,
   standingsView,
@@ -76,7 +74,7 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
           className="rounds-bar-nav-btn"
           onClick={handleNextRound}
         >
-          <KeyboardArrowRightIcon />
+          <Arrows />
         </ToggleButton>
       )
     }
@@ -89,24 +87,20 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
           className="rounds-bar-nav-btn rounds-bar-start-btn"
           onClick={handleStartNextRound}
         >
-          <img
-            src="https://p10-game.s3.eu-west-2.amazonaws.com/assets/favicon.png"
-            alt="Start"
-            className="rounds-bar-favicon"
-          />
-          <KeyboardArrowRightIcon className="rounds-bar-start-arrow" />
+          <p>Start</p>
+          <Arrows />
         </ToggleButton>
       )
     }
 
-    // Non-adjudicator at current round - show disabled close icon
+    // Non-adjudicator at current round - show waiting icon
     return (
       <ToggleButton
         value="close"
         className="rounds-bar-nav-btn"
         disabled
       >
-        <CloseIcon />
+        <AccessTime />
       </ToggleButton>
     )
   }
@@ -120,7 +114,7 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
         onClick={handlePrevRound}
         disabled={!canGoBack}
       >
-        <KeyboardArrowLeftIcon />
+        <Arrows direction="left"/>
       </ToggleButton>
 
       {/* Buttons 2-4: Standings view toggle */}
@@ -130,11 +124,11 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
         onChange={handleViewChange}
         className="rounds-bar-toggle-group"
       >
-        <ToggleButton value="competitors" className="rounds-bar-view-btn">
-          <EmojiEventsIcon />
-        </ToggleButton>
         <ToggleButton value="drivers" className="rounds-bar-view-btn">
           <SportsMotorsportsIcon />
+        </ToggleButton>
+        <ToggleButton value="competitors" className="rounds-bar-view-btn">
+          <EmojiEventsIcon />
         </ToggleButton>
         <ToggleButton value="teams" className="rounds-bar-view-btn">
           <GroupsIcon />

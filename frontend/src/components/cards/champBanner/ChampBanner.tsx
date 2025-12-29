@@ -12,6 +12,7 @@ import { getCompetitors } from "../../../shared/utility"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import RotateRightIcon from "@mui/icons-material/RotateRight"
+import AutoModeIcon from "@mui/icons-material/AutoMode"
 import PersonIcon from "@mui/icons-material/Person"
 
 // Props for editable championship banner (when user is adjudicator).
@@ -49,11 +50,12 @@ type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnly
 const ChampBannerStats = ({ champ, viewedRoundNumber }: { champ: ChampType; viewedRoundNumber?: number }) => {
   // Use viewedRoundNumber if provided, otherwise calculate current round.
   const displayedRound = viewedRoundNumber ?? (champ.rounds.find(r => r.status !== "completed")?.round || champ.rounds.length)
+  const autoNextRound = champ.settings.automation?.enabled && champ.settings.automation?.round?.autoNextRound
 
   return (
     <div className="champ-banner-stats">
       <div className="champ-stat">
-        <RotateRightIcon />
+        {autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />}
         <span>{displayedRound}/{champ.rounds.length}</span>
       </div>
       <div className="champ-stat">
