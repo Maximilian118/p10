@@ -76,6 +76,12 @@
   &__entry {
     .team-list-content {
       margin-left: 10px;
+
+      .team-list-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
   }
 }
