@@ -73,6 +73,10 @@
 
   // Entry modifier when showing points.
   &__entry {
+    .main-icon-container {
+      margin-right: 10px;
+    }
+    
     .driver-list-content {
       margin-left: 10px;
     }

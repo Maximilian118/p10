@@ -11,6 +11,10 @@
   padding: 5px 7.5%;
   box-sizing: border-box;
 
+  .image-icon {
+    margin-right: 10px;
+  }
+
   .competitor-name {
     color: variables.$colour-9;
     text-transform: capitalize;
