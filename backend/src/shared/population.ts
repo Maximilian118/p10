@@ -12,7 +12,17 @@ export const teamPopulation = [
         path: "created_by",
         model: "User",
       },
+      {
+        path: "series",
+        model: "Series",
+        select: "_id name",
+      },
     ],
+  },
+  {
+    path: "series",
+    model: "Series",
+    select: "_id name",
   },
 ]
 

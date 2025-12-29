@@ -99,6 +99,7 @@ export const populateTeamFull = `
     }
     series {
       _id
+      name
       championships {
         _id
         history {
