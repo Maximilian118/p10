@@ -81,13 +81,12 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
     const { champ, onBannerClick, shrinkRatio, viewedRoundNumber } = props
-    const isShrunk = (shrinkRatio ?? 0) > 0
     return (
       <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
-        <div className="champ-banner-icon-container" onClick={isShrunk ? undefined : onBannerClick}>
+        <div className="champ-banner-icon-container" onClick={onBannerClick}>
           <ImageIcon src={champ.icon} size="contained" />
         </div>
-        <div className="champ-banner-info" onClick={isShrunk ? undefined : onBannerClick}>
+        <div className="champ-banner-info" onClick={onBannerClick}>
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
@@ -163,7 +162,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         openRef={openRef}
         disabled={isShrunk}
       />
-      <div className="champ-banner-info" style={{ justifyContent: isNormalView ? "space-between" : "center" }} onClick={isShrunk ? undefined : onBannerClick}>
+      <div className="champ-banner-info" style={{ justifyContent: isNormalView ? "space-between" : "center" }} onClick={onBannerClick}>
         {filesInForm()}
       </div>
     </div>
