@@ -8,16 +8,23 @@
   flex-shrink: 0;
   border-bottom: 2px solid variables.$background;
 
+  p, svg {
+    color: variables.$colour-6;
+  }
+
   // Shared styles for nav and view buttons.
   .rounds-bar-nav-btn, .rounds-bar-toggle-group, .rounds-bar-view-btn {
-    height: 45px;
+    height: 40px;
     border: 0px;
     border-radius: 0px;
     white-space: nowrap;
 
     &.Mui-selected {
       background-color: variables.$mui-blue;
-      color: white !important;
+
+      p, svg {
+        color: white;
+      }
 
       &:hover {
         background-color: variables.$mui-blue-hover;
@@ -26,11 +33,15 @@
 
     &:disabled {
       border: 0px;
+
+      p, svg {
+          color: variables.$colour-2;
+        }
     }
   }
 
   .rounds-bar-view-btn {
-    width: 50px;
+    width: 40px;
   }
 
   .rounds-bar-nav-btn {
@@ -42,7 +53,10 @@
   .rounds-bar-start-btn {
     @include mixins.flexbox;
     background: variables.$mui-success;
-    color: white;
+
+    p, svg {
+      color: white;
+    }
 
     &:hover {
       background-color: variables.$mui-success-hover;
