@@ -42,6 +42,7 @@ export interface TeamEntry {
 export interface Round {
   round: number // Which round is it in the championship?
   status: RoundStatus // Current status of the round
+  statusChangedAt: string | null // ISO timestamp when status was last changed (for 24h expiry)
   competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
   drivers: DriverEntry[] // All of the drivers in the champ and their data for this round.
   teams: TeamEntry[] // All of the constructors in the champ and their data for this round.
@@ -238,6 +239,7 @@ const roundSchema = new mongoose.Schema(
       enum: ["waiting", "countDown", "betting_open", "betting_closed", "results", "completed"],
       default: "waiting",
     },
+    statusChangedAt: { type: String, default: null },
     competitors: [competitorEntrySchema],
     drivers: [driverEntrySchema],
     teams: [teamEntrySchema],

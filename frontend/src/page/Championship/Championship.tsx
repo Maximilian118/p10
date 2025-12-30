@@ -228,7 +228,7 @@ const Championship: React.FC = () => {
   }, [champ])
 
   // Check current round status on load - show status view if round is active.
-  // Uses `id` as dependency since that's what identifies which championship is loaded.
+  // Runs when champ data is loaded (champ._id changes).
   useEffect(() => {
     if (champ) {
       const currentRound = champ.rounds.find(r => r.status !== "completed")
@@ -236,8 +236,8 @@ const Championship: React.FC = () => {
         setRoundStatusView(currentRound.status)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [champ?._id])
 
   // Check if forms have changes compared to champ data.
   const settingsChanged = champ ? hasSettingsChanged(settingsForm, champ) : false

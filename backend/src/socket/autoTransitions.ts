@@ -90,6 +90,7 @@ const transitionRoundStatus = async (
   }
 
   champ.rounds[roundIndex].status = newStatus
+  champ.rounds[roundIndex].statusChangedAt = moment().format()
   champ.updated_at = moment().format()
   await champ.save()
 

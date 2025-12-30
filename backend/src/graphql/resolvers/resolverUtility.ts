@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
-import Champ from "../../models/champ"
+import Champ, { Round, CompetitorEntry } from "../../models/champ"
 import moment from "moment"
 
 // Recalculate team.series based on all drivers' series.
@@ -378,3 +378,63 @@ export const resultsHandler = async (
 
   console.log(`[resultsHandler] Completed processing results for championship ${champId}, round ${roundIndex + 1}`)
 }
+
+// 24 hours in milliseconds.
+const ROUND_EXPIRY_MS = 24 * 60 * 60 * 1000
+
+// Active statuses that are subject to 24h expiry.
+const ACTIVE_STATUSES = ["countDown", "betting_open", "betting_closed", "results"]
+
+/**
+ * checkRoundExpiry - Checks if any active round has expired (24h since status changed).
+ *
+ * If a round has been in an active status for more than 24 hours:
+ * - Resets status to "waiting"
+ * - Clears all competitor bets
+ * - Updates statusChangedAt
+ *
+ * @param champ - The championship document (must be a Mongoose document, not populated)
+ * @returns true if a round was expired and reset, false otherwise
+ */
+export const checkRoundExpiry = async (champ: ChampDocument): Promise<boolean> => {
+  // Find current active round (first non-completed round).
+  const activeRoundIndex = champ.rounds.findIndex((r: Round) => r.status !== "completed")
+  if (activeRoundIndex === -1) return false
+
+  const round = champ.rounds[activeRoundIndex]
+
+  // Only check active statuses (not waiting or completed).
+  if (!ACTIVE_STATUSES.includes(round.status)) return false
+
+  // Check if statusChangedAt exists and is older than 24h.
+  if (!round.statusChangedAt) return false
+
+  const statusChangedTime = moment(round.statusChangedAt)
+  const now = moment()
+  const hoursSinceChange = now.diff(statusChangedTime, "milliseconds")
+
+  if (hoursSinceChange < ROUND_EXPIRY_MS) return false
+
+  // Round has expired - reset to waiting and clear bets.
+  console.log(`[checkRoundExpiry] Round ${activeRoundIndex + 1} expired after 24h, resetting to waiting`)
+
+  round.status = "waiting"
+  round.statusChangedAt = moment().format()
+
+  // Clear all competitor bets for this round.
+  round.competitors = round.competitors.map((c: CompetitorEntry) => ({
+    ...c,
+    bet: null,
+    updated_at: null,
+    created_at: null,
+  }))
+
+  champ.updated_at = moment().format()
+  await champ.save()
+
+  return true
+}
+
+// Type for Mongoose document (used for checkRoundExpiry).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ChampDocument = any

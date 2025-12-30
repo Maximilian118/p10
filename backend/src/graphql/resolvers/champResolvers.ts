@@ -12,7 +12,7 @@ import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange } from "../../socket/socketHandler"
 import { scheduleCountdownTransition, scheduleResultsTransition, cancelTimer } from "../../socket/autoTransitions"
-import { resultsHandler } from "./resolverUtility"
+import { resultsHandler, checkRoundExpiry } from "./resolverUtility"
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -62,6 +62,7 @@ const createCompetitorEntry = (
 const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = []): Round => ({
   round: roundNumber,
   status: "waiting",
+  statusChangedAt: null, // Only set when status changes to an active state
   competitors,
   drivers: [],
   teams: [],
@@ -77,6 +78,18 @@ const champResolvers = {
     }
 
     try {
+      // First fetch unpopulated champ to check for 24h expiry.
+      const unpopulatedChamp = await Champ.findById(_id)
+
+      if (!unpopulatedChamp) {
+        return throwError("getChampById", _id, "Championship not found!", 404)
+      }
+
+      // Check if any active round has expired (24h without change).
+      // This resets to "waiting" and clears bets if expired.
+      await checkRoundExpiry(unpopulatedChamp)
+
+      // Now fetch the populated version for return.
       const champ = await Champ.findById(_id).populate(champPopulation).exec()
 
       if (!champ) {
@@ -424,8 +437,9 @@ const champResolvers = {
       // Cancel any existing timer for this round.
       cancelTimer(_id, roundIndex)
 
-      // Update the round status.
+      // Update the round status and timestamp for expiry tracking.
       champ.rounds[roundIndex].status = status
+      champ.rounds[roundIndex].statusChangedAt = moment().format()
       champ.updated_at = moment().format()
       await champ.save()
 
