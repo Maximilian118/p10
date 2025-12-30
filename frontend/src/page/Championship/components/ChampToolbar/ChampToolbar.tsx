@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
 import { Button } from "@mui/material"
 import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save } from "@mui/icons-material"
-import { ChampType } from "../../../shared/types"
-import { getCompetitors } from "../../../shared/utility"
-import { userType } from "../../../shared/localStorage"
-import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
-import { joinChamp } from "../../../shared/requests/champRequests"
-import { ChampView, ChampSettingsFormErrType } from "../../../page/Championship/Views/ChampSettings/ChampSettings"
-import { AutomationFormErrType } from "../../../page/Championship/Views/Automation/Automation"
-import { ProtestsFormErrType, RuleChangesFormErrType } from "../../../shared/formValidation"
+import { ChampType } from "../../../../shared/types"
+import { getCompetitors } from "../../../../shared/utility"
+import { userType } from "../../../../shared/localStorage"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
+import { joinChamp } from "../../../../shared/requests/champRequests"
+import { ChampView, ChampSettingsFormErrType } from "../../Views/ChampSettings/ChampSettings"
+import { AutomationFormErrType } from "../../Views/Automation/Automation"
+import { ProtestsFormErrType, RuleChangesFormErrType } from "../../../../shared/formValidation"
 
 interface champToolbarType {
   champ: ChampType

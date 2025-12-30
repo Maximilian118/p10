@@ -1,12 +1,12 @@
-@use '../../../scss/variables';
-@use '../../../scss/mixins';
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
 
 .rounds-bar {
   width: 100%;
   @include mixins.flexbox-space-between;
   background: white;
   flex-shrink: 0;
-  margin-bottom: 2px;
+  border-bottom: 2px solid variables.$background;
 
   // Shared styles for nav and view buttons.
   .rounds-bar-nav-btn, .rounds-bar-toggle-group, .rounds-bar-view-btn {
@@ -43,6 +43,10 @@
     @include mixins.flexbox;
     background: variables.$mui-success;
     color: white;
+
+    &:hover {
+      background-color: variables.$mui-success-hover;
+    }
 
     .rounds-bar-favicon {
       width: 20px;

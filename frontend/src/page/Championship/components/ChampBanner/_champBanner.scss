@@ -1,11 +1,11 @@
-@use '../../../scss/mixins';
-@use '../../../scss/variables';
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
 
 .champ-banner {
   width: 100%;
   background: white;
   @include mixins.flexbox;
-  margin-bottom: 2px;
+  border-bottom: 2px solid variables.$background;
   flex-shrink: 0;
   overflow: hidden;
 

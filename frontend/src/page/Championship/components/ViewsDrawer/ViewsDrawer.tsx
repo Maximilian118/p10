@@ -1,6 +1,6 @@
 import React from "react"
 import { ClickAwayListener } from "@mui/material"
-import { ChampView } from "../Views/ChampSettings/ChampSettings"
+import { ChampView } from "../../Views/ChampSettings/ChampSettings"
 import SettingsIcon from "@mui/icons-material/Settings"
 import GavelIcon from "@mui/icons-material/Gavel"
 import ReportProblemIcon from "@mui/icons-material/ReportProblem"
