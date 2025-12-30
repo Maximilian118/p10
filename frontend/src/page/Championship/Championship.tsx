@@ -74,6 +74,8 @@ const Championship: React.FC = () => {
     })),
     icon: null,
     profile_picture: null,
+    skipCountDown: false,
+    skipResults: false,
     inviteOnly: false,
     active: true,
     series: null,

@@ -139,6 +139,8 @@ export interface ChampType {
   rulesAndRegs: RuleOrReg[]
 
   settings: {
+    skipCountDown: boolean // Skip countdown view, go straight to betting_open when starting a round
+    skipResults: boolean // Skip results view, go straight to completed when results are ready
     inviteOnly: boolean // Is the championship invite only? Only adjudicator can invite users to the champ if true
     maxCompetitors: number // The maximum amount of users that can be added as a competitor of this championship
     protests: {
@@ -374,6 +376,8 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Settings.
   settings: {
+    skipCountDown: { type: Boolean, default: false },
+    skipResults: { type: Boolean, default: false },
     inviteOnly: { type: Boolean, default: false },
     maxCompetitors: { type: Number, default: 24 },
     protests: {

@@ -437,19 +437,34 @@ const champResolvers = {
       // Cancel any existing timer for this round.
       cancelTimer(_id, roundIndex)
 
+      // Determine actual status to set based on skip settings.
+      let actualStatus: RoundStatus = status
+
+      // Skip countDown: go directly to betting_open.
+      if (status === "countDown" && champ.settings.skipCountDown) {
+        actualStatus = "betting_open"
+      }
+
+      // Skip results: process results but go directly to completed.
+      if (status === "results" && champ.settings.skipResults) {
+        // Execute resultsHandler first (needed for next round setup).
+        await resultsHandler(_id, roundIndex)
+        actualStatus = "completed"
+      }
+
       // Update the round status and timestamp for expiry tracking.
-      champ.rounds[roundIndex].status = status
+      champ.rounds[roundIndex].status = actualStatus
       champ.rounds[roundIndex].statusChangedAt = moment().format()
       champ.updated_at = moment().format()
       await champ.save()
 
-      // Broadcast the status change to all users viewing this championship.
-      broadcastRoundStatusChange(io, _id, roundIndex, status)
+      // Broadcast the actual status change to all users viewing this championship.
+      broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
 
-      // Schedule auto-transitions for countDown and results.
-      if (status === "countDown") {
+      // Schedule auto-transitions only if not skipping.
+      if (status === "countDown" && !champ.settings.skipCountDown) {
         scheduleCountdownTransition(io, _id, roundIndex)
-      } else if (status === "results") {
+      } else if (status === "results" && !champ.settings.skipResults) {
         // Execute resultsHandler to process results (points, badges, next round setup).
         await resultsHandler(_id, roundIndex)
         scheduleResultsTransition(io, _id, roundIndex)
@@ -533,6 +548,8 @@ const champResolvers = {
       _id: string
       settings: {
         name?: string
+        skipCountDown?: boolean
+        skipResults?: boolean
         inviteOnly?: boolean
         active?: boolean
         rounds?: number
@@ -570,6 +587,8 @@ const champResolvers = {
   ): Promise<ChampType> => {
     const {
       name,
+      skipCountDown,
+      skipResults,
       inviteOnly,
       active,
       rounds,
@@ -611,6 +630,16 @@ const champResolvers = {
       if (name && name !== champ.name) {
         await champNameErrors(name)
         champ.name = name
+      }
+
+      // Update skipCountDown if provided.
+      if (typeof skipCountDown === "boolean") {
+        champ.settings.skipCountDown = skipCountDown
+      }
+
+      // Update skipResults if provided.
+      if (typeof skipResults === "boolean") {
+        champ.settings.skipResults = skipResults
       }
 
       // Update inviteOnly if provided.

@@ -165,6 +165,8 @@ const champSchema = `
 
   # Championship settings.
   type ChampSettings {
+    skipCountDown: Boolean!
+    skipResults: Boolean!
     inviteOnly: Boolean!
     maxCompetitors: Int!
     protests: VotingSettings!
@@ -269,6 +271,8 @@ const champSchema = `
     rounds: Int
     maxCompetitors: Int
     pointsStructure: [PointsStructureInput!]
+    skipCountDown: Boolean
+    skipResults: Boolean
     inviteOnly: Boolean
     active: Boolean
     automation: AutomationSettingsInput

@@ -291,6 +291,8 @@ export interface ChampType {
 
   // Settings.
   settings: {
+    skipCountDown: boolean
+    skipResults: boolean
     inviteOnly: boolean
     maxCompetitors: number
     protests: VotingSettingsType

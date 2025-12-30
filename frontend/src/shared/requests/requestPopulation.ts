@@ -448,6 +448,8 @@ export const populateChamp = `
     created_at
   }
   settings {
+    skipCountDown
+    skipResults
     inviteOnly
     maxCompetitors
     protests {

@@ -15,6 +15,8 @@ export const initSettingsForm = (champ: ChampType): ChampSettingsFormType => ({
   pointsStructure: champ.pointsStructure,
   icon: null,
   profile_picture: null,
+  skipCountDown: champ.settings.skipCountDown ?? false,
+  skipResults: champ.settings.skipResults ?? false,
   inviteOnly: champ.settings.inviteOnly,
   active: champ.active,
   series: champ.series,
@@ -64,6 +66,8 @@ export const hasSettingsChanged = (form: ChampSettingsFormType, champ: ChampType
     JSON.stringify(form.pointsStructure) !== JSON.stringify(champ.pointsStructure) ||
     form.icon !== null ||
     form.profile_picture !== null ||
+    form.skipCountDown !== (champ.settings.skipCountDown ?? false) ||
+    form.skipResults !== (champ.settings.skipResults ?? false) ||
     form.inviteOnly !== champ.settings.inviteOnly ||
     form.active !== champ.active ||
     form.series?._id !== champ.series._id
@@ -111,6 +115,8 @@ export interface SettingsUpdatesType {
   maxCompetitors?: number
   pointsStructure?: pointsStructureType
   icon?: string
+  skipCountDown?: boolean
+  skipResults?: boolean
   inviteOnly?: boolean
   active?: boolean
   series?: string
@@ -168,6 +174,14 @@ export const buildSettingsUpdates = (
 
   if (JSON.stringify(form.pointsStructure) !== JSON.stringify(champ.pointsStructure)) {
     updates.pointsStructure = form.pointsStructure
+  }
+
+  if (form.skipCountDown !== (champ.settings.skipCountDown ?? false)) {
+    updates.skipCountDown = form.skipCountDown
+  }
+
+  if (form.skipResults !== (champ.settings.skipResults ?? false)) {
+    updates.skipResults = form.skipResults
   }
 
   if (form.inviteOnly !== champ.settings.inviteOnly) {
@@ -301,6 +315,20 @@ export const applySettingsOptimistically = (
     optimisticChamp.settings = {
       ...optimisticChamp.settings,
       maxCompetitors: updates.maxCompetitors,
+    }
+  }
+
+  if (typeof updates.skipCountDown === "boolean") {
+    optimisticChamp.settings = {
+      ...optimisticChamp.settings,
+      skipCountDown: updates.skipCountDown,
+    }
+  }
+
+  if (typeof updates.skipResults === "boolean") {
+    optimisticChamp.settings = {
+      ...optimisticChamp.settings,
+      skipResults: updates.skipResults,
     }
   }
 

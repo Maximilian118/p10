@@ -29,6 +29,8 @@ export interface ChampSettingsFormType {
   pointsStructure: pointsStructureType
   icon: File | string | null
   profile_picture: File | string | null
+  skipCountDown: boolean
+  skipResults: boolean
   inviteOnly: boolean
   active: boolean
   series: seriesType | null
@@ -201,6 +203,18 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       >
         Rule Changes
       </Button>
+      <MUISwitch
+        text="Skip Countdown"
+        fullWidth
+        checked={settingsForm.skipCountDown}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipCountDown: checked }))}
+      />
+      <MUISwitch
+        text="Skip Results"
+        fullWidth
+        checked={settingsForm.skipResults}
+        onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipResults: checked }))}
+      />
       <MUISwitch
         text="Invite Only"
         fullWidth

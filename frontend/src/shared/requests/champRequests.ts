@@ -493,6 +493,8 @@ export const updateRoundStatus = async (
 // Settings update options.
 interface ChampSettingsUpdate {
   name?: string
+  skipCountDown?: boolean
+  skipResults?: boolean
   inviteOnly?: boolean
   active?: boolean
   rounds?: number
