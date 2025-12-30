@@ -1,5 +1,7 @@
 import "dotenv/config"
 import express from "express"
+import { createServer } from "http"
+import { Server } from "socket.io"
 import { graphqlHTTP } from "express-graphql"
 import mongoose from "mongoose"
 import { formatErrHandler } from "./shared/utility"
@@ -12,8 +14,34 @@ import Resolvers from "./graphql/resolvers/resolvers"
 import corsHandler from "./middleware/corsHandler"
 import auth from "./middleware/auth"
 
+// Import socket handler.
+import { initializeSocket } from "./socket/socketHandler"
+
 // Initialise express.
 const app = express()
+
+// Create HTTP server wrapping Express for Socket.io integration.
+const httpServer = createServer(app)
+
+// Allowed origins for CORS - supports multiple frontend ports in development.
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : ["http://localhost:5173", "http://localhost:3000"]
+
+// Initialize Socket.io with CORS configuration.
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+})
+
+// Export io instance for use in resolvers.
+export { io }
+
+// Initialize socket event handlers and authentication.
+initializeSocket(io)
 
 // Maximum request body size.
 app.use(express.json({ limit: "1mb" }))
@@ -21,7 +49,7 @@ app.use(express.json({ limit: "1mb" }))
 // Handle CORS Errors.
 app.use(corsHandler)
 
-// Make token authentication middleware available in all reducers by passing req.
+// Make token authentication middleware available in all resolvers by passing req.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.use(auth as any)
 
@@ -51,7 +79,8 @@ mongoose
   .then(() => {
     console.log(`✓ Connected to ${connectionType}`)
     const PORT = process.env.PORT || 3001
-    app.listen(PORT, () => console.log(`✓ Server started on port ${PORT}`))
+    // Use httpServer.listen instead of app.listen for Socket.io support.
+    httpServer.listen(PORT, () => console.log(`✓ Server started on port ${PORT} (with Socket.io)`))
   })
   .catch((err: unknown) => {
     console.log(`✗ Failed to connect to ${connectionType}`)

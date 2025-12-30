@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { ChampType, formType, pointsStructureType, ruleOrRegType, ruleSubsectionType } from "../types"
+import { ChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 import { populateChamp } from "./requestPopulation"
@@ -439,6 +439,55 @@ export const joinChamp = async (
   }
 
   return success
+}
+
+// Updates the status of a round (adjudicator or admin only).
+// Returns true on success, false on failure.
+export const updateRoundStatus = async (
+  champId: string,
+  roundIndex: number,
+  status: RoundStatus,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { roundIndex, status },
+          },
+          query: `
+            mutation UpdateRoundStatus($_id: ID!, $input: UpdateRoundStatusInput!) {
+              updateRoundStatus(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateRoundStatus", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("updateRoundStatus", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateRoundStatus", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateRoundStatus", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
 }
 
 // Settings update options.

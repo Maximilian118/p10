@@ -150,8 +150,8 @@ export interface seriesType {
   tokens?: string[]
 }
 
-// Status types for championship.
-export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+// Status types for championship round lifecycle.
+export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 export type ProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
 
 // Competitor entry within a round - all data for that competitor in that round.

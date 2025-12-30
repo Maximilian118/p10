@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
+import Champ from "../../models/champ"
 import moment from "moment"
 
 // Recalculate team.series based on all drivers' series.
@@ -222,4 +223,158 @@ export const syncTeamDrivers = async (
       }
     }
   }
+}
+
+/**
+ * resultsHandler - Central function for processing round results.
+ *
+ * This function is called when a round transitions to "results" status.
+ * It handles all logic that needs to execute when the results of a round are known.
+ *
+ * NOTE: This is internal backend logic, NOT a GraphQL resolver called by frontend.
+ * It's triggered when:
+ * - updateRoundStatus mutation transitions to "results"
+ * - Auto-transition fires to "results"
+ *
+ * ============================================================================
+ * CURRENT FUNCTIONALITY:
+ * ============================================================================
+ * - Populate the next round with all competitors from the completed round
+ *   (preserves totalPoints, resets round points to 0)
+ *
+ * ============================================================================
+ * FUTURE FUNCTIONALITY (TO BE IMPLEMENTED):
+ * ============================================================================
+ *
+ * 1. COMPETITOR POINTS CALCULATION
+ *    - Retrieve the championship's points structure
+ *    - For each competitor, determine where their chosen driver finished
+ *    - Calculate points earned based on the points structure
+ *    - Update competitor.points (round points) and competitor.totalPoints
+ *    - Update competitor.position based on totalPoints ranking
+ *
+ * 2. BADGE AWARDS
+ *    - Check each badge's unlock criteria against the round results
+ *    - Award badges to users who have met the criteria
+ *    - Badges may include:
+ *      - First win badge
+ *      - Streak badges (consecutive correct predictions)
+ *      - Perfect round badges
+ *      - Position-based badges (e.g., predicted exact P10)
+ *      - Milestone badges (total points thresholds)
+ *
+ * 3. DRIVER POINTS CALCULATION
+ *    - Calculate points for each driver based on their qualifying position
+ *    - Update driver standings for the series
+ *    - This is separate from competitor points - tracks actual F1-style driver standings
+ *
+ * 4. TEAM POINTS CALCULATION
+ *    - Aggregate driver points by team
+ *    - Update team standings for the series
+ *    - Calculate constructor-style championship standings
+ *
+ * 5. NOTIFICATIONS
+ *    - Notify users of their results
+ *    - Notify badge earners
+ *    - Notify of position changes in standings
+ *
+ * ============================================================================
+ */
+export const resultsHandler = async (
+  champId: string,
+  roundIndex: number
+): Promise<void> => {
+  const champ = await Champ.findById(champId)
+  if (!champ) {
+    console.error(`[resultsHandler] Championship ${champId} not found`)
+    return
+  }
+
+  if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
+    console.error(`[resultsHandler] Invalid round index ${roundIndex} for championship ${champId}`)
+    return
+  }
+
+  const currentRound = champ.rounds[roundIndex]
+
+  // ============================================================================
+  // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
+  // ============================================================================
+  // Copy all competitors from the current round to the next round.
+  // This ensures continuity - all participants carry over to the next round.
+  // Points are reset for the new round, but totalPoints are preserved.
+
+  const hasNextRound = roundIndex + 1 < champ.rounds.length
+  if (hasNextRound) {
+    const nextRound = champ.rounds[roundIndex + 1]
+
+    // Copy competitors with reset round points but preserved total points.
+    // All CompetitorEntry fields must be included.
+    nextRound.competitors = currentRound.competitors.map((competitor, index) => ({
+      competitor: competitor.competitor,
+      bet: null, // Reset bet for the new round - no bet placed yet
+      points: 0, // Reset points for the new round
+      position: index + 1, // Positions will be recalculated when results come in
+      totalPoints: competitor.totalPoints,
+      updated_at: null, // No bet placed yet
+      created_at: null, // No bet placed yet
+    }))
+
+    console.log(`[resultsHandler] Copied ${nextRound.competitors.length} competitors to round ${roundIndex + 2}`)
+  }
+
+  // ============================================================================
+  // STEP 2: CALCULATE COMPETITOR POINTS (FUTURE)
+  // ============================================================================
+  // TODO: Implement points calculation based on:
+  // - champ.pointsStructure (array of { position, points })
+  // - Each competitor's bet (which driver they picked)
+  // - The actual qualifying results (driver finishing positions)
+  //
+  // Pseudocode:
+  // for each competitor in currentRound.competitors:
+  //   driverPosition = getDriverFinishPosition(competitor.bet)
+  //   pointsEarned = champ.pointsStructure.find(p => p.position === driverPosition)?.points || 0
+  //   competitor.points = pointsEarned
+  //   competitor.totalPoints += pointsEarned
+  //
+  // Then recalculate positions based on totalPoints.
+
+  // ============================================================================
+  // STEP 3: AWARD BADGES (FUTURE)
+  // ============================================================================
+  // TODO: Implement badge awarding logic:
+  // - Load all badge definitions
+  // - For each badge, check if any competitor has met the unlock criteria
+  // - Award badges to qualifying users
+  // - Store badge award timestamp and round context
+
+  // ============================================================================
+  // STEP 4: CALCULATE DRIVER POINTS (FUTURE)
+  // ============================================================================
+  // TODO: Implement driver points calculation:
+  // - Retrieve qualifying results for this round
+  // - Apply points structure to determine driver points
+  // - Update driver standings in the series
+
+  // ============================================================================
+  // STEP 5: CALCULATE TEAM POINTS (FUTURE)
+  // ============================================================================
+  // TODO: Implement team points calculation:
+  // - Aggregate driver points by their team
+  // - Update team standings in the series
+
+  // ============================================================================
+  // STEP 6: SEND NOTIFICATIONS (FUTURE)
+  // ============================================================================
+  // TODO: Implement notification system:
+  // - Notify users of their round results
+  // - Notify users of badges earned
+  // - Notify users of position changes
+
+  // Save all changes to the database.
+  champ.updated_at = moment().format()
+  await champ.save()
+
+  console.log(`[resultsHandler] Completed processing results for championship ${champId}, round ${roundIndex + 1}`)
 }

@@ -1,0 +1,23 @@
+.betting-closed-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+
+  .advance-btn {
+    margin-top: 2rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    background-color: #e10600;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #b80500;
+    }
+  }
+}

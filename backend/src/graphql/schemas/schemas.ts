@@ -40,6 +40,7 @@ const Schema = buildSchema(`
     updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!
     updateChampSettings(_id: ID!, settings: ChampSettingsInput!): Champ!
     joinChamp(_id: ID!): Champ!
+    updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     deleteChamp(_id: ID!, confirmName: String!): DeletedChamp!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!

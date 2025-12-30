@@ -4,7 +4,8 @@ import { ObjectId } from "mongodb"
 import { ProtestStatus, Vote } from "./protest"
 
 // Status of a round in the championship lifecycle.
-export type RoundStatus = "waiting" | "betting_open" | "betting_closed" | "completed"
+// prettier-ignore
+export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 
 // Competitor entry within a round - contains all data for that competitor for that round.
 export interface CompetitorEntry {
@@ -234,7 +235,7 @@ const roundSchema = new mongoose.Schema(
     round: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["waiting", "betting_open", "betting_closed", "completed"],
+      enum: ["waiting", "countDown", "betting_open", "betting_closed", "results", "completed"],
       default: "waiting",
     },
     competitors: [competitorEntrySchema],

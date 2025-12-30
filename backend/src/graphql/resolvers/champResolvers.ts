@@ -1,6 +1,6 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
-import Champ, { ChampType, CompetitorEntry, Round, SeasonHistory } from "../../models/champ"
+import Champ, { ChampType, CompetitorEntry, Round, RoundStatus, SeasonHistory } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
 import Badge from "../../models/badge"
@@ -9,6 +9,10 @@ import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 import { clientS3, deleteS3 } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
+import { io } from "../../app"
+import { broadcastRoundStatusChange } from "../../socket/socketHandler"
+import { scheduleCountdownTransition, scheduleResultsTransition, cancelTimer } from "../../socket/autoTransitions"
+import { resultsHandler } from "./resolverUtility"
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -337,6 +341,111 @@ const champResolvers = {
 
       if (!populatedChamp) {
         return throwError("joinChamp", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Updates the status of a round (adjudicator or admin only).
+  updateRoundStatus: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: { roundIndex: number; status: RoundStatus }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("updateRoundStatus", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    const { roundIndex, status } = input
+
+    // Define allowed transitions between round statuses.
+    const allowedTransitions: Record<RoundStatus, RoundStatus[]> = {
+      waiting: ["countDown"],
+      countDown: ["betting_open"],
+      betting_open: ["betting_closed"],
+      betting_closed: ["results"],
+      results: ["completed"],
+      completed: [],
+    }
+
+    // Validate status is a valid RoundStatus.
+    if (!(status in allowedTransitions)) {
+      return throwError("updateRoundStatus", status, "Invalid round status!", 400)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("updateRoundStatus", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "updateRoundStatus",
+          req._id,
+          "Only adjudicator or admin can update round status!",
+          403,
+        )
+      }
+
+      // Validate round index.
+      if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
+        return throwError("updateRoundStatus", roundIndex, "Invalid round index!", 400)
+      }
+
+      const currentStatus = champ.rounds[roundIndex].status
+
+      // Validate transition is allowed.
+      if (!allowedTransitions[currentStatus].includes(status)) {
+        return throwError(
+          "updateRoundStatus",
+          status,
+          `Cannot transition from '${currentStatus}' to '${status}'!`,
+          400,
+        )
+      }
+
+      // Cancel any existing timer for this round.
+      cancelTimer(_id, roundIndex)
+
+      // Update the round status.
+      champ.rounds[roundIndex].status = status
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Broadcast the status change to all users viewing this championship.
+      broadcastRoundStatusChange(io, _id, roundIndex, status)
+
+      // Schedule auto-transitions for countDown and results.
+      if (status === "countDown") {
+        scheduleCountdownTransition(io, _id, roundIndex)
+      } else if (status === "results") {
+        // Execute resultsHandler to process results (points, badges, next round setup).
+        await resultsHandler(_id, roundIndex)
+        scheduleResultsTransition(io, _id, roundIndex)
+      }
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("updateRoundStatus", _id, "Championship not found after update!", 404)
       }
 
       return {

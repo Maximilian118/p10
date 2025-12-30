@@ -1,8 +1,8 @@
-import React, { useContext, useEffect, useRef, useState } from "react"
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { ChampType, formErrType, formType, seriesType } from "../../shared/types"
+import { ChampType, formErrType, formType, RoundStatus, seriesType } from "../../shared/types"
 import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "./components/ChampBanner/ChampBanner"
@@ -21,10 +21,16 @@ import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
+import { useChampionshipSocket } from "../../shared/hooks/useChampionshipSocket"
+import { RoundStatusPayload } from "../../shared/socket/socketClient"
+import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
+import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
+import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
+import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import {
   initSettingsForm,
   initAutomationForm,
@@ -115,6 +121,9 @@ const Championship: React.FC = () => {
   const [ viewedRoundIndex, setViewedRoundIndex ] = useState<number | null>(null)
   const [ standingsView, setStandingsView ] = useState<StandingsView>("competitors")
 
+  // Round status view - when a round is in an active state (not waiting/completed).
+  const [ roundStatusView, setRoundStatusView ] = useState<RoundStatus | null>(null)
+
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
@@ -126,6 +135,32 @@ const Championship: React.FC = () => {
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
 
   const navigate = useNavigate()
+
+  // Handle real-time round status updates from socket.
+  const handleRoundStatusChange = useCallback((payload: RoundStatusPayload) => {
+    // Update local champ state with new status.
+    setChamp(prev => {
+      if (!prev) return prev
+      const newRounds = [...prev.rounds]
+      if (payload.roundIndex >= 0 && payload.roundIndex < newRounds.length) {
+        newRounds[payload.roundIndex] = {
+          ...newRounds[payload.roundIndex],
+          status: payload.status,
+        }
+      }
+      return { ...prev, rounds: newRounds }
+    })
+
+    // Show the appropriate status view for active statuses.
+    if (payload.status !== "waiting" && payload.status !== "completed") {
+      setRoundStatusView(payload.status)
+    } else {
+      setRoundStatusView(null)
+    }
+  }, [])
+
+  // Connect to championship socket for real-time updates.
+  useChampionshipSocket(id, handleRoundStatusChange)
 
   // Navigate to a new view while tracking history.
   const navigateToView = (newView: ChampView) => {
@@ -191,6 +226,18 @@ const Championship: React.FC = () => {
       setRuleChangesForm(initRuleChangesForm(champ))
     }
   }, [champ])
+
+  // Check current round status on load - show status view if round is active.
+  // Uses `id` as dependency since that's what identifies which championship is loaded.
+  useEffect(() => {
+    if (champ) {
+      const currentRound = champ.rounds.find(r => r.status !== "completed")
+      if (currentRound && currentRound.status !== "waiting" && currentRound.status !== "completed") {
+        setRoundStatusView(currentRound.status)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   // Check if forms have changes compared to champ data.
   const settingsChanged = champ ? hasSettingsChanged(settingsForm, champ) : false
@@ -355,6 +402,57 @@ const Championship: React.FC = () => {
     }
   }
 
+  // Handle starting a round (adjudicator clicks start button).
+  // Transitions the current round from "waiting" to "countDown".
+  const handleStartRound = async () => {
+    if (!champ || !id) return
+
+    const currentRoundIdx = champ.rounds.findIndex(r => r.status === "waiting")
+    if (currentRoundIdx === -1) return
+
+    const result = await updateRoundStatus(
+      id,
+      currentRoundIdx,
+      "countDown",
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      setChamp(result)
+      setRoundStatusView("countDown")
+    }
+  }
+
+  // Handle advancing to the next round status (for adjudicator controls).
+  const handleAdvanceStatus = async (newStatus: RoundStatus) => {
+    if (!champ || !id) return
+
+    const currentRoundIdx = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
+    if (currentRoundIdx === -1) return
+
+    const result = await updateRoundStatus(
+      id,
+      currentRoundIdx,
+      newStatus,
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+    )
+
+    if (result) {
+      setChamp(result)
+      if (newStatus === "completed") {
+        setRoundStatusView(null)
+      } else {
+        setRoundStatusView(newStatus)
+      }
+    }
+  }
+
   // Render loading state.
   if (loading) {
     return (
@@ -386,6 +484,11 @@ const Championship: React.FC = () => {
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
   const isAdmin = user.permissions?.admin === true
   const canAccessSettings = isAdjudicator || isAdmin
+
+  // Determine if we're in an active round status view (hides RoundsBar/ChampToolbar).
+  const isInRoundStatusView = roundStatusView !== null
+    && roundStatusView !== "waiting"
+    && roundStatusView !== "completed"
 
   // Compute round viewing state.
   const currentRoundIndex = champ.rounds.findIndex(r => r.status !== "completed")
@@ -438,7 +541,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={shrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && (
+      {view === "competitors" && !isInRoundStatusView && (
         <RoundsBar
           totalRounds={champ.rounds.length}
           viewedRoundIndex={viewedIndex}
@@ -447,11 +550,43 @@ const Championship: React.FC = () => {
           setViewedRoundIndex={setViewedRoundIndex}
           setStandingsView={setStandingsView}
           isAdjudicator={isAdjudicator}
+          onStartNextRound={handleStartRound}
         />
       )}
 
       <div className="content-container" onScroll={handleScroll}>
-        {view === "competitors" && (
+        {/* Round Status Views - shown during active round states */}
+        {isInRoundStatusView && roundStatusView === "countDown" && viewedRound && (
+          <CountDownView
+            round={viewedRound}
+            isAdjudicator={isAdjudicator}
+            onSkipTimer={() => handleAdvanceStatus("betting_open")}
+          />
+        )}
+        {isInRoundStatusView && roundStatusView === "betting_open" && viewedRound && (
+          <BettingOpenView
+            round={viewedRound}
+            isAdjudicator={isAdjudicator}
+            onAdvance={() => handleAdvanceStatus("betting_closed")}
+          />
+        )}
+        {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (
+          <BettingClosedView
+            round={viewedRound}
+            isAdjudicator={isAdjudicator}
+            onAdvance={() => handleAdvanceStatus("results")}
+          />
+        )}
+        {isInRoundStatusView && roundStatusView === "results" && viewedRound && (
+          <ResultsView
+            round={viewedRound}
+            isAdjudicator={isAdjudicator}
+            onSkipTimer={() => handleAdvanceStatus("completed")}
+          />
+        )}
+
+        {/* Default competitors view - shown when not in active round status */}
+        {view === "competitors" && !isInRoundStatusView && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound &&
                 getCompetitorsFromRound(viewedRound).map((c, i) => (
@@ -555,29 +690,32 @@ const Championship: React.FC = () => {
           />
         )}
 
-        <ChampToolbar
-          champ={champ}
-          setChamp={setChamp}
-          user={user}
-          setUser={setUser}
-          setBackendErr={setBackendErr}
-          view={view}
-          onBack={navigateBack}
-          onJoinSuccess={() => setJustJoined(true)}
-          onDrawerClick={() => setDrawerOpen(true)}
-          settingsFormErr={settingsFormErr}
-          onSettingsSubmit={handleSettingsSubmit}
-          settingsChanged={settingsChanged}
-          automationFormErr={automationFormErr}
-          onAutomationSubmit={handleAutomationSubmit}
-          automationChanged={automationChanged}
-          protestsFormErr={protestsFormErr}
-          onProtestsSubmit={handleProtestsSubmit}
-          protestsChanged={protestsChanged}
-          ruleChangesFormErr={ruleChangesFormErr}
-          onRuleChangesSubmit={handleRuleChangesSubmit}
-          ruleChangesChanged={ruleChangesChanged}
-        />
+        {/* ChampToolbar - hidden during active round status views */}
+        {!isInRoundStatusView && (
+          <ChampToolbar
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            setBackendErr={setBackendErr}
+            view={view}
+            onBack={navigateBack}
+            onJoinSuccess={() => setJustJoined(true)}
+            onDrawerClick={() => setDrawerOpen(true)}
+            settingsFormErr={settingsFormErr}
+            onSettingsSubmit={handleSettingsSubmit}
+            settingsChanged={settingsChanged}
+            automationFormErr={automationFormErr}
+            onAutomationSubmit={handleAutomationSubmit}
+            automationChanged={automationChanged}
+            protestsFormErr={protestsFormErr}
+            onProtestsSubmit={handleProtestsSubmit}
+            protestsChanged={protestsChanged}
+            ruleChangesFormErr={ruleChangesFormErr}
+            onRuleChangesSubmit={handleRuleChangesSubmit}
+            ruleChangesChanged={ruleChangesChanged}
+          />
+        )}
       </div>
       <ViewsDrawer
         open={drawerOpen}

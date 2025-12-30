@@ -1,10 +1,12 @@
 // GraphQL schema definitions for Championship type and inputs.
 const champSchema = `
-  # Status types
+  # Status types for round lifecycle.
   enum RoundStatus {
     waiting
+    countDown
     betting_open
     betting_closed
+    results
     completed
   }
 
@@ -273,6 +275,12 @@ const champSchema = `
     protests: VotingSettingsInput
     ruleChanges: VotingSettingsInput
     series: ID
+  }
+
+  # Input for updating round status.
+  input UpdateRoundStatusInput {
+    roundIndex: Int!
+    status: RoundStatus!
   }
 
   # Response type for multiple championships.

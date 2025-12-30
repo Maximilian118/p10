@@ -1,0 +1,31 @@
+.results-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+
+  .timer {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #666;
+    margin: 1rem 0;
+  }
+
+  .skip-timer-btn {
+    margin-top: 2rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid #666;
+    border-radius: 8px;
+    background-color: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #e10600;
+      color: #e10600;
+    }
+  }
+}
