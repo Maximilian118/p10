@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import "./_countDownView.scss"
 import { RoundType } from "../../../../../shared/types"
+import StartLights from "../../../components/StartLights/StartLights"
 
 interface CountDownViewProps {
   round: RoundType
@@ -28,8 +29,11 @@ const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onS
 
   return (
     <div className="countdown-view">
-      <h2>Round {round.round}</h2>
-      <p>Betting window opening soon...</p>
+      <div className="countdown-top">
+        <h2>Round {round.round}</h2>
+        <p>Betting window opening soon!</p>
+        <StartLights status="default"/>
+      </div>
       <div className="timer">{secondsLeft}s</div>
       {isAdjudicator && onSkipTimer && (
         <button className="skip-timer-btn" onClick={onSkipTimer}>

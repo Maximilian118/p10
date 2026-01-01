@@ -1,18 +1,33 @@
+@use '../../../../../scss/mixins';
+
 .countdown-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2rem;
+  width: 100%;
+  @include mixins.flexbox-space-between-column;
+  flex-shrink: 0;
+  flex-grow: 1;
+  padding: 40px 7.5%;
+  box-sizing: border-box;
+
+  .countdown-top {
+    @include mixins.flexbox-column;
+    margin-bottom: 20px;
+
+    h2 {
+      margin-bottom: 5px;
+    }
+
+    p {
+      margin-bottom: 40px;
+    }
+  }
 
   .timer {
     font-size: 3rem;
     font-weight: 700;
     color: #e10600;
-    margin: 1rem 0;
   }
 
   .skip-timer-btn {
-    margin-top: 2rem;
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
     font-weight: 600;
