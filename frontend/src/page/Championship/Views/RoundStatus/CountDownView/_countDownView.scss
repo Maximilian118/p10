@@ -11,6 +11,7 @@
   .countdown-top {
     @include mixins.flexbox-column;
     margin-bottom: 20px;
+    transition: opacity 0.3s ease, color 0.3s ease;
 
     h2 {
       margin-bottom: 5px;
@@ -19,12 +20,21 @@
     p {
       margin-bottom: 40px;
     }
+
+    &.fading {
+      opacity: 0;
+    }
   }
 
   .timer {
     font-size: 3rem;
     font-weight: 700;
     color: #e10600;
+    transition: opacity 0.3s ease, color 0.3s ease;
+
+    &.fading {
+      opacity: 0;
+    }
   }
 
   .skip-timer-btn {
@@ -36,11 +46,16 @@
     background-color: transparent;
     color: #666;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 
     &:hover {
       border-color: #e10600;
       color: #e10600;
+    }
+
+    &.fading {
+      opacity: 0;
+      pointer-events: none;
     }
   }
 }

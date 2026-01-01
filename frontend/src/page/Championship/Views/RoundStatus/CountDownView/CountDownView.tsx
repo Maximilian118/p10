@@ -16,6 +16,12 @@ const COUNTDOWN_DURATION = 30
 const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onSkipTimer }) => {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_DURATION)
 
+  // Determines if UI elements should fade (at 10s remaining).
+  const isFading = secondsLeft <= 10
+
+  // Determines if the start light sequence should begin (at 5s remaining).
+  const shouldStartSequence = secondsLeft <= 5
+
   // Decrement timer every second.
   useEffect(() => {
     if (secondsLeft <= 0) return
@@ -29,14 +35,14 @@ const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onS
 
   return (
     <div className="countdown-view">
-      <div className="countdown-top">
+      <div className={`countdown-top ${isFading ? "fading" : ""}`}>
         <h2>Round {round.round}</h2>
         <p>Betting window opening soon!</p>
-        <StartLights status="default"/>
       </div>
-      <div className="timer">{secondsLeft}s</div>
+      <StartLights startSequence={shouldStartSequence} onSequenceComplete={onSkipTimer} />
+      <div className={`timer ${isFading ? "fading" : ""}`}>{secondsLeft}s</div>
       {isAdjudicator && onSkipTimer && (
-        <button className="skip-timer-btn" onClick={onSkipTimer}>
+        <button className={`skip-timer-btn ${isFading ? "fading" : ""}`} onClick={onSkipTimer}>
           Skip Timer
         </button>
       )}
