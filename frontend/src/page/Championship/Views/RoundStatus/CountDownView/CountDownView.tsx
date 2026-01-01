@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react"
 import "./_countDownView.scss"
 import { RoundType } from "../../../../../shared/types"
 import StartLights from "../../../components/StartLights/StartLights"
+import { Button } from "@mui/material"
+import Arrows from "../../../../../components/utility/arrows/Arrows"
 
 interface CountDownViewProps {
   round: RoundType
@@ -75,9 +77,13 @@ const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onS
       </div>
       <div className={`timer ${isFading || isStuck ? "fading" : ""}`}>{secondsLeft}s</div>
       {isAdjudicator && onSkipTimer && (
-        <button className="skip-timer-btn" onClick={onSkipTimer}>
+        <Button
+          variant="outlined"
+          className={`skip-timer-btn ${isStuck ? 'stuck' : ''}`}
+          endIcon={<Arrows/>}
+          onClick={onSkipTimer}>
           Skip Timer
-        </button>
+        </Button>
       )}
     </div>
   )
