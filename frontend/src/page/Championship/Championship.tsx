@@ -173,9 +173,19 @@ const Championship: React.FC = () => {
   }
 
   // Navigate back to the previous view.
+  // Resets all form states when exiting settings entirely (settings → competitors).
   const navigateBack = () => {
     if (viewHistory.length > 0) {
       const previousView = viewHistory[viewHistory.length - 1]
+
+      // Reset all form states when exiting settings section entirely.
+      if (view === "settings" && previousView === "competitors" && champ) {
+        setSettingsForm(initSettingsForm(champ))
+        setAutomationForm(initAutomationForm(champ))
+        setProtestsForm(initProtestsForm(champ))
+        setRuleChangesForm(initRuleChangesForm(champ))
+      }
+
       setViewHistory(prev => prev.slice(0, -1))
       setView(previousView)
     }
