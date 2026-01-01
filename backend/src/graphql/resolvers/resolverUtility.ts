@@ -243,17 +243,70 @@ export const syncTeamDrivers = async (
  *   (preserves totalPoints, resets round points to 0)
  *
  * ============================================================================
+ * P10 GAME POINTS CALCULATION LOGIC (TO BE IMPLEMENTED)
+ * ============================================================================
+ *
+ * The P10 game awards points based on how close a competitor's bet was to P10
+ * (10th place qualifying position). P10 is the TARGET position.
+ *
+ * POSITION VALUE ORDER (most valuable to least):
+ * P10 → P9 → P8 → P7 → P6 → P5 → P4 → P3 → P2 → P1 → P11 → P12 → P13 → ...
+ *
+ * Key rules:
+ * - P10 is always the most valuable (the target)
+ * - Within top 10: closer to P10 is better (P9 beats P8, P8 beats P7, etc.)
+ * - P1 (worst in top 10) is still more valuable than P11 (best outside top 10)
+ * - Outside top 10: P11 beats P12, P12 beats P13, etc.
+ *
+ * Points structure array index mapping:
+ * - Index 0: P10 (highest points)
+ * - Index 1: P9
+ * - Index 2: P8
+ * - Index 3: P7
+ * - Index 4: P6
+ * - Index 5: P5
+ * - Index 6: P4
+ * - Index 7: P3
+ * - Index 8: P2
+ * - Index 9: P1
+ * - Index 10: P11
+ * - Index 11: P12
+ * - Index 12+: P13, P14, etc.
+ *
+ * STANDARD POINTS STRUCTURES (Default, F1, Moto GP, Abundant):
+ * - Points are stored in the order above: [P10 pts, P9 pts, ..., P1 pts, P11 pts, ...]
+ * - Each competitor's bet is evaluated: find where their driver finished
+ * - Award points based on position's index in the order above
+ * - Winner: Highest points scorer this round
+ * - Runner Up: Second highest points scorer
+ *
+ * "TIGHT ARSE" POINTS STRUCTURE (Special Case):
+ * - Only 2 point values: Winner (2 pts) and Runner Up (1 pt)
+ * - Winner: Competitor who bet on the driver who finished EXACTLY P10
+ *   - If nobody guessed P10, there is NO Winner for that round
+ * - Runner Up: Best-placed competitor (excluding winner), using position order above
+ *   - Must have bet on a driver who finished in the top 10 to qualify as runner up
+ *   - If no other competitor bet on a top-10 driver, there is no runner up
+ *
+ * IMPLEMENTATION PSEUDOCODE:
+ * 1. Get all competitors and their bets for this round
+ * 2. Get the actual qualifying positions for all drivers (from DriverEntry.positionActual)
+ * 3. For each competitor:
+ *    a. Find what position their bet finished in
+ *    b. Convert position to rank using the order above (P10=0, P9=1, ..., P1=9, P11=10, ...)
+ * 4. Sort competitors by rank (ascending = best first)
+ * 5. Award points based on pointsStructure:
+ *    - Standard: Use the sorted rank to index into pointsStructure
+ *    - Tight Arse: First place (if P10 exact) gets 2, second place (if top-10) gets 1
+ * 6. Set round.winner and round.runnerUp ObjectIds
+ * 7. Update competitor.points and competitor.totalPoints
+ * 8. Recalculate competitor.position based on totalPoints
+ *
+ * ============================================================================
  * FUTURE FUNCTIONALITY (TO BE IMPLEMENTED):
  * ============================================================================
  *
- * 1. COMPETITOR POINTS CALCULATION
- *    - Retrieve the championship's points structure
- *    - For each competitor, determine where their chosen driver finished
- *    - Calculate points earned based on the points structure
- *    - Update competitor.points (round points) and competitor.totalPoints
- *    - Update competitor.position based on totalPoints ranking
- *
- * 2. BADGE AWARDS
+ * 1. BADGE AWARDS
  *    - Check each badge's unlock criteria against the round results
  *    - Award badges to users who have met the criteria
  *    - Badges may include:
@@ -263,17 +316,17 @@ export const syncTeamDrivers = async (
  *      - Position-based badges (e.g., predicted exact P10)
  *      - Milestone badges (total points thresholds)
  *
- * 3. DRIVER POINTS CALCULATION
+ * 2. DRIVER POINTS CALCULATION
  *    - Calculate points for each driver based on their qualifying position
  *    - Update driver standings for the series
  *    - This is separate from competitor points - tracks actual F1-style driver standings
  *
- * 4. TEAM POINTS CALCULATION
+ * 3. TEAM POINTS CALCULATION
  *    - Aggregate driver points by team
  *    - Update team standings for the series
  *    - Calculate constructor-style championship standings
  *
- * 5. NOTIFICATIONS
+ * 4. NOTIFICATIONS
  *    - Notify users of their results
  *    - Notify badge earners
  *    - Notify of position changes in standings
