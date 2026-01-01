@@ -360,6 +360,7 @@ export const applySettingsOptimistically = (
         newRounds.push({
           round: i,
           status: "waiting" as const,
+          statusChangedAt: null,
           winner: null,
           runnerUp: null,
           competitors: [],

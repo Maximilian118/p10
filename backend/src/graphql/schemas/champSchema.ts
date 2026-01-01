@@ -52,6 +52,7 @@ const champSchema = `
   type Round {
     round: Int!
     status: RoundStatus!
+    statusChangedAt: String
     winner: User
     runnerUp: User
     competitors: [CompetitorEntry!]!

@@ -12,6 +12,21 @@ const activeTimers: Map<string, NodeJS.Timeout> = new Map()
 const COUNTDOWN_DURATION = 30 * 1000 // 30 seconds
 const RESULTS_DURATION = 5 * 60 * 1000 // 5 minutes
 
+// Returns a weighted random delay between 0.5s and 5s, centered around 2s using triangular distribution.
+// This simulates the "human factor" of a race starter pressing the button after lights are all red.
+const randomiseRoundStartTime = (): number => {
+  const min = 0.5
+  const max = 5
+  const mode = 2
+  const u = Math.random()
+  const fc = (mode - min) / (max - min)
+
+  if (u < fc) {
+    return min + Math.sqrt(u * (max - min) * (mode - min))
+  }
+  return max - Math.sqrt((1 - u) * (max - min) * (max - mode))
+}
+
 // Creates a unique key for timer storage.
 const getTimerKey = (champId: string, roundIndex: number): string => {
   return `${champId}:${roundIndex}`
@@ -42,6 +57,7 @@ const scheduleAutoTransition = (
   const timer = setTimeout(async () => {
     // Always remove timer from map when it fires, regardless of success/failure.
     activeTimers.delete(key)
+    console.log(`[autoTransitions] Timer fired for ${key}, transitioning to ${targetStatus}`)
 
     try {
       await transitionRoundStatus(io, champId, roundIndex, targetStatus)
@@ -53,13 +69,17 @@ const scheduleAutoTransition = (
   activeTimers.set(key, timer)
 }
 
-// Schedules auto-transition from countDown to betting_open after 30 seconds.
+// Schedules auto-transition from countDown to betting_open after 30 seconds + random delay.
+// The random delay (0.5-5s) simulates the race start "lights out" moment.
 export const scheduleCountdownTransition = (
   io: Server,
   champId: string,
   roundIndex: number
 ): void => {
-  scheduleAutoTransition(io, champId, roundIndex, "betting_open", COUNTDOWN_DURATION)
+  const randomDelay = randomiseRoundStartTime() * 1000
+  const totalDelay = COUNTDOWN_DURATION + randomDelay
+  console.log(`[autoTransitions] Scheduling countdown transition: randomDelay=${randomDelay}ms, totalDelay=${totalDelay}ms`)
+  scheduleAutoTransition(io, champId, roundIndex, "betting_open", totalDelay)
 }
 
 // Schedules auto-transition from results to completed after 5 minutes.

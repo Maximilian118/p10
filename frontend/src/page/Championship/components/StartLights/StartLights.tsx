@@ -3,13 +3,14 @@ import './_start-lights.scss'
 import {
   defaultLights,
   redLights,
+  greenLights,
+  orangeLights,
   red1Lights,
   red2Lights,
   red3Lights,
   red4Lights,
   StartLightsStatus,
-  getLightStatus,
-  randomiseRoundStartTime
+  getLightStatus
 } from "./startLightsUtility"
 
 export type { StartLightsStatus }
@@ -17,7 +18,7 @@ export type { StartLightsStatus }
 interface StartLightsType {
   status?: StartLightsStatus
   startSequence?: boolean
-  onSequenceComplete?: () => void
+  initialSeconds?: number // For mid-countdown sync - determines initial light status.
 }
 
 // Maps each status to the row configuration (which light pattern each row should display)
@@ -28,13 +29,44 @@ const rowConfigs: Record<StartLightsStatus, string[][]> = {
   red3: [defaultLights, defaultLights, red3Lights, red3Lights],
   red4: [defaultLights, defaultLights, red4Lights, red4Lights],
   red5: [defaultLights, defaultLights, redLights, redLights],
+  green: [defaultLights, greenLights, defaultLights, defaultLights],
+  orange: [orangeLights, defaultLights, defaultLights, defaultLights],
+  orange_flash: [orangeLights, defaultLights, defaultLights, defaultLights],
 }
 
-const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence = false, onSequenceComplete }) => {
-  const [sequenceStatus, setSequenceStatus] = useState<StartLightsStatus>("off")
-  const [sequenceSeconds, setSequenceSeconds] = useState(6)
-  const sequenceTriggered = useRef(false)
-  const sequenceCompleted = useRef(false)
+const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence = false, initialSeconds }) => {
+  // Calculate initial state based on whether we're joining mid-sequence.
+  // If startSequence is true and initialSeconds is within the 5s window, start at that position.
+  // If countdown expired (0s), clamp to 1 so we show red5 instead of off.
+  const getInitialSequenceSeconds = (): number => {
+    if (startSequence && initialSeconds !== undefined && initialSeconds <= 5) {
+      return Math.max(1, initialSeconds) // Clamp to 1 minimum (shows red5 when expired)
+    }
+    return 6 // Default: before the sequence starts (6 -> 5 triggers red1)
+  }
+
+  const [sequenceStatus, setSequenceStatus] = useState<StartLightsStatus>(() =>
+    startSequence && initialSeconds !== undefined && initialSeconds <= 5
+      ? getLightStatus(Math.max(1, initialSeconds)) // Clamp to 1 for expired countdown
+      : "off"
+  )
+  const [sequenceSeconds, setSequenceSeconds] = useState(getInitialSequenceSeconds)
+  const [flashOn, setFlashOn] = useState(true)
+  const sequenceTriggered = useRef(startSequence && initialSeconds !== undefined && initialSeconds <= 5)
+
+  // Handle orange flash toggling every 0.5s
+  useEffect(() => {
+    if (status !== "orange_flash") {
+      setFlashOn(true)
+      return
+    }
+
+    const flashTimer = setInterval(() => {
+      setFlashOn(prev => !prev)
+    }, 500)
+
+    return () => clearInterval(flashTimer)
+  }, [status])
 
   // Handle start sequence timing
   useEffect(() => {
@@ -46,7 +78,7 @@ const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence 
       setSequenceSeconds(prev => {
         if (prev <= 1) {
           clearInterval(timer)
-          return 0
+          return 1
         }
         return prev - 1
       })
@@ -61,23 +93,16 @@ const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence 
 
     const newStatus = getLightStatus(sequenceSeconds)
     setSequenceStatus(newStatus)
-
-    // At red5 (1 second remaining), trigger the random delay then complete
-    if (sequenceSeconds === 1 && !sequenceCompleted.current) {
-      sequenceCompleted.current = true
-      const delay = randomiseRoundStartTime()
-
-      setTimeout(() => {
-        setSequenceStatus("off")
-        if (onSequenceComplete) {
-          onSequenceComplete()
-        }
-      }, delay * 1000)
-    }
-  }, [sequenceSeconds, startSequence, onSequenceComplete])
+  }, [sequenceSeconds, startSequence])
 
   // Use sequence status when in sequence mode, otherwise use prop status
-  const currentStatus = startSequence ? sequenceStatus : status
+  // For orange_flash, toggle between orange_flash and off based on flashOn state
+  const getEffectiveStatus = (): StartLightsStatus => {
+    if (startSequence) return sequenceStatus
+    if (status === "orange_flash" && !flashOn) return "off"
+    return status
+  }
+  const currentStatus = getEffectiveStatus()
 
   // Each actual circle light, using CSS custom property for color
   const lightCircle = (colour: string, i: number) => (

@@ -11,18 +11,23 @@
   .countdown-top {
     @include mixins.flexbox-column;
     margin-bottom: 20px;
-    transition: opacity 0.3s ease, color 0.3s ease;
 
     h2 {
       margin-bottom: 5px;
+      transition: opacity 0.3s ease;
+
+      &.fading {
+        opacity: 0;
+      }
     }
 
     p {
       margin-bottom: 40px;
-    }
+      transition: opacity 0.3s ease;
 
-    &.fading {
-      opacity: 0;
+      &.fading {
+        opacity: 0;
+      }
     }
   }
 
@@ -51,11 +56,6 @@
     &:hover {
       border-color: #e10600;
       color: #e10600;
-    }
-
-    &.fading {
-      opacity: 0;
-      pointer-events: none;
     }
   }
 }
