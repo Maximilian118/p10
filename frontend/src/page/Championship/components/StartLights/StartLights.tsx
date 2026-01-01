@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react"
 import './_start-lights.scss'
 import {
   defaultLights,
-  hazardLights,
   redLights,
   red1Lights,
   red2Lights,
@@ -22,19 +21,13 @@ interface StartLightsType {
 }
 
 // Maps each status to the row configuration (which light pattern each row should display)
-const rowConfigs: Record<string, string[][]> = {
-  // Race start sequence - only bottom 2 rows illuminate, column by column
+const rowConfigs: Record<StartLightsStatus, string[][]> = {
   off: [defaultLights, defaultLights, defaultLights, defaultLights],
   red1: [defaultLights, defaultLights, red1Lights, red1Lights],
   red2: [defaultLights, defaultLights, red2Lights, red2Lights],
   red3: [defaultLights, defaultLights, red3Lights, red3Lights],
   red4: [defaultLights, defaultLights, red4Lights, red4Lights],
   red5: [defaultLights, defaultLights, redLights, redLights],
-  go: [defaultLights, defaultLights, defaultLights, defaultLights],
-  // Legacy states
-  red: [redLights, redLights, redLights, redLights],
-  hazard: [hazardLights, hazardLights, defaultLights, defaultLights],
-  default: [defaultLights, defaultLights, defaultLights, defaultLights],
 }
 
 const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence = false, onSequenceComplete }) => {
@@ -75,7 +68,7 @@ const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence 
       const delay = randomiseRoundStartTime()
 
       setTimeout(() => {
-        setSequenceStatus("go")
+        setSequenceStatus("off")
         if (onSequenceComplete) {
           onSequenceComplete()
         }
@@ -102,8 +95,8 @@ const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence 
     </div>
   )
 
-  // Get the row config for the current status, fallback to default
-  const config = rowConfigs[currentStatus] || rowConfigs.default
+  // Get the row config for the current status, fallback to off
+  const config = rowConfigs[currentStatus] || rowConfigs.off
 
   return (
     <div className="start-lights-container">
