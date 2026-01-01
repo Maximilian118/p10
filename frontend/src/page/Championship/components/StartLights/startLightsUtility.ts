@@ -1,6 +1,6 @@
 // Colour palette
 const def = "#202C3D"
-const red = "#ef242d"
+const red = "#F62A31"
 const yellow = "#FFD700"
 
 // Each row can be any number of different lights so we do it this way to define exact order of lights
