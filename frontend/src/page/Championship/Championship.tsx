@@ -143,7 +143,7 @@ const Championship: React.FC = () => {
 
   // Handle real-time round status updates from socket.
   const handleRoundStatusChange = useCallback((payload: RoundStatusPayload) => {
-    // Update local champ state with new status.
+    // Update local champ state with new status and round data if included.
     setChamp(prev => {
       if (!prev) return prev
       const newRounds = [...prev.rounds]
@@ -151,6 +151,12 @@ const Championship: React.FC = () => {
         newRounds[payload.roundIndex] = {
           ...newRounds[payload.roundIndex],
           status: payload.status,
+          // Merge round data if included in payload (when transitioning from waiting).
+          ...(payload.round && {
+            drivers: payload.round.drivers,
+            competitors: payload.round.competitors,
+            teams: payload.round.teams,
+          }),
         }
       }
       return { ...prev, rounds: newRounds }

@@ -18,11 +18,17 @@ export const SOCKET_EVENTS = {
 } as const
 
 // Payload for round status change events.
+// Optionally includes round data when transitioning from "waiting".
 export interface RoundStatusPayload {
   champId: string
   roundIndex: number
   status: RoundStatus
   timestamp: string
+  round?: {
+    drivers: unknown[]
+    competitors: unknown[]
+    teams: unknown[]
+  }
 }
 
 // Payload for bet placed events (broadcast to all users).
@@ -193,17 +199,20 @@ export const initializeSocket = (io: Server): void => {
 }
 
 // Broadcasts round status change to all users in a championship room.
+// Optionally includes round data when transitioning from "waiting".
 export const broadcastRoundStatusChange = (
   io: Server,
   champId: string,
   roundIndex: number,
-  newStatus: RoundStatus
+  newStatus: RoundStatus,
+  roundData?: { drivers: unknown[]; competitors: unknown[]; teams: unknown[] }
 ): void => {
   const payload: RoundStatusPayload = {
     champId,
     roundIndex,
     status: newStatus,
     timestamp: new Date().toISOString(),
+    ...(roundData && { round: roundData }),
   }
   io.to(`championship:${champId}`).emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
   console.log(`Broadcasted status change: ${champId} round ${roundIndex} -> ${newStatus}`)

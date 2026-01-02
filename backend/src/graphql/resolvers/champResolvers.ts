@@ -545,9 +545,6 @@ const champResolvers = {
       champ.updated_at = moment().format()
       await champ.save()
 
-      // Broadcast the actual status change to all users viewing this championship.
-      broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
-
       // Schedule auto-transitions only if not skipping.
       if (status === "countDown" && !champ.settings.skipCountDown) {
         scheduleCountdownTransition(io, _id, roundIndex)
@@ -562,6 +559,19 @@ const champResolvers = {
 
       if (!populatedChamp) {
         return throwError("updateRoundStatus", _id, "Championship not found after update!", 404)
+      }
+
+      // Broadcast status change to all users viewing this championship.
+      // Include populated round data when transitioning from "waiting".
+      if (currentStatus === "waiting") {
+        const populatedRound = populatedChamp.rounds[roundIndex]
+        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, {
+          drivers: populatedRound.drivers,
+          competitors: populatedRound.competitors,
+          teams: populatedRound.teams,
+        })
+      } else {
+        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
       }
 
       return {

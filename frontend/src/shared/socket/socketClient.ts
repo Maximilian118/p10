@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client"
-import { RoundStatus } from "../types"
+import { RoundStatus, DriverEntryType, CompetitorEntryType, TeamEntryType } from "../types"
 
 // Socket event names - must match backend.
 export const SOCKET_EVENTS = {
@@ -16,11 +16,17 @@ export const SOCKET_EVENTS = {
 } as const
 
 // Payload for round status change events.
+// Optionally includes round data when transitioning from "waiting".
 export interface RoundStatusPayload {
   champId: string
   roundIndex: number
   status: RoundStatus
   timestamp: string
+  round?: {
+    drivers: DriverEntryType[]
+    competitors: CompetitorEntryType[]
+    teams: TeamEntryType[]
+  }
 }
 
 // Payload for bet placed events (broadcast to all users).
