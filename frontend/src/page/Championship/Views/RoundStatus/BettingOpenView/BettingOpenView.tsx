@@ -1,10 +1,11 @@
 import React, { useContext, useState, useEffect } from "react"
 import "./_bettingOpenView.scss"
-import { RoundType, driverType, CompetitorEntryType } from "../../../../../shared/types"
+import { RoundType, driverType, CompetitorEntryType, AutomationSettingsType } from "../../../../../shared/types"
 import { placeBetViaSocket, BetRejectedPayload } from "../../../../../shared/socket/socketClient"
 import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
 import DriverBetCard from "../../../../../components/cards/driverBetCard/DriverBetCard"
+import Timer from "../../../components/Timer/Timer"
 
 interface BettingOpenViewProps {
   round: RoundType
@@ -13,6 +14,20 @@ interface BettingOpenViewProps {
   isAdjudicator?: boolean
   onAdvance?: () => void
   lastRejectedBet?: BetRejectedPayload | null
+  automation?: AutomationSettingsType
+}
+
+// Calculates total betting window duration in seconds.
+const calculateBettingDuration = (automation: AutomationSettingsType): number => {
+  const { autoOpenTime, autoCloseTime } = automation.bettingWindow
+  return (autoOpenTime + autoCloseTime) * 60
+}
+
+// Calculates remaining seconds based on when betting_open started.
+const calculateSecondsLeft = (statusChangedAt: string | null, duration: number): number => {
+  if (!statusChangedAt) return duration
+  const elapsed = Math.floor((Date.now() - new Date(statusChangedAt).getTime()) / 1000)
+  return Math.max(0, duration - elapsed)
 }
 
 // Finds which competitor (if any) has bet on a specific driver.
@@ -31,11 +46,34 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   roundIndex,
   isAdjudicator,
   onAdvance,
-  lastRejectedBet
+  lastRejectedBet,
+  automation
 }) => {
   const { user } = useContext(AppContext)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
   const [rejectedDriverId, setRejectedDriverId] = useState<string | null>(null)
+
+  // Determine if countdown timer should be shown.
+  const showTimer = automation?.enabled
+    && automation.bettingWindow.autoOpen
+    && automation.bettingWindow.autoClose
+
+  // Calculate initial countdown duration and seconds left.
+  const duration = automation ? calculateBettingDuration(automation) : 0
+  const [secondsLeft, setSecondsLeft] = useState(() =>
+    showTimer ? calculateSecondsLeft(round.statusChangedAt, duration) : 0
+  )
+
+  // Decrement timer every second.
+  useEffect(() => {
+    if (!showTimer || secondsLeft <= 0) return
+
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => Math.max(0, prev - 1))
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [showTimer, secondsLeft])
 
   // Get all drivers from the round's drivers array.
   const drivers: driverType[] = round.drivers.map(d => d.driver)
@@ -85,9 +123,13 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
     placeBetViaSocket(champId, roundIndex, driver._id)
   }
 
+  const advButton = isAdjudicator && onAdvance
+  const gridPad = showTimer || advButton
+
   return (
     <div className="betting-open-view">
-      <div className="drivers-grid">
+      <p className="betting-open-title">Place your bet!</p>
+      <div className="drivers-grid" style={{ paddingBottom: gridPad ? 20 : 140 }}>
         {drivers.map(driver => {
           if (!driver._id) return null
 
@@ -109,17 +151,17 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
           )
         })}
       </div>
-
-      {isAdjudicator && onAdvance && (
+      {advButton && (
         <Button
           variant="contained"
+          className="advance-button"
           color="error"
-          className="advance-btn"
           onClick={onAdvance}
         >
           Close Betting
         </Button>
       )}
+      {showTimer && <Timer seconds={secondsLeft} format="minutes"/>}
     </div>
   )
 }

@@ -2,20 +2,29 @@
 
 .betting-open-view {
   width: 100%;
-  @include mixins.flexbox-column;
+  @include mixins.flexbox-space-between-column;
   flex-grow: 1;
-  padding: 20px 5%;
+  padding: 20px 5% 40px;
   box-sizing: border-box;
   overflow-y: auto;
+
+  .betting-open-title {
+    margin-bottom: 20px;
+  }
 
   .drivers-grid {
     @include mixins.flexbox;
     flex-wrap: wrap;
     width: 100%;
     gap: 0.5rem;
+    margin: auto 0;
   }
 
-  .advance-btn {
-    margin-top: 2rem;
+  .advance-button {
+    margin-top: 41px;
+  }
+
+  .timer {
+    margin-top: 20px;
   }
 }

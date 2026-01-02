@@ -151,6 +151,7 @@ const Championship: React.FC = () => {
         newRounds[payload.roundIndex] = {
           ...newRounds[payload.roundIndex],
           status: payload.status,
+          statusChangedAt: payload.timestamp,
           // Merge round data if included in payload (when transitioning from waiting).
           ...(payload.round && {
             drivers: payload.round.drivers,
@@ -665,6 +666,7 @@ const Championship: React.FC = () => {
             isAdjudicator={isAdjudicator}
             onAdvance={() => handleAdvanceStatus("betting_closed")}
             lastRejectedBet={lastRejectedBet}
+            automation={champ.settings.automation}
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (

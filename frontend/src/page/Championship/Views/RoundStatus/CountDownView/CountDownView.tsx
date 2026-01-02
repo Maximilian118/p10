@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import "./_countDownView.scss"
 import { RoundType } from "../../../../../shared/types"
 import StartLights from "../../../components/StartLights/StartLights"
+import Timer from "../../../components/Timer/Timer"
 import { Button } from "@mui/material"
 import Arrows from "../../../../../components/utility/arrows/Arrows"
 
@@ -75,7 +76,6 @@ const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onS
         <p className={isFading ? "fading" : ""}>{statusMessage}</p>
         <StartLights startSequence={shouldStartSequence} initialSeconds={secondsLeft}/>
       </div>
-      <div className={`timer ${isFading || isStuck ? "fading" : ""}`}>{secondsLeft}s</div>
       {isAdjudicator && onSkipTimer && (
         <Button
           variant="outlined"
@@ -85,6 +85,9 @@ const CountDownView: React.FC<CountDownViewProps> = ({ round, isAdjudicator, onS
           Skip Timer
         </Button>
       )}
+      <div className={isFading || isStuck ? "fading" : ""}>
+        <Timer seconds={secondsLeft} />
+      </div>
     </div>
   )
 }

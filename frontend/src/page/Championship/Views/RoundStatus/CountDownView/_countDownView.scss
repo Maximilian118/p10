@@ -31,15 +31,8 @@
     }
   }
 
-  .timer {
-    font-size: 3rem;
-    font-weight: 700;
-    color: #e10600;
-    transition: opacity 0.3s ease, color 0.3s ease;
-
-    &.fading {
-      opacity: 0;
-    }
+  .fading .timer {
+    opacity: 0;
   }
 
   .skip-timer-btn {
