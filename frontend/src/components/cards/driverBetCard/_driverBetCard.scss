@@ -17,12 +17,19 @@
   overflow: hidden;
   color: variables.$colour-9;
 
-  .driver-name {
+  .driver-card-header {
     width: 100%;
-    text-align: right;
-    font-weight: 600;
+    @include mixins.flexbox-space-between;
     position: relative;
     z-index: 2;
+
+    > :only-child {
+      margin-left: auto;
+    }
+
+    p {
+      font-weight: 600;
+    }
   }
 
   .driver-icon {
@@ -39,6 +46,11 @@
     right: -6px;
   }
 
+  &.pending {
+    pointer-events: none;
+    border-color: variables.$mui-blue;
+  }
+
   &.my-bet {
     border-color: #4caf50;
     background-color: #e8f5e9;
@@ -48,12 +60,7 @@
     border-color: #e0e0e0;
     background-color: #f5f5f5;
     cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  &.pending {
-    opacity: 0.7;
-    pointer-events: none;
+    opacity: 0.5;
   }
 
   &.rejected {

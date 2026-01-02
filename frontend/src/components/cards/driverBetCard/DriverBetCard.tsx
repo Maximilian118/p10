@@ -3,6 +3,7 @@ import "./_driverBetCard.scss"
 import { driverType } from "../../../shared/types"
 import { userType } from "../../../shared/localStorage"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
+import { CircularProgress } from "@mui/material"
 
 interface DriverBetCardProps {
   driver: driverType
@@ -37,7 +38,10 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
       `}
       onClick={onClick}
     >
-      <p className="driver-name">{driver.driverID}</p>
+      <div className="driver-card-header">
+        {isPending && <CircularProgress size="18px"/>}
+        <p>{driver.driverID}</p>
+      </div>
       <img className="driver-icon" alt="driver" src={driver.icon}/>
       {takenBy && <ImageIcon src={takenBy.icon} size="large"/>}
     </div>
