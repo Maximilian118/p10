@@ -1,8 +1,9 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
-import Champ, { ChampType, CompetitorEntry, Round, RoundStatus, SeasonHistory } from "../../models/champ"
+import Champ, { ChampType, CompetitorEntry, DriverEntry, TeamEntry, Round, RoundStatus, SeasonHistory } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
+import Team from "../../models/team"
 import Badge from "../../models/badge"
 import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
@@ -10,7 +11,7 @@ import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resol
 import { clientS3, deleteS3 } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
-import { broadcastRoundStatusChange } from "../../socket/socketHandler"
+import { broadcastRoundStatusChange, broadcastBetPlaced } from "../../socket/socketHandler"
 import { scheduleCountdownTransition, scheduleResultsTransition, cancelTimer } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry } from "./resolverUtility"
 
@@ -69,6 +70,84 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
   winner: null,
   runnerUp: null,
 })
+
+// Populates round data (competitors, drivers, teams) when transitioning from "waiting".
+// Carries over totalPoints from the previous round for all entries.
+const populateRoundData = async (
+  champ: ChampType,
+  roundIndex: number,
+): Promise<{ competitors: CompetitorEntry[]; drivers: DriverEntry[]; teams: TeamEntry[] }> => {
+  const previousRoundIndex = roundIndex - 1
+
+  // Populate competitors: carry forward from previous round or use existing.
+  let competitors: CompetitorEntry[] = []
+  if (previousRoundIndex >= 0 && champ.rounds[previousRoundIndex].status === "completed") {
+    // Carry forward from completed previous round.
+    competitors = champ.rounds[previousRoundIndex].competitors.map((c) => ({
+      competitor: c.competitor,
+      bet: null,
+      points: 0,
+      totalPoints: c.totalPoints,
+      position: c.position,
+      updated_at: null,
+      created_at: null,
+    }))
+  } else {
+    // First round or no completed previous - use existing competitors in this round.
+    competitors = champ.rounds[roundIndex].competitors.map((c, i) => ({
+      competitor: c.competitor,
+      bet: null,
+      points: 0,
+      totalPoints: c.totalPoints || 0,
+      position: c.position || i + 1,
+      updated_at: null,
+      created_at: null,
+    }))
+  }
+
+  // Fetch series to get drivers.
+  const series = await Series.findById(champ.series)
+  if (!series) {
+    throw new Error("Series not found for championship")
+  }
+
+  // Build map of previous driver totalPoints for carry-over.
+  const previousDrivers = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex].drivers : []
+  const driverTotalsMap = new Map<string, number>(
+    previousDrivers.map((d) => [d.driver.toString(), d.totalPoints]),
+  )
+
+  // Populate drivers from series.drivers.
+  const drivers: DriverEntry[] = series.drivers.map((driverId) => ({
+    driver: driverId,
+    points: 0,
+    totalPoints: driverTotalsMap.get(driverId.toString()) || 0,
+    position: 0,
+    positionDrivers: 0,
+    positionActual: 0,
+  }))
+
+  // Find all teams that compete in this series.
+  const seriesTeams = await Team.find({ series: champ.series })
+
+  // Build map of previous team totalPoints for carry-over.
+  const previousTeams = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex].teams : []
+  const teamTotalsMap = new Map<string, number>(
+    previousTeams.map((t) => [t.team.toString(), t.totalPoints]),
+  )
+
+  // Populate teams from teams in this series.
+  const teams: TeamEntry[] = seriesTeams.map((team) => ({
+    team: team._id,
+    drivers: team.drivers,
+    points: 0,
+    totalPoints: teamTotalsMap.get(team._id.toString()) || 0,
+    position: 0,
+    positionConstructors: 0,
+  }))
+
+  return { competitors, drivers, teams }
+}
 
 const champResolvers = {
   // Fetches a championship by ID with all populated references.
@@ -434,6 +513,14 @@ const champResolvers = {
         )
       }
 
+      // When transitioning FROM "waiting", populate competitors/drivers/teams.
+      if (currentStatus === "waiting") {
+        const roundData = await populateRoundData(champ, roundIndex)
+        champ.rounds[roundIndex].competitors = roundData.competitors
+        champ.rounds[roundIndex].drivers = roundData.drivers
+        champ.rounds[roundIndex].teams = roundData.teams
+      }
+
       // Cancel any existing timer for this round.
       cancelTimer(_id, roundIndex)
 
@@ -475,6 +562,147 @@ const champResolvers = {
 
       if (!populatedChamp) {
         return throwError("updateRoundStatus", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Places a bet on a driver for a round.
+  // Each driver can only be bet on by ONE competitor (first-come-first-serve).
+  placeBet: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: { roundIndex: number; driverId: string }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("placeBet", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    const { roundIndex, driverId } = input
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("placeBet", _id, "Championship not found!", 404)
+      }
+
+      // Validate round index.
+      if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
+        return throwError("placeBet", roundIndex, "Invalid round index!", 400)
+      }
+
+      const round = champ.rounds[roundIndex]
+
+      // Validate round status is betting_open.
+      if (round.status !== "betting_open") {
+        return throwError(
+          "placeBet",
+          round.status,
+          "Betting is not currently open for this round!",
+          400,
+        )
+      }
+
+      // Find the user's competitor entry in this round.
+      const competitorIndex = round.competitors.findIndex(
+        (c) => c.competitor.toString() === req._id,
+      )
+      if (competitorIndex === -1) {
+        return throwError(
+          "placeBet",
+          req._id,
+          "You are not a competitor in this championship!",
+          403,
+        )
+      }
+
+      const competitor = round.competitors[competitorIndex]
+      const previousDriverId = competitor.bet ? competitor.bet.toString() : null
+
+      // If user is trying to bet on the same driver they already have, no-op.
+      if (previousDriverId === driverId) {
+        const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+        return {
+          ...populatedChamp!._doc,
+          tokens: req.tokens,
+        }
+      }
+
+      // Check if the driver is already taken by another competitor.
+      // This uses an atomic update to prevent race conditions.
+      const driverObjectId = new ObjectId(driverId)
+
+      // Build the atomic update condition:
+      // - The driver must not be bet on by any OTHER competitor in this round.
+      const otherCompetitorWithDriver = round.competitors.find(
+        (c) => c.bet?.toString() === driverId && c.competitor.toString() !== req._id,
+      )
+
+      if (otherCompetitorWithDriver) {
+        return throwError(
+          "placeBet",
+          driverId,
+          "This driver has already been selected by another competitor!",
+          409,
+        )
+      }
+
+      // Update the competitor's bet atomically using findOneAndUpdate.
+      // This ensures that between our check and update, no one else takes the driver.
+      const updateResult = await Champ.findOneAndUpdate(
+        {
+          _id: new ObjectId(_id),
+          // Ensure the driver is still not taken by checking again in the query.
+          [`rounds.${roundIndex}.competitors`]: {
+            $not: {
+              $elemMatch: {
+                bet: driverObjectId,
+                competitor: { $ne: new ObjectId(req._id) },
+              },
+            },
+          },
+        },
+        {
+          $set: {
+            [`rounds.${roundIndex}.competitors.${competitorIndex}.bet`]: driverObjectId,
+            [`rounds.${roundIndex}.competitors.${competitorIndex}.updated_at`]: moment().format(),
+            [`rounds.${roundIndex}.competitors.${competitorIndex}.created_at`]:
+              competitor.created_at || moment().format(),
+            updated_at: moment().format(),
+          },
+        },
+        { new: true },
+      )
+
+      if (!updateResult) {
+        // The atomic update failed - another user took the driver between check and update.
+        return throwError(
+          "placeBet",
+          driverId,
+          "This driver has already been selected by another competitor!",
+          409,
+        )
+      }
+
+      // Broadcast the bet immediately to all users in the championship room.
+      broadcastBetPlaced(io, _id, roundIndex, req._id as string, driverId, previousDriverId)
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("placeBet", _id, "Championship not found after update!", 404)
       }
 
       return {

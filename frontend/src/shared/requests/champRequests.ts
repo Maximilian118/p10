@@ -490,6 +490,55 @@ export const updateRoundStatus = async (
   return result
 }
 
+// Places a bet on a driver for a round.
+// Returns the updated championship on success, null on failure.
+export const placeBet = async (
+  champId: string,
+  roundIndex: number,
+  driverId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { roundIndex, driverId },
+          },
+          query: `
+            mutation PlaceBet($_id: ID!, $input: PlaceBetInput!) {
+              placeBet(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("placeBet", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("placeBet", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("placeBet", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("placeBet", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
 // Settings update options.
 interface ChampSettingsUpdate {
   name?: string

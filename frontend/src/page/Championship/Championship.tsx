@@ -26,7 +26,7 @@ import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
 import { useChampionshipSocket } from "../../shared/hooks/useChampionshipSocket"
-import { RoundStatusPayload } from "../../shared/socket/socketClient"
+import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload } from "../../shared/socket/socketClient"
 import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
@@ -126,6 +126,9 @@ const Championship: React.FC = () => {
   // Round status view - when a round is in an active state (not waiting/completed).
   const [ roundStatusView, setRoundStatusView ] = useState<RoundStatus | null>(null)
 
+  // Track last rejected bet for BettingOpenView to show rejection feedback.
+  const [ lastRejectedBet, setLastRejectedBet ] = useState<BetRejectedPayload | null>(null)
+
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
@@ -161,8 +164,75 @@ const Championship: React.FC = () => {
     }
   }, [])
 
+  // Handle real-time bet updates from socket (from other users).
+  const handleBetPlaced = useCallback((payload: BetPlacedPayload) => {
+    setChamp(prev => {
+      if (!prev) return prev
+      const newRounds = [...prev.rounds]
+      if (payload.roundIndex >= 0 && payload.roundIndex < newRounds.length) {
+        const round = { ...newRounds[payload.roundIndex] }
+        const newCompetitors = [...round.competitors]
+
+        // Find the competitor who placed the bet and update their bet.
+        const competitorIdx = newCompetitors.findIndex(
+          c => c.competitor._id === payload.competitorId
+        )
+        if (competitorIdx !== -1) {
+          // Find the full driver object from the round's drivers array.
+          const driver = payload.driverId
+            ? round.drivers.find(d => d.driver._id === payload.driverId)?.driver || null
+            : null
+
+          newCompetitors[competitorIdx] = {
+            ...newCompetitors[competitorIdx],
+            bet: driver,
+          }
+        }
+
+        round.competitors = newCompetitors
+        newRounds[payload.roundIndex] = round
+      }
+      return { ...prev, rounds: newRounds }
+    })
+  }, [])
+
+  // Handle our own bet being confirmed via socket.
+  const handleBetConfirmed = useCallback((payload: BetConfirmedPayload) => {
+    setChamp(prev => {
+      if (!prev) return prev
+      const newRounds = [...prev.rounds]
+      if (payload.roundIndex >= 0 && payload.roundIndex < newRounds.length) {
+        const round = { ...newRounds[payload.roundIndex] }
+        const newCompetitors = [...round.competitors]
+
+        // Find the current user's competitor entry and update their bet.
+        const competitorIdx = newCompetitors.findIndex(
+          c => c.competitor._id === user._id
+        )
+        if (competitorIdx !== -1) {
+          // Find the full driver object from the round's drivers array.
+          const driver = round.drivers.find(d => d.driver._id === payload.driverId)?.driver || null
+
+          newCompetitors[competitorIdx] = {
+            ...newCompetitors[competitorIdx],
+            bet: driver,
+          }
+        }
+
+        round.competitors = newCompetitors
+        newRounds[payload.roundIndex] = round
+      }
+      return { ...prev, rounds: newRounds }
+    })
+  }, [user._id])
+
+  // Handle our own bet being rejected via socket.
+  const handleBetRejected = useCallback((payload: BetRejectedPayload) => {
+    setLastRejectedBet(payload)
+  }, [])
+
   // Connect to championship socket for real-time updates.
-  useChampionshipSocket(id, handleRoundStatusChange)
+  useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected)
 
   // Navigate to a new view while tracking history.
   const navigateToView = (newView: ChampView) => {
@@ -241,11 +311,14 @@ const Championship: React.FC = () => {
 
   // Check current round status on load - show status view if round is active.
   // Runs when champ data is loaded (champ._id changes).
+  // Resets roundStatusView when navigating to a championship without an active round.
   useEffect(() => {
     if (champ) {
       const currentRound = champ.rounds.find(r => r.status !== "completed")
       if (currentRound && currentRound.status !== "waiting" && currentRound.status !== "completed") {
         setRoundStatusView(currentRound.status)
+      } else {
+        setRoundStatusView(null)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -502,6 +575,9 @@ const Championship: React.FC = () => {
     && roundStatusView !== "waiting"
     && roundStatusView !== "completed"
 
+  // Force banner to be fully shrunk when in round status views.
+  const effectiveShrinkRatio = isInRoundStatusView ? 1 : shrinkRatio
+
   // Compute round viewing state.
   const currentRoundIndex = champ.rounds.findIndex(r => r.status !== "completed")
   const effectiveCurrentIndex = currentRoundIndex === -1 ? champ.rounds.length - 1 : currentRoundIndex
@@ -529,7 +605,7 @@ const Championship: React.FC = () => {
             onBannerClick={handleBannerClick}
             settingsMode={true}
             openRef={dropzoneOpenRef}
-            shrinkRatio={shrinkRatio}
+            shrinkRatio={effectiveShrinkRatio}
             viewedRoundNumber={viewedRoundNumber}
           />
         ) : (
@@ -545,12 +621,12 @@ const Championship: React.FC = () => {
             backendErr={backendErr}
             setBackendErr={setBackendErr}
             onBannerClick={handleBannerClick}
-            shrinkRatio={shrinkRatio}
+            shrinkRatio={effectiveShrinkRatio}
             viewedRoundNumber={viewedRoundNumber}
           />
         )
       ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={shrinkRatio} viewedRoundNumber={viewedRoundNumber} />
+        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
       {view === "competitors" && !isInRoundStatusView && (
@@ -575,11 +651,14 @@ const Championship: React.FC = () => {
             onSkipTimer={() => handleAdvanceStatus("betting_open")}
           />
         )}
-        {isInRoundStatusView && roundStatusView === "betting_open" && viewedRound && (
+        {isInRoundStatusView && roundStatusView === "betting_open" && viewedRound && id && (
           <BettingOpenView
             round={viewedRound}
+            champId={id}
+            roundIndex={viewedIndex}
             isAdjudicator={isAdjudicator}
             onAdvance={() => handleAdvanceStatus("betting_closed")}
+            lastRejectedBet={lastRejectedBet}
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (

@@ -3,9 +3,15 @@ import { RoundStatus } from "../types"
 
 // Socket event names - must match backend.
 export const SOCKET_EVENTS = {
+  // Client -> Server
   JOIN_CHAMPIONSHIP: "championship:join",
   LEAVE_CHAMPIONSHIP: "championship:leave",
+  PLACE_BET: "bet:place",
+  // Server -> Client
   ROUND_STATUS_CHANGED: "round:status_changed",
+  BET_PLACED: "bet:placed",
+  BET_CONFIRMED: "bet:confirmed",
+  BET_REJECTED: "bet:rejected",
   ERROR: "error",
 } as const
 
@@ -15,6 +21,33 @@ export interface RoundStatusPayload {
   roundIndex: number
   status: RoundStatus
   timestamp: string
+}
+
+// Payload for bet placed events (broadcast to all users).
+export interface BetPlacedPayload {
+  champId: string
+  roundIndex: number
+  competitorId: string
+  driverId: string | null
+  previousDriverId: string | null
+  timestamp: string
+}
+
+// Payload confirming bet was placed successfully (sent to bettor only).
+export interface BetConfirmedPayload {
+  champId: string
+  roundIndex: number
+  driverId: string
+  timestamp: string
+}
+
+// Payload when bet is rejected (sent to bettor only).
+export interface BetRejectedPayload {
+  champId: string
+  roundIndex: number
+  driverId: string
+  reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error"
+  takenBy?: string
 }
 
 // Socket instance (singleton).
@@ -63,5 +96,12 @@ export const joinChampionshipRoom = (champId: string): void => {
 export const leaveChampionshipRoom = (champId: string): void => {
   if (socket?.connected) {
     socket.emit(SOCKET_EVENTS.LEAVE_CHAMPIONSHIP, champId)
+  }
+}
+
+// Places a bet via socket for low-latency betting.
+export const placeBetViaSocket = (champId: string, roundIndex: number, driverId: string): void => {
+  if (socket?.connected) {
+    socket.emit(SOCKET_EVENTS.PLACE_BET, { champId, roundIndex, driverId })
   }
 }

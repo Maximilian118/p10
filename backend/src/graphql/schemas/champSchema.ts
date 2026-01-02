@@ -288,6 +288,12 @@ const champSchema = `
     status: RoundStatus!
   }
 
+  # Input for placing a bet.
+  input PlaceBetInput {
+    roundIndex: Int!
+    driverId: ID!
+  }
+
   # Response type for multiple championships.
   type Champs {
     array: [Champ!]!
