@@ -6,6 +6,7 @@ import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
 import DriverBetCard from "../../../../../components/cards/driverBetCard/DriverBetCard"
 import Timer from "../../../components/Timer/Timer"
+import CloseBettingConfirm from "../CloseBettingConfirm/CloseBettingConfirm"
 
 interface BettingOpenViewProps {
   round: RoundType
@@ -52,6 +53,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   const { user } = useContext(AppContext)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
   const [rejectedDriverId, setRejectedDriverId] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // Determine if countdown timer should be shown.
   const showTimer = automation?.enabled
@@ -123,6 +125,33 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
     placeBetViaSocket(champId, roundIndex, driver._id)
   }
 
+  // Check if all competitors have placed bets and all drivers are taken.
+  const allCompetitorsBet = round.competitors.every(c => c.bet !== null)
+  const allDriversTaken = round.drivers.every(d =>
+    round.competitors.some(c => c.bet?._id === d.driver._id)
+  )
+  // Show confirmation if: timer active (auto-close expected) OR betting incomplete.
+  const needsConfirmation = showTimer || (!allCompetitorsBet && !allDriversTaken)
+
+  // Handle close betting button click.
+  const handleCloseBetting = () => {
+    if (needsConfirmation) {
+      setShowConfirm(true)
+    } else if (onAdvance) {
+      onAdvance()
+    }
+  }
+
+  // Show confirmation view if requested.
+  if (showConfirm && onAdvance) {
+    return (
+      <CloseBettingConfirm
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={onAdvance}
+      />
+    )
+  }
+
   const advButton = isAdjudicator && onAdvance
   const gridPad = showTimer || advButton
 
@@ -156,7 +185,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
           variant="contained"
           className="advance-button"
           color="error"
-          onClick={onAdvance}
+          onClick={handleCloseBetting}
         >
           Close Betting
         </Button>
