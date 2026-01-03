@@ -1,5 +1,6 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
+@use '../../../scss/keyframes';
 
 .driver-bet-card {
   @include mixins.flexbox-start-column;
@@ -52,29 +53,20 @@
   }
 
   &.my-bet {
-    border-color: variables.$mui-success;
-    background-color: variables.$selected;
-  }
-
-  &.taken {
-    border-color: variables.$colour-1-5;
-    background-color: variables.$colour-2;
-    cursor: not-allowed;
-    opacity: 0.6;
+    border-color: variables.$mui-success-hover;
+    background-color: variables.$background-green;
   }
 
   &.rejected {
-    border-color: #f44336;
-    background-color: #ffebee;
-    animation: flash-red 0.5s ease-out;
+    border-color: variables.$pirelli-red;
+    background-color: variables.$background-red;
+    animation: flash-red 0.5s ease-out, shake 0.3s ease-out;
   }
-}
 
-@keyframes flash-red {
-  0% {
-    background-color: #f44336;
-  }
-  100% {
-    background-color: #ffebee;
+  &.taken {
+    border-color: variables.$border;
+    background-color: variables.$colour-2;
+    cursor: not-allowed;
+    animation: flash-red-taken 0.7s ease-out forwards, shake 0.3s ease-out;
   }
 }
