@@ -667,6 +667,7 @@ const Championship: React.FC = () => {
             onAdvance={() => handleAdvanceStatus("betting_closed")}
             lastRejectedBet={lastRejectedBet}
             automation={champ.settings.automation}
+            previousRoundDrivers={viewedIndex > 0 ? champ.rounds[viewedIndex - 1]?.drivers : undefined}
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (

@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from "react"
 import "./_bettingOpenView.scss"
-import { RoundType, driverType, CompetitorEntryType, AutomationSettingsType } from "../../../../../shared/types"
+import { RoundType, driverType, CompetitorEntryType, AutomationSettingsType, DriverEntryType } from "../../../../../shared/types"
 import { placeBetViaSocket, BetRejectedPayload } from "../../../../../shared/socket/socketClient"
 import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
@@ -16,6 +16,7 @@ interface BettingOpenViewProps {
   onAdvance?: () => void
   lastRejectedBet?: BetRejectedPayload | null
   automation?: AutomationSettingsType
+  previousRoundDrivers?: DriverEntryType[]
 }
 
 // Calculates total betting window duration in seconds.
@@ -48,7 +49,8 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   isAdjudicator,
   onAdvance,
   lastRejectedBet,
-  automation
+  automation,
+  previousRoundDrivers
 }) => {
   const { user } = useContext(AppContext)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
@@ -77,8 +79,27 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
     return () => clearInterval(timer)
   }, [showTimer, secondsLeft])
 
-  // Get all drivers from the round's drivers array.
-  const drivers: driverType[] = round.drivers.map(d => d.driver)
+  // Get all drivers, sorted by previous round qualifying position if available.
+  const drivers: driverType[] = (() => {
+    const currentDrivers = round.drivers.map(d => d.driver)
+
+    if (!previousRoundDrivers?.length) return currentDrivers
+
+    // Create position map from previous round qualifying results.
+    const positionMap = new Map<string, number>()
+    previousRoundDrivers.forEach(entry => {
+      if (entry.driver._id && entry.positionActual) {
+        positionMap.set(entry.driver._id, entry.positionActual)
+      }
+    })
+
+    // Sort by previous qualifying position (drivers not in previous round go to end).
+    return [...currentDrivers].sort((a, b) => {
+      const posA = positionMap.get(a._id!) ?? 999
+      const posB = positionMap.get(b._id!) ?? 999
+      return posA - posB
+    })
+  })()
 
   // Find the current user's competitor entry.
   const currentUserCompetitor = round.competitors.find(
