@@ -107,6 +107,9 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   )
   const currentUserBetId = currentUserCompetitor?.bet?._id || null
 
+  // Determine if user is an observer (not a competitor in this championship).
+  const isObserver = !currentUserCompetitor
+
   // Clear pending state when bet is confirmed (detected via round.competitors update).
   useEffect(() => {
     if (pendingDriverId && currentUserBetId === pendingDriverId) {
@@ -178,7 +181,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
 
   return (
     <div className="betting-open-view">
-      <p className="betting-open-title">Place your bet!</p>
+      <p className="betting-open-title">{isObserver ? "Spectating" : "Place your bet!"}</p>
       <div className="drivers-grid" style={{ paddingBottom: gridPad ? 20 : 140 }}>
         {drivers.map(driver => {
           if (!driver._id) return null
@@ -197,6 +200,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
               isPending={isPending}
               isRejected={isRejected}
               onClick={() => handleDriverClick(driver)}
+              disabled={isObserver}
             />
           )
         })}

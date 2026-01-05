@@ -12,6 +12,7 @@ interface DriverBetCardProps {
   isRejected: boolean
   onClick: () => void
   takenBy?: userType
+  disabled?: boolean
 }
 
 // Card component for displaying a driver in the betting grid.
@@ -22,10 +23,17 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
   takenBy,
   isPending,
   isRejected,
-  onClick
+  onClick,
+  disabled
 }) => {
   // Derive isTakenByOther from takenBy prop.
   const isTakenByOther = !!takenBy && !isMyBet
+
+  // Handles card click, preventing interaction when disabled (observer mode).
+  const handleClick = () => {
+    if (disabled) return
+    onClick()
+  }
 
   return (
     <div
@@ -35,8 +43,9 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
         ${isTakenByOther ? "taken" : ""}
         ${isPending ? "pending" : ""}
         ${isRejected ? "rejected" : ""}
+        ${disabled ? "observer" : ""}
       `}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="driver-card-header">
         {isPending && <CircularProgress size="18px"/>}
