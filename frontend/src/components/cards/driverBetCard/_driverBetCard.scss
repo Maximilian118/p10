@@ -63,10 +63,14 @@
     animation: flash-red 0.5s ease-out, shake 0.3s ease-out;
   }
 
-  &.taken, &.observer {
+  &.taken {
     border-color: variables.$border;
     background-color: variables.$colour-2;
     cursor: not-allowed;
     animation: flash-red-taken 0.7s ease-out forwards, shake 0.3s ease-out;
+  }
+
+  &.observer {
+    cursor: not-allowed;
   }
 }
