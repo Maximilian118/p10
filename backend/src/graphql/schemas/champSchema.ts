@@ -170,6 +170,8 @@ const champSchema = `
     skipResults: Boolean!
     inviteOnly: Boolean!
     maxCompetitors: Int!
+    competitorsCanBet: Boolean!
+    adjudicatorBettingView: Boolean!
     protests: VotingSettings!
     ruleChanges: VotingSettings!
     automation: AutomationSettings!
@@ -276,6 +278,8 @@ const champSchema = `
     skipResults: Boolean
     inviteOnly: Boolean
     active: Boolean
+    competitorsCanBet: Boolean
+    adjudicatorBettingView: Boolean
     automation: AutomationSettingsInput
     protests: VotingSettingsInput
     ruleChanges: VotingSettingsInput

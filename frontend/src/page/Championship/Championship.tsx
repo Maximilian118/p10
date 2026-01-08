@@ -79,6 +79,8 @@ const Championship: React.FC = () => {
     inviteOnly: false,
     active: true,
     series: null,
+    competitorsCanBet: true,
+    adjudicatorBettingView: true,
   })
   const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
     champName: "",
@@ -129,6 +131,9 @@ const Championship: React.FC = () => {
   // Track last rejected bet for BettingOpenView to show rejection feedback.
   const [ lastRejectedBet, setLastRejectedBet ] = useState<BetRejectedPayload | null>(null)
 
+  // Track last bet placed (from other users) for BettingOpenView to show animation.
+  const [ lastBetPlaced, setLastBetPlaced ] = useState<BetPlacedPayload | null>(null)
+
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
@@ -173,6 +178,7 @@ const Championship: React.FC = () => {
 
   // Handle real-time bet updates from socket (from other users).
   const handleBetPlaced = useCallback((payload: BetPlacedPayload) => {
+    setLastBetPlaced(payload)
     setChamp(prev => {
       if (!prev) return prev
       const newRounds = [...prev.rounds]
@@ -212,9 +218,9 @@ const Championship: React.FC = () => {
         const round = { ...newRounds[payload.roundIndex] }
         const newCompetitors = [...round.competitors]
 
-        // Find the current user's competitor entry and update their bet.
+        // Find the competitor entry and update their bet.
         const competitorIdx = newCompetitors.findIndex(
-          c => c.competitor._id === user._id
+          c => c.competitor._id === payload.competitorId
         )
         if (competitorIdx !== -1) {
           // Find the full driver object from the round's drivers array.
@@ -231,7 +237,7 @@ const Championship: React.FC = () => {
       }
       return { ...prev, rounds: newRounds }
     })
-  }, [user._id])
+  }, [])
 
   // Handle our own bet being rejected via socket.
   const handleBetRejected = useCallback((payload: BetRejectedPayload) => {
@@ -666,8 +672,10 @@ const Championship: React.FC = () => {
             isAdjudicator={isAdjudicator}
             onAdvance={() => handleAdvanceStatus("betting_closed")}
             lastRejectedBet={lastRejectedBet}
+            lastBetPlaced={lastBetPlaced}
             automation={champ.settings.automation}
             previousRoundDrivers={viewedIndex > 0 ? champ.rounds[viewedIndex - 1]?.drivers : undefined}
+            competitorsCanBet={champ.settings.competitorsCanBet}
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (

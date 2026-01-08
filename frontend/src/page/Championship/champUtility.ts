@@ -20,6 +20,8 @@ export const initSettingsForm = (champ: ChampType): ChampSettingsFormType => ({
   inviteOnly: champ.settings.inviteOnly,
   active: champ.active,
   series: champ.series,
+  competitorsCanBet: champ.settings.competitorsCanBet ?? true,
+  adjudicatorBettingView: champ.settings.adjudicatorBettingView ?? true,
 })
 
 // Initialize automation form state from championship data.
@@ -70,7 +72,9 @@ export const hasSettingsChanged = (form: ChampSettingsFormType, champ: ChampType
     form.skipResults !== (champ.settings.skipResults ?? false) ||
     form.inviteOnly !== champ.settings.inviteOnly ||
     form.active !== champ.active ||
-    form.series?._id !== champ.series._id
+    form.series?._id !== champ.series._id ||
+    form.competitorsCanBet !== (champ.settings.competitorsCanBet ?? true) ||
+    form.adjudicatorBettingView !== (champ.settings.adjudicatorBettingView ?? true)
   )
 }
 
@@ -121,6 +125,8 @@ export interface SettingsUpdatesType {
   active?: boolean
   series?: string
   profile_picture?: string
+  competitorsCanBet?: boolean
+  adjudicatorBettingView?: boolean
 }
 
 export interface AutomationUpdatesType {
@@ -194,6 +200,14 @@ export const buildSettingsUpdates = (
 
   if (form.series?._id !== champ.series._id && form.series?._id) {
     updates.series = form.series._id
+  }
+
+  if (form.competitorsCanBet !== (champ.settings.competitorsCanBet ?? true)) {
+    updates.competitorsCanBet = form.competitorsCanBet
+  }
+
+  if (form.adjudicatorBettingView !== (champ.settings.adjudicatorBettingView ?? true)) {
+    updates.adjudicatorBettingView = form.adjudicatorBettingView
   }
 
   return updates
@@ -376,6 +390,20 @@ export const applySettingsOptimistically = (
 
   if (updates.series && form.series) {
     optimisticChamp.series = form.series
+  }
+
+  if (typeof updates.competitorsCanBet === "boolean") {
+    optimisticChamp.settings = {
+      ...optimisticChamp.settings,
+      competitorsCanBet: updates.competitorsCanBet,
+    }
+  }
+
+  if (typeof updates.adjudicatorBettingView === "boolean") {
+    optimisticChamp.settings = {
+      ...optimisticChamp.settings,
+      adjudicatorBettingView: updates.adjudicatorBettingView,
+    }
   }
 
   return optimisticChamp

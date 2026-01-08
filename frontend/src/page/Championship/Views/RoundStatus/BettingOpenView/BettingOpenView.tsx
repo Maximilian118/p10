@@ -1,12 +1,14 @@
 import React, { useContext, useState, useEffect } from "react"
 import "./_bettingOpenView.scss"
 import { RoundType, driverType, CompetitorEntryType, AutomationSettingsType, DriverEntryType } from "../../../../../shared/types"
-import { placeBetViaSocket, BetRejectedPayload } from "../../../../../shared/socket/socketClient"
+import { initDriver } from "../../../../../shared/init"
+import { placeBetViaSocket, BetRejectedPayload, BetPlacedPayload } from "../../../../../shared/socket/socketClient"
 import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
 import DriverBetCard from "../../../../../components/cards/driverBetCard/DriverBetCard"
 import Timer from "../../../components/Timer/Timer"
 import CloseBettingConfirm from "../CloseBettingConfirm/CloseBettingConfirm"
+import BettingSwitcher from "../../../components/BettingSwitcher/BettingSwitcher"
 
 interface BettingOpenViewProps {
   round: RoundType
@@ -15,8 +17,10 @@ interface BettingOpenViewProps {
   isAdjudicator?: boolean
   onAdvance?: () => void
   lastRejectedBet?: BetRejectedPayload | null
+  lastBetPlaced?: BetPlacedPayload | null
   automation?: AutomationSettingsType
   previousRoundDrivers?: DriverEntryType[]
+  competitorsCanBet?: boolean
 }
 
 // Calculates total betting window duration in seconds.
@@ -49,13 +53,23 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   isAdjudicator,
   onAdvance,
   lastRejectedBet,
+  lastBetPlaced,
   automation,
-  previousRoundDrivers
+  previousRoundDrivers,
+  competitorsCanBet = true
 }) => {
   const { user } = useContext(AppContext)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
   const [rejectedDriverId, setRejectedDriverId] = useState<string | null>(null)
+  const [placedForOtherDriverId, setPlacedForOtherDriverId] = useState<string | null>(null)
+  const [betPlacedForMeDriverId, setBetPlacedForMeDriverId] = useState<string | null>(null)
+  const [newlyTakenDriverId, setNewlyTakenDriverId] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [isPlacingForOthers, setIsPlacingForOthers] = useState(false)
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null)
+
+  // Determine if we're in competitor selection mode (adjudicator selected a driver).
+  const isSelectingCompetitor = isPlacingForOthers && selectedDriverId !== null
 
   // Determine if countdown timer should be shown.
   const showTimer = automation?.enabled
@@ -112,10 +126,58 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
 
   // Clear pending state when bet is confirmed (detected via round.competitors update).
   useEffect(() => {
-    if (pendingDriverId && currentUserBetId === pendingDriverId) {
+    if (!pendingDriverId) return
+
+    // When placing our own bet, check if our bet matches pending.
+    if (currentUserBetId === pendingDriverId) {
       setPendingDriverId(null)
+      return
     }
-  }, [currentUserBetId, pendingDriverId])
+
+    // When in "Place for Others" mode, clear when any competitor has the pending driver.
+    if (isPlacingForOthers) {
+      const driverNowTaken = round.competitors.some(c => c.bet?._id === pendingDriverId)
+      if (driverNowTaken) {
+        // Show success animation for the placed bet.
+        setPlacedForOtherDriverId(pendingDriverId)
+        setPendingDriverId(null)
+      }
+    }
+  }, [currentUserBetId, pendingDriverId, isPlacingForOthers, round.competitors])
+
+  // Clear placed-for-other state after animation completes.
+  useEffect(() => {
+    if (!placedForOtherDriverId) return
+    const timer = setTimeout(() => setPlacedForOtherDriverId(null), 500)
+    return () => clearTimeout(timer)
+  }, [placedForOtherDriverId])
+
+  // Detect when a bet was placed and determine which animation to show.
+  useEffect(() => {
+    if (!lastBetPlaced || !lastBetPlaced.driverId) return
+
+    if (lastBetPlaced.competitorId === user._id) {
+      // Bet was placed FOR the current user (by adjudicator) - show green animation.
+      setBetPlacedForMeDriverId(lastBetPlaced.driverId)
+    } else {
+      // Bet was placed by/for someone else - show red "newly taken" animation.
+      setNewlyTakenDriverId(lastBetPlaced.driverId)
+    }
+  }, [lastBetPlaced, user._id])
+
+  // Clear bet-placed-for-me state after animation completes.
+  useEffect(() => {
+    if (!betPlacedForMeDriverId) return
+    const timer = setTimeout(() => setBetPlacedForMeDriverId(null), 500)
+    return () => clearTimeout(timer)
+  }, [betPlacedForMeDriverId])
+
+  // Clear newly-taken state after animation completes.
+  useEffect(() => {
+    if (!newlyTakenDriverId) return
+    const timer = setTimeout(() => setNewlyTakenDriverId(null), 700)
+    return () => clearTimeout(timer)
+  }, [newlyTakenDriverId])
 
   // Handle rejected bet via socket event from parent.
   useEffect(() => {
@@ -128,12 +190,23 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
     }
   }, [lastRejectedBet, pendingDriverId])
 
-  // Handles clicking on a driver to place a bet.
+  // Get competitors sorted by totalPoints (descending) for "Place for Others" mode.
+  const sortedCompetitors = [...round.competitors].sort(
+    (a, b) => b.totalPoints - a.totalPoints
+  )
+
+  // Handles clicking on a driver to place a bet or select driver for "Place for Others".
   const handleDriverClick = (driver: driverType): void => {
     if (!driver._id) return
 
     // Don't allow click if already waiting for a bet response.
     if (pendingDriverId) return
+
+    // If in "Place for Others" mode, select this driver and switch to competitor view.
+    if (isPlacingForOthers && !isSelectingCompetitor) {
+      setSelectedDriverId(driver._id)
+      return
+    }
 
     // Check if driver is already taken by another competitor.
     const takenBy = findCompetitorWithBet(round.competitors, driver._id)
@@ -147,6 +220,21 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
     // Set pending state and send bet via socket.
     setPendingDriverId(driver._id)
     placeBetViaSocket(champId, roundIndex, driver._id)
+  }
+
+  // Handles clicking on a competitor to place bet for them (adjudicator only).
+  const handleCompetitorClick = (competitorEntry: CompetitorEntryType): void => {
+    if (!selectedDriverId || !competitorEntry.competitor._id) return
+
+    // Don't allow click if already waiting for a bet response.
+    if (pendingDriverId) return
+
+    // Place bet for this competitor on the selected driver.
+    setPendingDriverId(selectedDriverId)
+    placeBetViaSocket(champId, roundIndex, selectedDriverId, competitorEntry.competitor._id)
+
+    // Reset to driver view after placing bet.
+    setSelectedDriverId(null)
   }
 
   // Check if all competitors have placed bets and all drivers are taken.
@@ -179,41 +267,97 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   const advButton = isAdjudicator && onAdvance
   const gridPad = showTimer || advButton
 
+  // Determines the title shown to non-adjudicators based on their betting status.
+  const getBettingTitle = (): string => {
+    if (isObserver) return "Spectating"
+    if (!competitorsCanBet) return "Bets being placed!"
+    return "Place your bet!"
+  }
+
   return (
     <div className="betting-open-view">
-      <p className="betting-open-title">{isObserver ? "Spectating" : "Place your bet!"}</p>
+      {!isAdjudicator && <p className="betting-open-title">{getBettingTitle()}</p>}
+      {isAdjudicator && (
+        <BettingSwitcher
+          isActive={isPlacingForOthers}
+          onToggle={() => {
+            setIsPlacingForOthers(prev => !prev)
+            setSelectedDriverId(null)
+          }}
+        />
+      )}
       <div className="drivers-grid" style={{ paddingBottom: gridPad ? 20 : 140 }}>
-        {drivers.map(driver => {
-          if (!driver._id) return null
+        {isSelectingCompetitor ? (
+          // Competitor selection mode - show competitors sorted by totalPoints.
+          sortedCompetitors.map(competitorEntry => {
+            if (!competitorEntry.competitor._id) return null
 
-          const takenBy = findCompetitorWithBet(round.competitors, driver._id)
-          const isMyBet = currentUserBetId === driver._id
-          const isPending = pendingDriverId === driver._id
-          const isRejected = rejectedDriverId === driver._id
+            // Use initDriver utility to create placeholder (required prop).
+            const placeholderDriver = initDriver(user)
 
-          return (
-            <DriverBetCard
-              key={driver._id}
-              driver={driver}
-              isMyBet={isMyBet}
-              takenBy={takenBy?.competitor}
-              isPending={isPending}
-              isRejected={isRejected}
-              onClick={() => handleDriverClick(driver)}
-              disabled={isObserver}
-            />
-          )
-        })}
+            return (
+              <DriverBetCard
+                key={competitorEntry.competitor._id}
+                driver={placeholderDriver}
+                displayMode="competitor"
+                competitor={competitorEntry}
+                isMyBet={false}
+                isPending={false}
+                isRejected={false}
+                onClick={() => handleCompetitorClick(competitorEntry)}
+              />
+            )
+          })
+        ) : (
+          // Normal driver view.
+          drivers.map(driver => {
+            if (!driver._id) return null
+
+            const takenBy = findCompetitorWithBet(round.competitors, driver._id)
+            const isMyBet = currentUserBetId === driver._id
+            const isPending = pendingDriverId === driver._id
+            const isRejected = rejectedDriverId === driver._id
+            const isBetPlacedForMe = betPlacedForMeDriverId === driver._id
+            const isPlacedForOther = placedForOtherDriverId === driver._id || isBetPlacedForMe
+            const isNewlyTaken = newlyTakenDriverId === driver._id && !isPlacedForOther
+
+            return (
+              <DriverBetCard
+                key={driver._id}
+                driver={driver}
+                isMyBet={isMyBet}
+                takenBy={takenBy?.competitor}
+                isPending={isPending}
+                isRejected={isRejected}
+                isPlacedForOther={isPlacedForOther}
+                isNewlyTaken={isNewlyTaken}
+                onClick={() => handleDriverClick(driver)}
+                disabled={!isAdjudicator && (isObserver || !competitorsCanBet)}
+              />
+            )
+          })
+        )}
       </div>
-      {advButton && (
+      {isSelectingCompetitor ? (
         <Button
           variant="contained"
           className="advance-button"
-          color="error"
-          onClick={handleCloseBetting}
+          color="inherit"
+          onClick={() => setSelectedDriverId(null)}
         >
-          Close Betting
+          Back
         </Button>
+      ) : (
+        advButton && (
+          <Button
+            variant="contained"
+            className="advance-button"
+            color="error"
+            onClick={handleCloseBetting}
+          >
+            Close Betting
+          </Button>
+        )
       )}
       {showTimer && <Timer seconds={secondsLeft} format="minutes"/>}
     </div>

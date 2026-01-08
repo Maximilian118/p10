@@ -41,4 +41,16 @@
   40%, 80% {
     transform: rotate(3deg);
   }
+}
+
+@keyframes flash-green-placed {
+  0% {
+    background-color: variables.$mui-success;
+  }
+  50% {
+    background-color: variables.$mui-success;
+  }
+  100% {
+    background-color: variables.$background-green;
+  }
 } 

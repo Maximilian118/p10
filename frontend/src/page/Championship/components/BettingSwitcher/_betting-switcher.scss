@@ -1,0 +1,54 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+.betting-switcher {
+  width: 100%;
+  max-width: calc(90px * 4 + 0.5rem * 3);
+  height: 40px;
+  position: relative;
+  background: white;
+  border: 2px solid variables.$colour-4;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+
+  // Sliding blue highlight background
+  .switcher-highlight {
+    position: absolute;
+    width: calc(50% - 0.25rem);
+    height: calc(100% - 4px);
+    top: 2px;
+    left: 2px;
+    background: variables.$mui-blue;
+    border-radius: 6px;
+    transition: left 0.3s ease;
+
+    // Right position ("Place for Others" active) - symmetric with left
+    &.right {
+      left: calc(50% + 0.25rem - 2px);
+    }
+  }
+
+  // Option text containers
+  .switcher-option {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+    color: variables.$colour-9;
+    font-weight: 600;
+    font-size: 14px;
+    transition: color 0.3s ease;
+    user-select: none;
+
+    // Text turns white when under the highlight
+    &.active {
+      color: white;
+    }
+  }
+}

@@ -296,6 +296,8 @@ export interface ChampType {
     skipResults: boolean
     inviteOnly: boolean
     maxCompetitors: number
+    competitorsCanBet: boolean
+    adjudicatorBettingView: boolean
     protests: VotingSettingsType
     ruleChanges: VotingSettingsType
     automation: AutomationSettingsType

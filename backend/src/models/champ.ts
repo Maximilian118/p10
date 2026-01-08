@@ -143,6 +143,8 @@ export interface ChampType {
     skipResults: boolean // Skip results view, go straight to completed when results are ready
     inviteOnly: boolean // Is the championship invite only? Only adjudicator can invite users to the champ if true
     maxCompetitors: number // The maximum amount of users that can be added as a competitor of this championship
+    competitorsCanBet: boolean // Can competitors bet for themselves during betting_open?
+    adjudicatorBettingView: boolean // Does the adjudicator want a more complex betting view where they can vote for other competitors easily?
     protests: {
       alwaysVote: boolean // Do protests go straight to the voting process when lodged?
       allowMultiple: boolean // Can a competitor lodge multiple protests at once?
@@ -380,6 +382,8 @@ const champSchema = new mongoose.Schema<ChampType>({
     skipResults: { type: Boolean, default: false },
     inviteOnly: { type: Boolean, default: false },
     maxCompetitors: { type: Number, default: 24 },
+    competitorsCanBet: { type: Boolean, default: true },
+    adjudicatorBettingView: { type: Boolean, default: true },
     protests: {
       alwaysVote: { type: Boolean, default: false },
       allowMultiple: { type: Boolean, default: false },

@@ -44,6 +44,7 @@ export interface BetConfirmedPayload {
   champId: string
   roundIndex: number
   driverId: string
+  competitorId: string
   timestamp: string
 }
 
@@ -52,7 +53,7 @@ export interface BetRejectedPayload {
   champId: string
   roundIndex: number
   driverId: string
-  reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error"
+  reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error" | "not_authorized"
   takenBy?: string
 }
 
@@ -106,8 +107,14 @@ export const leaveChampionshipRoom = (champId: string): void => {
 }
 
 // Places a bet via socket for low-latency betting.
-export const placeBetViaSocket = (champId: string, roundIndex: number, driverId: string): void => {
+// Optional competitorId allows adjudicators to place bets on behalf of other users.
+export const placeBetViaSocket = (
+  champId: string,
+  roundIndex: number,
+  driverId: string,
+  competitorId?: string
+): void => {
   if (socket?.connected) {
-    socket.emit(SOCKET_EVENTS.PLACE_BET, { champId, roundIndex, driverId })
+    socket.emit(SOCKET_EVENTS.PLACE_BET, { champId, roundIndex, driverId, competitorId })
   }
 }

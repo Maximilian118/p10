@@ -1,6 +1,6 @@
 import React from "react"
 import "./_driverBetCard.scss"
-import { driverType } from "../../../shared/types"
+import { driverType, CompetitorEntryType } from "../../../shared/types"
 import { userType } from "../../../shared/localStorage"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import { CircularProgress } from "@mui/material"
@@ -10,21 +10,30 @@ interface DriverBetCardProps {
   isMyBet: boolean
   isPending: boolean
   isRejected: boolean
+  isPlacedForOther?: boolean
+  isNewlyTaken?: boolean
   onClick: () => void
   takenBy?: userType
   disabled?: boolean
+  displayMode?: 'driver' | 'competitor'
+  competitor?: CompetitorEntryType
 }
 
-// Card component for displaying a driver in the betting grid.
+// Card component for displaying a driver or competitor in the betting grid.
 // Shows bet status (my bet, taken by other, pending, rejected).
+// When displayMode is 'competitor', shows competitor info instead of driver.
 const DriverBetCard: React.FC<DriverBetCardProps> = ({
   driver,
   isMyBet,
   takenBy,
   isPending,
   isRejected,
+  isPlacedForOther,
+  isNewlyTaken,
   onClick,
-  disabled
+  disabled,
+  displayMode = 'driver',
+  competitor
 }) => {
   // Derive isTakenByOther from takenBy prop.
   const isTakenByOther = !!takenBy && !isMyBet
@@ -35,6 +44,11 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
     onClick()
   }
 
+  // Determine display values based on mode.
+  const isCompetitorMode = displayMode === 'competitor' && competitor
+  const showCompetitorIcon = takenBy || isCompetitorMode
+  const competitorIcon = isCompetitorMode ? competitor.competitor.icon : takenBy?.icon
+
   return (
     <div
       className={`
@@ -43,16 +57,19 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
         ${isTakenByOther ? "taken" : ""}
         ${isPending ? "pending" : ""}
         ${isRejected ? "rejected" : ""}
+        ${isPlacedForOther ? "placed-for-other" : ""}
+        ${isNewlyTaken ? "newly-taken" : ""}
         ${disabled ? "observer" : ""}
+        ${isCompetitorMode ? "competitor-mode" : ""}
       `}
       onClick={handleClick}
     >
       <div className="driver-card-header">
         {isPending && <CircularProgress size="18px"/>}
-        <p>{driver.driverID}</p>
+        <p>{isCompetitorMode ? competitor.competitor.name : driver.driverID}</p>
       </div>
-      <img className="driver-icon" alt="driver" src={driver.icon}/>
-      {takenBy && <ImageIcon src={takenBy.icon} size="large"/>}
+      {!isCompetitorMode && <img className="driver-icon" alt="driver" src={driver.icon}/>}
+      {showCompetitorIcon && competitorIcon && <ImageIcon src={competitorIcon} size="large"/>}
     </div>
   )
 }

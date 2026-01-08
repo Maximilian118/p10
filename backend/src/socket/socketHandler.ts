@@ -42,10 +42,12 @@ export interface BetPlacedPayload {
 }
 
 // Payload for client requesting to place a bet.
+// Optional competitorId allows adjudicators to place bets on behalf of other users.
 export interface PlaceBetPayload {
   champId: string
   roundIndex: number
   driverId: string
+  competitorId?: string
 }
 
 // Payload confirming bet was placed successfully (sent to bettor only).
@@ -53,6 +55,7 @@ export interface BetConfirmedPayload {
   champId: string
   roundIndex: number
   driverId: string
+  competitorId: string
   timestamp: string
 }
 
@@ -61,7 +64,7 @@ export interface BetRejectedPayload {
   champId: string
   roundIndex: number
   driverId: string
-  reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error"
+  reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error" | "not_authorized"
   takenBy?: string
 }
 
@@ -131,8 +134,9 @@ export const initializeSocket = (io: Server): void => {
     })
 
     // Handle bet placement via socket for low-latency betting.
+    // Supports optional competitorId for adjudicators placing bets on behalf of others.
     socket.on(SOCKET_EVENTS.PLACE_BET, async (payload: PlaceBetPayload) => {
-      const { champId, roundIndex, driverId } = payload
+      const { champId, roundIndex, driverId, competitorId } = payload
       const userId = socket.data.userId
 
       if (!champId || roundIndex === undefined || !driverId) {
@@ -145,8 +149,37 @@ export const initializeSocket = (io: Server): void => {
         return
       }
 
+      // Determine target user for bet placement.
+      // If competitorId is provided, verify caller is adjudicator before allowing.
+      let targetUserId = userId
+      if (competitorId) {
+        try {
+          const champ = await Champ.findById(champId).select("adjudicator")
+          if (!champ || champ.adjudicator?.current?.toString() !== userId) {
+            socket.emit(SOCKET_EVENTS.BET_REJECTED, {
+              champId,
+              roundIndex,
+              driverId,
+              reason: "not_authorized",
+            } as BetRejectedPayload)
+            console.log(`Socket bet rejected: ${champId} - user ${userId} not authorized to place bets for others`)
+            return
+          }
+          targetUserId = competitorId
+        } catch (err) {
+          console.error(`Error verifying adjudicator:`, err)
+          socket.emit(SOCKET_EVENTS.BET_REJECTED, {
+            champId,
+            roundIndex,
+            driverId,
+            reason: "server_error",
+          } as BetRejectedPayload)
+          return
+        }
+      }
+
       try {
-        const result = await placeBetAtomic(champId, roundIndex, driverId, userId)
+        const result = await placeBetAtomic(champId, roundIndex, driverId, targetUserId)
 
         if (result.success) {
           const timestamp = new Date().toISOString()
@@ -156,6 +189,7 @@ export const initializeSocket = (io: Server): void => {
             champId,
             roundIndex,
             driverId,
+            competitorId: targetUserId,
             timestamp,
           } as BetConfirmedPayload)
 
@@ -163,13 +197,13 @@ export const initializeSocket = (io: Server): void => {
           socket.to(`championship:${champId}`).emit(SOCKET_EVENTS.BET_PLACED, {
             champId,
             roundIndex,
-            competitorId: userId,
+            competitorId: targetUserId,
             driverId,
             previousDriverId: result.previousDriverId,
             timestamp,
           } as BetPlacedPayload)
 
-          console.log(`Socket bet placed: ${champId} round ${roundIndex} - user ${userId} bet on ${driverId}`)
+          console.log(`Socket bet placed: ${champId} round ${roundIndex} - user ${targetUserId} bet on ${driverId}${competitorId ? ` (placed by adjudicator ${userId})` : ""}`)
         } else {
           socket.emit(SOCKET_EVENTS.BET_REJECTED, {
             champId,
@@ -179,7 +213,7 @@ export const initializeSocket = (io: Server): void => {
             takenBy: result.takenBy,
           } as BetRejectedPayload)
 
-          console.log(`Socket bet rejected: ${champId} round ${roundIndex} - user ${userId} tried ${driverId}, reason: ${result.reason}`)
+          console.log(`Socket bet rejected: ${champId} round ${roundIndex} - user ${targetUserId} tried ${driverId}, reason: ${result.reason}`)
         }
       } catch (err) {
         console.error(`Error placing bet via socket:`, err)

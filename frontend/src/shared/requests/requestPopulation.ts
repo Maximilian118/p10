@@ -453,6 +453,8 @@ export const populateChamp = `
     skipResults
     inviteOnly
     maxCompetitors
+    competitorsCanBet
+    adjudicatorBettingView
     protests {
       alwaysVote
       allowMultiple

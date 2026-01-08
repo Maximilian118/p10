@@ -790,6 +790,8 @@ const champResolvers = {
         skipResults?: boolean
         inviteOnly?: boolean
         active?: boolean
+        competitorsCanBet?: boolean
+        adjudicatorBettingView?: boolean
         rounds?: number
         maxCompetitors?: number
         pointsStructure?: PointsStructureInput[]
@@ -838,6 +840,8 @@ const champResolvers = {
       protests,
       ruleChanges,
       series,
+      competitorsCanBet,
+      adjudicatorBettingView,
     } = settings
     if (!req.isAuth) {
       throwError("updateChampSettings", req.isAuth, "Not Authenticated!", 401)
@@ -878,6 +882,16 @@ const champResolvers = {
       // Update skipResults if provided.
       if (typeof skipResults === "boolean") {
         champ.settings.skipResults = skipResults
+      }
+
+      // Update competitorsCanBet if provided.
+      if (typeof competitorsCanBet === "boolean") {
+        champ.settings.competitorsCanBet = competitorsCanBet
+      }
+
+      // Update adjudicatorBettingView if provided.
+      if (typeof adjudicatorBettingView === "boolean") {
+        champ.settings.adjudicatorBettingView = adjudicatorBettingView
       }
 
       // Update inviteOnly if provided.
