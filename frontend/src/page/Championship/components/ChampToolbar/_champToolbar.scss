@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../../../../scss/mixins';
 @use '../../../../scss/variables';
 
@@ -24,7 +25,7 @@
     margin-right: auto;
 
     &:hover {
-      background-color: darken(variables.$colour-4, 10%) !important;
+      background-color: color.adjust(variables.$colour-4, $lightness: -10%) !important;
     }
   }
 

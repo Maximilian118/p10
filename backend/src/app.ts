@@ -23,17 +23,11 @@ const app = express()
 // Create HTTP server wrapping Express for Socket.io integration.
 const httpServer = createServer(app)
 
-// Allowed origins for CORS - supports multiple frontend ports in development.
-const allowedOrigins = process.env.FRONTEND_URL
-  ? [process.env.FRONTEND_URL]
-  : ["http://localhost:5173", "http://localhost:3000"]
-
 // Initialize Socket.io with CORS configuration.
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: "*",
     methods: ["GET", "POST"],
-    credentials: true,
   },
 })
 
@@ -80,7 +74,7 @@ mongoose
     console.log(`✓ Connected to ${connectionType}`)
     const PORT = process.env.PORT || 3001
     // Use httpServer.listen instead of app.listen for Socket.io support.
-    httpServer.listen(PORT, () => console.log(`✓ Server started on port ${PORT} (with Socket.io)`))
+    httpServer.listen(PORT, () => console.log(`✓ Server started on localhost:${PORT}`))
   })
   .catch((err: unknown) => {
     console.log(`✗ Failed to connect to ${connectionType}`)
