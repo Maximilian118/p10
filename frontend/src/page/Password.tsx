@@ -55,11 +55,11 @@ const Password: React.FC = () => {
       />
       <TextField
         required={!formErr.newPass}
-        inputProps={{ maxLength: 40 }}
+        inputProps={{ maxLength: 99 }}
         type="password"
         className="mui-form-el"
-        name="password" 
-        label={inputLabel("password", formErr, backendErr)} 
+        name="password"
+        label={inputLabel("password", formErr, backendErr)}
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.password}

@@ -109,11 +109,11 @@ export const passwordErrors = (password: string | null, passConfirm: string): vo
       throwError(type, password, "Minimum 8 characters.")
     }
 
-    if (password.length >= 40) {
-      throwError(type, password, "Maximum 40 characters.")
+    if (password.length >= 99) {
+      throwError(type, password, "Maximum 99 characters.")
     }
 
-    if (!/^(?=.*\d)(?=.*[a-zA-Z])[a-zA-Z\d!?_<>"'$£%^&(){};:+=*#]{8,40}$/.test(password)) {
+    if (!/^(?=.*\d)(?=.*[a-zA-Z])[a-zA-Z\d!?_<>"'$£%^&(){};:+=*#\\-]{8,99}$/.test(password)) {
       throwError(type, password, "At least one letter and one number.")
     }
 

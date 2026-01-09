@@ -95,25 +95,25 @@ const Create: React.FC = () => {
             value={form.email}
             error={formErr.email || backendErr.type === "email" ? true : false}
           />
-          <TextField 
+          <TextField
             required={!formErr.password && backendErr.type !== "password"}
             type="password"
             className="mui-form-el"
-            inputProps={{ maxLength: 40 }}
-            name="password" 
-            label={inputLabel("password", formErr, backendErr)} 
+            inputProps={{ maxLength: 99 }}
+            name="password"
+            label={inputLabel("password", formErr, backendErr)}
             variant="filled"
             onChange={e => updateForm<createFormType, createFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
             value={form.password}
             error={formErr.password || backendErr.type === "password" ? true : false}
           />
-          <TextField 
+          <TextField
             required={!formErr.passConfirm && backendErr.type !== "passConfirm"}
             type="password"
             className="mui-form-el"
-            inputProps={{ maxLength: 40 }}
-            name="passConfirm" 
-            label={inputLabel("passConfirm", formErr, backendErr)} 
+            inputProps={{ maxLength: 99 }}
+            name="passConfirm"
+            label={inputLabel("passConfirm", formErr, backendErr)}
             variant="filled"
             onChange={e => updateForm<createFormType, createFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
             value={form.passConfirm}

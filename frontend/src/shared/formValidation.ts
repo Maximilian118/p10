@@ -101,13 +101,13 @@ export const updateForm = <T extends formStateType, U>(
   }
 
   const passwordCase = (): void => {
-    if (e.target.value.length > 40) {
-      handleInput<U>(e.target.name, setFormErr, "Maximum length 40 characters.")
+    if (e.target.value.length > 99) {
+      handleInput<U>(e.target.name, setFormErr, "Maximum length 99 characters.")
       return
     }
 
     if (
-      /^(?=.*\d)(?=.*[a-zA-Z])[a-zA-Z\d!?_<>"'$£%^&(){};:+=*#]{8,40}$/.test(e.target.value) ||
+      /^(?=.*\d)(?=.*[a-zA-Z])[a-zA-Z\d!?_<>"'$£%^&(){};:+=*#\\-]{8,99}$/.test(e.target.value) ||
       e.target.value.trim() === ""
     ) {
       handleInput<U>(e.target.name, setFormErr)
@@ -118,7 +118,7 @@ export const updateForm = <T extends formStateType, U>(
     } else {
       let passErr = "At least one letter and one number."
       passErr = e.target.value.length <= 8 ? "Minimum 8 characters." : passErr
-      passErr = e.target.value.length >= 40 ? "Maximum 40 characters." : passErr
+      passErr = e.target.value.length >= 99 ? "Maximum 99 characters." : passErr
 
       handleInput<U>(e.target.name, setFormErr, passErr)
     }
