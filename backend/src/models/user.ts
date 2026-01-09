@@ -7,8 +7,8 @@ export interface userInputType {
   email: string
   password: string | null
   passConfirm: string
-  icon?: string
-  profile_picture?: string
+  icon: string
+  profile_picture: string
 }
 
 export interface userType extends userInputType {
@@ -39,8 +39,8 @@ const userSchema = new mongoose.Schema<userType>({
   name: { type: String, required: true }, // User Name.
   email: { type: String, required: true }, // User Email.
   password: { type: String, required: false, min: 8 }, // User encryptied password.
-  icon: { type: String, required: false, default: "" }, // User Icon. Same image as Profile Picture but compressed to aprox 0.05mb.
-  profile_picture: { type: String, required: false, default: "" }, // User Profile Picture. Compressed to aprox 0.5mb.
+  icon: { type: String, required: true }, // User Icon. Same image as Profile Picture but compressed to aprox 0.05mb.
+  profile_picture: { type: String, required: true }, // User Profile Picture. Compressed to aprox 0.5mb.
   championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Array of Championships the User has created.
   badges: [
     {

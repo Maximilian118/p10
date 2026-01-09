@@ -27,8 +27,8 @@ const userSchema = `
     email: String!
     password: String!
     passConfirm: String!
-    icon: String
-    profile_picture: String
+    icon: String!
+    profile_picture: String!
   }
 `
 export default userSchema

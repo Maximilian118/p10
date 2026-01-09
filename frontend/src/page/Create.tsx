@@ -65,10 +65,11 @@ const Create: React.FC = () => {
           <h2 className="clickable" onClick={() => navigate(-1)}>Back</h2>
         </div>
         <form onSubmit={e => onSubmitHandler(e, navigate)}>
-          <DropZone<createFormType, createFormErrType> 
+          <DropZone<createFormType, createFormErrType>
             form={form}
-            setForm={setForm} 
-            setFormErr={setFormErr} 
+            setForm={setForm}
+            formErr={formErr}
+            setFormErr={setFormErr}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
             style={{ width: "60%" }}

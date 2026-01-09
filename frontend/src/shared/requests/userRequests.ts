@@ -20,6 +20,13 @@ export const createUser = async <U extends { dropzone: string }>(
 ): Promise<void> => {
   setLoading(true)
 
+  // Validate that profile picture is uploaded (icon is derived from the same upload).
+  if (!form.icon || !form.profile_picture) {
+    setFormErr((prevErrs) => ({ ...prevErrs, dropzone: "A profile picture is required." }))
+    setLoading(false)
+    return
+  }
+
   // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("users", form.name, "icon", form.icon, setBackendErr)
   if (!iconURL && form.icon) {
@@ -45,12 +52,12 @@ export const createUser = async <U extends { dropzone: string }>(
         },
         query: `
           mutation CreateUser(
-            $name: String!, 
-            $email: String!, 
-            $password: String!, 
-            $passConfirm: String!, 
-            $icon: String, 
-            $profile_picture: String
+            $name: String!,
+            $email: String!,
+            $password: String!,
+            $passConfirm: String!,
+            $icon: String!,
+            $profile_picture: String!
           ) { 
             createUser(
               userInput: {

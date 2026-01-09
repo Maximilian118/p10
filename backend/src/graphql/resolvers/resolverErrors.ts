@@ -135,12 +135,18 @@ export const passConfirmErrors = (passConfirm: string, password: string | null):
   }
 }
 
+// Validates icon URL - required for user creation.
 export const iconErrors = (
   icon: string | undefined,
   profile_picture: string | undefined,
   user?: userType,
 ): void => {
-  const type = "icon"
+  const type = "dropzone"
+
+  // Icon is required for user creation (when no user is passed).
+  if (!user && !icon) {
+    throwError(type, icon, "A profile picture is required.")
+  }
 
   if (icon) {
     if (
@@ -161,12 +167,18 @@ export const iconErrors = (
   }
 }
 
+// Validates profile picture URL - required for user creation.
 export const profilePictureErrors = (
   profile_picture: string | undefined,
   icon: string | undefined,
   user?: userType,
 ): void => {
-  const type = "profile_picture"
+  const type = "dropzone"
+
+  // Profile picture is required for user creation (when no user is passed).
+  if (!user && !profile_picture) {
+    throwError(type, profile_picture, "A profile picture is required.")
+  }
 
   if (profile_picture) {
     if (
