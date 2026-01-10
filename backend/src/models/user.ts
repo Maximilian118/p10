@@ -11,8 +11,9 @@ export interface userInputType {
   profile_picture: string
 }
 
-export interface userType extends userInputType {
+export interface userType extends Omit<userInputType, "email"> {
   _id: ObjectId
+  email: string | null // Nullable for privacy (non-owners get null).
   championships: object[]
   badges: {
     badge: ObjectId
@@ -27,7 +28,7 @@ export interface userType extends userInputType {
   logged_in_at: string
   created_at: string
   updated_at: string
-  tokens: string[]
+  tokens: string[] | null // Nullable (non-owners get null).
   _doc: userType
 }
 

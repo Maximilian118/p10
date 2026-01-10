@@ -57,9 +57,9 @@ const UpdateEmailCard = <T extends formType, U extends formErrType>({ user, setU
         style={{ flexShrink: 0 }}
         startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
         onClick={e => updateEmailHandler(e)}
-        disabled={!hasChanged || loading}
+        disabled={!hasChanged || loading || success}
         color={success ? "success" : "primary"}
-      >{success ? "Success!" : "Confirm"}</Button>
+      >{success ? "Check Email!" : "Confirm"}</Button>
     </form>
   )
 }

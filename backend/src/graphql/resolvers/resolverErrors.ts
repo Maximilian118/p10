@@ -11,6 +11,28 @@ import Series from "../../models/series"
 
 export type punctuation = `${string}.` | `${string}!` | `${string}?`
 
+// Sanitizes sensitive data from objects before including in error responses.
+const sanitizeValue = (value: unknown): unknown => {
+  if (value && typeof value === "object") {
+    // Handle objects that may contain sensitive fields.
+    const sensitiveFields = ["password", "refreshToken", "accessToken"]
+    const obj = value as Record<string, unknown>
+
+    // Check if object has any sensitive fields.
+    const hasSensitiveData = sensitiveFields.some((field) => field in obj)
+    if (hasSensitiveData) {
+      const sanitized: Record<string, unknown> = {}
+      for (const key in obj) {
+        if (!sensitiveFields.includes(key)) {
+          sanitized[key] = obj[key]
+        }
+      }
+      return sanitized
+    }
+  }
+  return value
+}
+
 export const throwError = (
   type: string,
   value: unknown,
@@ -20,9 +42,9 @@ export const throwError = (
   throw new GraphQLError(
     JSON.stringify({
       type,
-      value,
+      value: sanitizeValue(value),
       message,
-      code: code ? code : 400,
+      code: code ?? 400,
     }),
   )
 }
@@ -95,7 +117,8 @@ export const emailErrors = async (email: string, user?: userType): Promise<void>
   }
 
   if (await User.findOne({ email })) {
-    throwError(type, email, "A user by that email already exists!")
+    // Generic error message to prevent user enumeration attacks.
+    throwError(type, email, "Unable to create account with this email.")
   }
 }
 

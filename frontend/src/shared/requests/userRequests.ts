@@ -247,6 +247,8 @@ export const updatePP = async <T extends formType>(
   setLoading(false)
 }
 
+// Initiates email change by sending a verification email to the new address.
+// Does not update email immediately - user must click verification link.
 export const updateEmail = async <T extends formType>(
   form: T,
   setForm: React.Dispatch<React.SetStateAction<T>>,
@@ -267,10 +269,7 @@ export const updateEmail = async <T extends formType>(
           variables: form,
           query: `
             mutation UpdateEmail($email: String!) {
-              updateEmail(email: $email) {
-                email
-                tokens
-              }
+              updateEmail(email: $email)
             }
           `,
         },
@@ -280,23 +279,8 @@ export const updateEmail = async <T extends formType>(
         if (res.data.errors) {
           graphQLErrors("updateEmail", res, setUser, navigate, setBackendErr, true)
         } else {
-          const response = graphQLResponse("updateEmail", res, user, setUser) as userType
-
-          setUser((prevUser) => {
-            return {
-              ...prevUser,
-              email: response.email,
-            }
-          })
-
-          setForm((prevForm) => {
-            return {
-              ...prevForm,
-              email: response.email,
-            }
-          })
-
-          localStorage.setItem("email", response.email)
+          // Email not changed yet - verification email sent.
+          // User must click the link in their email to confirm the change.
           setSuccess(true)
         }
       })
@@ -305,6 +289,59 @@ export const updateEmail = async <T extends formType>(
       })
   } catch (err: unknown) {
     graphQLErrors("updateEmail", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
+// Confirms email change using verification token from email link.
+export const confirmEmailChange = async (
+  token: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+  setSuccess: React.Dispatch<React.SetStateAction<boolean>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { token },
+        query: `
+          mutation ConfirmEmailChange($token: String!) {
+            confirmEmailChange(token: $token) {
+              _id
+              email
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      const errorMessage = res.data.errors[0]?.message || "Verification failed."
+      try {
+        const parsed = JSON.parse(errorMessage)
+        setError(parsed.message || "Invalid or expired verification link.")
+      } catch {
+        setError(errorMessage)
+      }
+    } else {
+      const response = res.data.data.confirmEmailChange
+      // Update user state with new email.
+      setUser((prev) => ({ ...prev, email: response.email }))
+      localStorage.setItem("email", response.email)
+      setSuccess(true)
+      // Redirect to profile after short delay.
+      setTimeout(() => navigate("/profile"), 2000)
+    }
+  } catch {
+    setError("Failed to verify email. Please try again.")
   }
 
   setLoading(false)

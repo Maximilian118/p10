@@ -23,6 +23,7 @@ import Driver from "./page/Driver/Driver"
 import Teams from "./page/Teams"
 import Team from "./page/Team/Team"
 import CreateTeam from "./page/CreateTeam/CreateTeam"
+import VerifyEmail from "./page/VerifyEmail/VerifyEmail"
 
 interface routerType {
   user: userType,
@@ -34,6 +35,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/" Component={Home}/>
     <Route path="/profile" Component={Profile}/>
     <Route path="/profile/:id" Component={UserProfile}/>
+    <Route path="/verify-email" Component={VerifyEmail}/>
     <Route path="/password" Component={Password}/>
     <Route path="/championships" Component={Championships}/>
     <Route path="/create-championship" Component={CreateChamp}/>

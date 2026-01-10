@@ -9,7 +9,7 @@ const userSchema = `
     _id: ID!
     refresh_count: Int!
     name: String!
-    email: String!
+    email: String
     icon: String
     profile_picture: String
     championships: [Champ]!

@@ -34,7 +34,8 @@ const Schema = buildSchema(`
     forgot(email: String!): String!
     updatePP(icon: String!, profile_picture: String!): User!
     updateName(name: String!): User!
-    updateEmail(email: String!): User!
+    updateEmail(email: String!): String!
+    confirmEmailChange(token: String!): User!
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
     createChamp(champInput: ChampInput): Champ!
     updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!

@@ -1,8 +1,34 @@
 import moment from "moment"
+import crypto from "crypto"
 import User, { userInputType, userType, userTypeMongo } from "../../models/user"
+import EmailVerification from "../../models/emailVerification"
 import { comparePass, hashPass, signTokens } from "../../shared/utility"
 import generator from "generate-password"
-import nodemailer from "nodemailer"
+import { Resend } from "resend"
+
+// Initialize Resend email client (optional - app works without it).
+let resend: Resend | null = null
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY)
+} else {
+  console.warn("⚠️  RESEND_API_KEY not set - email functionality disabled")
+}
+
+// Helper to send emails safely (logs warning if Resend not configured).
+const sendEmail = async (options: { to: string; subject: string; text: string }) => {
+  if (!resend) {
+    console.warn(`📧 Email not sent (Resend not configured): ${options.subject} → ${options.to}`)
+    return
+  }
+  try {
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "noreply@p10-game.com",
+      ...options,
+    })
+  } catch (err) {
+    console.error("📧 Failed to send email:", err)
+  }
+}
 
 import {
   emailErrors,
@@ -78,6 +104,7 @@ const userResolvers = {
     }
   },
   // Fetches a user by ID with populated championships and badges.
+  // Security: Limits exposed data for non-owners (hides email, tokens).
   getUserById: async ({ _id }: { _id: string }, req: AuthRequest): Promise<userType> => {
     if (!req.isAuth) {
       throwError("getUserById", req.isAuth, "Not Authenticated!", 401)
@@ -91,9 +118,13 @@ const userResolvers = {
 
       userErrors(user)
 
+      // Check if the requester is viewing their own profile.
+      const isOwner = req._id === _id
+
       return {
         ...user._doc,
-        tokens: req.tokens,
+        email: isOwner ? user._doc.email : null, // Hide email from non-owners.
+        tokens: isOwner ? req.tokens : null, // Only owner receives tokens.
         password: null,
       }
     } catch (err) {
@@ -114,42 +145,15 @@ const userResolvers = {
         strict: true,
       })
 
-      const transporter = nodemailer.createTransport({
-        host: process.env.NODEMAILER_HOST,
-        port: 465,
-        secure: true, // use SSL.
-        auth: {
-          user: process.env.NODEMAILER_EMAIL,
-          pass: process.env.NODEMAILER_PASS,
-        },
-      })
-
-      transporter.verify((err) => {
-        if (err) {
-          console.error(err)
-        }
-      })
-
-      const mail = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: email,
-        subject: "P10-Game Password Reset",
-        text: `
-        Your password is now: 
-        ${randomPass}
-
-        If you did not expect this email contact maxcrosby118@gmail.com immediately! 🚨
-        `,
-      }
-
       user.password = await hashPass(randomPass as string)
       user.updated_at = moment().format()
       await user.save()
 
-      transporter.sendMail(mail, (err) => {
-        if (err) {
-          console.error(err)
-        }
+      // Send password reset email.
+      await sendEmail({
+        to: email,
+        subject: "P10-Game Password Reset",
+        text: `Your password is now: ${randomPass}\n\nIf you did not expect this email contact maxcrosby118@gmail.com immediately!`,
       })
 
       return "Forgot request submitted."
@@ -169,6 +173,10 @@ const userResolvers = {
       const user = (await User.findById(req._id)) as userTypeMongo
       userErrors(user)
 
+      // Validate URLs to prevent SSRF attacks.
+      iconErrors(icon, profile_picture, user)
+      profilePictureErrors(profile_picture, icon, user)
+
       user.icon = icon
       user.profile_picture = profile_picture
       user.updated_at = moment().format()
@@ -184,7 +192,8 @@ const userResolvers = {
       throw err
     }
   },
-  updateEmail: async ({ email }: { email: string }, req: AuthRequest): Promise<userType> => {
+  // Initiates email change by sending a verification email to the new address.
+  updateEmail: async ({ email }: { email: string }, req: AuthRequest): Promise<string> => {
     if (!req.isAuth) {
       throwError("updateEmail", req.isAuth, "Not Authenticated!", 401)
     }
@@ -194,14 +203,61 @@ const userResolvers = {
       userErrors(user)
       await emailErrors(email, user)
 
-      user.email = email
-      user.updated_at = moment().format()
+      // Generate secure verification token.
+      const token = crypto.randomBytes(32).toString("hex")
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
+      // Remove any existing pending verification for this user.
+      await EmailVerification.findOneAndDelete({ userId: req._id })
+
+      // Create new verification record.
+      await new EmailVerification({
+        userId: req._id,
+        newEmail: email,
+        token,
+        expiresAt,
+      }).save()
+
+      // Send verification email to the new address.
+      const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`
+
+      await sendEmail({
+        to: email,
+        subject: "P10-Game Email Verification",
+        text: `Please click the link below to verify your new email address:\n\n${verifyUrl}\n\nThis link expires in 24 hours.\n\nIf you did not request this change, please ignore this email.`,
+      })
+
+      return "Verification email sent. Please check your inbox."
+    } catch (err) {
+      throw err
+    }
+  },
+  // Confirms email change using verification token.
+  confirmEmailChange: async ({ token }: { token: string }): Promise<userType> => {
+    try {
+      // Find valid verification record.
+      const verification = await EmailVerification.findOne({
+        token,
+        expiresAt: { $gt: new Date() },
+      })
+
+      if (!verification) {
+        return throwError("token", token, "Invalid or expired verification token.")
+      }
+
+      // Update user's email.
+      const user = (await User.findById(verification.userId)) as userTypeMongo
+      userErrors(user)
+
+      user.email = verification.newEmail
+      user.updated_at = moment().format()
       await user.save()
+
+      // Remove the used verification record.
+      await EmailVerification.deleteOne({ _id: verification._id })
 
       return {
         ...user._doc,
-        tokens: req.tokens,
         password: null,
       }
     } catch (err) {
@@ -262,43 +318,17 @@ const userResolvers = {
       passwordErrors(password, passConfirm)
       passConfirmErrors(passConfirm, password)
 
-      const transporter = nodemailer.createTransport({
-        host: process.env.NODEMAILER_HOST,
-        port: 465,
-        secure: true, // use SSL.
-        auth: {
-          user: process.env.NODEMAILER_EMAIL,
-          pass: process.env.NODEMAILER_PASS,
-        },
-      })
-
-      transporter.verify((err) => {
-        if (err) {
-          console.error(err)
-        }
-      })
-
-      const mail = {
-        from: process.env.NODEMAILER_EMAIL,
-        to: user.email,
-        subject: "P10-Game Password Change",
-        text: `
-        Your password has been changed.
-
-        If you did not expect this email contact maxcrosby118@gmail.com immediately! 🚨
-        `,
-      }
-
-      transporter.sendMail(mail, (err) => {
-        if (err) {
-          console.error(err)
-        }
-      })
-
       user.password = await hashPass(password as string)
       user.updated_at = moment().format()
 
       await user.save()
+
+      // Send password change notification.
+      await sendEmail({
+        to: user.email as string,
+        subject: "P10-Game Password Change",
+        text: `Your password has been changed.\n\nIf you did not expect this email contact maxcrosby118@gmail.com immediately!`,
+      })
 
       return {
         ...user._doc,
