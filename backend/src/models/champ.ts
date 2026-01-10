@@ -180,6 +180,9 @@ export interface ChampType {
   // Badges that can be awarded.
   champBadges: ObjectId[]
 
+  // Championship-level competitors array - THE source of truth for who is competing.
+  competitors: ObjectId[]
+
   // A waiting list of users that would like to join the championship but can't because it's full
   waitingList: ObjectId[]
 
@@ -418,6 +421,9 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Badges
   champBadges: [{ type: mongoose.Schema.ObjectId, ref: "Badge" }],
+
+  // Championship-level competitors - source of truth for who is competing.
+  competitors: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
   // Waiting list (position is array index).
   waitingList: [{ type: mongoose.Schema.ObjectId, ref: "User" }],

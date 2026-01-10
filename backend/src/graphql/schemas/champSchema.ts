@@ -201,6 +201,7 @@ const champSchema = `
     rulesAndRegs: [Rule!]!
     settings: ChampSettings!
     champBadges: [Badge!]!
+    competitors: [User!]!
     waitingList: [User!]!
     history: [ChampHistory!]
     created_by: User

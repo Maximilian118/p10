@@ -353,27 +353,42 @@ export const resultsHandler = async (
   // ============================================================================
   // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
   // ============================================================================
-  // Copy all competitors from the current round to the next round.
-  // This ensures continuity - all participants carry over to the next round.
-  // Points are reset for the new round, but totalPoints are preserved.
+  // Use championship-level competitors as the roster (source of truth).
+  // Preserve totalPoints from current round for existing competitors.
+  // New joiners who aren't in current round get totalPoints: 0.
 
   const hasNextRound = roundIndex + 1 < champ.rounds.length
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
 
-    // Copy competitors with reset round points but preserved total points.
-    // All CompetitorEntry fields must be included.
-    nextRound.competitors = currentRound.competitors.map((competitor, index) => ({
-      competitor: competitor.competitor,
-      bet: null, // Reset bet for the new round - no bet placed yet
-      points: 0, // Reset points for the new round
-      position: index + 1, // Positions will be recalculated when results come in
-      totalPoints: competitor.totalPoints,
-      updated_at: null, // No bet placed yet
-      created_at: null, // No bet placed yet
-    }))
+    // Build map of totalPoints from current round for carry-over.
+    const currentTotals = new Map<string, { totalPoints: number; position: number }>(
+      currentRound.competitors.map((c) => [
+        c.competitor.toString(),
+        { totalPoints: c.totalPoints, position: c.position },
+      ]),
+    )
 
-    console.log(`[resultsHandler] Copied ${nextRound.competitors.length} competitors to round ${roundIndex + 2}`)
+    // Use championship-level competitors as the roster.
+    const roster = champ.competitors || []
+
+    // Create entries for ALL championship competitors.
+    nextRound.competitors = roster.map((userId) => {
+      const userIdStr = userId.toString()
+      const prevData = currentTotals.get(userIdStr)
+
+      return {
+        competitor: userId,
+        bet: null, // Reset bet for the new round
+        points: 0, // Reset points for the new round
+        position: prevData?.position || roster.length, // New joiners start last
+        totalPoints: prevData?.totalPoints || 0, // New joiners get 0
+        updated_at: null,
+        created_at: null,
+      }
+    })
+
+    console.log(`[resultsHandler] Populated ${nextRound.competitors.length} competitors to round ${roundIndex + 2}`)
   }
 
   // ============================================================================

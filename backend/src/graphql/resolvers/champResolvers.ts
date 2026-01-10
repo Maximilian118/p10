@@ -1,6 +1,14 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
-import Champ, { ChampType, CompetitorEntry, DriverEntry, TeamEntry, Round, RoundStatus, SeasonHistory } from "../../models/champ"
+import Champ, {
+  ChampType,
+  CompetitorEntry,
+  DriverEntry,
+  TeamEntry,
+  Round,
+  RoundStatus,
+  SeasonHistory,
+} from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
 import Team from "../../models/team"
@@ -12,7 +20,11 @@ import { clientS3, deleteS3 } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange, broadcastBetPlaced } from "../../socket/socketHandler"
-import { scheduleCountdownTransition, scheduleResultsTransition, cancelTimer } from "../../socket/autoTransitions"
+import {
+  scheduleCountdownTransition,
+  scheduleResultsTransition,
+  cancelTimer,
+} from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry } from "./resolverUtility"
 
 // Input types for the createChamp mutation.
@@ -72,38 +84,40 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
 })
 
 // Populates round data (competitors, drivers, teams) when transitioning from "waiting".
-// Carries over totalPoints from the previous round for all entries.
+// Uses championship-level competitors as the roster, carries over totalPoints from previous round.
 const populateRoundData = async (
   champ: ChampType,
   roundIndex: number,
 ): Promise<{ competitors: CompetitorEntry[]; drivers: DriverEntry[]; teams: TeamEntry[] }> => {
   const previousRoundIndex = roundIndex - 1
+  const previousRound = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex] : null
 
-  // Populate competitors: carry forward from previous round or use existing.
-  let competitors: CompetitorEntry[] = []
-  if (previousRoundIndex >= 0 && champ.rounds[previousRoundIndex].status === "completed") {
-    // Carry forward from completed previous round.
-    competitors = champ.rounds[previousRoundIndex].competitors.map((c) => ({
-      competitor: c.competitor,
+  // Build map of totalPoints and positions from previous round for carry-over.
+  const prevCompetitorData = new Map<string, { totalPoints: number; position: number }>(
+    previousRound?.competitors.map((c) => [
+      c.competitor.toString(),
+      { totalPoints: c.totalPoints, position: c.position },
+    ]) || [],
+  )
+
+  // Use championship-level competitors as the roster (source of truth).
+  const roster = champ.competitors || []
+
+  // Create entries for ALL championship competitors.
+  const competitors: CompetitorEntry[] = roster.map((userId) => {
+    const userIdStr = userId.toString()
+    const prevData = prevCompetitorData.get(userIdStr)
+
+    return {
+      competitor: userId,
       bet: null,
       points: 0,
-      totalPoints: c.totalPoints,
-      position: c.position,
+      totalPoints: prevData?.totalPoints || 0, // New joiners get 0.
+      position: prevData?.position || roster.length, // New joiners start last.
       updated_at: null,
       created_at: null,
-    }))
-  } else {
-    // First round or no completed previous - use existing competitors in this round.
-    competitors = champ.rounds[roundIndex].competitors.map((c, i) => ({
-      competitor: c.competitor,
-      bet: null,
-      points: 0,
-      totalPoints: c.totalPoints || 0,
-      position: c.position || i + 1,
-      updated_at: null,
-      created_at: null,
-    }))
-  }
+    }
+  })
 
   // Fetch series to get drivers.
   const series = await Series.findById(champ.series)
@@ -162,6 +176,20 @@ const champResolvers = {
 
       if (!unpopulatedChamp) {
         return throwError("getChampById", _id, "Championship not found!", 404)
+      }
+
+      // Lazy migration: If competitors array is empty, derive from current round.
+      if (!unpopulatedChamp.competitors || unpopulatedChamp.competitors.length === 0) {
+        const currentRound =
+          unpopulatedChamp.rounds.find((r) => r.status !== "completed") ||
+          unpopulatedChamp.rounds[0]
+        if (currentRound && currentRound.competitors.length > 0) {
+          unpopulatedChamp.competitors = currentRound.competitors.map((c) => c.competitor)
+          await unpopulatedChamp.save()
+          console.log(
+            `[getChampById] Migrated ${unpopulatedChamp.competitors.length} competitors for championship ${_id}`,
+          )
+        }
       }
 
       // Check if any active round has expired (24h without change).
@@ -324,6 +352,7 @@ const champResolvers = {
           maxCompetitors: maxCompetitors || 24,
         },
         champBadges: [],
+        competitors: [user._id], // Creator is the first competitor.
         waitingList: [],
         history: [initialSeasonHistory],
         created_by: user._id,
@@ -392,10 +421,8 @@ const champResolvers = {
         return throwError("joinChamp", _id, "No rounds available in this championship!", 400)
       }
 
-      // Check if user is already a competitor in the current round.
-      const isAlreadyCompetitor = currentRound.competitors.some(
-        (c) => c.competitor.toString() === req._id,
-      )
+      // Check if user is already a competitor in the championship.
+      const isAlreadyCompetitor = champ.competitors.some((c) => c.toString() === req._id)
       if (isAlreadyCompetitor) {
         return throwError(
           "joinChamp",
@@ -410,15 +437,18 @@ const champResolvers = {
         return throwError("joinChamp", req._id, "This championship is invite only!", 403)
       }
 
-      // Check if championship is full (based on current round competitors).
-      if (currentRound.competitors.length >= champ.settings.maxCompetitors) {
+      // Check if championship is full (based on championship-level competitors).
+      if (champ.competitors.length >= champ.settings.maxCompetitors) {
         return throwError("joinChamp", req._id, "This championship is full!", 400)
       }
 
-      // Calculate position for the new competitor (last place).
+      // Add user to championship-level competitors (the roster).
+      champ.competitors.push(user._id)
+
+      // Calculate position for the new competitor (last place in current round).
       const newPosition = currentRound.competitors.length + 1
 
-      // Add user to the current round's competitors.
+      // Add user to the current round's competitors for immediate participation.
       currentRound.competitors.push(createCompetitorEntry(user._id, 0, newPosition))
 
       champ.updated_at = moment().format()
@@ -947,7 +977,10 @@ const champResolvers = {
         champ.series = new ObjectId(series)
 
         // If automation was enabled but new series doesn't support it, disable.
-        if (champ.settings.automation?.enabled && newSeries.name !== "FIA Formula One World Championship") {
+        if (
+          champ.settings.automation?.enabled &&
+          newSeries.name !== "FIA Formula One World Championship"
+        ) {
           champ.settings.automation.enabled = false
         }
       }
@@ -955,9 +988,7 @@ const champResolvers = {
       // Update maxCompetitors if provided.
       if (typeof maxCompetitors === "number") {
         // Validate: can't set below current competitor count.
-        const currentCompetitorCount = champ.rounds.reduce((acc, round) => {
-          return Math.max(acc, round.competitors?.length || 0)
-        }, 0)
+        const currentCompetitorCount = champ.competitors?.length || 0
         if (maxCompetitors < currentCompetitorCount) {
           return throwError(
             "maxCompetitors",
@@ -968,7 +999,12 @@ const champResolvers = {
         }
         // Validate: maximum 99 competitors.
         if (maxCompetitors > 99) {
-          return throwError("maxCompetitors", maxCompetitors, "Maximum 99 competitors allowed.", 400)
+          return throwError(
+            "maxCompetitors",
+            maxCompetitors,
+            "Maximum 99 competitors allowed.",
+            400,
+          )
         }
         champ.settings.maxCompetitors = maxCompetitors
       }
