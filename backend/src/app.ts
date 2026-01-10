@@ -73,8 +73,9 @@ mongoose
   .then(() => {
     console.log(`✓ Connected to ${connectionType}`)
     const PORT = process.env.PORT || 3001
+    const HOST = process.env.HOST || "localhost"
     // Use httpServer.listen instead of app.listen for Socket.io support.
-    httpServer.listen(PORT, () => console.log(`✓ Server started on localhost:${PORT}`))
+    httpServer.listen(Number(PORT), HOST, () => console.log(`✓ Server started on ${HOST}:${PORT}`))
   })
   .catch((err: unknown) => {
     console.log(`✗ Failed to connect to ${connectionType}`)

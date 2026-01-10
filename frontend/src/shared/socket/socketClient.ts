@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client"
 import { RoundStatus, DriverEntryType, CompetitorEntryType, TeamEntryType } from "../types"
+import { getApiUrl } from "../utility"
 
 // Socket event names - must match backend.
 export const SOCKET_EVENTS = {
@@ -66,9 +67,7 @@ export const initSocket = (accessToken: string): Socket => {
     return socket
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001"
-
-  socket = io(apiUrl, {
+  socket = io(getApiUrl(), {
     auth: {
       accessToken,
     },

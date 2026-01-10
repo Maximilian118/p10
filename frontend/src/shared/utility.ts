@@ -3,6 +3,15 @@ import { userType } from "./localStorage"
 import { Location } from "react-router-dom"
 import { ChampType, CompetitorEntryType, RoundType, DriverEntryType, TeamEntryType, seriesType, teamType, driverType } from "./types"
 
+// Returns the backend API URL based on current browser location.
+// Allows frontend to auto-detect backend address for LAN access.
+export const getApiUrl = (): string => {
+  const protocol = window.location.protocol
+  const hostname = window.location.hostname
+  const port = 3001
+  return `${protocol}//${hostname}:${port}`
+}
+
 // If just one word return one initial, if two return two.
 export const getInitials = (userName: string) => {
   if (!userName) {
