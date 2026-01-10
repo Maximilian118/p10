@@ -442,6 +442,16 @@ const champResolvers = {
         return throwError("joinChamp", req._id, "This championship is full!", 400)
       }
 
+      // Check if current round is in waiting status - can only join between rounds.
+      if (currentRound.status !== "waiting") {
+        return throwError(
+          "joinChamp",
+          req._id,
+          "Cannot join while a round is in progress. Please wait until the current round is completed.",
+          400,
+        )
+      }
+
       // Add user to championship-level competitors (the roster).
       champ.competitors.push(user._id)
 
