@@ -7,7 +7,8 @@ import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
 import DriverBetCard from "../../../../../components/cards/driverBetCard/DriverBetCard"
 import Timer from "../../../components/Timer/Timer"
-import CloseBettingConfirm from "../CloseBettingConfirm/CloseBettingConfirm"
+import ConfirmView from "../ConfirmView/ConfirmView"
+import WarningIcon from "@mui/icons-material/Warning"
 import BettingSwitcher from "../../../components/BettingSwitcher/BettingSwitcher"
 
 interface BettingOpenViewProps {
@@ -238,7 +239,16 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   // Show confirmation view if requested.
   if (showConfirm && onAdvance) {
     return (
-      <CloseBettingConfirm
+      <ConfirmView
+        variant="danger"
+        icon={<WarningIcon />}
+        heading="Close Betting Early?"
+        paragraphs={[
+          "Not all competitors have placed their bets yet.",
+          "Closing betting now will lock in the current state."
+        ]}
+        cancelText="Go Back"
+        confirmText="Confirm Close Betting"
         onCancel={() => setShowConfirm(false)}
         onConfirm={onAdvance}
       />

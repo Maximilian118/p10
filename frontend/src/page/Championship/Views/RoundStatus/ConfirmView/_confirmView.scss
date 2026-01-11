@@ -1,18 +1,45 @@
 @use '../../../../../scss/mixins';
 @use '../../../../../scss/variables';
 
-// Close betting confirmation view styles.
-.close-betting-confirm {
+// Reusable confirmation view styles with variant support.
+.confirm-view {
   width: 100%;
   flex-grow: 1;
-  background-color: variables.$f1-red;
   color: white;
   @include mixins.flexbox-start-column;
-  padding: 20px 7.5% 40px;
+  padding: 40px 7.5%;
   box-sizing: border-box;
   gap: 24px;
 
-  &__warning {
+  // Danger variant (red background).
+  &--danger {
+    background-color: variables.$f1-red;
+
+    .confirm-view__btn--confirm {
+      background-color: white !important;
+      color: variables.$f1-red !important;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+      }
+    }
+  }
+
+  // Success variant (green background).
+  &--success {
+    background-color: variables.$mui-success;
+
+    .confirm-view__btn--confirm {
+      background-color: white !important;
+      color: variables.$mui-success !important;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+      }
+    }
+  }
+
+  &__header {
     @include mixins.flexbox-column;
     gap: 12px;
 
@@ -23,7 +50,9 @@
   }
 
   &__icon {
-    font-size: 48px !important;
+    svg {
+      font-size: 48px !important;
+    }
   }
 
   &__content {
@@ -54,15 +83,6 @@
 
       &:hover {
         background-color: rgba(255, 255, 255, 0.1) !important;
-      }
-    }
-
-    &--confirm {
-      background-color: white !important;
-      color: variables.$f1-red !important;
-
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.9) !important;
       }
     }
   }

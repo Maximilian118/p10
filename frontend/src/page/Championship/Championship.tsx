@@ -31,7 +31,8 @@ import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
-import StartRoundConfirm from "./Views/RoundStatus/StartRoundConfirm/StartRoundConfirm"
+import ConfirmView from "./Views/RoundStatus/ConfirmView/ConfirmView"
+import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import {
   initSettingsForm,
   initAutomationForm,
@@ -697,7 +698,16 @@ const Championship: React.FC = () => {
 
         {/* Start Round Confirmation - shown before countdown begins */}
         {showStartConfirm && (
-          <StartRoundConfirm
+          <ConfirmView
+            variant="success"
+            icon={<PlayArrowIcon />}
+            heading="Start Round?"
+            paragraphs={[
+              "This will begin the countdown.",
+              "Betting will open shortly after."
+            ]}
+            cancelText="Go Back"
+            confirmText="Confirm Start Round"
             onCancel={() => setShowStartConfirm(false)}
             onConfirm={() => {
               setShowStartConfirm(false)
