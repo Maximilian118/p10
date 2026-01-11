@@ -709,9 +709,9 @@ const Championship: React.FC = () => {
             cancelText="Go Back"
             confirmText="Confirm Start Round"
             onCancel={() => setShowStartConfirm(false)}
-            onConfirm={() => {
+            onConfirm={async () => {
+              await handleStartRound()
               setShowStartConfirm(false)
-              handleStartRound()
             }}
           />
         )}
