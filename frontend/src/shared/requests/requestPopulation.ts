@@ -72,9 +72,6 @@ export const populateTeam = `
     inceptionDate
     nationality
   }
-  created_by {
-    _id
-  }
   created_at
   updated_at
 `
@@ -158,9 +155,6 @@ export const populateTeamList = `
       moustache
       mullet
       positionHistory
-    }
-    created_by {
-      _id
     }
     created_at
     updated_at

@@ -9,10 +9,6 @@ export const teamPopulation = [
     model: "Driver",
     populate: [
       {
-        path: "created_by",
-        model: "User",
-      },
-      {
         path: "series",
         model: "Series",
         select: "_id name",
@@ -35,12 +31,6 @@ export const driverPopulation = [
   {
     path: "teams",
     model: "Team",
-    populate: [
-      {
-        path: "created_by",
-        model: "User",
-      },
-    ],
   },
   {
     path: "series",
