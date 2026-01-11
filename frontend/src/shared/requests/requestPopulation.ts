@@ -461,7 +461,6 @@ export const populateChamp = `
     inviteOnly
     maxCompetitors
     competitorsCanBet
-    adjudicatorBettingView
     protests {
       alwaysVote
       allowMultiple

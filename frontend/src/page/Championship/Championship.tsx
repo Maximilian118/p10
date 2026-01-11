@@ -31,6 +31,7 @@ import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
+import StartRoundConfirm from "./Views/RoundStatus/StartRoundConfirm/StartRoundConfirm"
 import {
   initSettingsForm,
   initAutomationForm,
@@ -80,7 +81,6 @@ const Championship: React.FC = () => {
     active: true,
     series: null,
     competitorsCanBet: true,
-    adjudicatorBettingView: true,
   })
   const [ settingsFormErr, setSettingsFormErr ] = useState<ChampSettingsFormErrType>({
     champName: "",
@@ -133,6 +133,9 @@ const Championship: React.FC = () => {
 
   // Track last bet placed (from other users) for BettingOpenView to show animation.
   const [ lastBetPlaced, setLastBetPlaced ] = useState<BetPlacedPayload | null>(null)
+
+  // Show start round confirmation before beginning countdown.
+  const [ showStartConfirm, setShowStartConfirm ] = useState<boolean>(false)
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -588,8 +591,8 @@ const Championship: React.FC = () => {
     && roundStatusView !== "waiting"
     && roundStatusView !== "completed"
 
-  // Force banner to be fully shrunk when in round status views.
-  const effectiveShrinkRatio = isInRoundStatusView ? 1 : shrinkRatio
+  // Force banner to be fully shrunk when in round status views or confirmation.
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm ? 1 : shrinkRatio
 
   // Compute round viewing state.
   const currentRoundIndex = champ.rounds.findIndex(r => r.status !== "completed")
@@ -642,7 +645,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && (
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && (
         <RoundsBar
           totalRounds={champ.rounds.length}
           viewedRoundIndex={viewedIndex}
@@ -651,7 +654,7 @@ const Championship: React.FC = () => {
           setViewedRoundIndex={setViewedRoundIndex}
           setStandingsView={setStandingsView}
           isAdjudicator={isAdjudicator}
-          onStartNextRound={handleStartRound}
+          onStartNextRound={() => setShowStartConfirm(true)}
         />
       )}
 
@@ -692,8 +695,19 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Start Round Confirmation - shown before countdown begins */}
+        {showStartConfirm && (
+          <StartRoundConfirm
+            onCancel={() => setShowStartConfirm(false)}
+            onConfirm={() => {
+              setShowStartConfirm(false)
+              handleStartRound()
+            }}
+          />
+        )}
+
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound &&
                 getCompetitorsFromRound(viewedRound).map((c, i) => (
@@ -801,8 +815,8 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {/* ChampToolbar - hidden during active round status views */}
-        {!isInRoundStatusView && (
+        {/* ChampToolbar - hidden during active round status views and confirmation */}
+        {!isInRoundStatusView && !showStartConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}

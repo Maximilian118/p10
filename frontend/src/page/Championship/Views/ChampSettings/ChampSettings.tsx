@@ -35,7 +35,6 @@ export interface ChampSettingsFormType {
   active: boolean
   series: seriesType | null
   competitorsCanBet: boolean
-  adjudicatorBettingView: boolean
 }
 
 // Form error type for championship settings.
@@ -212,12 +211,6 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         fullWidth
         checked={settingsForm.competitorsCanBet}
         onChange={(checked) => setSettingsForm(prev => ({ ...prev, competitorsCanBet: checked }))}
-      />
-      <MUISwitch
-        text="Adjudicator Betting View"
-        fullWidth
-        checked={settingsForm.adjudicatorBettingView}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, adjudicatorBettingView: checked }))}
       />
       <MUISwitch
         text="Skip Countdown"

@@ -21,7 +21,6 @@ export const initSettingsForm = (champ: ChampType): ChampSettingsFormType => ({
   active: champ.active,
   series: champ.series,
   competitorsCanBet: champ.settings.competitorsCanBet ?? true,
-  adjudicatorBettingView: champ.settings.adjudicatorBettingView ?? true,
 })
 
 // Initialize automation form state from championship data.
@@ -73,8 +72,7 @@ export const hasSettingsChanged = (form: ChampSettingsFormType, champ: ChampType
     form.inviteOnly !== champ.settings.inviteOnly ||
     form.active !== champ.active ||
     form.series?._id !== champ.series._id ||
-    form.competitorsCanBet !== (champ.settings.competitorsCanBet ?? true) ||
-    form.adjudicatorBettingView !== (champ.settings.adjudicatorBettingView ?? true)
+    form.competitorsCanBet !== (champ.settings.competitorsCanBet ?? true)
   )
 }
 
@@ -126,7 +124,6 @@ export interface SettingsUpdatesType {
   series?: string
   profile_picture?: string
   competitorsCanBet?: boolean
-  adjudicatorBettingView?: boolean
 }
 
 export interface AutomationUpdatesType {
@@ -204,10 +201,6 @@ export const buildSettingsUpdates = (
 
   if (form.competitorsCanBet !== (champ.settings.competitorsCanBet ?? true)) {
     updates.competitorsCanBet = form.competitorsCanBet
-  }
-
-  if (form.adjudicatorBettingView !== (champ.settings.adjudicatorBettingView ?? true)) {
-    updates.adjudicatorBettingView = form.adjudicatorBettingView
   }
 
   return updates
@@ -397,13 +390,6 @@ export const applySettingsOptimistically = (
     optimisticChamp.settings = {
       ...optimisticChamp.settings,
       competitorsCanBet: updates.competitorsCanBet,
-    }
-  }
-
-  if (typeof updates.adjudicatorBettingView === "boolean") {
-    optimisticChamp.settings = {
-      ...optimisticChamp.settings,
-      adjudicatorBettingView: updates.adjudicatorBettingView,
     }
   }
 
