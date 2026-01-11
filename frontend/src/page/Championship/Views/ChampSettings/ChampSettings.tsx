@@ -186,7 +186,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         className="champ-settings-card__icon-btn"
         onClick={() => setView("automation")}
         startIcon={<AutoModeIcon />}
-        disabled={champ.series.shortName !== "F1"}
+        disabled={!champ.series.hasAPI}
       >
         Automation
       </Button>

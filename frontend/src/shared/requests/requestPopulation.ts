@@ -227,6 +227,7 @@ export const populateSeries = `
   url
   name
   shortName
+  hasAPI
   championships {
     _id
   }
@@ -338,6 +339,7 @@ export const populateChamp = `
     url
     name
     shortName
+    hasAPI
     drivers {
       _id
       icon

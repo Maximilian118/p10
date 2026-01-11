@@ -1,0 +1,9 @@
+@use '../../../../scss/mixins';
+
+.drivers-grid {
+  @include mixins.flexbox;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 0.5rem;
+  margin: auto 0;
+}

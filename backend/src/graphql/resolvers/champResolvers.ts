@@ -997,7 +997,7 @@ const champResolvers = {
         // If automation was enabled but new series doesn't support it, disable.
         if (
           champ.settings.automation?.enabled &&
-          newSeries.shortName !== "F1"
+          !newSeries.hasAPI
         ) {
           champ.settings.automation.enabled = false
         }

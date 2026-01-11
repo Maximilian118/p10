@@ -143,6 +143,7 @@ export interface seriesType {
   url: string
   name: string
   shortName?: string
+  hasAPI?: boolean
   championships: ChampType[]
   drivers: driverType[]
   created_by?: userType | string

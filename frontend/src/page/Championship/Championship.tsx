@@ -31,6 +31,7 @@ import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
+import { getAPIView } from "./Views/RoundStatus/APIViews"
 import ConfirmView from "./Views/RoundStatus/ConfirmView/ConfirmView"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import {
@@ -681,13 +682,25 @@ const Championship: React.FC = () => {
             competitorsCanBet={champ.settings.competitorsCanBet}
           />
         )}
-        {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (
-          <BettingClosedView
-            round={viewedRound}
-            isAdjudicator={isAdjudicator}
-            onAdvance={() => handleAdvanceStatus("results")}
-          />
-        )}
+        {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (() => {
+          const APIViewComponent = champ.series.hasAPI ? getAPIView(champ.series.shortName) : null
+          if (APIViewComponent) {
+            return (
+              <APIViewComponent
+                round={viewedRound}
+                isAdjudicator={isAdjudicator}
+                onAdvance={() => handleAdvanceStatus("results")}
+              />
+            )
+          }
+          return (
+            <BettingClosedView
+              round={viewedRound}
+              isAdjudicator={isAdjudicator}
+              onAdvance={() => handleAdvanceStatus("results")}
+            />
+          )
+        })()}
         {isInRoundStatusView && roundStatusView === "results" && viewedRound && (
           <ResultsView
             round={viewedRound}

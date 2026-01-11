@@ -4,6 +4,7 @@ const seriesSchema = `
     url: String!
     name: String!
     shortName: String
+    hasAPI: Boolean
     championships: [Champ!]
     drivers: [Driver!]
     created_by: User

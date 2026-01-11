@@ -1,6 +1,6 @@
-@use '../../../../../scss/mixins';
+@use '../../../../../../scss/mixins';
 
-.betting-closed-view {
+.f1-session-view {
   width: 100%;
   @include mixins.flexbox-space-between-column;
   flex-grow: 1;
@@ -8,8 +8,14 @@
   box-sizing: border-box;
   overflow-y: auto;
 
-  .betting-closed-title {
+  .f1-session-title {
+    margin-bottom: 5px;
+  }
+
+  .f1-session-subtitle {
     margin-bottom: 20px;
+    opacity: 0.7;
+    font-size: 0.9rem;
   }
 
   .grid-container {
