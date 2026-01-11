@@ -6,6 +6,7 @@ export interface seriesType {
   _id: ObjectId
   url: string // NEED TO CHANGE THIS TO THE NORMAL icon and profile_picture WORKFLOW
   name: string // Name of the series
+  shortName?: string // Short identifier for the series (e.g., "F1" for FIA Formula One World Championship)
   championships: ObjectId[] // All the championships this series is used in
   drivers: ObjectId[] // All the drivers in this series
   created_by: ObjectId // The user that created the Series
@@ -20,12 +21,14 @@ export interface seriesInputType {
   _id: ObjectId
   url: string
   name: string
+  shortName?: string
   drivers: ObjectId[]
 }
 
 const seriesSchema = new mongoose.Schema<seriesType>({
   url: { type: String, required: true }, // URL to an image in AWS S3.
   name: { type: String, required: true }, // Name of the series.
+  shortName: { type: String, required: false }, // Short identifier (e.g., "F1").
   championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Championships that this series is being used for.
   drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }], // Drivers that belong in this series.
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the series.

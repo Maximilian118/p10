@@ -11,14 +11,14 @@ export const teamPopulation = [
       {
         path: "series",
         model: "Series",
-        select: "_id name",
+        select: "_id name shortName",
       },
     ],
   },
   {
     path: "series",
     model: "Series",
-    select: "_id name",
+    select: "_id name shortName",
   },
 ]
 
@@ -35,7 +35,7 @@ export const driverPopulation = [
   {
     path: "series",
     model: "Series",
-    select: "_id url name championships",
+    select: "_id url name shortName championships",
     populate: {
       path: "championships",
       model: "Champ",

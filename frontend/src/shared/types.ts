@@ -142,6 +142,7 @@ export interface seriesType {
   _id?: string
   url: string
   name: string
+  shortName?: string
   championships: ChampType[]
   drivers: driverType[]
   created_by?: userType | string

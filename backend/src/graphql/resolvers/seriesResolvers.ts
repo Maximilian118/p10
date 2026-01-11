@@ -29,7 +29,7 @@ const seriesResolvers = {
     }
 
     try {
-      const { created_by, url, name, drivers } = args.seriesInput
+      const { created_by, url, name, shortName, drivers } = args.seriesInput
 
       // Check for errors.
       await createdByErrors(req._id, created_by)
@@ -42,6 +42,7 @@ const seriesResolvers = {
         created_by,
         url,
         name,
+        shortName,
         drivers,
       })
       // Update drivers with the _id of this series.
@@ -95,7 +96,7 @@ const seriesResolvers = {
       throwError("updateSeries", req.isAuth, "Not Authenticated!", 401)
     }
     try {
-      const { _id, url, name, drivers } = args.seriesInput
+      const { _id, url, name, shortName, drivers } = args.seriesInput
       // Check for errors
       imageErrors(url)
       falsyValErrors({
@@ -117,6 +118,11 @@ const seriesResolvers = {
       if (capitalise(series.name) !== capitalise(name)) {
         await seriesNameErrors(name) // Have to check if name has been changed before checking for errors.
         series.name = capitalise(name)
+      }
+
+      // Update shortName if provided and different.
+      if (shortName !== undefined && series.shortName !== shortName) {
+        series.shortName = shortName
       }
 
       if (series.drivers !== drivers) {

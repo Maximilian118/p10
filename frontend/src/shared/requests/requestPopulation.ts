@@ -86,6 +86,7 @@ export const populateTeamFull = `
   series {
     _id
     name
+    shortName
   }
   drivers {
     _id
@@ -97,6 +98,7 @@ export const populateTeamFull = `
     series {
       _id
       name
+      shortName
       championships {
         _id
         history {
@@ -184,6 +186,7 @@ export const populateDriver = `
     _id
     url
     name
+    shortName
     championships {
       _id
       icon
@@ -223,6 +226,7 @@ export const populateSeries = `
   _id
   url
   name
+  shortName
   championships {
     _id
   }
@@ -333,6 +337,7 @@ export const populateChamp = `
     _id
     url
     name
+    shortName
     drivers {
       _id
       icon

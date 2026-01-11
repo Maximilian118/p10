@@ -997,7 +997,7 @@ const champResolvers = {
         // If automation was enabled but new series doesn't support it, disable.
         if (
           champ.settings.automation?.enabled &&
-          newSeries.name !== "FIA Formula One World Championship"
+          newSeries.shortName !== "F1"
         ) {
           champ.settings.automation.enabled = false
         }

@@ -142,7 +142,7 @@ const Driver: React.FC = () => {
           <p>Best: <span>{getDriverBestPosition(driver) ? `P${getDriverBestPosition(driver)}` : '-'}</span></p>
           <p>Average: <span>{getDriverAveragePosition(driver) ? `P${getDriverAveragePosition(driver)}` : '-'}</span></p>
           <p>Worst: <span>{getDriverWorstPosition(driver) ? `P${getDriverWorstPosition(driver)}` : '-'}</span></p>
-          {driver.series.some(s => s.name === "FIA Formula One World Championship") && (
+          {driver.series.some(s => s.shortName === "F1") && (
             <>
               <p>Q2 DQ's: <span>{getDriverQ2DQs(driver)}</span></p>
               <p>Q1 DQ's: <span>{getDriverQ1DQs(driver)}</span></p>

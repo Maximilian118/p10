@@ -3,6 +3,7 @@ const seriesSchema = `
     _id: ID!
     url: String!
     name: String!
+    shortName: String
     championships: [Champ!]
     drivers: [Driver!]
     created_by: User
@@ -21,6 +22,7 @@ const seriesSchema = `
     created_by: ID
     url: String
     name: String!
+    shortName: String
     drivers: [ID!]
   }
 `
