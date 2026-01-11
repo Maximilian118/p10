@@ -45,6 +45,7 @@ export interface Round {
   statusChangedAt: string | null // ISO timestamp when status was last changed (for 24h expiry)
   competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
   drivers: DriverEntry[] // All of the drivers in the champ and their data for this round.
+  randomisedDrivers: DriverEntry[] // Randomized order of drivers for betting_open display.
   teams: TeamEntry[] // All of the constructors in the champ and their data for this round.
   winner: ObjectId | null // Did a competitor score the maximum amout of points this round?
   runnerUp: ObjectId | null // The runner-up competitor for this round.
@@ -249,6 +250,7 @@ const roundSchema = new mongoose.Schema(
     statusChangedAt: { type: String, default: null },
     competitors: [competitorEntrySchema],
     drivers: [driverEntrySchema],
+    randomisedDrivers: [driverEntrySchema],
     teams: [teamEntrySchema],
     winner: { type: mongoose.Schema.ObjectId, ref: "User", default: null },
     runnerUp: { type: mongoose.Schema.ObjectId, ref: "User", default: null },

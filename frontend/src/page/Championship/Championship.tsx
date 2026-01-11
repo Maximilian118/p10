@@ -674,7 +674,6 @@ const Championship: React.FC = () => {
             lastRejectedBet={lastRejectedBet}
             lastBetPlaced={lastBetPlaced}
             automation={champ.settings.automation}
-            previousRoundDrivers={viewedIndex > 0 ? champ.rounds[viewedIndex - 1]?.drivers : undefined}
             competitorsCanBet={champ.settings.competitorsCanBet}
           />
         )}

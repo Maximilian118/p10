@@ -379,6 +379,7 @@ export const applySettingsOptimistically = (
           runnerUp: null,
           competitors: [],
           drivers: [],
+          randomisedDrivers: [],
           teams: [],
         })
       }

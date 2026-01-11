@@ -57,6 +57,7 @@ const champSchema = `
     runnerUp: User
     competitors: [CompetitorEntry!]!
     drivers: [DriverEntry!]!
+    randomisedDrivers: [DriverEntry!]!
     teams: [TeamEntry!]!
   }
 

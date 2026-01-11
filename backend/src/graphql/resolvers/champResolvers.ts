@@ -71,6 +71,16 @@ const createCompetitorEntry = (
   created_at: null,
 })
 
+// Fisher-Yates shuffle for randomizing array order.
+const shuffleArray = <T>(array: T[]): T[] => {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 // Generates an empty round with the given round number.
 const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = []): Round => ({
   round: roundNumber,
@@ -78,6 +88,7 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
   statusChangedAt: null, // Only set when status changes to an active state
   competitors,
   drivers: [],
+  randomisedDrivers: [],
   teams: [],
   winner: null,
   runnerUp: null,
@@ -88,7 +99,7 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
 const populateRoundData = async (
   champ: ChampType,
   roundIndex: number,
-): Promise<{ competitors: CompetitorEntry[]; drivers: DriverEntry[]; teams: TeamEntry[] }> => {
+): Promise<{ competitors: CompetitorEntry[]; drivers: DriverEntry[]; randomisedDrivers: DriverEntry[]; teams: TeamEntry[] }> => {
   const previousRoundIndex = roundIndex - 1
   const previousRound = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex] : null
 
@@ -160,7 +171,10 @@ const populateRoundData = async (
     positionConstructors: 0,
   }))
 
-  return { competitors, drivers, teams }
+  // Create randomised driver order for betting_open display.
+  const randomisedDrivers = shuffleArray(drivers)
+
+  return { competitors, drivers, randomisedDrivers, teams }
 }
 
 const champResolvers = {
@@ -558,6 +572,7 @@ const champResolvers = {
         const roundData = await populateRoundData(champ, roundIndex)
         champ.rounds[roundIndex].competitors = roundData.competitors
         champ.rounds[roundIndex].drivers = roundData.drivers
+        champ.rounds[roundIndex].randomisedDrivers = roundData.randomisedDrivers
         champ.rounds[roundIndex].teams = roundData.teams
       }
 

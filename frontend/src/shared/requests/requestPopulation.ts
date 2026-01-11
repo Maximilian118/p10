@@ -296,6 +296,19 @@ export const populateChamp = `
       positionDrivers
       positionActual
     }
+    randomisedDrivers {
+      driver {
+        _id
+        name
+        icon
+        driverID
+      }
+      points
+      totalPoints
+      position
+      positionDrivers
+      positionActual
+    }
     teams {
       team {
         _id
@@ -552,6 +565,19 @@ export const populateChamp = `
         created_at
       }
       drivers {
+        driver {
+          _id
+          name
+          icon
+          driverID
+        }
+        points
+        totalPoints
+        position
+        positionDrivers
+        positionActual
+      }
+      randomisedDrivers {
         driver {
           _id
           name

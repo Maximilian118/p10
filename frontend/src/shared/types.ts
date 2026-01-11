@@ -194,6 +194,7 @@ export interface RoundType {
   runnerUp: userType | null // Runner-up competitor for this round.
   competitors: CompetitorEntryType[]
   drivers: DriverEntryType[]
+  randomisedDrivers: DriverEntryType[]
   teams: TeamEntryType[]
 }
 
