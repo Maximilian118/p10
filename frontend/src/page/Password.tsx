@@ -51,7 +51,7 @@ const Password: React.FC = () => {
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.currentPass}
-        error={formErr.currentPass ? true : false}
+        error={formErr.currentPass || backendErr.type === "currentPass" ? true : false}
       />
       <TextField
         required={!formErr.newPass}
@@ -63,7 +63,7 @@ const Password: React.FC = () => {
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.password}
-        error={formErr.password ? true : false}
+        error={formErr.password || backendErr.type === "password" ? true : false}
       />
       <TextField
         required={!formErr.newPass}
@@ -74,7 +74,7 @@ const Password: React.FC = () => {
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.passConfirm}
-        error={formErr.passConfirm ? true : false}
+        error={formErr.passConfirm || backendErr.type === "passConfirm" ? true : false}
       />
       <Button
         variant="contained" 

@@ -734,6 +734,7 @@ const Championship: React.FC = () => {
             setSettingsForm={setSettingsForm}
             settingsFormErr={settingsFormErr}
             setSettingsFormErr={setSettingsFormErr}
+            backendErr={backendErr}
             dropzoneOpenRef={dropzoneOpenRef}
           />
         )}
@@ -757,6 +758,7 @@ const Championship: React.FC = () => {
             setAutomationForm={setAutomationForm}
             automationFormErr={automationFormErr}
             setAutomationFormErr={setAutomationFormErr}
+            backendErr={backendErr}
           />
         )}
 
@@ -769,6 +771,7 @@ const Championship: React.FC = () => {
             setProtestsForm={setProtestsForm}
             protestsFormErr={protestsFormErr}
             setProtestsFormErr={setProtestsFormErr}
+            backendErr={backendErr}
           />
         )}
 
@@ -781,6 +784,7 @@ const Championship: React.FC = () => {
             setRuleChangesForm={setRuleChangesForm}
             ruleChangesFormErr={ruleChangesFormErr}
             setRuleChangesFormErr={setRuleChangesFormErr}
+            backendErr={backendErr}
           />
         )}
 

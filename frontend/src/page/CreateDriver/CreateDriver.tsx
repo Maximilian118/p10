@@ -7,9 +7,10 @@ import AppContext from "../../context"
 import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { driverType, teamType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { inputLabel, updateForm } from "../../shared/formValidation"
+import { inputLabel, updateForm, validateRequired, validateDateNotFuture, validateUniqueName } from "../../shared/formValidation"
 import { initTeam } from "../../shared/init"
-import { createdByID, heightCMOptions, isThreeLettersUppercase, weightKGOptions } from "../../shared/utility"
+import { heightCMOptions, weightKGOptions } from "../../shared/utility"
+import { generateDriverID, canEditDriver, hasDriverFormChanged } from "./createDriverUtility"
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createDriver, editDriver, removeDriver } from "../../shared/requests/driverRequests"
@@ -101,6 +102,10 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
   const [ isTeamEdit, setIsTeamEdit ] = useState<boolean>(false)
   const [ teamToEdit, setTeamToEdit ] = useState<teamType>(initTeam(user))
 
+  // Track if user has manually edited the driverID field.
+  // If editing an existing driver, assume the driverID is intentional.
+  const [ userEditedDriverID, setUserEditedDriverID ] = useState<boolean>(isEditing)
+
   // Initialize form state based on whether we're editing or creating.
   const getInitialFormState = (): createDriverFormType => {
     if (editingDriver) {
@@ -180,98 +185,77 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     }
   }, [drivers, editingDriver, form.teams])
 
-  // Determine user's edit permissions.
-  const canEdit = (): "delete" | "edit" | "" => {
-    if (!editingDriver) return "edit"
-    const noTeams = editingDriver.teams.length === 0
-    const creator = createdByID(editingDriver.created_by) === user._id
-    const authority = user.permissions.adjudicator || creator
-    if (user.permissions.admin) return "delete"
-    if (authority && noTeams) return "delete"
-    if (authority) return "edit"
-    return ""
+
+  // Handle name field changes - uses updateForm for validation, then auto-generates driverID.
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value
+
+    // Use updateForm for live validation (handles error display).
+    updateForm<createDriverFormType, createDriverFormErrType>(
+      e, form, setForm, setFormErr, backendErr, setBackendErr
+    )
+
+    // Auto-generate driverID if user hasn't manually edited it.
+    if (!userEditedDriverID) {
+      const generatedID = generateDriverID(newName) as createDriverFormType["driverID"]
+      setForm(prev => ({ ...prev, driverID: generatedID }))
+    }
   }
 
-  // Check if form has changed from original driver values.
-  const hasFormChanged = (): boolean => {
-    if (!editingDriver) return true
-
-    const teamsMatch =
-      editingDriver.teams.length === form.teams.length &&
-      editingDriver.teams.every(t => form.teams.some(ft => ft._id === t._id))
-
-    return (
-      !!form.icon ||
-      !!form.body ||
-      editingDriver.name !== form.driverName ||
-      editingDriver.driverID !== form.driverID ||
-      !teamsMatch ||
-      editingDriver.stats.nationality !== form.nationality?.label ||
-      `${editingDriver.stats.heightCM}cm` !== form.heightCM ||
-      `${editingDriver.stats.weightKG}kg` !== form.weightKG ||
-      !moment(editingDriver.stats.birthday).isSame(form.birthday, "day") ||
-      editingDriver.stats.moustache !== form.moustache ||
-      editingDriver.stats.mullet !== form.mullet
+  // Handle driverID field changes - marks field as manually edited to stop auto-generation.
+  // Transforms input to uppercase letters only, then uses updateForm for validation.
+  const handleDriverIDChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserEditedDriverID(true)
+    // Transform to uppercase letters only before validation.
+    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase()
+    updateForm<createDriverFormType, createDriverFormErrType>(
+      e, form, setForm, setFormErr, backendErr, setBackendErr
     )
   }
 
-  // Validate form fields.
+
+  // Validate required fields on submit. Format validation is handled by updateForm.
   const validateForm = useCallback((): boolean => {
-    const errors: createDriverFormErrType = {
+    // Reset form errors before validation.
+    setFormErr({
       driverName: "",
       driverID: "",
-      teams: "",
       nationality: "",
       heightCM: "",
       weightKG: "",
       birthday: "",
+      teams: "",
       dropzone: "",
       dropzoneBody: "",
-    }
+    })
 
+    let isValid = true
+
+    // Check icon required when creating (not editing).
     if (!form.icon && !isEditing) {
-      errors.dropzone = "Please enter a headshot image."
+      setFormErr(prev => ({ ...prev, dropzone: "Required." }))
+      isValid = false
     }
 
-    if (!form.driverName) {
-      errors.driverName = "Please enter a name."
-    }
+    // Check required text fields.
+    const requiredFields: (keyof createDriverFormType)[] = [
+      "driverName", "driverID", "nationality", "heightCM", "weightKG", "birthday"
+    ]
+    const requiredValid = validateRequired<createDriverFormType, createDriverFormErrType>(
+      requiredFields, form, setFormErr
+    )
 
-    if (!form.driverID) {
-      errors.driverID = "Please enter a driver ID."
-    } else if (!isThreeLettersUppercase(form.driverID)) {
-      errors.driverID = "Must be three uppercase letters."
-    }
-
-    if (!form.nationality) {
-      errors.nationality = "Please enter a nationality."
-    }
-
-    if (!form.heightCM) {
-      errors.heightCM = "Please enter a height."
-    }
-
-    if (!form.weightKG) {
-      errors.weightKG = "Please enter a weight."
-    }
-
-    if (!form.birthday) {
-      errors.birthday = "Please enter a date."
-    } else if (moment(form.birthday).isAfter(moment())) {
-      errors.birthday = "Date cannot be in the future."
-    }
+    // Check birthday is not in the future.
+    const dateValid = validateDateNotFuture<createDriverFormErrType>(
+      "birthday", form.birthday, setFormErr
+    )
 
     // Check for duplicate names.
-    const otherDrivers = drivers.filter(d => d._id !== form._id)
-    for (const driver of otherDrivers) {
-      if (driver.name.toLowerCase() === form.driverName.toLowerCase()) {
-        errors.driverName = "A driver by that name already exists!"
-        break
-      }
-    }
+    const nameValid = validateUniqueName<createDriverFormErrType>(
+      "driverName", form.driverName, drivers, form._id, setFormErr, "driver"
+    )
 
-    setFormErr(errors)
-    return !Object.values(errors).some(error => error !== "")
+    return isValid && requiredValid && dateValid && nameValid
   }, [form, isEditing, drivers])
 
   // Add a team to the form.
@@ -424,7 +408,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     setTeamToEdit(initTeam(user))
   }
 
-  const permissions = canEdit()
+  const permissions = canEditDriver(editingDriver, user)
 
   // Stable submit handler for ChampFlowContext registration.
   const submitHandler = useCallback(async () => {
@@ -502,7 +486,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
         className="mui-form-el"
         label={inputLabel("driverName", formErr, backendErr)}
         variant="filled"
-        onChange={e => updateForm<createDriverFormType, createDriverFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
+        onChange={handleNameChange}
         value={form.driverName}
         error={formErr.driverName || backendErr.type === "driverName" ? true : false}
         disabled={!permissions}
@@ -567,7 +551,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
           name="driverID"
           label={inputLabel("driverID", formErr, backendErr)}
           variant="filled"
-          onChange={e => updateForm<createDriverFormType, createDriverFormErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
+          onChange={handleDriverIDChange}
           value={form.driverID}
           error={formErr.driverID || backendErr.type === "driverID" ? true : false}
           disabled={!permissions}
@@ -604,7 +588,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
         onDelete={onDeleteHandler}
         onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
         showDelete={permissions === "delete" && isEditing}
-        submitDisabled={!permissions || (isEditing && !hasFormChanged())}
+        submitDisabled={!permissions || (isEditing && !hasDriverFormChanged(editingDriver, form))}
         submitLabel={isEditing ? "Update" : "Submit"}
         loading={loading}
         delLoading={delLoading}

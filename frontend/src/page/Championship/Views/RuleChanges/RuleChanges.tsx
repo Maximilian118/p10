@@ -3,7 +3,7 @@ import "./_ruleChanges.scss"
 import { ChampType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { ChampView } from "../ChampSettings/ChampSettings"
-import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { RuleChangesFormType, RuleChangesFormErrType } from "../../../../shared/formValidation"
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
@@ -17,10 +17,11 @@ interface RuleChangesProps {
   setRuleChangesForm: React.Dispatch<React.SetStateAction<RuleChangesFormType>>
   ruleChangesFormErr: RuleChangesFormErrType
   setRuleChangesFormErr: React.Dispatch<React.SetStateAction<RuleChangesFormErrType>>
+  backendErr: graphQLErrorType
 }
 
 // Rule changes settings view for managing rule change proposal behavior.
-const RuleChanges: React.FC<RuleChangesProps> = ({ ruleChangesForm, setRuleChangesForm, ruleChangesFormErr }) => {
+const RuleChanges: React.FC<RuleChangesProps> = ({ ruleChangesForm, setRuleChangesForm, ruleChangesFormErr, backendErr }) => {
   // Handle expiry pagination change with validation.
   const handleExpiryChange = (_e: React.ChangeEvent<unknown>, value: number) => {
     if (value < 1 || value > 30) return
@@ -55,7 +56,7 @@ const RuleChanges: React.FC<RuleChangesProps> = ({ ruleChangesForm, setRuleChang
           />
         }
         formErr={ruleChangesFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
     </div>
   )

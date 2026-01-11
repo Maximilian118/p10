@@ -1,10 +1,12 @@
 import React from "react"
+import moment from "moment"
 import { initGraphQLError, graphQLErrorType, hasBackendErr } from "./requests/requestsUtility"
 
 interface formStateType {
   name?: string
   badgeName?: string
   driverName?: string
+  driverID?: string
   seriesName?: string
   champName?: string
   teamName?: string
@@ -64,7 +66,7 @@ export const updateForm = <T extends formStateType, U>(
       return
     }
 
-    if (/^[a-zA-Z\s-']{1,30}$/.test(e.target.value) || e.target.value.trim() === "") {
+    if (/^[a-zA-Z\s\-'.]{1,30}$/.test(e.target.value) || e.target.value.trim() === "") {
       handleInput<U>(e.target.name, setFormErr)
     } else {
       handleInput<U>(e.target.name, setFormErr, "No numbers or special characters.")
@@ -134,14 +136,14 @@ export const updateForm = <T extends formStateType, U>(
 
   const driverIDCase = () => {
     if (e.target.value.length > 3) {
-      handleInput<U>(e.target.name, setFormErr, "Maximum length 3 characters.")
+      handleInput<U>(e.target.name, setFormErr, "Maximum 3 characters.")
       return
     }
 
-    if (/^[A-Z]{3}$/.test(e.target.value) || e.target.value.trim() === "") {
+    if (/^[A-Z]{1,3}$/.test(e.target.value) || e.target.value.trim() === "") {
       handleInput<U>(e.target.name, setFormErr)
     } else {
-      handleInput<U>(e.target.name, setFormErr, "Only 3 capital letters.")
+      handleInput<U>(e.target.name, setFormErr, "Only uppercase letters (A-Z).")
     }
   }
 
@@ -329,6 +331,99 @@ export const updateSettingsForm = <T extends formStateType, U>(
     default:
       handleInput<U>(name, setFormErr)
   }
+}
+
+// Validates required fields on form submission.
+// Returns true if all required fields are populated, false otherwise.
+export const validateRequired = <T, U>(
+  fields: (keyof T)[],
+  form: T,
+  setFormErr: React.Dispatch<React.SetStateAction<U>>,
+  isEditing?: boolean,
+  editExceptions?: (keyof T)[],
+): boolean => {
+  let isValid = true
+
+  fields.forEach((field) => {
+    // Skip fields that are exceptions when editing (e.g., images that already exist).
+    if (isEditing && editExceptions?.includes(field)) {
+      return
+    }
+
+    const value = form[field]
+    const isEmpty = value === null || value === undefined || value === "" ||
+      (Array.isArray(value) && value.length === 0)
+
+    if (isEmpty) {
+      setFormErr((prevErr) => ({
+        ...prevErr,
+        [field]: "Required.",
+      }))
+      isValid = false
+    }
+  })
+
+  return isValid
+}
+
+// Validates that a date is not in the future.
+// Returns true if date is valid (not in future), false otherwise.
+export const validateDateNotFuture = <U>(
+  dateField: string,
+  dateValue: unknown,
+  setFormErr: React.Dispatch<React.SetStateAction<U>>,
+): boolean => {
+  if (dateValue && moment(dateValue as string | Date).isAfter(moment())) {
+    setFormErr((prevErr) => ({
+      ...prevErr,
+      [dateField]: "Cannot be in the future.",
+    }))
+    return false
+  }
+  return true
+}
+
+// Validates that an array has at least the minimum number of items.
+// Returns true if valid, false otherwise.
+export const validateMinLength = <U>(
+  field: string,
+  array: unknown[],
+  minLength: number,
+  setFormErr: React.Dispatch<React.SetStateAction<U>>,
+  errorMessage?: string,
+): boolean => {
+  if (array.length < minLength) {
+    setFormErr((prevErr) => ({
+      ...prevErr,
+      [field]: errorMessage || `At least ${minLength} required.`,
+    }))
+    return false
+  }
+  return true
+}
+
+// Validates that a name is unique (case-insensitive).
+// Excludes the current item when editing.
+// Returns true if name is unique, false otherwise.
+export const validateUniqueName = <U>(
+  nameField: string,
+  name: string,
+  existingItems: { name: string; _id?: string | null }[],
+  currentId: string | null,
+  setFormErr: React.Dispatch<React.SetStateAction<U>>,
+  entityType: string,
+): boolean => {
+  const otherItems = existingItems.filter(item => item._id !== currentId)
+  const duplicate = otherItems.find(item => item.name.toLowerCase() === name.toLowerCase())
+
+  if (duplicate) {
+    setFormErr((prevErr) => ({
+      ...prevErr,
+      [nameField]: `A ${entityType} by that name already exists!`,
+    }))
+    return false
+  }
+  return true
 }
 
 // Protests form state and error types.

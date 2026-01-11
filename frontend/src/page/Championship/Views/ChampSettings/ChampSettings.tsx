@@ -2,7 +2,7 @@ import React from "react"
 import "./_champSettings.scss"
 import { ChampType, pointsStructureType, seriesType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
-import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { getCompetitors } from "../../../../shared/utility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
@@ -56,6 +56,7 @@ interface ChampSettingsProps {
   setSettingsForm: React.Dispatch<React.SetStateAction<ChampSettingsFormType>>
   settingsFormErr: ChampSettingsFormErrType
   setSettingsFormErr: React.Dispatch<React.SetStateAction<ChampSettingsFormErrType>>
+  backendErr: graphQLErrorType
   dropzoneOpenRef: React.MutableRefObject<(() => void) | null>
 }
 
@@ -68,6 +69,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
   setSettingsForm,
   settingsFormErr,
   setSettingsFormErr,
+  backendErr,
   dropzoneOpenRef,
 }) => {
   // Check if user has permission to delete (admin or adjudicator).
@@ -113,7 +115,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
           />
         }
         formErr={settingsFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
         onClick={() => setView("series")}
         disabled={!allRoundsWaiting}
       />
@@ -121,7 +123,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         inputProps={{ maxLength: 50 }}
         className="mui-form-el"
         name="champName"
-        label={inputLabel("champName", settingsFormErr, initGraphQLError)}
+        label={inputLabel("champName", settingsFormErr, backendErr)}
         value={settingsForm.champName}
         onBlur={e => updateSettingsForm(e, settingsForm, setSettingsForm, setSettingsFormErr)}
         error={!!settingsFormErr.champName}
@@ -140,7 +142,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
           />
         }
         formErr={settingsFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
       <FormElContainer
         name="maxCompetitors"
@@ -156,7 +158,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
           />
         }
         formErr={settingsFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
       <FormElContainer
         name="pointsStructure"
@@ -164,13 +166,13 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
           <PointsPicker
             setForm={setSettingsForm}
             formErr={settingsFormErr}
-            backendErr={initGraphQLError}
+            backendErr={backendErr}
             disabled={!allRoundsWaiting}
             initialPreset={currentPreset}
           />
         }
         formErr={settingsFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
       <Button
         variant="contained"

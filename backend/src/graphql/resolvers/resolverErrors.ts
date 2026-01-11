@@ -439,6 +439,15 @@ export const teamNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "The team must have a name!")
   }
 
+  // Validate format: alphanumeric + space only, max 50 chars (matches frontend).
+  if (!/^[a-zA-Z0-9\s]{1,50}$/.test(name)) {
+    if (name.length > 50) {
+      throwError(type, name, "Maximum length 50 characters.")
+    }
+
+    throwError(type, name, "No special characters.")
+  }
+
   // Find a team by the passed name.
   if (await Team.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
     // FindOne case-insensitive.
@@ -451,6 +460,15 @@ export const driverNameErrors = async (name: string): Promise<void> => {
 
   if (!name) {
     throwError(type, name, "The driver must have a name!")
+  }
+
+  // Validate format: letters, spaces, hyphens, apostrophes, periods. Max 30 chars (matches frontend).
+  if (!/^[a-zA-Z\s\-'.]{1,30}$/.test(name)) {
+    if (name.length > 30) {
+      throwError(type, name, "Maximum length 30 characters.")
+    }
+
+    throwError(type, name, "No numbers or special characters.")
   }
 
   // Find a driver by the passed name.
@@ -467,6 +485,15 @@ export const seriesNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "The series must have a name!")
   }
 
+  // Validate format: alphanumeric + space only, max 50 chars (matches frontend).
+  if (!/^[a-zA-Z0-9\s]{1,50}$/.test(name)) {
+    if (name.length > 50) {
+      throwError(type, name, "Maximum length 50 characters.")
+    }
+
+    throwError(type, name, "No special characters.")
+  }
+
   // Find a series by the passed name.
   if (await Series.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
     // FindOne case-insensitive.
@@ -474,9 +501,7 @@ export const seriesNameErrors = async (name: string): Promise<void> => {
   }
 }
 
-export const driverIDErrors = (
-  driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`,
-): void => {
+export const driverIDErrors = (driverID: string): void => {
   const type = "driverID"
 
   if (!driverID) {
@@ -484,7 +509,7 @@ export const driverIDErrors = (
   }
 
   if (!isThreeLettersUppercase(driverID)) {
-    throwError(type, driverID, "Must be three uppercase letters.")
+    throwError(type, driverID, "Must be 1-3 uppercase letters (A-Z).")
   }
 }
 
@@ -512,7 +537,7 @@ export const falsyValErrors = <T>(inputObject: T): void => {
   }
 }
 
-// Validates championship name - must be unique globally and valid format
+// Validates championship name - must be unique globally and valid format.
 export const champNameErrors = async (name: string): Promise<void> => {
   const type = "champName"
 
@@ -520,15 +545,16 @@ export const champNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "Please enter a championship name.")
   }
 
-  if (!/^[a-zA-Z0-9\s-']{1,50}$/.test(name)) {
+  // Validate format: alphanumeric + space only, max 50 chars (matches frontend).
+  if (!/^[a-zA-Z0-9\s]{1,50}$/.test(name)) {
     if (name.length > 50) {
-      throwError(type, name, "50 characters maximum.")
+      throwError(type, name, "Maximum length 50 characters.")
     }
 
-    throwError(type, name, "No special characters except hyphens and apostrophes.")
+    throwError(type, name, "No special characters.")
   }
 
-  // Check if championship name already exists (globally unique)
+  // Check if championship name already exists (globally unique).
   const existingChamp = await Champ.findOne({ name: { $regex: `^${name}$`, $options: "i" } })
 
   if (existingChamp) {

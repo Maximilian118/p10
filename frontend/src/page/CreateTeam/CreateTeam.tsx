@@ -6,7 +6,7 @@ import AppContext from "../../context"
 import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { teamType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { inputLabel, updateForm } from "../../shared/formValidation"
+import { inputLabel, updateForm, validateRequired, validateDateNotFuture, validateUniqueName } from "../../shared/formValidation"
 import { createdByID } from "../../shared/utility"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createTeam, editTeam, removeTeam } from "../../shared/requests/teamRequests"
@@ -163,45 +163,43 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
 
   // Validate form fields.
   const validateForm = useCallback((): boolean => {
-    const errors: createTeamFormErrType = {
+    // Reset form errors before validation.
+    setFormErr({
       teamName: "",
       inceptionDate: "",
       nationality: "",
       drivers: "",
       dropzone: "",
       dropzoneEmblem: "",
-    }
+    })
 
-    if (!form.teamName) {
-      errors.teamName = "Please enter a name."
-    }
+    let isValid = true
 
-    if (!form.nationality) {
-      errors.nationality = "Please enter a nationality."
-    }
+    // Check required text fields.
+    const requiredFields: (keyof createTeamFormType)[] = [
+      "teamName", "nationality", "inceptionDate"
+    ]
+    const requiredValid = validateRequired<createTeamFormType, createTeamFormErrType>(
+      requiredFields, form, setFormErr
+    )
 
-    if (!form.inceptionDate) {
-      errors.inceptionDate = "Please enter a date."
-    } else if (moment(form.inceptionDate).isAfter(moment())) {
-      errors.inceptionDate = "Date cannot be in the future."
-    }
+    // Check inceptionDate is not in the future.
+    const dateValid = validateDateNotFuture<createTeamFormErrType>(
+      "inceptionDate", form.inceptionDate, setFormErr
+    )
 
-    // Emblem (team badge) is required.
+    // Emblem (team badge) is required when creating.
     if (!form.emblem && !isEditing) {
-      errors.dropzoneEmblem = "Please enter an emblem image."
+      setFormErr(prev => ({ ...prev, dropzoneEmblem: "Required." }))
+      isValid = false
     }
 
     // Check for duplicate names.
-    const otherTeams = teams.filter(t => t._id !== form._id)
-    for (const team of otherTeams) {
-      if (team.name.toLowerCase() === form.teamName.toLowerCase()) {
-        errors.teamName = "A team by that name already exists!"
-        break
-      }
-    }
+    const nameValid = validateUniqueName<createTeamFormErrType>(
+      "teamName", form.teamName, teams, form._id, setFormErr, "team"
+    )
 
-    setFormErr(errors)
-    return !Object.values(errors).some(error => error !== "")
+    return isValid && requiredValid && dateValid && nameValid
   }, [form, isEditing, teams])
 
   // Handle form submission for create.

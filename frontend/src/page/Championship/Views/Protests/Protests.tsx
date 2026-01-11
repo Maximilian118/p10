@@ -3,7 +3,7 @@ import "./_protests.scss"
 import { ChampType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { ChampView } from "../ChampSettings/ChampSettings"
-import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { ProtestsFormType, ProtestsFormErrType } from "../../../../shared/formValidation"
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
@@ -17,10 +17,11 @@ interface ProtestsProps {
   setProtestsForm: React.Dispatch<React.SetStateAction<ProtestsFormType>>
   protestsFormErr: ProtestsFormErrType
   setProtestsFormErr: React.Dispatch<React.SetStateAction<ProtestsFormErrType>>
+  backendErr: graphQLErrorType
 }
 
 // Protests settings view for managing protest behavior.
-const Protests: React.FC<ProtestsProps> = ({ protestsForm, setProtestsForm, protestsFormErr }) => {
+const Protests: React.FC<ProtestsProps> = ({ protestsForm, setProtestsForm, protestsFormErr, backendErr }) => {
   // Handle expiry pagination change with validation.
   const handleExpiryChange = (_e: React.ChangeEvent<unknown>, value: number) => {
     if (value < 1 || value > 30) return
@@ -55,7 +56,7 @@ const Protests: React.FC<ProtestsProps> = ({ protestsForm, setProtestsForm, prot
           />
         }
         formErr={protestsFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
     </div>
   )

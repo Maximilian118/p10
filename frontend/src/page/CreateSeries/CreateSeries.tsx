@@ -7,7 +7,7 @@ import { seriesType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { createSeries, editSeries, removeSeries } from "../../shared/requests/seriesRequests"
 import { getDrivers } from "../../shared/requests/driverRequests"
-import { inputLabel, updateForm } from "../../shared/formValidation"
+import { inputLabel, updateForm, validateRequired, validateMinLength } from "../../shared/formValidation"
 import { initDriver } from "../../shared/init"
 import { createdByID } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
@@ -137,28 +137,33 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
 
   // Validate form fields.
   const validateForm = useCallback((): boolean => {
-    const errors: createSeriesFormErrType = {
+    // Reset form errors before validation.
+    setFormErr({
       seriesName: "",
       drivers: "",
       dropzone: "",
-    }
+    })
+
+    let isValid = true
 
     // Series image is required when creating.
     if (!form.icon && !isEditing) {
-      errors.dropzone = "Please enter a series image."
+      setFormErr(prev => ({ ...prev, dropzone: "Required." }))
+      isValid = false
     }
 
-    if (!form.seriesName) {
-      errors.seriesName = "Please enter a series name."
-    }
+    // Check required fields.
+    const requiredValid = validateRequired<createSeriesFormType, createSeriesFormErrType>(
+      ["seriesName"], form, setFormErr
+    )
 
-    if (form.drivers.length < 2) {
-      errors.drivers = "At least 2 drivers are required."
-    }
+    // Check minimum drivers.
+    const driversValid = validateMinLength<createSeriesFormErrType>(
+      "drivers", form.drivers, 2, setFormErr, "At least 2 drivers are required."
+    )
 
-    setFormErr(errors)
-    return !Object.values(errors).some(error => error !== "")
-  }, [form.seriesName, form.drivers.length, form.icon, isEditing])
+    return isValid && requiredValid && driversValid
+  }, [form, isEditing])
 
   // Add a driver to the form.
   const addDriverHandler = (driver: driverType) => {

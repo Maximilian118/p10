@@ -3,7 +3,7 @@ import "./_automation.scss"
 import { ChampType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { ChampView } from "../ChampSettings/ChampSettings"
-import { initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 import FormElContainer from "../../../../components/utility/formElContainer/FormElContainer"
 import { Pagination } from "@mui/material"
@@ -35,10 +35,11 @@ interface AutomationProps {
   setAutomationForm: React.Dispatch<React.SetStateAction<AutomationFormType>>
   automationFormErr: AutomationFormErrType
   setAutomationFormErr: React.Dispatch<React.SetStateAction<AutomationFormErrType>>
+  backendErr: graphQLErrorType
 }
 
 // Automation view for F1 championship automation features.
-const Automation: React.FC<AutomationProps> = ({ automationForm, setAutomationForm, automationFormErr }) => {
+const Automation: React.FC<AutomationProps> = ({ automationForm, setAutomationForm, automationFormErr, backendErr }) => {
   // Handle auto open time pagination change with validation.
   const handleAutoOpenTimeChange = (_e: React.ChangeEvent<unknown>, value: number) => {
     if (value < 1 || value > 30) return
@@ -88,7 +89,7 @@ const Automation: React.FC<AutomationProps> = ({ automationForm, setAutomationFo
           />
         }
         formErr={automationFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
       <MUISwitch
         text="Betting Window Auto Close"
@@ -112,7 +113,7 @@ const Automation: React.FC<AutomationProps> = ({ automationForm, setAutomationFo
           />
         }
         formErr={automationFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
       <div className="extended-divider" />
       <MUISwitch
@@ -137,7 +138,7 @@ const Automation: React.FC<AutomationProps> = ({ automationForm, setAutomationFo
           />
         }
         formErr={automationFormErr}
-        backendErr={initGraphQLError}
+        backendErr={backendErr}
       />
     </div>
   )

@@ -15,62 +15,67 @@ export const badgePickerErrors = (
   setEditFormErr: React.Dispatch<React.SetStateAction<editFormErrType>>,
   champBadges: badgeType[],
 ): boolean => {
-  const errors: editFormErrType = {
+  // Reset errors before validation.
+  setEditFormErr({
     badgeName: "",
     awardedHow: "",
     dropzone: "",
-  }
+  })
 
+  let hasErrors = false
+
+  // Check required fields.
   if (!badge.name) {
-    errors.badgeName = "Please enter a name."
+    setEditFormErr(prev => ({ ...prev, badgeName: "Required." }))
+    hasErrors = true
   }
 
   if (!badge.awardedHow) {
-    errors.awardedHow = "Please select one."
+    setEditFormErr(prev => ({ ...prev, awardedHow: "Required." }))
+    hasErrors = true
   }
 
-  if (isNewBadge) {
-    if (!badge.icon) {
-      errors.dropzone = "Please select an image."
-    }
+  if (isNewBadge && !badge.icon) {
+    setEditFormErr(prev => ({ ...prev, dropzone: "Required." }))
+    hasErrors = true
   }
 
-  // If the current badge is in the array, remove it. Can't use _id to compare but awardedHow's should be unique.
-  const badges = champBadges.filter((b: badgeType) => b.awardedHow !== badge.awardedHow)
+  // Filter out current badge for duplicate checking (using awardedHow as unique identifier).
+  const otherBadges = champBadges.filter((b: badgeType) => b.awardedHow !== badge.awardedHow)
 
-  // Loop through all of the badges in champBadges and check if the current badge has any duplicate values.
-  for (const b of badges) {
+  // Check for duplicates among other badges.
+  for (const b of otherBadges) {
+    // Check for duplicate file names (badge-specific logic).
     if (badge.icon instanceof File) {
       const newFilename = formatString(badge.icon.name)
 
       if (newFilename === formatString(getFilename(b.url))) {
-        errors.dropzone = "Duplicate badge image."
+        setEditFormErr(prev => ({ ...prev, dropzone: "Duplicate badge image." }))
+        hasErrors = true
         break
       }
 
       if (b.file && newFilename === formatString(b.file.name)) {
-        errors.dropzone = "Duplicate badge image."
+        setEditFormErr(prev => ({ ...prev, dropzone: "Duplicate badge image." }))
+        hasErrors = true
         break
       }
     }
 
+    // Check for duplicate names.
     if (b.name.toLowerCase() === badge.name.toLowerCase()) {
-      errors.badgeName = "Duplicate name."
+      setEditFormErr(prev => ({ ...prev, badgeName: "A badge by that name already exists!" }))
+      hasErrors = true
       break
     }
 
+    // Check for duplicate awardedHow values.
     if (b.awardedHow === badge.awardedHow) {
-      errors.badgeName = "Duplicate 'Awarded For'... This is simply illegal!"
+      setEditFormErr(prev => ({ ...prev, awardedHow: "Duplicate 'Awarded For'." }))
+      hasErrors = true
       break
     }
   }
 
-  setEditFormErr((prevErrs) => {
-    return {
-      ...prevErrs,
-      ...errors,
-    }
-  })
-
-  return Object.values(errors).some((error) => error !== "")
+  return hasErrors
 }

@@ -110,24 +110,13 @@ export const weightKGOptions = (): string[] => {
   return opt
 }
 
-// Check that a string has only three letters and all letters are uppercase.
-export const isThreeLettersUppercase = (
-  str: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`,
-) => {
-  // Check if the length of the string is exactly 3
-  if (str.length !== 3) {
-    return false
-  }
-
-  // Check if all the characters in the string are uppercase
-  for (let i = 0; i < str.length; i++) {
-    if (str[i] !== str[i].toUpperCase()) {
-      return false
-    }
-  }
-
-  return true
+// Check that a string has 1-3 uppercase letters only (A-Z).
+export const isValidDriverID = (str: string): boolean => {
+  return /^[A-Z]{1,3}$/.test(str)
 }
+
+// Legacy alias for backwards compatibility.
+export const isThreeLettersUppercase = isValidDriverID
 
 // Retrieve the ID of the user from created_by fields.
 export const createdByID = (created_by?: userType | string): string => {
