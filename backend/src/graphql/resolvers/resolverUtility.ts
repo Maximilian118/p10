@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
-import Champ, { Round, CompetitorEntry } from "../../models/champ"
+import Champ, { Round, CompetitorEntry, PointsStructureEntry } from "../../models/champ"
 import moment from "moment"
 
 // Recalculate team.series based on all drivers' series.
@@ -226,6 +226,160 @@ export const syncTeamDrivers = async (
 }
 
 /**
+ * Converts actual qualifying position to P10-centric rank index.
+ * P10 = 0 (best), P9 = 1, P8 = 2, ..., P1 = 9, P11 = 10, P12 = 11, etc.
+ * This follows the P10 game hierarchy: P10 > P9 > P8 > ... > P1 > P11 > P12 > ...
+ */
+export const positionToRankIndex = (position: number): number => {
+  if (position === 10) return 0 // P10 is the target (best)
+  if (position < 10) return 10 - position // P1-P9: P9=1, P8=2, ..., P1=9
+  return position - 1 // P11=10, P12=11, P13=12, etc.
+}
+
+/**
+ * Calculates and awards points to competitors based on their bets and driver positions.
+ * Handles both standard points structures (Default, F1, Moto GP, Abundant) and Tight Arse mode.
+ *
+ * Updates: competitor.points, competitor.totalPoints, competitor.position
+ * Sets: round.winner, round.runnerUp
+ *
+ * @param round - The round to calculate points for (modified in place)
+ * @param pointsStructure - The championship's points structure
+ */
+export const calculateCompetitorPoints = (
+  round: Round,
+  pointsStructure: PointsStructureEntry[],
+): void => {
+  // Build map of driverId -> positionActual for quick lookup.
+  const driverPositions = new Map<string, number>(
+    round.drivers.map((d) => [d.driver.toString(), d.positionActual]),
+  )
+
+  // Detect Tight Arse mode: only 2 entries, one has position: 0 (runner-up placeholder).
+  const isTightArse =
+    pointsStructure.length === 2 && pointsStructure.some((p) => p.position === 0)
+
+  // For each competitor, determine their bet's finishing position and rank.
+  const competitorResults: Array<{
+    competitorId: string
+    betDriverId: string | null
+    positionActual: number | null
+    rankIndex: number
+  }> = round.competitors.map((c) => {
+    const betDriverId = c.bet?.toString() || null
+    const positionActual = betDriverId ? driverPositions.get(betDriverId) ?? null : null
+    const rankIndex = positionActual !== null ? positionToRankIndex(positionActual) : Infinity
+
+    return {
+      competitorId: c.competitor.toString(),
+      betDriverId,
+      positionActual,
+      rankIndex,
+    }
+  })
+
+  // Sort by rankIndex ascending (best rank = lowest index = first).
+  competitorResults.sort((a, b) => a.rankIndex - b.rankIndex)
+
+  // Reset all competitor points for this round before calculating.
+  round.competitors.forEach((c) => {
+    c.points = 0
+  })
+
+  // Clear winner/runnerUp before calculating.
+  round.winner = null
+  round.runnerUp = null
+
+  if (isTightArse) {
+    // TIGHT ARSE MODE:
+    // Winner (2 pts): ONLY if someone bet on exact P10
+    // Runner-up (1 pt): Best in top 10 using P10 hierarchy (not the winner)
+    const winnerPoints = pointsStructure.find((p) => p.position === 10)?.points || 2
+    const runnerUpPoints = pointsStructure.find((p) => p.position === 0)?.points || 1
+
+    let winnerId: string | null = null
+    let runnerUpId: string | null = null
+
+    for (const result of competitorResults) {
+      // Check for exact P10 winner.
+      if (result.positionActual === 10 && !winnerId) {
+        winnerId = result.competitorId
+        const competitor = round.competitors.find(
+          (c) => c.competitor.toString() === winnerId,
+        )
+        if (competitor) {
+          competitor.points = winnerPoints
+          competitor.totalPoints += winnerPoints
+        }
+      } else if (
+        result.positionActual !== null &&
+        result.positionActual <= 10 &&
+        !runnerUpId &&
+        result.competitorId !== winnerId
+      ) {
+        // Best in top 10 (not winner) = runner-up.
+        runnerUpId = result.competitorId
+        const competitor = round.competitors.find(
+          (c) => c.competitor.toString() === runnerUpId,
+        )
+        if (competitor) {
+          competitor.points = runnerUpPoints
+          competitor.totalPoints += runnerUpPoints
+        }
+      }
+    }
+
+    // Set winner/runnerUp on round.
+    round.winner = winnerId ? new ObjectId(winnerId) : null
+    round.runnerUp = runnerUpId ? new ObjectId(runnerUpId) : null
+  } else {
+    // STANDARD MODE:
+    // Award points based on the driver's actual position matching the pointsStructure.
+    let winnerSet = false
+    let runnerUpSet = false
+
+    competitorResults.forEach((result) => {
+      const competitor = round.competitors.find(
+        (c) => c.competitor.toString() === result.competitorId,
+      )
+      if (!competitor) return
+
+      // Find points for this driver's actual qualifying position.
+      const pointsEntry = pointsStructure.find((p) => p.position === result.positionActual)
+      const pointsEarned = pointsEntry?.points || 0
+
+      competitor.points = pointsEarned
+      competitor.totalPoints += pointsEarned
+
+      // Set winner (first competitor with points) and runnerUp (second with points).
+      if (pointsEarned > 0 && !winnerSet) {
+        round.winner = new ObjectId(result.competitorId)
+        winnerSet = true
+      } else if (pointsEarned > 0 && !runnerUpSet) {
+        round.runnerUp = new ObjectId(result.competitorId)
+        runnerUpSet = true
+      }
+    })
+  }
+
+  // Recalculate standings (position) based on totalPoints.
+  const sortedByTotal = [...round.competitors].sort((a, b) => b.totalPoints - a.totalPoints)
+  sortedByTotal.forEach((sortedCompetitor, idx) => {
+    const original = round.competitors.find(
+      (c) => c.competitor.toString() === sortedCompetitor.competitor.toString(),
+    )
+    if (original) {
+      original.position = idx + 1
+    }
+  })
+
+  console.log(
+    `[calculateCompetitorPoints] Calculated points for ${round.competitors.length} competitors. ` +
+      `Winner: ${round.winner?.toString() || "none"}, RunnerUp: ${round.runnerUp?.toString() || "none"}`,
+  )
+}
+
+/**
  * resultsHandler - Central function for processing round results.
  *
  * This function is called when a round transitions to "results" status.
@@ -392,21 +546,25 @@ export const resultsHandler = async (
   }
 
   // ============================================================================
-  // STEP 2: CALCULATE COMPETITOR POINTS (FUTURE)
+  // STEP 2: CALCULATE COMPETITOR POINTS
   // ============================================================================
-  // TODO: Implement points calculation based on:
-  // - champ.pointsStructure (array of { position, points })
-  // - Each competitor's bet (which driver they picked)
-  // - The actual qualifying results (driver finishing positions)
-  //
-  // Pseudocode:
-  // for each competitor in currentRound.competitors:
-  //   driverPosition = getDriverFinishPosition(competitor.bet)
-  //   pointsEarned = champ.pointsStructure.find(p => p.position === driverPosition)?.points || 0
-  //   competitor.points = pointsEarned
-  //   competitor.totalPoints += pointsEarned
-  //
-  // Then recalculate positions based on totalPoints.
+  // Calculate points for each competitor based on their bet and the driver's actual position.
+  // This also sets round.winner and round.runnerUp, and recalculates standings.
+  calculateCompetitorPoints(currentRound, champ.pointsStructure)
+
+  // Re-sync updated totalPoints and positions to next round if it was already populated.
+  if (hasNextRound) {
+    const nextRound = champ.rounds[roundIndex + 1]
+    currentRound.competitors.forEach((c) => {
+      const nextCompetitor = nextRound.competitors.find(
+        (nc) => nc.competitor.toString() === c.competitor.toString(),
+      )
+      if (nextCompetitor) {
+        nextCompetitor.totalPoints = c.totalPoints
+        nextCompetitor.position = c.position
+      }
+    })
+  }
 
   // ============================================================================
   // STEP 3: AWARD BADGES (FUTURE)

@@ -43,6 +43,7 @@ const Schema = buildSchema(`
     joinChamp(_id: ID!): Champ!
     updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     placeBet(_id: ID!, input: PlaceBetInput!): Champ!
+    submitDriverPositions(_id: ID!, input: SubmitDriverPositionsInput!): Champ!
     deleteChamp(_id: ID!, confirmName: String!): DeletedChamp!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!

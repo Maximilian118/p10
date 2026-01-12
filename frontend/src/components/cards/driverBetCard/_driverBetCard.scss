@@ -99,4 +99,58 @@
       }
     }
   }
+
+  // Position input mode - for adjudicator entering qualifying results
+  &.position-input-mode {
+    cursor: pointer;
+
+    // Position badge - behind driver image, full card coverage
+    .position-badge {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 0;
+      border-radius: 6px;
+
+      span {
+        font-size: 1.75rem;
+        font-weight: 700;
+        opacity: 0.9;
+      }
+
+      &.p1 {
+        background: linear-gradient(135deg, variables.$gold 0%, #FFA500 100%);
+        span { color: variables.$colour-9; }
+      }
+
+      &.p2 {
+        background: linear-gradient(135deg, variables.$silver 0%, #A0A0A0 100%);
+        span { color: variables.$colour-9; }
+      }
+
+      &.p3 {
+        background: linear-gradient(135deg, variables.$bronze 0%, #A0522D 100%);
+        span { color: white; }
+      }
+
+      &.default {
+        background: variables.$colour-1;
+        // span { color: white; }
+      }
+    }
+
+    // Ensure driver image is above badge
+    .driver-icon {
+      z-index: 1;
+    }
+
+    .driver-card-header {
+      z-index: 2;
+    }
+  }
 }

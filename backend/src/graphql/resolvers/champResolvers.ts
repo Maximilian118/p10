@@ -779,6 +779,141 @@ const champResolvers = {
     }
   },
 
+  // Submits driver positions after betting closes (adjudicator or admin only).
+  // This saves the actual qualifying positions and triggers points calculation.
+  submitDriverPositions: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        roundIndex: number
+        driverPositions: { driverId: string; positionActual: number }[]
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("submitDriverPositions", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    const { roundIndex, driverPositions } = input
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("submitDriverPositions", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "submitDriverPositions",
+          req._id,
+          "Only adjudicator or admin can submit driver positions!",
+          403,
+        )
+      }
+
+      // Validate round index.
+      if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
+        return throwError("submitDriverPositions", roundIndex, "Invalid round index!", 400)
+      }
+
+      const round = champ.rounds[roundIndex]
+
+      // Validate round status is betting_closed.
+      if (round.status !== "betting_closed") {
+        return throwError(
+          "submitDriverPositions",
+          round.status,
+          "Can only submit positions when betting is closed!",
+          400,
+        )
+      }
+
+      // Validate all drivers are included.
+      if (driverPositions.length !== round.drivers.length) {
+        return throwError(
+          "submitDriverPositions",
+          driverPositions.length,
+          `Expected ${round.drivers.length} driver positions, got ${driverPositions.length}!`,
+          400,
+        )
+      }
+
+      // Validate positions are sequential 1 to N.
+      const positions = driverPositions.map((dp) => dp.positionActual).sort((a, b) => a - b)
+      for (let i = 0; i < positions.length; i++) {
+        if (positions[i] !== i + 1) {
+          return throwError(
+            "submitDriverPositions",
+            positions,
+            "Positions must be sequential from 1 to N!",
+            400,
+          )
+        }
+      }
+
+      // Update positionActual for each driver in both drivers and randomisedDrivers arrays.
+      driverPositions.forEach(({ driverId, positionActual }) => {
+        const driverEntry = round.drivers.find((d) => d.driver.toString() === driverId)
+        if (driverEntry) {
+          driverEntry.positionActual = positionActual
+        }
+        const randomDriverEntry = round.randomisedDrivers?.find(
+          (d) => d.driver.toString() === driverId,
+        )
+        if (randomDriverEntry) {
+          randomDriverEntry.positionActual = positionActual
+        }
+      })
+
+      // Transition to "results" status - this triggers resultsHandler which calculates points.
+      round.status = "results"
+      round.statusChangedAt = moment().format()
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Call resultsHandler to calculate points and populate next round.
+      await resultsHandler(_id, roundIndex)
+
+      // Re-save after resultsHandler modifies the champ.
+      const updatedChamp = await Champ.findById(_id)
+      if (updatedChamp) {
+        await updatedChamp.save()
+      }
+
+      // Broadcast status change to all users viewing this championship.
+      broadcastRoundStatusChange(io, _id, roundIndex, "results")
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("submitDriverPositions", _id, "Championship not found after update!", 404)
+      }
+
+      console.log(
+        `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
+          `Positions submitted, transitioning to results`,
+      )
+
+      return {
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Updates championship profile picture (admin or adjudicator only).
   updateChampPP: async (
     { _id, icon, profile_picture }: { _id: string; icon: string; profile_picture: string },

@@ -298,6 +298,18 @@ const champSchema = `
     driverId: ID!
   }
 
+  # Input for a single driver's position in qualifying results.
+  input DriverPositionInput {
+    driverId: ID!
+    positionActual: Int!
+  }
+
+  # Input for submitting driver positions after betting closes.
+  input SubmitDriverPositionsInput {
+    roundIndex: Int!
+    driverPositions: [DriverPositionInput!]!
+  }
+
   # Response type for multiple championships.
   type Champs {
     array: [Champ!]!

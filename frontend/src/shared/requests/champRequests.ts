@@ -539,6 +539,56 @@ export const placeBet = async (
   return result
 }
 
+// Submits driver positions after betting closes (adjudicator only).
+// This triggers points calculation and transitions to results view.
+// Returns the updated championship on success, null on failure.
+export const submitDriverPositions = async (
+  champId: string,
+  roundIndex: number,
+  driverPositions: { driverId: string; positionActual: number }[],
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { roundIndex, driverPositions },
+          },
+          query: `
+            mutation SubmitDriverPositions($_id: ID!, $input: SubmitDriverPositionsInput!) {
+              submitDriverPositions(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("submitDriverPositions", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("submitDriverPositions", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("submitDriverPositions", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("submitDriverPositions", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
 // Settings update options.
 interface ChampSettingsUpdate {
   name?: string

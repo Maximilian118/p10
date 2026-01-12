@@ -696,8 +696,12 @@ const Championship: React.FC = () => {
           return (
             <BettingClosedView
               round={viewedRound}
+              roundIndex={currentRoundIndex}
+              champId={champ._id!}
               isAdjudicator={isAdjudicator}
               onAdvance={() => handleAdvanceStatus("results")}
+              setChamp={setChamp}
+              setBackendErr={setBackendErr}
             />
           )
         })()}

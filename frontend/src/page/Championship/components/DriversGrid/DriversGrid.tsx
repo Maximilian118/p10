@@ -14,6 +14,9 @@ interface DriversGridProps {
   betPlacedForMeDriverId?: string | null
   newlyTakenDriverId?: string | null
   disabled?: boolean
+  // Position input mode props (for adjudicator)
+  isPositionInputMode?: boolean
+  positionAssignments?: Map<string, number>
 }
 
 // Finds which competitor (if any) has bet on a specific driver.
@@ -25,7 +28,7 @@ const findCompetitorWithBet = (
 }
 
 // Shared grid component for displaying drivers with bet status.
-// Used by BettingOpenView (interactive) and BettingClosedView (read-only).
+// Used by BettingOpenView (interactive), BettingClosedView (read-only), and position input mode.
 const DriversGrid: React.FC<DriversGridProps> = ({
   round,
   currentUserBetId,
@@ -36,7 +39,9 @@ const DriversGrid: React.FC<DriversGridProps> = ({
   placedForOtherDriverId = null,
   betPlacedForMeDriverId = null,
   newlyTakenDriverId = null,
-  disabled = false
+  disabled = false,
+  isPositionInputMode = false,
+  positionAssignments
 }) => {
   // Get drivers in the randomised order stored on the round.
   const drivers: driverType[] = round.randomisedDrivers?.length
@@ -62,6 +67,11 @@ const DriversGrid: React.FC<DriversGridProps> = ({
         const isPlacedForOther = placedForOtherDriverId === driver._id || isBetPlacedForMe
         const isNewlyTaken = newlyTakenDriverId === driver._id && !isPlacedForOther
 
+        // Get position assigned to this driver in position input mode.
+        const positionAssigned = isPositionInputMode && driver._id
+          ? positionAssignments?.get(driver._id) ?? null
+          : null
+
         return (
           <DriverBetCard
             key={driver._id}
@@ -74,6 +84,8 @@ const DriversGrid: React.FC<DriversGridProps> = ({
             isNewlyTaken={isNewlyTaken}
             onClick={() => handleDriverClick(driver)}
             disabled={disabled || !isInteractive}
+            isPositionInputMode={isPositionInputMode}
+            positionAssigned={positionAssigned}
           />
         )
       })}
