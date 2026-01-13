@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useCallback } from "react"
 import './_badgePickerEdit.scss'
 import DropZone from "../../dropZone/DropZone"
 import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
@@ -14,6 +14,7 @@ import { badgePickerErrors } from "../badgePickerUtility"
 import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
 import { userType } from "../../../../shared/localStorage"
 import { NavigateFunction } from "react-router-dom"
+import { useChampFlowForm } from "../../../../context/ChampFlowContext"
 
 interface badgePickerEditType<T> {
   isEdit: boolean | badgeType
@@ -23,6 +24,7 @@ interface badgePickerEditType<T> {
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   navigate: NavigateFunction
+  embedded?: boolean
 }
 
 interface editFormType {
@@ -46,7 +48,7 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
   }
 }
 
-const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm }: badgePickerEditType<T>) => {
+const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, embedded = true }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -174,7 +176,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   }
 
   // Remove/delete a badge from form.champBadges.
-  const deleteBadgeHandler = () => {
+  const deleteBadgeHandler = useCallback(async () => {
     if (!isNewBadge) {
       setForm(prevForm => {
         return {
@@ -185,7 +187,21 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     }
 
     setIsEdit(false)
-  }
+  }, [isNewBadge, isEdit, setForm, setIsEdit])
+
+  // Back handler for context.
+  const handleBack = useCallback(() => setIsEdit(false), [setIsEdit])
+
+  // Register form handlers with ChampFlowContext for parent ButtonBar to use.
+  const { showButtonBar } = useChampFlowForm({
+    submit: onSubmitHandler,
+    back: handleBack,
+    isEditing: !isNewBadge,
+    loading,
+    delLoading: false,
+    canDelete: !isNewBadge,
+    onDelete: deleteBadgeHandler,
+  }, embedded)
 
   return (
     <div className="badge-picker-edit">
@@ -258,24 +274,26 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           }
         })}
       />
-      <div className="button-bar">
-        <Button
-          className="mui-button-back"
-          variant="contained" 
-          color="inherit"
-          onClick={() => setIsEdit(false)}
-        >Back</Button>
-        {!isNewBadge && <Button
-          variant="contained" 
-          color="error"
-          onClick={() => deleteBadgeHandler()}
-        >Delete</Button>}
-        <Button
-          variant="contained"
-          onClick={() => onSubmitHandler()}
-          disabled={loading}
-        >{loading ? <CircularProgress size={24} /> : "Submit"}</Button>
-      </div>
+      {showButtonBar && (
+        <div className="button-bar">
+          <Button
+            className="mui-button-back"
+            variant="contained"
+            color="inherit"
+            onClick={() => setIsEdit(false)}
+          >Back</Button>
+          {!isNewBadge && <Button
+            variant="contained"
+            color="error"
+            onClick={() => deleteBadgeHandler()}
+          >Delete</Button>}
+          <Button
+            variant="contained"
+            onClick={() => onSubmitHandler()}
+            disabled={loading}
+          >{loading ? <CircularProgress size={24} /> : "Submit"}</Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -4,12 +4,13 @@
 .badge-filter-draw {
   width: 100%;
   position: absolute;
-  bottom: -224.75px;
+  bottom: 0;
+  transform: translateY(100%);
   background: white;
   z-index: 5;
   padding: 18px 12px;
   box-sizing: border-box;
-  transition: bottom 0.3s ease-out;
+  transition: transform 0.3s ease-out;
   @include mixins.flexbox-space-between-column;
   border-top: 2px solid variables.$background;
 
@@ -36,5 +37,5 @@
 }
 
 .badge-draw-open {
-  bottom: 0px;
+  transform: translateY(0);
 }

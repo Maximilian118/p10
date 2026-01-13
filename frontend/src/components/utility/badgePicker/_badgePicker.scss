@@ -3,9 +3,11 @@
 
 .badge-picker {
   width: 100%;
-  @include mixins.flexbox-start-column;
+  position: relative;
+  overflow: hidden;
+  @include mixins.flexbox-space-between-column;
   flex-shrink: 0;
-  background: white;
+  flex-grow: 1;
 
   // Only grow to fill space when showing the loading spinner.
   &:has(.badge-picker-loading) {
