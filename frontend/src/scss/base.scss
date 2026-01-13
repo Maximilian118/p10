@@ -71,6 +71,7 @@ body {
         z-index: 0;
         overflow-y: auto;
         padding: 20px 0;
+        box-sizing: border-box;
 
         .form-background {
           position: absolute;
@@ -180,6 +181,10 @@ body {
             }
           }
         }
+      }
+
+      .home-container {
+        padding: 20px 7.5% !important;
       }
 
       .button-bar {

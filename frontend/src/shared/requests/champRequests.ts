@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { ChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
+import { ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 import { populateChamp } from "./requestPopulation"
@@ -86,6 +86,43 @@ export const getChamps = async (
   }
 
   setLoading(false)
+}
+
+// Fetches the user's most actionable championship (lightweight for FloatingChampCard).
+export const getMyTopChampionship = async (
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+): Promise<FloatingChampType | null> => {
+  try {
+    const res: AxiosResponse = await axios.post(
+      "",
+      {
+        variables: {},
+        query: `
+          query {
+            getMyTopChampionship {
+              _id
+              name
+              icon
+              currentRoundStatus
+              tokens
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      return null
+    }
+
+    const result = graphQLResponse("getMyTopChampionship", res, user, setUser) as FloatingChampType | null
+    return result
+  } catch {
+    return null
+  }
 }
 
 // Creates a new championship with all form data

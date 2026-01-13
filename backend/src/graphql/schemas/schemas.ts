@@ -27,6 +27,7 @@ const Schema = buildSchema(`
     getTeamById(_id: ID!): Team!
     getChamps: Champs
     getChampById(_id: ID!): Champ!
+    getMyTopChampionship: FloatingChamp
   }
 
   type rootMutation {

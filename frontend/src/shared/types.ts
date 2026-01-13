@@ -320,3 +320,11 @@ export interface ChampType {
   updated_at: string
   tokens: string
 }
+
+// Lightweight championship data for FloatingChampCard.
+export interface FloatingChampType {
+  _id: string
+  name: string
+  icon: string
+  currentRoundStatus: RoundStatus
+}

@@ -322,6 +322,15 @@ const champSchema = `
     name: String!
     tokens: [String!]
   }
+
+  # Lightweight championship data for FloatingChampCard.
+  type FloatingChamp {
+    _id: ID!
+    name: String!
+    icon: String
+    currentRoundStatus: RoundStatus!
+    tokens: [String!]
+  }
 `
 
 export default champSchema

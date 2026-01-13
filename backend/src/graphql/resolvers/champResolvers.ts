@@ -177,7 +177,80 @@ const populateRoundData = async (
   return { competitors, drivers, randomisedDrivers, teams }
 }
 
+// Priority map for round statuses (lower = more urgent).
+const STATUS_PRIORITY: Record<RoundStatus, number> = {
+  betting_open: 1,
+  countDown: 2,
+  betting_closed: 3,
+  results: 4,
+  waiting: 5,
+  completed: 6,
+}
+
+// Lightweight return type for getMyTopChampionship.
+interface FloatingChampType {
+  _id: string
+  name: string
+  icon: string
+  currentRoundStatus: RoundStatus
+  tokens: string[]
+}
+
 const champResolvers = {
+  // Returns the user's most actionable championship (lightweight for FloatingChampCard).
+  // Prioritizes by round status urgency, then by most recently updated.
+  getMyTopChampionship: async (
+    _args: Record<string, never>,
+    req: AuthRequest,
+  ): Promise<FloatingChampType | null> => {
+    if (!req.isAuth) {
+      throwError("getMyTopChampionship", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Find championships where user is a competitor (minimal projection).
+      const userChamps = await Champ.find(
+        { competitors: new ObjectId(req._id) },
+        { _id: 1, name: 1, icon: 1, rounds: 1, updated_at: 1 },
+      ).exec()
+
+      if (userChamps.length === 0) {
+        return null
+      }
+
+      // Get current round status for each championship.
+      const champsWithStatus = userChamps.map((champ) => {
+        const currentRound = champ.rounds.find((r) => r.status !== "completed") || champ.rounds[champ.rounds.length - 1]
+        const currentRoundStatus: RoundStatus = currentRound?.status || "completed"
+        return {
+          champ,
+          currentRoundStatus,
+          priority: STATUS_PRIORITY[currentRoundStatus],
+        }
+      })
+
+      // Sort by priority (ascending), then by updated_at (descending).
+      champsWithStatus.sort((a, b) => {
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority
+        }
+        return new Date(b.champ.updated_at).getTime() - new Date(a.champ.updated_at).getTime()
+      })
+
+      const topChamp = champsWithStatus[0]
+
+      return {
+        _id: topChamp.champ._id.toString(),
+        name: topChamp.champ.name,
+        icon: topChamp.champ.icon || "",
+        currentRoundStatus: topChamp.currentRoundStatus,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Fetches a championship by ID with all populated references.
   getChampById: async ({ _id }: { _id: string }, req: AuthRequest): Promise<ChampType> => {
     if (!req.isAuth) {
