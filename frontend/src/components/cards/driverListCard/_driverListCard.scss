@@ -61,11 +61,6 @@
     background: rgba(0, 0, 0, 0.06);
   }
 
-  // Adds spacing between consecutive DriverListCards.
-  & + .driver-list-card {
-    margin-top: 2px;
-  }
-
   // Highlight animation for newly created drivers.
   &__highlight {
     animation: highlightFade 1.5s ease-out forwards;
