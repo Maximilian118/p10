@@ -596,46 +596,27 @@ const Championship: React.FC = () => {
   // Force banner to be fully shrunk when in round status views or confirmation.
   const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm ? 1 : shrinkRatio
 
-  // Compute round viewing state.
-  const currentRoundIndex = champ.rounds.findIndex(r => r.status !== "completed")
-  const effectiveCurrentIndex = currentRoundIndex === -1 ? champ.rounds.length - 1 : currentRoundIndex
-  const viewedIndex = viewedRoundIndex ?? effectiveCurrentIndex
+  // Compute round viewing state - based on COMPLETED rounds only.
+  // Users can only navigate between completed rounds; "waiting" rounds are not viewable.
+  const completedRoundsCount = champ.rounds.filter(r => r.status === "completed").length
+  const lastCompletedIndex = completedRoundsCount - 1 // -1 if none completed
+
+  // viewedIndex can only be a completed round (or show pre-season from round 0).
+  const viewedIndex = viewedRoundIndex !== null
+    ? Math.min(viewedRoundIndex, Math.max(0, lastCompletedIndex))
+    : Math.max(0, lastCompletedIndex)
+
+  // When no rounds completed, show "pre-season" standings from round 0.
   const viewedRound = champ.rounds[viewedIndex]
-  // Round number is 1-indexed for display.
-  const viewedRoundNumber = viewedRound?.round ?? effectiveCurrentIndex + 1
 
-  // Finds the most recent round with driver/team data for fallback display.
-  // Driver/team data only gets populated when a round starts, so "waiting" rounds are empty.
-  const getEffectiveRoundForStandings = (
-    dataKey: 'drivers' | 'teams'
-  ) => {
-    // First try the viewed round.
-    if (viewedRound?.[dataKey]?.length > 0) return viewedRound
+  // Active round index and data - the round currently in progress (for status views/API calls).
+  const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
+  const activeRound = activeRoundIndex >= 0 ? champ.rounds[activeRoundIndex] : null
 
-    // Fall back to most recent round with data (search backwards).
-    for (let i = viewedIndex - 1; i >= 0; i--) {
-      if (champ.rounds[i]?.[dataKey]?.length > 0) return champ.rounds[i]
-    }
-
-    // Return original even if empty (shows 0 points for new champs).
-    return viewedRound
-  }
-
-  // Gets the "display points" for competitors - shows previous round's points when current round has 0.
-  // This ensures the "+X" indicator shows the most recent points earned.
-  const getCompetitorDisplayPoints = (competitorId: string): number => {
-    // If viewed round has points for this competitor, use it.
-    const currentEntry = viewedRound?.competitors.find(c => c.competitor._id === competitorId)
-    if (currentEntry && currentEntry.points > 0) return currentEntry.points
-
-    // Fall back to most recent round with points for this competitor.
-    for (let i = viewedIndex - 1; i >= 0; i--) {
-      const prevEntry = champ.rounds[i]?.competitors.find(c => c.competitor._id === competitorId)
-      if (prevEntry && prevEntry.points > 0) return prevEntry.points
-    }
-
-    return 0
-  }
+  // Round number for display - shows active round when in progress, otherwise completed count.
+  const viewedRoundNumber = activeRoundIndex >= 0
+    ? activeRoundIndex + 1  // Show active round number when a round is in progress.
+    : (completedRoundsCount > 0 ? viewedIndex + 1 : 0)  // Show viewed completed round.
 
   return (
     <>
@@ -683,8 +664,8 @@ const Championship: React.FC = () => {
       {view === "competitors" && !isInRoundStatusView && !showStartConfirm && (
         <RoundsBar
           totalRounds={champ.rounds.length}
+          completedRounds={completedRoundsCount}
           viewedRoundIndex={viewedIndex}
-          currentRoundIndex={effectiveCurrentIndex}
           standingsView={standingsView}
           setViewedRoundIndex={setViewedRoundIndex}
           setStandingsView={setStandingsView}
@@ -694,19 +675,19 @@ const Championship: React.FC = () => {
       )}
 
       <div className="content-container" onScroll={handleScroll}>
-        {/* Round Status Views - shown during active round states */}
-        {isInRoundStatusView && roundStatusView === "countDown" && viewedRound && (
+        {/* Round Status Views - shown during active round states (use activeRound, not viewedRound) */}
+        {isInRoundStatusView && roundStatusView === "countDown" && activeRound && (
           <CountDownView
-            round={viewedRound}
+            round={activeRound}
             isAdjudicator={isAdjudicator}
             onSkipTimer={() => handleAdvanceStatus("betting_open")}
           />
         )}
-        {isInRoundStatusView && roundStatusView === "betting_open" && viewedRound && id && (
+        {isInRoundStatusView && roundStatusView === "betting_open" && activeRound && id && (
           <BettingOpenView
-            round={viewedRound}
+            round={activeRound}
             champId={id}
-            roundIndex={viewedIndex}
+            roundIndex={activeRoundIndex}
             isAdjudicator={isAdjudicator}
             onAdvance={() => handleAdvanceStatus("betting_closed")}
             lastRejectedBet={lastRejectedBet}
@@ -715,12 +696,12 @@ const Championship: React.FC = () => {
             competitorsCanBet={champ.settings.competitorsCanBet}
           />
         )}
-        {isInRoundStatusView && roundStatusView === "betting_closed" && viewedRound && (() => {
+        {isInRoundStatusView && roundStatusView === "betting_closed" && activeRound && (() => {
           const APIViewComponent = champ.series.hasAPI ? getAPIView(champ.series.shortName) : null
           if (APIViewComponent) {
             return (
               <APIViewComponent
-                round={viewedRound}
+                round={activeRound}
                 isAdjudicator={isAdjudicator}
                 onAdvance={() => handleAdvanceStatus("results")}
               />
@@ -728,8 +709,8 @@ const Championship: React.FC = () => {
           }
           return (
             <BettingClosedView
-              round={viewedRound}
-              roundIndex={currentRoundIndex}
+              round={activeRound}
+              roundIndex={activeRoundIndex}
               champId={champ._id!}
               isAdjudicator={isAdjudicator}
               onAdvance={() => handleAdvanceStatus("results")}
@@ -738,9 +719,9 @@ const Championship: React.FC = () => {
             />
           )
         })()}
-        {isInRoundStatusView && roundStatusView === "results" && viewedRound && (
+        {isInRoundStatusView && roundStatusView === "results" && activeRound && (
           <ResultsView
-            round={viewedRound}
+            round={activeRound}
             isAdjudicator={isAdjudicator}
             onSkipTimer={() => handleAdvanceStatus("completed")}
           />
@@ -751,7 +732,7 @@ const Championship: React.FC = () => {
           <ConfirmView
             variant="success"
             icon={<PlayArrowIcon />}
-            heading="Start Round?"
+            heading={`Start Round ${completedRoundsCount + 1}?`}
             paragraphs={[
               "This will begin the countdown.",
               "Betting will open shortly after."
@@ -774,33 +755,28 @@ const Championship: React.FC = () => {
                   <CompetitorListCard
                     key={c.competitor._id || i}
                     highlight={justJoined && c.competitor._id === user._id}
-                    entry={{
-                      ...c,
-                      points: getCompetitorDisplayPoints(c.competitor._id),
-                    }}
+                    entry={c}
                   />
                 ))
               }
-              {standingsView === "drivers" && viewedRound && (() => {
-                const effectiveRound = getEffectiveRoundForStandings('drivers')
-                return getAllDriversForRound(champ.series, effectiveRound || viewedRound).map((d, i) => (
+              {standingsView === "drivers" && viewedRound &&
+                getAllDriversForRound(champ.series, viewedRound).map((d, i) => (
                   <DriverListCard
                     key={d.driver._id || i}
                     driver={d.driver}
                     entry={d}
                   />
                 ))
-              })()}
-              {standingsView === "teams" && viewedRound && (() => {
-                const effectiveRound = getEffectiveRoundForStandings('teams')
-                return getAllTeamsForRound(champ.series, effectiveRound || viewedRound).map((t, i) => (
+              }
+              {standingsView === "teams" && viewedRound &&
+                getAllTeamsForRound(champ.series, viewedRound).map((t, i) => (
                   <TeamListCard
                     key={t.team._id || i}
                     team={t.team}
                     entry={t}
                   />
                 ))
-              })()}
+              }
             </div>
         )}
 

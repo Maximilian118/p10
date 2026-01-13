@@ -48,8 +48,8 @@ type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnly
 
 // Renders quick stats for the championship banner.
 const ChampBannerStats = ({ champ, viewedRoundNumber }: { champ: ChampType; viewedRoundNumber?: number }) => {
-  // Use viewedRoundNumber if provided, otherwise calculate current round.
-  const displayedRound = viewedRoundNumber ?? (champ.rounds.find(r => r.status !== "completed")?.round || champ.rounds.length)
+  // viewedRoundNumber represents completed rounds count (0 = pre-season, 1 = after round 1, etc.).
+  const displayedRound = viewedRoundNumber ?? 0
   const autoNextRound = champ.settings.automation?.enabled && champ.settings.automation?.round?.autoNextRound
 
   return (

@@ -11,8 +11,8 @@ export type StandingsView = "competitors" | "drivers" | "teams"
 
 interface RoundsBarProps {
   totalRounds: number
+  completedRounds: number // Number of completed rounds (0 = pre-season).
   viewedRoundIndex: number
-  currentRoundIndex: number
   standingsView: StandingsView
   setViewedRoundIndex: (index: number | null) => void
   setStandingsView: (view: StandingsView) => void
@@ -22,17 +22,20 @@ interface RoundsBarProps {
 
 // Navigation bar for browsing championship rounds and switching between standings views.
 const RoundsBar: React.FC<RoundsBarProps> = ({
+  totalRounds,
+  completedRounds,
   viewedRoundIndex,
-  currentRoundIndex,
   standingsView,
   setViewedRoundIndex,
   setStandingsView,
   isAdjudicator,
   onStartNextRound,
 }) => {
-  const isViewingCurrent = viewedRoundIndex === currentRoundIndex
+  // Navigation constraints - can only view completed rounds.
+  const lastCompletedIndex = Math.max(0, completedRounds - 1)
+  const isAtLatestCompleted = viewedRoundIndex >= lastCompletedIndex
   const canGoBack = viewedRoundIndex > 0
-  const canGoForward = !isViewingCurrent
+  const canGoForward = completedRounds > 0 && viewedRoundIndex < lastCompletedIndex
 
   // Navigate to previous round.
   const handlePrevRound = () => {
@@ -41,12 +44,12 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
     }
   }
 
-  // Navigate to next round or return to current.
+  // Navigate to next completed round.
   const handleNextRound = () => {
     if (canGoForward) {
       const nextIndex = viewedRoundIndex + 1
-      // If reaching current, set to null to indicate "current"
-      setViewedRoundIndex(nextIndex >= currentRoundIndex ? null : nextIndex)
+      // If reaching latest completed, set to null to indicate "latest".
+      setViewedRoundIndex(nextIndex >= lastCompletedIndex ? null : nextIndex)
     }
   }
 
@@ -66,8 +69,8 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
 
   // Determine button 5 state and content.
   const renderRightButton = () => {
-    if (!isViewingCurrent) {
-      // Viewing historical round - show forward arrow
+    // Can navigate forward to more completed rounds.
+    if (canGoForward) {
       return (
         <ToggleButton
           value="forward"
@@ -79,8 +82,8 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
       )
     }
 
-    if (isAdjudicator) {
-      // Adjudicator at current round - show start next round button
+    // At latest completed round - adjudicator can start next round if more rounds exist.
+    if (isAdjudicator && completedRounds < totalRounds) {
       return (
         <ToggleButton
           value="start"
@@ -93,7 +96,7 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
       )
     }
 
-    // Non-adjudicator at current round - show waiting icon
+    // Non-adjudicator at latest completed round or all rounds done - show waiting/done icon.
     return (
       <ToggleButton
         value="close"
