@@ -173,14 +173,15 @@ export const getTeamsFromRound = (round: RoundType): TeamEntryType[] => {
 }
 
 // Get all drivers from series, with entry data if available in round.
+// Uses String() conversion for ID comparison to handle ObjectId vs string type mismatches.
 export const getAllDriversForRound = (
   series: seriesType,
   round: RoundType
 ): DriverEntryType[] => {
-  const entryMap = new Map(round.drivers?.map(d => [d.driver._id, d]) || [])
+  const entryMap = new Map(round.drivers?.map(d => [String(d.driver._id), d]) || [])
 
   const sorted = series.drivers.map(driver => {
-    const existing = entryMap.get(driver._id)
+    const existing = entryMap.get(String(driver._id))
     if (existing) return existing
     // Create default entry with 0 points.
     return {
@@ -198,11 +199,12 @@ export const getAllDriversForRound = (
 }
 
 // Get all unique teams from series drivers, with entry data if available.
+// Uses String() conversion for ID comparison to handle ObjectId vs string type mismatches.
 export const getAllTeamsForRound = (
   series: seriesType,
   round: RoundType
 ): TeamEntryType[] => {
-  const entryMap = new Map(round.teams?.map(t => [t.team._id, t]) || [])
+  const entryMap = new Map(round.teams?.map(t => [String(t.team._id), t]) || [])
 
   // Collect unique teams and their drivers from series data.
   const teamsMap = new Map<string, teamType>()
@@ -222,7 +224,7 @@ export const getAllTeamsForRound = (
   })
 
   const sorted = Array.from(teamsMap.values()).map(team => {
-    const existing = entryMap.get(team._id)
+    const existing = entryMap.get(String(team._id))
     // Build team with drivers populated from series data.
     const teamWithDrivers = {
       ...team,

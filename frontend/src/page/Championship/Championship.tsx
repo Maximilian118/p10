@@ -604,6 +604,23 @@ const Championship: React.FC = () => {
   // Round number is 1-indexed for display.
   const viewedRoundNumber = viewedRound?.round ?? effectiveCurrentIndex + 1
 
+  // Finds the most recent round with driver/team data for fallback display.
+  // Driver/team data only gets populated when a round starts, so "waiting" rounds are empty.
+  const getEffectiveRoundForStandings = (
+    dataKey: 'drivers' | 'teams'
+  ) => {
+    // First try the viewed round.
+    if (viewedRound?.[dataKey]?.length > 0) return viewedRound
+
+    // Fall back to most recent round with data (search backwards).
+    for (let i = viewedIndex - 1; i >= 0; i--) {
+      if (champ.rounds[i]?.[dataKey]?.length > 0) return champ.rounds[i]
+    }
+
+    // Return original even if empty (shows 0 points for new champs).
+    return viewedRound
+  }
+
   return (
     <>
       {/* Banner outside scroll container to avoid feedback loop when shrinking */}
@@ -745,24 +762,26 @@ const Championship: React.FC = () => {
                   />
                 ))
               }
-              {standingsView === "drivers" && viewedRound &&
-                getAllDriversForRound(champ.series, viewedRound).map((d, i) => (
+              {standingsView === "drivers" && viewedRound && (() => {
+                const effectiveRound = getEffectiveRoundForStandings('drivers')
+                return getAllDriversForRound(champ.series, effectiveRound || viewedRound).map((d, i) => (
                   <DriverListCard
                     key={d.driver._id || i}
                     driver={d.driver}
                     entry={d}
                   />
                 ))
-              }
-              {standingsView === "teams" && viewedRound &&
-                getAllTeamsForRound(champ.series, viewedRound).map((t, i) => (
+              })()}
+              {standingsView === "teams" && viewedRound && (() => {
+                const effectiveRound = getEffectiveRoundForStandings('teams')
+                return getAllTeamsForRound(champ.series, effectiveRound || viewedRound).map((t, i) => (
                   <TeamListCard
                     key={t.team._id || i}
                     team={t.team}
                     entry={t}
                   />
                 ))
-              }
+              })()}
             </div>
         )}
 
