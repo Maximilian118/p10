@@ -329,6 +329,8 @@ const champSchema = `
     name: String!
     icon: String
     currentRoundStatus: RoundStatus!
+    currentRound: Int!
+    totalRounds: Int!
     tokens: [String!]
   }
 `

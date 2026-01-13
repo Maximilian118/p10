@@ -327,4 +327,6 @@ export interface FloatingChampType {
   name: string
   icon: string
   currentRoundStatus: RoundStatus
+  currentRound: number
+  totalRounds: number
 }

@@ -193,6 +193,8 @@ interface FloatingChampType {
   name: string
   icon: string
   currentRoundStatus: RoundStatus
+  currentRound: number
+  totalRounds: number
   tokens: string[]
 }
 
@@ -218,13 +220,15 @@ const champResolvers = {
         return null
       }
 
-      // Get current round status for each championship.
+      // Get current round status and number for each championship.
       const champsWithStatus = userChamps.map((champ) => {
-        const currentRound = champ.rounds.find((r) => r.status !== "completed") || champ.rounds[champ.rounds.length - 1]
-        const currentRoundStatus: RoundStatus = currentRound?.status || "completed"
+        const currentRoundObj = champ.rounds.find((r) => r.status !== "completed") || champ.rounds[champ.rounds.length - 1]
+        const currentRoundStatus: RoundStatus = currentRoundObj?.status || "completed"
+        const currentRound = currentRoundObj?.round || champ.rounds.length
         return {
           champ,
           currentRoundStatus,
+          currentRound,
           priority: STATUS_PRIORITY[currentRoundStatus],
         }
       })
@@ -244,6 +248,8 @@ const champResolvers = {
         name: topChamp.champ.name,
         icon: topChamp.champ.icon || "",
         currentRoundStatus: topChamp.currentRoundStatus,
+        currentRound: topChamp.currentRound,
+        totalRounds: topChamp.champ.rounds.length,
         tokens: req.tokens,
       }
     } catch (err) {

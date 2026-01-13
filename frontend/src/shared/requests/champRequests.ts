@@ -106,6 +106,8 @@ export const getMyTopChampionship = async (
               name
               icon
               currentRoundStatus
+              currentRound
+              totalRounds
               tokens
             }
           }
