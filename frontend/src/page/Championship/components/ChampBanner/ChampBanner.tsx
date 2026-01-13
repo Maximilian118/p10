@@ -14,6 +14,7 @@ import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import RotateRightIcon from "@mui/icons-material/RotateRight"
 import AutoModeIcon from "@mui/icons-material/AutoMode"
 import PersonIcon from "@mui/icons-material/Person"
+import ChampBannerStats from "../ChampBannerStats/ChampBannerStats"
 
 // Props for editable championship banner (when user is adjudicator).
 interface champBannerEditableType<T, U> {
@@ -46,32 +47,17 @@ interface champBannerReadOnlyType {
 
 type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnlyType
 
-// Renders quick stats for the championship banner.
-const ChampBannerStats = ({ champ, viewedRoundNumber }: { champ: ChampType; viewedRoundNumber?: number }) => {
-  // viewedRoundNumber represents completed rounds count (0 = pre-season, 1 = after round 1, etc.).
+// Generates the bottom stats array for the championship banner.
+const getBottomStats = (champ: ChampType, viewedRoundNumber?: number) => {
   const displayedRound = viewedRoundNumber ?? 0
   const autoNextRound = champ.settings.automation?.enabled && champ.settings.automation?.round?.autoNextRound
 
-  return (
-    <div className="champ-banner-stats">
-      <div className="champ-stat">
-        {autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />}
-        <span>{displayedRound}/{champ.rounds.length}</span>
-      </div>
-      <div className="champ-stat">
-        <PersonIcon />
-        <span>{getCompetitors(champ).length}/{champ.settings.maxCompetitors}</span>
-      </div>
-      <div className="champ-stat">
-        <SportsMotorsportsIcon />
-        <span>{champ.series.drivers.length}</span>
-      </div>
-      <div className="champ-stat">
-        <WorkspacePremiumIcon />
-        <span>{champ.champBadges.length}</span>
-      </div>
-    </div>
-  )
+  return [
+    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds.length}` },
+    { icon: <PersonIcon />, value: `${getCompetitors(champ).length}/${champ.settings.maxCompetitors}` },
+    { icon: <SportsMotorsportsIcon />, value: champ.series.drivers.length },
+    { icon: <WorkspacePremiumIcon />, value: champ.champBadges.length }
+  ]
 }
 
 // Displays championship banner with profile picture, name, and stats.
@@ -92,7 +78,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
+          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
         </div>
       </div>
     )
@@ -118,7 +104,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
+          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
         </>
       )
     }
@@ -130,7 +116,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats champ={champ} viewedRoundNumber={viewedRoundNumber} />
+          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
         </>
       )
     } else {

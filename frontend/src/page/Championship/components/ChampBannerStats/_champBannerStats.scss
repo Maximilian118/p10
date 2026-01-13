@@ -1,0 +1,39 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+// Displays a row of championship stats with icons and values.
+.champ-banner-stats {
+  width: 100%;
+  display: flex;
+  justify-content: start;
+  gap: 6px;
+  // Keep stats vertically centered when name is hidden.
+  align-self: center;
+  // Spacing for bottom stats row.
+  &:last-child {
+    margin-bottom: 10px;
+  }
+  // Spacing for top stats row.
+  &:first-child {
+    margin-top: 10px;
+  }
+
+  @media (min-width: 400px) {
+    gap: 15px;
+  }
+
+  .champ-stat {
+    @include mixins.flexbox;
+    gap: 4px;
+    color: variables.$colour-6;
+
+    svg {
+      font-size: 18px;
+    }
+
+    span {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
+}

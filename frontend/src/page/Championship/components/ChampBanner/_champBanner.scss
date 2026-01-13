@@ -66,34 +66,5 @@
     h5 {
       font-weight: 300;
     }
-
-    .champ-banner-stats {
-      width: 100%;
-      display: flex;
-      justify-content: start;
-      gap: 6px;
-      margin-bottom: 10px;
-      // Keep stats vertically centered when name is hidden.
-      align-self: center;
-
-      @media (min-width: 400px) {
-        gap: 15px;
-      }
-
-      .champ-stat {
-        @include mixins.flexbox;
-        gap: 4px;
-        color: variables.$colour-6;
-
-        svg {
-          font-size: 18px;
-        }
-
-        span {
-          font-size: 14px;
-          font-weight: 500;
-        }
-      }
-    }
   }
 }
