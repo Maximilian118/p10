@@ -621,6 +621,22 @@ const Championship: React.FC = () => {
     return viewedRound
   }
 
+  // Gets the "display points" for competitors - shows previous round's points when current round has 0.
+  // This ensures the "+X" indicator shows the most recent points earned.
+  const getCompetitorDisplayPoints = (competitorId: string): number => {
+    // If viewed round has points for this competitor, use it.
+    const currentEntry = viewedRound?.competitors.find(c => c.competitor._id === competitorId)
+    if (currentEntry && currentEntry.points > 0) return currentEntry.points
+
+    // Fall back to most recent round with points for this competitor.
+    for (let i = viewedIndex - 1; i >= 0; i--) {
+      const prevEntry = champ.rounds[i]?.competitors.find(c => c.competitor._id === competitorId)
+      if (prevEntry && prevEntry.points > 0) return prevEntry.points
+    }
+
+    return 0
+  }
+
   return (
     <>
       {/* Banner outside scroll container to avoid feedback loop when shrinking */}
@@ -758,7 +774,10 @@ const Championship: React.FC = () => {
                   <CompetitorListCard
                     key={c.competitor._id || i}
                     highlight={justJoined && c.competitor._id === user._id}
-                    entry={c}
+                    entry={{
+                      ...c,
+                      points: getCompetitorDisplayPoints(c.competitor._id),
+                    }}
                   />
                 ))
               }
