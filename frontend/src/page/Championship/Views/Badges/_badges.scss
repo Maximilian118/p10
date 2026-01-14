@@ -1,0 +1,11 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.badges-view {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  flex-grow: 1;
+  background: white;
+  box-sizing: border-box;
+}

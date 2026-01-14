@@ -23,6 +23,8 @@ interface badgePickerType<T> {
   setBadgesReqSent?: React.Dispatch<React.SetStateAction<boolean>>
   defaultBadges?: badgeType[]
   setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
+  readOnly?: boolean // Hides toolbar and disables badge click for non-adjudicators.
+  showUnearnedOverlay?: boolean // Shows overlay on badges where awardedTo.length === 0.
 }
 
 const BadgePicker = <T extends { champBadges: badgeType[] }>({
@@ -36,6 +38,8 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   setBadgesReqSent,
   defaultBadges,
   setDefaultBadges,
+  readOnly = false,
+  showUnearnedOverlay = false,
 }: badgePickerType<T>) => {
   const [ isEdit, setIsEdit ] = useState<boolean | badgeType>(false) // Fill with badge info to edit or false to close BadgePickerEdit.
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -75,11 +79,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         </div> : 
         badgesFiltered.length > 0 ?
         <div className="badge-list-container">
-          {badgesFiltered.map((badge: badgeType, i: number) => (
-            <div key={i} className="badge-item">
-              <Badge badge={badge} zoom={badge.zoom} onClick={() => setIsEdit(badge)}/>
-            </div>
-          ))}      
+          {badgesFiltered.map((badge: badgeType, i: number) => {
+            // Determine if badge is unearned (nobody has it yet).
+            const isUnearned = showUnearnedOverlay && (!badge.awardedTo || badge.awardedTo.length === 0)
+            return (
+              <div key={i} className={`badge-item ${isUnearned ? "badge-item-unearned" : ""}`}>
+                <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)}/>
+                {isUnearned && <div className="unearned-overlay" />}
+              </div>
+            )
+          })}
         </div> :
         <div className="badge-list-empty">
           {backendErr.message ? 
@@ -88,11 +97,13 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
           }
         </div>
       }
-      <BadgePickerToolbar
-        setIsEdit={setIsEdit}
-        draw={draw}
-        setDraw={setDraw}
-      />
+      {!readOnly && (
+        <BadgePickerToolbar
+          setIsEdit={setIsEdit}
+          draw={draw}
+          setDraw={setDraw}
+        />
+      )}
       <BadgeFilterDraw
         draw={draw}
         setDraw={setDraw}

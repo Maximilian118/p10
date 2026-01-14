@@ -76,7 +76,11 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
     {
       icon: <WorkspacePremiumIcon />,
       label: "Badges",
-      onClick: handleClose,
+      onClick: () => {
+        setOpen(false)
+        setView("badges")
+      },
+      viewId: "badges",
     },
     {
       icon: <BarChartIcon />,

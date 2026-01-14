@@ -504,6 +504,7 @@ export const populateChamp = `
     url
     name
     rarity
+    awardedTo
     awardedHow
     awardedDesc
     zoom

@@ -19,6 +19,7 @@ import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
 import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/Automation/Automation"
 import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
+import Badges from "./Views/Badges/Badges"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
 import { getChampById, updateChampSettings, updateRoundStatus } from "../../shared/requests/champRequests"
@@ -853,6 +854,18 @@ const Championship: React.FC = () => {
             setUser={setUser}
             backendErr={backendErr}
             setBackendErr={setBackendErr}
+          />
+        )}
+
+        {view === "badges" && (
+          <Badges
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            isAdjudicator={isAdjudicator}
           />
         )}
 
