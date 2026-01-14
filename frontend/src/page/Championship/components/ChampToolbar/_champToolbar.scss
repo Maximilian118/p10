@@ -4,8 +4,8 @@
 
 .champ-toolbar {
   width: 100%;
-  @include mixins.flexbox-end;
-  padding: 20px;
+  @include mixins.flexbox-space-between;
+  padding: 20px 7.5%;
   box-sizing: border-box;
   position: absolute;
   bottom: 0;
@@ -16,13 +16,19 @@
     pointer-events: all;
   }
 
-  > *:not(:first-child) {
-    margin-left: 10px;
+  // Push single item to the right.
+  > *:only-child {
+    margin-left: auto;
+  }
+
+  .badge-buttons {
+    > *:first-child {
+    margin-right: 10px;
+  }
   }
 
   .champ-toolbar-back {
     background-color: variables.$colour-4 !important;
-    margin-right: auto;
 
     &:hover {
       background-color: color.adjust(variables.$colour-4, $lightness: -10%) !important;
@@ -39,8 +45,27 @@
 
   .champ-toolbar-save {
     background-color: variables.$mui-success !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+
+    &:hover {
+      background-color: variables.$mui-success-hover !important;
+    }
+
+    &:disabled {
+      background-color: variables.$colour-4 !important;
+      color: rgba(0, 0, 0, 0.26) !important;
+    }
+  }
+
+  .champ-toolbar-add {
+    background-color: variables.$mui-success !important;
+
+    &:hover {
+      background-color: variables.$mui-success-hover !important;
+    }
+  }
+
+  .champ-toolbar-submit {
+    background-color: variables.$mui-success !important;
 
     &:hover {
       background-color: variables.$mui-success-hover !important;

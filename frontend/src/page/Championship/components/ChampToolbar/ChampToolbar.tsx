@@ -1,9 +1,9 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
-import { Button } from "@mui/material"
+import { Button, CircularProgress } from "@mui/material"
 import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save } from "@mui/icons-material"
-import { ChampType } from "../../../../shared/types"
+import { ChampType, badgeType } from "../../../../shared/types"
 import { getCompetitors } from "../../../../shared/utility"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
@@ -11,6 +11,7 @@ import { joinChamp } from "../../../../shared/requests/champRequests"
 import { ChampView, ChampSettingsFormErrType } from "../../Views/ChampSettings/ChampSettings"
 import { AutomationFormErrType } from "../../Views/Automation/Automation"
 import { ProtestsFormErrType, RuleChangesFormErrType } from "../../../../shared/formValidation"
+import AddButton from "../../../../components/utility/button/addButton/AddButton"
 
 interface champToolbarType {
   champ: ChampType
@@ -35,10 +36,17 @@ interface champToolbarType {
   onRuleChangesSubmit?: () => void
   ruleChangesChanged?: boolean
   style?: React.CSSProperties
+  onBadgeAdd?: () => void
+  onBadgeFilter?: () => void
+  badgeIsEdit?: boolean | badgeType
+  onBadgeBack?: () => void
+  onBadgeDelete?: () => void
+  onBadgeSubmit?: () => void
+  badgeLoading?: boolean
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, settingsFormErr, onSettingsSubmit, settingsChanged, automationFormErr, onAutomationSubmit, automationChanged, protestsFormErr, onProtestsSubmit, protestsChanged, ruleChangesFormErr, onRuleChangesSubmit, ruleChangesChanged, style }) => {
+const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUser, setBackendErr, view, onBack, onJoinSuccess, onDrawerClick, settingsFormErr, onSettingsSubmit, settingsChanged, automationFormErr, onAutomationSubmit, automationChanged, protestsFormErr, onProtestsSubmit, protestsChanged, ruleChangesFormErr, onRuleChangesSubmit, ruleChangesChanged, style, onBadgeAdd, onBadgeFilter, badgeIsEdit, onBadgeBack, onBadgeDelete, onBadgeSubmit, badgeLoading }) => {
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
@@ -137,6 +145,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
 
   return (
     <div className="champ-toolbar" style={style}>
+      {/* Back button - uses onBadgeBack in badge edit mode, onBack otherwise */}
       {view !== "competitors" && (
         <Button
           variant="contained"
@@ -144,7 +153,9 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           className="champ-toolbar-back"
           onClick={e => {
             e.stopPropagation()
-            if (onBack) {
+            if (view === "badges" && badgeIsEdit && onBadgeBack) {
+              onBadgeBack()
+            } else if (onBack) {
               onBack()
             }
           }}
@@ -166,7 +177,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           disabled={!settingsChanged || Object.values(settingsFormErr || {}).some(err => !!err)}
           startIcon={<Save />}
         >
-          Save Changes
+          Save
         </Button>
       )}
       {view === "automation" && onAutomationSubmit && (
@@ -181,7 +192,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           disabled={!automationChanged || Object.values(automationFormErr || {}).some(err => !!err)}
           startIcon={<Save />}
         >
-          Save Changes
+          Save
         </Button>
       )}
       {view === "protests" && onProtestsSubmit && (
@@ -196,7 +207,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           disabled={!protestsChanged || Object.values(protestsFormErr || {}).some(err => !!err)}
           startIcon={<Save />}
         >
-          Save Changes
+          Save
         </Button>
       )}
       {view === "ruleChanges" && onRuleChangesSubmit && (
@@ -211,22 +222,77 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           disabled={!ruleChangesChanged || Object.values(ruleChangesFormErr || {}).some(err => !!err)}
           startIcon={<Save />}
         >
-          Save Changes
+          Save
         </Button>
       )}
-      <Button
-        variant="contained"
-        size="small"
-        onClick={e => {
-          e.stopPropagation()
-          if (onDrawerClick) {
-            onDrawerClick()
-          }
-        }}
-        endIcon={<FilterList />}
-      >
-        Views
-      </Button>
+      {/* Badge view buttons - Add and Filter (only for adjudicators, not in edit mode) */}
+      {view === "badges" && isAdjudicator && !badgeIsEdit && (
+        <div className="badge-buttons">
+          <Button
+            variant="contained"
+            size="small"
+            onClick={e => {
+              e.stopPropagation()
+              if (onBadgeFilter) {
+                onBadgeFilter()
+              }
+            }}
+            endIcon={<FilterList />}
+          >
+            Filter
+          </Button>
+          <AddButton onClick={() => onBadgeAdd && onBadgeAdd()} />
+        </div>
+      )}
+      {/* Badge edit mode - Delete and Submit/Update buttons on the right */}
+      {view === "badges" && badgeIsEdit && (
+        <>
+          {typeof badgeIsEdit !== "boolean" && (
+            <Button
+              variant="contained"
+              size="small"
+              color="error"
+              onClick={e => {
+                e.stopPropagation()
+                if (onBadgeDelete) {
+                  onBadgeDelete()
+                }
+              }}
+            >
+              Delete
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            size="small"
+            onClick={e => {
+              e.stopPropagation()
+              if (onBadgeSubmit) {
+                onBadgeSubmit()
+              }
+            }}
+            disabled={badgeLoading}
+          >
+            {badgeLoading ? <CircularProgress size={24} /> : (typeof badgeIsEdit !== "boolean" ? "Update" : "Submit")}
+          </Button>
+        </>
+      )}
+      {/* Views button - hidden in badges view */}
+      {view !== "badges" && (
+        <Button
+          variant="contained"
+          size="small"
+          onClick={e => {
+            e.stopPropagation()
+            if (onDrawerClick) {
+              onDrawerClick()
+            }
+          }}
+          endIcon={<FilterList />}
+        >
+          Views
+        </Button>
+      )}
     </div>
   )
 }

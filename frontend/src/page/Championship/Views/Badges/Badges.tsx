@@ -13,6 +13,11 @@ interface BadgesProps {
   backendErr: graphQLErrorType
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
   isAdjudicator: boolean
+  isEdit: boolean | badgeType
+  setIsEdit: React.Dispatch<React.SetStateAction<boolean | badgeType>>
+  draw: boolean
+  setDraw: React.Dispatch<React.SetStateAction<boolean>>
+  onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void
 }
 
 // Badges view component - displays championship badges with earned status overlay.
@@ -24,6 +29,11 @@ const Badges: React.FC<BadgesProps> = ({
   backendErr,
   setBackendErr,
   isAdjudicator,
+  isEdit,
+  setIsEdit,
+  draw,
+  setDraw,
+  onEditHandlersReady,
 }) => {
   // Create a wrapper form interface for BadgePicker compatibility.
   const badgeForm = { champBadges: champ.champBadges }
@@ -52,6 +62,12 @@ const Badges: React.FC<BadgesProps> = ({
         setBackendErr={setBackendErr}
         readOnly={!isAdjudicator}
         showUnearnedOverlay={true}
+        hideToolbar={true}
+        isEdit={isEdit}
+        setIsEdit={setIsEdit}
+        draw={draw}
+        setDraw={setDraw}
+        onEditHandlersReady={onEditHandlersReady}
       />
     </div>
   )

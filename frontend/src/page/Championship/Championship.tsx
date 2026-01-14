@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { ChampType, formErrType, formType, RoundStatus, seriesType } from "../../shared/types"
+import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType } from "../../shared/types"
 import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "./components/ChampBanner/ChampBanner"
@@ -149,6 +149,16 @@ const Championship: React.FC = () => {
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
+
+  // Badge picker state - managed here so ChampToolbar can show Add/Filter buttons.
+  const [ badgeIsEdit, setBadgeIsEdit ] = useState<boolean | badgeType>(false)
+  const [ badgeDraw, setBadgeDraw ] = useState<boolean>(false)
+  const [ badgeEditHandlers, setBadgeEditHandlers ] = useState<{
+    submit: () => Promise<void>
+    delete: () => Promise<void>
+    loading: boolean
+    isNewBadge: boolean
+  } | null>(null)
 
   const navigate = useNavigate()
 
@@ -866,6 +876,11 @@ const Championship: React.FC = () => {
             backendErr={backendErr}
             setBackendErr={setBackendErr}
             isAdjudicator={isAdjudicator}
+            isEdit={badgeIsEdit}
+            setIsEdit={setBadgeIsEdit}
+            draw={badgeDraw}
+            setDraw={setBadgeDraw}
+            onEditHandlersReady={setBadgeEditHandlers}
           />
         )}
 
@@ -893,6 +908,13 @@ const Championship: React.FC = () => {
             ruleChangesFormErr={ruleChangesFormErr}
             onRuleChangesSubmit={handleRuleChangesSubmit}
             ruleChangesChanged={ruleChangesChanged}
+            onBadgeAdd={() => setBadgeIsEdit(true)}
+            onBadgeFilter={() => setBadgeDraw(!badgeDraw)}
+            badgeIsEdit={badgeIsEdit}
+            onBadgeBack={() => setBadgeIsEdit(false)}
+            onBadgeDelete={badgeEditHandlers?.delete}
+            onBadgeSubmit={badgeEditHandlers?.submit}
+            badgeLoading={badgeEditHandlers?.loading}
           />
         )}
       </div>

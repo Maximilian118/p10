@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import './_badgePickerEdit.scss'
 import DropZone from "../../dropZone/DropZone"
 import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
 import MUISlider from "../../muiSlider/MUISlider"
 import { ZoomInMap, ZoomOutMap } from "@mui/icons-material"
 import BadgeOverlay from "../../badge/badgeOverlay/BadgeOverlay"
-import { Button, CircularProgress, TextField } from "@mui/material"
+import { TextField } from "@mui/material"
 import { inputLabel, updateForm } from "../../../../shared/formValidation"
 import MUIAutocomplete from "../../muiAutocomplete/muiAutocomplete"
 import { badgeOutcomeType, badgeRewardOutcomes, getRarityByHow, getOutcomeByHow } from "../../../../shared/badges"
@@ -23,7 +23,8 @@ interface badgePickerEditType<T> {
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   navigate: NavigateFunction
-  embedded?: boolean
+  embedded?: boolean // When true, registers handlers with ChampFlowContext.
+  onHandlersReady?: (handlers: BadgePickerEditRef) => void // Callback to expose handlers to parent.
 }
 
 interface editFormType {
@@ -39,6 +40,14 @@ export interface editFormErrType {
   [key: string]: string
 }
 
+// Ref interface for exposing handlers to parent components.
+export interface BadgePickerEditRef {
+  submit: () => Promise<void>
+  delete: () => Promise<void>
+  loading: boolean
+  isNewBadge: boolean
+}
+
 // If badge has a populated file key, init editForm.icon with that file.
 const initIcon = (isEdit: boolean | badgeType): File | null => {
   if (typeof isEdit !== "boolean") {
@@ -48,7 +57,7 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
   }
 }
 
-const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, embedded = true }: badgePickerEditType<T>) => {
+const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, embedded = true, onHandlersReady }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -206,7 +215,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   const handleBack = useCallback(() => setIsEdit(false), [setIsEdit])
 
   // Register form handlers with ChampFlowContext for parent ButtonBar to use.
-  const { showButtonBar } = useChampFlowForm({
+  useChampFlowForm({
     submit: onSubmitHandler,
     back: handleBack,
     isEditing: !isNewBadge,
@@ -215,6 +224,18 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     canDelete: !isNewBadge,
     onDelete: deleteBadgeHandler,
   }, embedded)
+
+  // Expose handlers to parent component via callback.
+  useEffect(() => {
+    if (onHandlersReady) {
+      onHandlersReady({
+        submit: onSubmitHandler,
+        delete: deleteBadgeHandler,
+        loading,
+        isNewBadge,
+      })
+    }
+  }, [onHandlersReady, loading, isNewBadge])
 
   return (
     <div className="badge-picker-edit">
@@ -278,26 +299,6 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         })}
         badgeMode={true}
       />
-      {showButtonBar && (
-        <div className="button-bar">
-          <Button
-            className="mui-button-back"
-            variant="contained"
-            color="inherit"
-            onClick={() => setIsEdit(false)}
-          >Back</Button>
-          {!isNewBadge && <Button
-            variant="contained"
-            color="error"
-            onClick={() => deleteBadgeHandler()}
-          >Delete</Button>}
-          <Button
-            variant="contained"
-            onClick={() => onSubmitHandler()}
-            disabled={loading}
-          >{loading ? <CircularProgress size={24} /> : "Submit"}</Button>
-        </div>
-      )}
     </div>
   )
 }

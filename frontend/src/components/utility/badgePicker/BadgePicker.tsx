@@ -25,6 +25,12 @@ interface badgePickerType<T> {
   setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
   readOnly?: boolean // Hides toolbar and disables badge click for non-adjudicators.
   showUnearnedOverlay?: boolean // Shows overlay on badges where awardedTo.length === 0.
+  hideToolbar?: boolean // Hides the internal toolbar (when parent provides toolbar).
+  isEdit?: boolean | badgeType // Controlled edit state from parent.
+  setIsEdit?: React.Dispatch<React.SetStateAction<boolean | badgeType>> // Controlled edit setter from parent.
+  draw?: boolean // Controlled filter drawer state from parent.
+  setDraw?: React.Dispatch<React.SetStateAction<boolean>> // Controlled filter drawer setter from parent.
+  onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void // Callback to expose edit handlers.
 }
 
 const BadgePicker = <T extends { champBadges: badgeType[] }>({
@@ -40,13 +46,26 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   setDefaultBadges,
   readOnly = false,
   showUnearnedOverlay = false,
+  hideToolbar = false,
+  isEdit: controlledIsEdit,
+  setIsEdit: controlledSetIsEdit,
+  draw: controlledDraw,
+  setDraw: controlledSetDraw,
+  onEditHandlersReady,
 }: badgePickerType<T>) => {
-  const [ isEdit, setIsEdit ] = useState<boolean | badgeType>(false) // Fill with badge info to edit or false to close BadgePickerEdit.
+  // Support both controlled and uncontrolled state patterns.
+  const [ internalIsEdit, setInternalIsEdit ] = useState<boolean | badgeType>(false)
   const [ loading, setLoading ] = useState<boolean>(false)
-  const [ draw, setDraw ] = useState<boolean>(false) // Open or close the filter draw.
-  const [ defaults, setDefaults ] = useState<badgeType[]>(defaultBadges ? defaultBadges : []) // default badges from backend
-  const [ reqSent, setReqSent ] = useState<boolean>(false) // Determine if getBadgesByChamp has been sent or not.
+  const [ internalDraw, setInternalDraw ] = useState<boolean>(false)
+  const [ defaults, setDefaults ] = useState<badgeType[]>(defaultBadges ? defaultBadges : [])
+  const [ reqSent, setReqSent ] = useState<boolean>(false)
   const [ filtered, setFiltered ] = useState<number[]>(badgeRarities().map((rarity: badgeRarityType) => rarity.rarity))
+
+  // Use controlled state if provided, otherwise use internal state.
+  const isEdit = controlledIsEdit !== undefined ? controlledIsEdit : internalIsEdit
+  const setIsEdit = controlledSetIsEdit !== undefined ? controlledSetIsEdit : setInternalIsEdit
+  const draw = controlledDraw !== undefined ? controlledDraw : internalDraw
+  const setDraw = controlledSetDraw !== undefined ? controlledSetDraw : setInternalDraw
 
   const navigate = useNavigate()
 
@@ -71,6 +90,8 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
       user={user}
       setUser={setUser}
       navigate={navigate}
+      embedded={!hideToolbar}
+      onHandlersReady={onEditHandlersReady}
     /> : (
     <div className="badge-picker">
       {loading ? 
@@ -97,7 +118,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
           }
         </div>
       }
-      {!readOnly && (
+      {!readOnly && !hideToolbar && (
         <BadgePickerToolbar
           setIsEdit={setIsEdit}
           draw={draw}

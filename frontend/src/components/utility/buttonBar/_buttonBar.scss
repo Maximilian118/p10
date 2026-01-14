@@ -1,6 +1,14 @@
 @use "../../../scss/mixins";
 @use "../../../scss/variables";
 
-// Button bar styling is defined in base.scss for the main layout context.
-// This file exists for component-level imports if needed in the future.
-// The .button-bar class inherits from base.scss when rendered within main.
+.button-bar {
+  width: 100%;
+  flex-shrink: 0;
+  background: white;
+  @include mixins.flexbox;
+  justify-content: space-evenly;
+  z-index: 5;
+  border-top: 2px solid variables.$background;
+  padding: 15px 0;
+  box-sizing: border-box;
+}

@@ -186,18 +186,6 @@ body {
       .home-container {
         padding: 20px 7.5% !important;
       }
-
-      .button-bar {
-        width: 100%;
-        flex-shrink: 0;
-        background: white;
-        @include mixins.flexbox;
-        justify-content: space-evenly;
-        z-index: 5;
-        border-top: 2px solid variables.$background;
-        padding: 20px 0;
-        box-sizing: border-box;
-      }
     }
 
     .main-logged-in {

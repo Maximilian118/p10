@@ -40,7 +40,11 @@ export const getActiveHandlers = (stack: FormHandlers[]): FormHandlers | null =>
   return stack.length > 0 ? stack[stack.length - 1] : null
 }
 
-// Custom hook for Create components to register their handlers with the parent.
+// Custom hook for form components to register their handlers with the parent ButtonBar.
+// When embedded=true and inside ChampFlowProvider, handlers are pushed to a stack
+// that ButtonBar reads from. On unmount, handlers are popped from the stack.
+// Returns showButtonBar: true when the component should render its own ButtonBar
+// (i.e., when NOT embedded or NOT in ChampFlow context).
 export const useChampFlowForm = (
   handlers: Omit<FormHandlers, 'id'>,
   embedded: boolean,
@@ -69,7 +73,7 @@ export const useChampFlowForm = (
   stableHandlers.delLoading = handlers.delLoading
   stableHandlers.canDelete = handlers.canDelete
 
-  // Push on mount, pop on unmount.
+  // Push on mount, pop on unmount (only when embedded in ChampFlow context).
   useEffect(() => {
     if (embedded && inChampFlow) {
       handlerIdRef.current = pushHandlers(stableHandlers)
