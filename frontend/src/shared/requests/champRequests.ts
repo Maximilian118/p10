@@ -6,6 +6,7 @@ import { ChampType, FloatingChampType, formType, pointsStructureType, RoundStatu
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp"
 import { populateChamp } from "./requestPopulation"
+import { newBadge } from "./badgeRequests"
 
 // Fetches all championships for the authenticated user.
 export const getChamps = async (
@@ -175,24 +176,58 @@ export const createChamp = async (
   if (form.profile_picture instanceof File && profilePictureURL)
     setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
 
-  // Build badge input - full data for custom badges, just _id for defaults.
-  const champBadges = form.champBadges.map((badge) => {
-    if (badge.default) {
-      // Default badge - reference by existing _id.
-      return { _id: badge._id, isDefault: true }
+  // Process badges - upload images for custom badges and create in database.
+  const champBadgeIds: string[] = []
+  for (const badge of form.champBadges) {
+    if (badge.default && badge._id) {
+      // Default badge - just use existing ID.
+      champBadgeIds.push(badge._id)
     } else {
-      // Custom badge - send full data for backend to create.
-      return {
-        url: badge.url,
-        name: badge.name,
-        rarity: badge.rarity,
-        awardedHow: badge.awardedHow,
-        awardedDesc: badge.awardedDesc,
-        zoom: badge.zoom,
-        isDefault: false,
+      // Custom badge - upload image to S3 first if it's a File.
+      let badgeUrl = badge.url
+      if (badge.file instanceof File) {
+        const uploadedUrl = await uplaodS3(
+          "badges",
+          "custom",
+          "icon",
+          badge.file,
+          setBackendErr,
+          user,
+          setUser,
+          navigate,
+        )
+        if (!uploadedUrl) {
+          setLoading(false)
+          return null
+        }
+        badgeUrl = uploadedUrl
+      }
+
+      // Create badge in database via newBadge mutation.
+      const createdBadge = await newBadge(
+        {
+          url: badgeUrl,
+          name: badge.name,
+          customName: badge.customName,
+          rarity: badge.rarity,
+          awardedHow: badge.awardedHow,
+          awardedDesc: badge.awardedDesc,
+          zoom: badge.zoom,
+        },
+        user,
+        setUser,
+        navigate,
+        setBackendErr,
+      )
+
+      if (createdBadge?._id) {
+        champBadgeIds.push(createdBadge._id)
+      } else {
+        setLoading(false)
+        return null
       }
     }
-  })
+  }
 
   // Build rules and regs list (strip out user info - backend will add it)
   const rulesAndRegsList = form.rulesAndRegs.map((rule: ruleOrRegType) => ({
@@ -220,7 +255,7 @@ export const createChamp = async (
             maxCompetitors: form.series?.drivers?.length || 24,
             pointsStructure: form.pointsStructure,
             rulesAndRegs: rulesAndRegsList,
-            champBadges,
+            champBadges: champBadgeIds,
             inviteOnly: form.inviteOnly,
           },
           query: `

@@ -60,9 +60,4 @@
   &:hover {
     background: rgba(0, 0, 0, 0.06);
   }
-
-  // Adds spacing between consecutive ChampCards
-  & + .champ-card {
-    margin-top: 2px;
-  }
 }

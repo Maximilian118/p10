@@ -11,7 +11,6 @@ import MUIAutocomplete from "../../muiAutocomplete/muiAutocomplete"
 import { badgeOutcomeType, badgeRewardOutcomes, getRarityByHow, getOutcomeByHow } from "../../../../shared/badges"
 import { badgeType } from "../../../../shared/types"
 import { badgePickerErrors } from "../badgePickerUtility"
-import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
 import { userType } from "../../../../shared/localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { useChampFlowForm } from "../../../../context/ChampFlowContext"
@@ -66,6 +65,14 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   const [ zoom, setZoom ] = useState<number>(isNewBadge ? 100 : isEdit.zoom)
   const [ how, setHow ] = useState<string | null>(isNewBadge ? null : isEdit.awardedHow)
 
+  // Controlled input value for autocomplete display (shows badge name instead of awardedHow).
+  const getDisplayName = (awardedHow: string | null): string => {
+    if (!awardedHow) return ""
+    const outcome = getOutcomeByHow(awardedHow)
+    return outcome?.name || awardedHow
+  }
+  const [ inputValue, setInputValue ] = useState<string>(getDisplayName(how))
+
   // Rarity is determined by the selected awardedHow outcome.
   const rarity = how ? getRarityByHow(how) : 0
 
@@ -109,29 +116,23 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     setLoading(true)
 
     if (isNewBadge) {
-      // Upload badge image to S3 if it's a File.
-      let s3Url = typeof editForm.icon === "string" ? editForm.icon : ""
-      if (editForm.icon instanceof File) {
-        const uploadedUrl = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
-        if (!uploadedUrl) {
-          setLoading(false)
-          return
-        }
-        s3Url = uploadedUrl
-        // Store uploaded URL in form state for retry.
-        setEditForm(prev => ({ ...prev, icon: s3Url }))
-      }
-
       // Get the catchy name from the outcome.
       const outcome = getOutcomeByHow(how as string)
       const outcomeName = outcome?.name || ""
 
-      // Add badge data to form (no DB call - backend creates it during createChamp).
+      // Create preview URL for display before S3 upload.
+      const previewUrl = editForm.icon instanceof File
+        ? URL.createObjectURL(editForm.icon)
+        : ""
+
+      // Add badge data to form. File is stored for later S3 upload during championship submission.
       setForm(prevForm => ({
         ...prevForm,
         champBadges: [
           {
-            url: s3Url,
+            url: "",
+            file: editForm.icon instanceof File ? editForm.icon : null,
+            previewUrl,
             name: outcomeName,
             customName: editForm.customName || undefined,
             rarity,
@@ -145,30 +146,24 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
       }))
     } else {
       // Editing existing badge - update form locally.
-      // If a new image was uploaded, upload to S3 first.
-      let badgeUrl = isEdit.url
-      if (editForm.icon instanceof File) {
-        const s3Url = await uplaodS3("badges", "custom", "icon", editForm.icon, setBackendErr)
-        if (s3Url) {
-          badgeUrl = s3Url
-          // Store uploaded URL in form state for retry.
-          setEditForm(prev => ({ ...prev, icon: s3Url }))
-        }
-      } else if (typeof editForm.icon === "string") {
-        badgeUrl = editForm.icon
-      }
-
-      // Get the catchy name from the outcome.
+      // File is stored for later S3 upload during championship submission.
       const editOutcome = getOutcomeByHow(how as string)
       const editOutcomeName = editOutcome?.name || ""
+
+      // Create new preview URL if new file uploaded, otherwise keep existing.
+      const editPreviewUrl = editForm.icon instanceof File
+        ? URL.createObjectURL(editForm.icon)
+        : isEdit.previewUrl
 
       setForm(prevForm => ({
         ...prevForm,
         champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
-          if (badge._id === isEdit._id) {
+          if (badge._id === isEdit._id || badge.awardedHow === isEdit.awardedHow) {
             return {
               ...badge,
-              url: badgeUrl,
+              url: editForm.icon instanceof File ? "" : (typeof editForm.icon === "string" ? editForm.icon : isEdit.url),
+              file: editForm.icon instanceof File ? editForm.icon : badge.file,
+              previewUrl: editPreviewUrl,
               name: editOutcomeName,
               customName: editForm.customName || undefined,
               zoom,
@@ -191,10 +186,15 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   // Remove/delete a badge from form.champBadges.
   const deleteBadgeHandler = useCallback(async () => {
     if (!isNewBadge) {
+      // Revoke preview URL to prevent memory leaks.
+      if (isEdit.previewUrl) {
+        URL.revokeObjectURL(isEdit.previewUrl)
+      }
+
       setForm(prevForm => {
         return {
           ...prevForm,
-          champBadges: prevForm.champBadges.filter((badge: badgeType) => badge._id !== isEdit._id)
+          champBadges: prevForm.champBadges.filter((badge: badgeType) => badge._id !== isEdit._id && badge.awardedHow !== isEdit.awardedHow)
         }
       })
     }
@@ -235,7 +235,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           setBackendErr={setBackendErr}
           purposeText="Badge Image"
           zoom={zoom}
-          thumbImg={isNewBadge ? false : isEdit.url}
+          thumbImg={isNewBadge ? false : (isEdit.url || isEdit.previewUrl)}
           style={{ marginBottom: 0, width: "100%" }}
         />
       </div>
@@ -267,6 +267,8 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         className="mui-el"
         value={how}
         setValue={setHow}
+        inputValue={inputValue}
+        onInputChange={setInputValue}
         error={editFormErr.awardedHow || backendErr.type === "awardedHow" ? true : false}
         onChange={() => setEditFormErr(prevErrs => {
           return {

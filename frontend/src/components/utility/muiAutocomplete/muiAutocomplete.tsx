@@ -24,6 +24,8 @@ interface muiAutocompleteType<T> {
   disabled?: boolean
   style?: React.CSSProperties
   badgeMode?: boolean // Enable badge outcome display mode with BadgeOption component.
+  inputValue?: string // Controlled input text (separate from selected value).
+  onInputChange?: (value: string) => void // Handler for input text changes.
 }
 
 // Return JSX for the onClick element to create a new of whatever is being listed.
@@ -74,6 +76,8 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
   disabled,
   style,
   badgeMode,
+  inputValue,
+  onInputChange,
 }: muiAutocompleteType<T>) => {
   const findValueString = (value: T | string | null): string | null => {
     if (!value) {
@@ -95,14 +99,29 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       className={`mui-autocomplete ${className}`}
       style={style}
       value={value}
+      inputValue={inputValue}
+      onInputChange={(_, newInputValue, reason) => {
+        // Allow parent to control input text separately from selected value.
+        if (onInputChange && reason !== "reset") {
+          onInputChange(newInputValue)
+        }
+      }}
       disabled={disabled}
       onChange={(e: SyntheticEvent<Element, Event>, value: T | string | null) => {
         if (setValue) setValue(findValueString(value))
 
+        // In badge mode, update inputValue to badge name when selection is made.
+        if (badgeMode && onInputChange && value) {
+          const outcome = getOutcomeByHow(findValueString(value) as string)
+          if (outcome) {
+            onInputChange(outcome.name)
+          }
+        }
+
         if (setObjValue && typeof value !== "string" && !onLiClick) {
           setObjValue(value)
         }
-        
+
         if (onLiClick && value && typeof value !== "string") {
           onLiClick(value)
           document.getElementById(id)?.blur()
@@ -112,7 +131,10 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       }}
       options={options as (T | string)[]}
       isOptionEqualToValue={(option, value) => findValueString(option) === findValueString(value)}
-      getOptionLabel={(option: T | string | null) => findValueString(option) as string}
+      getOptionLabel={(option: T | string | null) => {
+        // Return raw value (awardedHow for badges). Display text handled separately via inputValue.
+        return findValueString(option) as string
+      }}
       renderOption={({ key, ...props }: React.HTMLAttributes<HTMLLIElement> & { key: string }, option: T | string | null) => {
         const optionValue = findValueString(option)
 

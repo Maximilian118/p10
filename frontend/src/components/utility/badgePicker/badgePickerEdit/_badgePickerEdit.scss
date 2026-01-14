@@ -5,6 +5,7 @@
   width: 100%;
   @include mixins.flexbox-start-column;
   flex-shrink: 0;
+  flex-grow: 1;
   padding: 20px 7.5%;
   box-sizing: border-box;
   background: white;

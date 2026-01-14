@@ -170,6 +170,8 @@ const CreateChamp: React.FC = () => {
         <SeriesPicker
           form={form}
           setForm={setForm}
+          formErr={formErr}
+          setFormErr={setFormErr}
           seriesList={seriesList}
           setSeriesList={setSeriesList}
           user={user}
@@ -183,6 +185,7 @@ const CreateChamp: React.FC = () => {
           user={user}
           form={form}
           setForm={setForm}
+          setFormErr={setFormErr}
         />
       }
       {activeStep === 3 &&
@@ -203,6 +206,7 @@ const CreateChamp: React.FC = () => {
         <>
           <ChampCompleteCard
             backendErr={backendErr}
+            formErr={formErr}
           />
           <Toggle
             text="Invite Only"

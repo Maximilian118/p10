@@ -8,11 +8,17 @@ import { userType } from "../../../../shared/localStorage"
 import RemoveButton from "../../button/removeButton/RemoveButton"
 import { isDefaultRorR } from "../../../../shared/rulesAndRegs"
 
-interface regsAndRulesEditType<T> {
+interface rulesAndRegsFormErr {
+  rulesAndRegs?: string
+  [key: string]: string | undefined | number
+}
+
+interface regsAndRulesEditType<T, U extends rulesAndRegsFormErr> {
   user: userType
   edit: editStateType
   setEdit: React.Dispatch<React.SetStateAction<editStateType>>
   setForm: React.Dispatch<React.SetStateAction<T>>
+  setFormErr?: React.Dispatch<React.SetStateAction<U>>
 }
 
 // Initializes a new rule or regulation with default values.
@@ -49,12 +55,13 @@ const initError = {
   index: null
 }
 
-const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
+const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extends rulesAndRegsFormErr>({
   user,
   edit,
   setEdit,
   setForm,
-}: regsAndRulesEditType<T>) => {
+  setFormErr,
+}: regsAndRulesEditType<T, U>) => {
   const [ delConfirm, SetDelConfirm ] = useState<boolean>(false)
   const [ ruleReg, setRuleReg ] = useState<ruleOrRegType>(initruleReg(user, edit.ruleReg))
   const [ error, setError ] = useState<errorType>(initError)
@@ -177,6 +184,11 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }>({
           rulesAndRegs: [...prevForm.rulesAndRegs, updatedRuleReg]
         }
       })
+    }
+
+    // Clear any rules validation error.
+    if (setFormErr) {
+      setFormErr(prev => ({ ...prev, rulesAndRegs: "" }))
     }
 
     setEdit(initEditState)

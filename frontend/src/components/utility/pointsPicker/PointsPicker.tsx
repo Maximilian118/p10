@@ -11,15 +11,21 @@ interface PointsStructureForm {
   pointsStructure: pointsStructureType
 }
 
-interface pointsPickerType<T extends PointsStructureForm> {
+interface pointsPickerFormErr {
+  pointsStructure?: string
+  [key: string]: string | undefined | number
+}
+
+interface pointsPickerType<T extends PointsStructureForm, U extends pointsPickerFormErr> {
   setForm: React.Dispatch<React.SetStateAction<T>>
-  formErr: { pointsStructure?: string; [key: string]: string | undefined | number }
+  formErr: U
+  setFormErr?: React.Dispatch<React.SetStateAction<U>>
   backendErr: graphQLErrorType
   disabled?: boolean
   initialPreset?: number
 }
 
-const PointsPicker= <T extends PointsStructureForm>({ setForm, formErr, backendErr, disabled, initialPreset }: pointsPickerType<T>) => {
+const PointsPicker= <T extends PointsStructureForm, U extends pointsPickerFormErr>({ setForm, formErr, setFormErr, backendErr, disabled, initialPreset }: pointsPickerType<T, U>) => {
   const [ preset, setPreset ] = useState(initialPreset ?? 1)
 
   // Sync preset state when initialPreset prop changes.
@@ -42,6 +48,11 @@ const PointsPicker= <T extends PointsStructureForm>({ setForm, formErr, backendE
         })
       }
     })
+
+    // Clear any points structure validation error.
+    if (setFormErr) {
+      setFormErr(prev => ({ ...prev, pointsStructure: "" }))
+    }
   }
 
   const error = formErr.pointsStructure || backendErr.type === "pointsStructure" ? true : false

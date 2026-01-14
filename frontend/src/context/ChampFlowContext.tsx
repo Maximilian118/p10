@@ -49,13 +49,30 @@ export const useChampFlowForm = (
   const handlerIdRef = useRef<string | null>(null)
   const handlersRef = useRef(handlers)
 
-  // Keep handlers ref updated (for initial push only).
+  // Always keep handlersRef current so wrappers call latest handlers.
   handlersRef.current = handlers
 
-  // Push on mount, pop on unmount. NO dependency on handlers.
+  // Create stable wrappers that call through the ref to get latest handlers.
+  const stableHandlers = useRef<Omit<FormHandlers, 'id'>>({
+    submit: async () => { await handlersRef.current.submit() },
+    back: () => { handlersRef.current.back() },
+    onDelete: async () => { await handlersRef.current.onDelete?.() },
+    isEditing: false,
+    loading: false,
+    delLoading: false,
+    canDelete: false,
+  }).current
+
+  // Update static values on each render (read when ButtonBar renders).
+  stableHandlers.isEditing = handlers.isEditing
+  stableHandlers.loading = handlers.loading
+  stableHandlers.delLoading = handlers.delLoading
+  stableHandlers.canDelete = handlers.canDelete
+
+  // Push on mount, pop on unmount.
   useEffect(() => {
     if (embedded && inChampFlow) {
-      handlerIdRef.current = pushHandlers(handlersRef.current)
+      handlerIdRef.current = pushHandlers(stableHandlers)
       return () => {
         if (handlerIdRef.current) {
           popHandlers(handlerIdRef.current)
@@ -63,7 +80,7 @@ export const useChampFlowForm = (
         }
       }
     }
-  }, [embedded, inChampFlow, pushHandlers, popHandlers])
+  }, [embedded, inChampFlow, pushHandlers, popHandlers, stableHandlers])
 
   // Show ButtonBar only when not embedded or not in champ flow.
   return { showButtonBar: !embedded || !inChampFlow }

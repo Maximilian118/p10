@@ -75,6 +75,7 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
           <PointsPicker
             setForm={setForm}
             formErr={formErr}
+            setFormErr={setFormErr}
             backendErr={backendErr}
           />
         }

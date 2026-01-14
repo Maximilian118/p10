@@ -14,9 +14,16 @@ import AddButton from "../button/addButton/AddButton"
 import { canEditSeries } from "./seriesEdit/seriesUtility"
 import FillLoading from "../fillLoading/FillLoading"
 
-interface seriesPickerType<T> {
+interface seriesPickerFormErr {
+  series: string
+  [key: string]: string | number
+}
+
+interface seriesPickerType<T, E extends seriesPickerFormErr> {
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
+  formErr?: E
+  setFormErr?: React.Dispatch<React.SetStateAction<E>>
   seriesList: seriesType[]
   setSeriesList: React.Dispatch<React.SetStateAction<seriesType[]>>
   user: userType
@@ -26,16 +33,18 @@ interface seriesPickerType<T> {
 }
 
 // Component for picking a series for a championship.
-const SeriesPicker = <T extends { series: seriesType | null }>({
+const SeriesPicker = <T extends { series: seriesType | null }, E extends seriesPickerFormErr>({
   form,
   setForm,
+  formErr,
+  setFormErr,
   seriesList,
   setSeriesList,
   user,
   setUser,
   backendErr,
   setBackendErr,
-}: seriesPickerType<T>) => {
+}: seriesPickerType<T, E>) => {
   const [ isEdit, setIsEdit ] = useState<boolean>(false)
   const [ series, setSeries ] = useState<seriesType>(initSeries(user))
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -75,6 +84,11 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
     // Auto-select the new/updated series.
     setSelected(newSeries._id!)
     setForm(prev => ({ ...prev, series: newSeries }))
+
+    // Clear any series validation error.
+    if (setFormErr) {
+      setFormErr(prev => ({ ...prev, series: "" }))
+    }
 
     // Reset edit state.
     setIsEdit(false)
@@ -129,6 +143,10 @@ const SeriesPicker = <T extends { series: seriesType | null }>({
                       ...prevForm,
                       series: seriesItem,
                     }))
+                    // Clear any series validation error.
+                    if (setFormErr) {
+                      setFormErr(prev => ({ ...prev, series: "" }))
+                    }
                   }}
                 />
               )

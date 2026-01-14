@@ -25,7 +25,10 @@
       width: 100%;
       @include mixins.flexbox-start-column;
       overflow-y: scroll;
-      background: #ffffff;
+    }
+
+    .series-list {
+      gap: 2px;
     }
 
     .series-empty {

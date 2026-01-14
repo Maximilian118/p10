@@ -463,6 +463,11 @@ const champResolvers = {
           const badge = await Badge.findById(badgeId)
           if (badge) {
             badgeIds.push(badge._id)
+            // Set championship reference on non-default badges (two-way link).
+            if (!badge.isDefault) {
+              badge.championship = newChamp._id
+              await badge.save()
+            }
           }
         }
       }

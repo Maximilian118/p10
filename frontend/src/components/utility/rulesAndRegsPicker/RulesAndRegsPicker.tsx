@@ -7,10 +7,17 @@ import { ruleOrRegType, rulesAndRegsType } from "../../../shared/types"
 import RulesAndRegsEdit from "./rulesAndRegsEdit/RulesAndRegsEdit"
 import RulesAndRegsToolbar from "./rulesAndRegsToolbar/RulesAndRegsToolbar"
 
-interface rulesAndRegsPickerType<T> {
+interface rulesAndRegsFormErr {
+  rulesAndRegs?: string
+  [key: string]: string | undefined | number
+}
+
+interface rulesAndRegsPickerType<T, U extends rulesAndRegsFormErr> {
   user: userType
   form: T
   setForm: React.Dispatch<React.SetStateAction<T>>
+  formErr?: U
+  setFormErr?: React.Dispatch<React.SetStateAction<U>>
 }
 
 export interface editStateType {
@@ -25,21 +32,23 @@ export const initEditState = {
   ruleReg: null,
 }
 
-const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({
+const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U extends rulesAndRegsFormErr>({
   user,
   form,
   setForm,
-}: rulesAndRegsPickerType<T>) => {
+  setFormErr,
+}: rulesAndRegsPickerType<T, U>) => {
   const [ edit, setEdit ] = useState<editStateType>(initEditState)
 
   const isEdit = edit.newRuleReg || edit.ruleReg
 
   return isEdit ?
-    <RulesAndRegsEdit<T>
+    <RulesAndRegsEdit<T, U>
       user={user}
       edit={edit}
       setEdit={setEdit}
       setForm={setForm}
+      setFormErr={setFormErr}
     /> : (
     <div className="rules-and-regs-picker">
       {form.rulesAndRegs.length > 0 ?
@@ -58,11 +67,12 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }>({
           <p>You need some Rules and Regulations. This is simply illegal!</p>
         </div>
       }
-      <RulesAndRegsToolbar
+      <RulesAndRegsToolbar<T, U>
         user={user}
         form={form}
         setForm={setForm}
         setEdit={setEdit}
+        setFormErr={setFormErr}
       />
     </div>
   )

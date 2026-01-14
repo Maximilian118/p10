@@ -94,6 +94,7 @@ export interface badgeType {
   created_at?: string
   updated_at?: string
   file?: File | null
+  previewUrl?: string // Object URL for displaying image before S3 upload.
   default?: boolean
 }
 

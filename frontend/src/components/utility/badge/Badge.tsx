@@ -15,6 +15,9 @@ interface badgeCompType {
 const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {
   const [ error, setError ] = useState<boolean>(false)
 
+  // Get display URL - prefer S3 URL, fall back to preview URL for local display.
+  const displayUrl = badge.url || badge.previewUrl || ""
+
   const iconContent = (error: boolean, src: string) => {
     if (!error) {
       return (
@@ -48,7 +51,7 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {
       <BadgeOverlay rarity={badge.rarity} thickness={3}/>
       <div className="outer-ring">
         <div className="inner-ring"/>
-          {iconContent(error, badge.url)}
+          {iconContent(error, displayUrl)}
       </div>
     </div>
   )

@@ -332,10 +332,11 @@ export const badgeCustomNameErrors = (customName: string | undefined): void => {
   }
 }
 
-export const badgeChampErrors = (championship: ObjectId | null): void => {
+export const badgeChampErrors = (championship: ObjectId | null, required: boolean = false): void => {
   const type = "badge"
 
-  if (!championship) {
+  // Championship is optional during badge creation (linked after championship is created).
+  if (required && !championship) {
     throwError(type, championship, "You must pass a championship _id.")
   }
 }

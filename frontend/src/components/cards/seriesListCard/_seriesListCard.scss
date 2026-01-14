@@ -111,11 +111,6 @@
     }
   }
 
-  // Adds spacing between consecutive SeriesListCards.
-  & + .series-list-card {
-    margin-top: 2px;
-  }
-
   // Highlight animation for newly added series.
   &.series-list-card-highlight {
     animation: highlightFade 1.5s ease-out forwards;
