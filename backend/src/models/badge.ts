@@ -7,6 +7,7 @@ export interface badgeType {
   championship: ObjectId
   url: string
   name: string
+  customName?: string
   rarity: number
   awardedTo: ObjectId[]
   awardedHow: string
@@ -22,7 +23,8 @@ export interface badgeType {
 const badgeSchema = new mongoose.Schema<badgeType>({
   championship: { type: mongoose.Schema.ObjectId, ref: "Champ" }, // The Championship that this badge belongs to.
   url: { type: String, required: true }, // URL to an image in AWS S3.
-  name: { type: String, required: true }, // Name of the badge.
+  name: { type: String, required: true }, // Name of the badge (from badgeRewardOutcomes).
+  customName: { type: String }, // Optional user-provided custom name override.
   rarity: { type: Number, required: true, default: 0 }, // 0 = Common, 1 = Uncommon, 2 = Rare, 3 = Epic, 4 = Legendary, 5 = Mythic.
   awardedTo: [{ type: mongoose.Schema.ObjectId, ref: "User" }], // Users that this badge has been awarded to.
   awardedHow: { type: String, required: true }, // A short description of how the badge was awarded. Also used for function refs.

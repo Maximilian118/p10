@@ -85,6 +85,7 @@ export interface badgeType {
   championship?: ChampType
   url: string
   name: string
+  customName?: string
   rarity: number
   awardedTo?: userType[]
   awardedHow: string

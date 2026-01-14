@@ -6,6 +6,7 @@ import {
   badgeAwardedDescErrors,
   badgeAwardedHowErrors,
   badgeChampErrors,
+  badgeCustomNameErrors,
   badgeDuplicateErrors,
   badgeNameErrors,
   badgeRarityErrors,
@@ -24,13 +25,14 @@ const badgeResolvers = {
     }
 
     try {
-      const { url, name, rarity, awardedHow, awardedDesc, zoom, championship, isDefault } = args.badgeInput
+      const { url, name, customName, rarity, awardedHow, awardedDesc, zoom, championship, isDefault } = args.badgeInput
       const user = (await User.findById(req._id)) as userTypeMongo
 
       // Check for errors.
       userErrors(user)
       badgeURLErrors(url)
       badgeNameErrors(name)
+      badgeCustomNameErrors(customName)
       badgeAwardedHowErrors(awardedHow)
       badgeAwardedDescErrors(awardedHow, awardedDesc)
       badgeRarityErrors(rarity)
@@ -42,6 +44,7 @@ const badgeResolvers = {
       const badge = new Badge({
         url,
         name,
+        customName: customName || undefined,
         rarity,
         awardedHow,
         awardedDesc,
@@ -105,13 +108,14 @@ const badgeResolvers = {
     }
 
     try {
-      const { _id, url, name, rarity, awardedHow, awardedDesc, zoom } = args.updateBadgeInput
+      const { _id, url, name, customName, rarity, awardedHow, awardedDesc, zoom } = args.updateBadgeInput
       const user = (await User.findById(req._id)) as userTypeMongo
 
       // Check for errors.
       userErrors(user)
       badgeURLErrors(url)
       badgeNameErrors(name)
+      badgeCustomNameErrors(customName)
       badgeAwardedHowErrors(awardedHow)
       badgeAwardedDescErrors(awardedHow, awardedDesc)
       badgeRarityErrors(rarity)
@@ -129,6 +133,7 @@ const badgeResolvers = {
       // Mutate badge.
       badge.url = url
       badge.name = name
+      badge.customName = customName || undefined
       badge.rarity = rarity
       badge.awardedHow = awardedHow
       badge.awardedDesc = findDesc(badgeRewardOutcomes, awardedHow)

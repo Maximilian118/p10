@@ -1,0 +1,186 @@
+// Round performance badge evaluators.
+
+import { BadgeChecker } from "../types"
+import {
+  didCompetitorWin,
+  didCompetitorRunnerUp,
+  isOnPodium,
+  isInTopN,
+  isLast,
+  didScorePoints,
+  getCompetitorEntry,
+  getCompetitorBetDriver,
+} from "../helpers"
+import {
+  createWinCountChecker,
+  createRunnerUpCountChecker,
+} from "../factories"
+
+// Round performance badge evaluators.
+export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
+  [
+    "Round Win",
+    (ctx) => ({
+      earned: didCompetitorWin(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  [
+    "Round Runner-Up",
+    (ctx) => ({
+      earned: didCompetitorRunnerUp(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  [
+    "Round Podium",
+    (ctx) => ({
+      earned: isOnPodium(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  [
+    "Round Top 5",
+    (ctx) => ({
+      earned: isInTopN(ctx.currentRound, ctx.competitorId, 5),
+    }),
+  ],
+  [
+    "Round Last",
+    (ctx) => ({
+      earned: isLast(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  ["2 Round Wins", createWinCountChecker(2)],
+  ["5 Round Wins", createWinCountChecker(5)],
+  ["10 Round Wins", createWinCountChecker(10)],
+  ["3x Runner-Up", createRunnerUpCountChecker(3)],
+  ["5x Runner-Up", createRunnerUpCountChecker(5)],
+  ["7x Runner-Up", createRunnerUpCountChecker(7)],
+  [
+    "First Round Win",
+    (ctx) => ({
+      earned: ctx.currentRoundIndex === 0 && didCompetitorWin(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  [
+    "Final Round Win",
+    (ctx) => {
+      // Check if this is the last round of the championship
+      const isLastRound = ctx.currentRoundIndex === ctx.allRounds.length - 1
+      return { earned: isLastRound && didCompetitorWin(ctx.currentRound, ctx.competitorId) }
+    },
+  ],
+  [
+    "No Points",
+    (ctx) => ({
+      earned: !didScorePoints(ctx.currentRound, ctx.competitorId),
+    }),
+  ],
+  [
+    "Perfect P10",
+    (ctx) => {
+      // Check if competitor won with exact P10 bet
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
+      return { earned: betDriver?.positionActual === 10 }
+    },
+  ],
+  [
+    "First Win Ever",
+    (ctx) => {
+      // Check if this is competitor's first win ever in this championship
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      // Count wins before current round
+      const previousWins = ctx.allRounds.slice(0, ctx.currentRoundIndex).filter(
+        (r) => (r.status === "completed" || r.status === "results") && didCompetitorWin(r, ctx.competitorId),
+      ).length
+      return { earned: previousWins === 0 }
+    },
+  ],
+  [
+    "Won With P9 or P11",
+    (ctx) => {
+      // Win by betting on P9 or P11
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
+      return { earned: betDriver?.positionActual === 9 || betDriver?.positionActual === 11 }
+    },
+  ],
+  [
+    "Large Field Win",
+    (ctx) => {
+      // Win with 10+ competitors betting
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const bettingCompetitors = ctx.currentRound.competitors.filter((c) => c.bet !== null).length
+      return { earned: bettingCompetitors >= 10 }
+    },
+  ],
+  [
+    "Full Field Win",
+    (ctx) => {
+      // Win when all competitors are betting (everyone placed a bet).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const totalCompetitors = ctx.currentRound.competitors.length
+      const bettingCompetitors = ctx.currentRound.competitors.filter((c) => c.bet !== null).length
+      return { earned: bettingCompetitors === totalCompetitors && totalCompetitors > 1 }
+    },
+  ],
+  [
+    "Comeback Win",
+    (ctx) => {
+      // Win after being last in previous round.
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (ctx.currentRoundIndex === 0) return { earned: false }
+      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
+      if (prevRound.status !== "completed" && prevRound.status !== "results") return { earned: false }
+      return { earned: isLast(prevRound, ctx.competitorId) }
+    },
+  ],
+  // Additional round performance badges
+  [
+    "Round Top 7",
+    (ctx) => ({
+      earned: isInTopN(ctx.currentRound, ctx.competitorId, 7),
+    }),
+  ],
+  [
+    "Round Top 10",
+    (ctx) => ({
+      earned: isInTopN(ctx.currentRound, ctx.competitorId, 10),
+    }),
+  ],
+  ["3 Round Wins", createWinCountChecker(3)],
+  ["7 Round Wins", createWinCountChecker(7)],
+  ["15 Round Wins", createWinCountChecker(15)],
+  ["20 Round Wins", createWinCountChecker(20)],
+  [
+    "First Podium",
+    (ctx) => {
+      if (!isOnPodium(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      // Count podiums before current round
+      const previousPodiums = ctx.allRounds.slice(0, ctx.currentRoundIndex).filter(
+        (r) => (r.status === "completed" || r.status === "results") && isOnPodium(r, ctx.competitorId),
+      ).length
+      return { earned: previousPodiums === 0 }
+    },
+  ],
+  [
+    "Round Middle",
+    (ctx) => {
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry) return { earned: false }
+      const totalCompetitors = ctx.currentRound.competitors.length
+      const middlePosition = Math.ceil(totalCompetitors / 2)
+      return { earned: entry.position === middlePosition }
+    },
+  ],
+  [
+    "Photo Finish",
+    (ctx) => {
+      // Win by tiebreaker - winner and runner-up have same total points in standings.
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const winner = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      const runnerUp = ctx.currentRound.competitors.find((c) => c.position === 2)
+      if (!winner || !runnerUp) return { earned: false }
+      return { earned: winner.totalPoints === runnerUp.totalPoints }
+    },
+  ],
+]

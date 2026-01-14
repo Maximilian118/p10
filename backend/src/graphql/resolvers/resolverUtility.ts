@@ -2,8 +2,11 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
-import Champ, { Round, CompetitorEntry, PointsStructureEntry } from "../../models/champ"
+import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType } from "../../models/champ"
+import Badge from "../../models/badge"
+import User from "../../models/user"
 import moment from "moment"
+import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
 
 // Recalculate team.series based on all drivers' series.
 // A team is in a series if ANY of its drivers compete in that series.
@@ -603,13 +606,13 @@ export const calculateTeamPoints = (round: Round): void => {
  * - Sum drivers' points for each team
  * - Sync totalPoints and positionConstructors to next round
  *
- * ============================================================================
- * FUTURE FUNCTIONALITY (TO BE IMPLEMENTED):
- * ============================================================================
- *
  * STEP 3: BADGE AWARDS
  * - Check each badge's unlock criteria against the round results
  * - Award badges to users who have met the criteria
+ *
+ * ============================================================================
+ * FUTURE FUNCTIONALITY (TO BE IMPLEMENTED):
+ * ============================================================================
  *
  * STEP 6: NOTIFICATIONS
  * - Notify users of their results
@@ -618,6 +621,185 @@ export const calculateTeamPoints = (round: Round): void => {
  *
  * ============================================================================
  */
+
+// Update driver stats for round completion and championship standings.
+// Increments roundsCompleted for all drivers, roundsWon for P10 finisher,
+// and at championship end, updates champsCompleted, champsWon, and positionHistory.
+// Uses bulkWrite for performance (single DB call instead of 40+).
+const updateDriverStats = async (
+  currentRound: Round,
+  champ: ChampType,
+  roundIndex: number,
+): Promise<void> => {
+  const isChampEnd = roundIndex === champ.rounds.length - 1
+
+  // Build bulk operations for all drivers.
+  const bulkOps = currentRound.drivers.map((driverEntry) => {
+    const updateOps: Record<string, number> = {
+      "stats.roundsCompleted": 1,
+    }
+
+    // If driver finished P10 (the target position), increment roundsWon.
+    if (driverEntry.positionActual === 10) {
+      updateOps["stats.roundsWon"] = 1
+    }
+
+    // At championship end, increment champsCompleted.
+    if (isChampEnd) {
+      updateOps["stats.champsCompleted"] = 1
+
+      // If driver won the championship (positionDrivers === 1), increment champsWon.
+      if (driverEntry.positionDrivers === 1) {
+        updateOps["stats.champsWon"] = 1
+      }
+    }
+
+    // Update positionHistory array (index 0 = P1, index 9 = P10).
+    // This tracks how many times a driver has finished in each position.
+    if (driverEntry.positionActual > 0) {
+      const posIndex = driverEntry.positionActual - 1
+      updateOps[`stats.positionHistory.${posIndex}`] = 1
+    }
+
+    return {
+      updateOne: {
+        filter: { _id: driverEntry.driver },
+        update: { $inc: updateOps },
+      },
+    }
+  })
+
+  // Single bulk operation instead of multiple individual calls.
+  if (bulkOps.length > 0) {
+    await Driver.bulkWrite(bulkOps)
+  }
+
+  console.log(
+    `[updateDriverStats] Updated stats for ${currentRound.drivers.length} drivers` +
+      (isChampEnd ? " (championship end)" : ""),
+  )
+}
+
+// Award badges to competitors based on badge criteria.
+// Evaluates all championship badges against each competitor.
+// Uses batch operations for performance.
+const awardBadges = async (
+  champ: ChampType,
+  currentRound: Round,
+  roundIndex: number,
+): Promise<void> => {
+  // Load all badge definitions for this championship.
+  if (!champ.champBadges || champ.champBadges.length === 0) {
+    return
+  }
+
+  const champBadges = await Badge.find({ _id: { $in: champ.champBadges } })
+  if (champBadges.length === 0) {
+    return
+  }
+
+  // Load driver data for attribute-based badges (oldest, tallest, moustache, etc.).
+  const driverIds = currentRound.drivers.map((d) => d.driver)
+  const drivers = await Driver.find({ _id: { $in: driverIds } })
+  const populatedDrivers = new Map<string, driverType>(
+    drivers.map((d) => [d._id.toString(), d]),
+  )
+
+  // Track awards to batch save at end.
+  const badgeAwards: { badgeId: ObjectId; competitorId: ObjectId; awardedHow: string }[] = []
+  const userBadgeUpdates: { userId: ObjectId; badgeId: ObjectId; dateTime: string }[] = []
+  const dateTime = moment().format()
+
+  // Track already awarded within this evaluation to avoid duplicate checks.
+  const newlyAwarded = new Set<string>()
+
+  // For each competitor in the current round.
+  for (const competitorEntry of currentRound.competitors) {
+    // Build context for badge evaluation.
+    const ctx: BadgeContext = {
+      competitorId: competitorEntry.competitor,
+      currentRound,
+      currentRoundIndex: roundIndex,
+      champ,
+      allRounds: champ.rounds,
+      maxCompetitors: champ.settings?.maxCompetitors || 24,
+    }
+
+    // Evaluate each badge.
+    for (const badge of champBadges) {
+      const awardKey = `${badge._id}-${competitorEntry.competitor}`
+
+      // Skip if already awarded to this competitor (from DB or this evaluation).
+      const alreadyAwarded =
+        badge.awardedTo?.some((u) => u.toString() === competitorEntry.competitor.toString()) ||
+        newlyAwarded.has(awardKey)
+      if (alreadyAwarded) {
+        continue
+      }
+
+      // Get checker function for this badge.
+      const checker = badgeCheckerRegistry.get(badge.awardedHow)
+      if (!checker) {
+        continue
+      }
+
+      // Evaluate badge criteria.
+      const result = checker(ctx, populatedDrivers)
+
+      if (result.earned) {
+        // Track award for batch save.
+        badgeAwards.push({
+          badgeId: badge._id,
+          competitorId: competitorEntry.competitor,
+          awardedHow: badge.awardedHow,
+        })
+        userBadgeUpdates.push({
+          userId: competitorEntry.competitor,
+          badgeId: badge._id,
+          dateTime,
+        })
+        newlyAwarded.add(awardKey)
+
+        console.log(
+          `[awardBadges] Awarded "${badge.awardedHow}" to competitor ${competitorEntry.competitor}`,
+        )
+      }
+    }
+  }
+
+  // Batch save badge awards.
+  if (badgeAwards.length > 0) {
+    const badgeBulkOps = badgeAwards.map((award) => ({
+      updateOne: {
+        filter: { _id: award.badgeId },
+        update: {
+          $addToSet: { awardedTo: award.competitorId },
+          $set: { updated_at: dateTime },
+        },
+      },
+    }))
+    await Badge.bulkWrite(badgeBulkOps)
+
+    // Batch save user badge updates.
+    const userBulkOps = userBadgeUpdates.map((update) => ({
+      updateOne: {
+        filter: { _id: update.userId },
+        update: {
+          $addToSet: {
+            badges: {
+              badge: update.badgeId,
+              dateTime: update.dateTime,
+            },
+          },
+        },
+      },
+    }))
+    await User.bulkWrite(userBulkOps)
+
+    console.log(`[awardBadges] Batch saved ${badgeAwards.length} badge awards`)
+  }
+}
+
 export const resultsHandler = async (champId: string, roundIndex: number): Promise<void> => {
   const champ = await Champ.findById(champId)
   if (!champ) {
@@ -746,13 +928,21 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   }
 
   // ============================================================================
-  // STEP 3: AWARD BADGES (FUTURE)
+  // STEP 6: UPDATE DRIVER STATS
   // ============================================================================
-  // TODO: Implement badge awarding logic:
-  // - Load all badge definitions
-  // - For each badge, check if any competitor has met the unlock criteria
-  // - Award badges to qualifying users
-  // - Store badge award timestamp and round context
+  // Update driver statistics in the database:
+  // - roundsCompleted: incremented for all drivers in the round
+  // - roundsWon: incremented for driver who finished P10
+  // - champsCompleted: incremented at championship end for all drivers
+  // - champsWon: incremented at championship end for driver standings winner
+  // - positionHistory: tracks finish count per position
+  await updateDriverStats(currentRound, champ, roundIndex)
+
+  // ============================================================================
+  // STEP 3: AWARD BADGES
+  // ============================================================================
+  // For each competitor, evaluate all badge criteria and award earned badges.
+  await awardBadges(champ, currentRound, roundIndex)
 
   // ============================================================================
   // STEP 6: SEND NOTIFICATIONS (FUTURE)

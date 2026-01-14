@@ -5,6 +5,7 @@ import { initGraphQLError, graphQLErrorType, hasBackendErr } from "./requests/re
 interface formStateType {
   name?: string
   badgeName?: string
+  customName?: string
   driverName?: string
   driverID?: string
   seriesName?: string
@@ -153,6 +154,7 @@ export const updateForm = <T extends formStateType, U>(
     case "name": nameCase(); break
     case "champName": nameCaseCanNumbers(); break
     case "badgeName": nameCaseCanSpecial(); break
+    case "customName": nameCaseCanSpecial(); break
     case "seriesName": nameCaseCanNumbers(); break
     case "teamName": nameCaseCanNumbers(); break
     case "driverName": nameCase(); break
@@ -239,6 +241,9 @@ export const inputLabel = (
       break
     case "badgeName":
       label = "Name"
+      break
+    case "customName":
+      label = "Custom Name (Optional)"
       break
     case "awardedHow":
       label = "Awarded For"

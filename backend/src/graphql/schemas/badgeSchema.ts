@@ -4,6 +4,7 @@ const badgeSchema = `
     championship: String
     url: String!
     name: String!
+    customName: String
     rarity: Int!
     awardedTo: [String!]!
     awardedHow: String!
@@ -23,6 +24,7 @@ const badgeSchema = `
   input badgeInput {
     url: String!
     name: String!
+    customName: String
     rarity: Int!
     awardedHow: String!
     awardedDesc: String!
@@ -35,6 +37,7 @@ const badgeSchema = `
     _id: ID!
     url: String
     name: String
+    customName: String
     rarity: Int
     awardedHow: String
     awardedDesc: String

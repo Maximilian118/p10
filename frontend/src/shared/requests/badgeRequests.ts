@@ -24,14 +24,15 @@ export const newBadge = async (
         {
           variables: {
             ...badge,
-            name: capitalise(badge.name),
+            customName: badge.customName ? capitalise(badge.customName) : undefined,
           },
           query: `
-            mutation NewBadge($championship: String, $url: String!, $name: String!, $rarity: Int!, $awardedHow: String!, $awardedDesc: String!, $zoom: Int) {
-              newBadge(badgeInput: { championship: $championship, url: $url,  name: $name, rarity: $rarity, awardedHow: $awardedHow, awardedDesc: $awardedDesc, zoom: $zoom }) {
+            mutation NewBadge($championship: String, $url: String!, $name: String!, $customName: String, $rarity: Int!, $awardedHow: String!, $awardedDesc: String!, $zoom: Int) {
+              newBadge(badgeInput: { championship: $championship, url: $url, name: $name, customName: $customName, rarity: $rarity, awardedHow: $awardedHow, awardedDesc: $awardedDesc, zoom: $zoom }) {
                 _id
                 url
                 name
+                customName
                 rarity
                 awardedHow
                 awardedDesc
@@ -89,6 +90,7 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
                   championship
                   url
                   name
+                  customName
                   rarity
                   awardedTo
                   awardedHow
@@ -168,9 +170,10 @@ export const updateBadge = async (
         {
           variables: badge,
           query: `
-            mutation UpdateBadge($_id: ID!, $url: String, $name: String, $rarity: Int, $awardedHow: String, $awardedDesc: String, $zoom: Int) {
-              updateBadge(updateBadgeInput: { _id: $_id, url: $url, name: $name, rarity: $rarity, awardedHow: $awardedHow, awardedDesc: $awardedDesc, zoom: $zoom }) {
+            mutation UpdateBadge($_id: ID!, $url: String, $name: String, $customName: String, $rarity: Int, $awardedHow: String, $awardedDesc: String, $zoom: Int) {
+              updateBadge(updateBadgeInput: { _id: $_id, url: $url, name: $name, customName: $customName, rarity: $rarity, awardedHow: $awardedHow, awardedDesc: $awardedDesc, zoom: $zoom }) {
                 _id
+                customName
               }
             }
           `,

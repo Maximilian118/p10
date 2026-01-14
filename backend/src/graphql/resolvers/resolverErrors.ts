@@ -325,6 +325,13 @@ export const badgeNameErrors = (badgeName: string): void => {
   }
 }
 
+// Validate optional customName field (only if provided).
+export const badgeCustomNameErrors = (customName: string | undefined): void => {
+  if (customName && customName.length >= 30) {
+    throwError("customName", customName, "30 characters maximum.")
+  }
+}
+
 export const badgeChampErrors = (championship: ObjectId | null): void => {
   const type = "badge"
 

@@ -3,7 +3,7 @@ import { badgeType } from "../../../shared/types"
 import { editFormErrType } from "./badgePickerEdit/BadgePickerEdit"
 
 interface badgeErrCheckType {
-  name: string
+  customName: string
   icon: File | string | null
   awardedHow: string | null
 }
@@ -17,18 +17,14 @@ export const badgePickerErrors = (
 ): boolean => {
   // Reset errors before validation.
   setEditFormErr({
-    badgeName: "",
+    customName: "",
     awardedHow: "",
     dropzone: "",
   })
 
   let hasErrors = false
 
-  // Check required fields.
-  if (!badge.name) {
-    setEditFormErr(prev => ({ ...prev, badgeName: "Required." }))
-    hasErrors = true
-  }
+  // Note: customName is optional - no required check needed.
 
   if (!badge.awardedHow) {
     setEditFormErr(prev => ({ ...prev, awardedHow: "Required." }))
@@ -62,9 +58,9 @@ export const badgePickerErrors = (
       }
     }
 
-    // Check for duplicate names.
-    if (b.name.toLowerCase() === badge.name.toLowerCase()) {
-      setEditFormErr(prev => ({ ...prev, badgeName: "A badge by that name already exists!" }))
+    // Check for duplicate custom names (only if user entered one).
+    if (badge.customName && b.customName && b.customName.toLowerCase() === badge.customName.toLowerCase()) {
+      setEditFormErr(prev => ({ ...prev, customName: "A badge by that name already exists!" }))
       hasErrors = true
       break
     }

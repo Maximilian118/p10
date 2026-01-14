@@ -18,6 +18,10 @@ export interface driverType {
     birthday: string
     moustache: boolean
     mullet: boolean
+    roundsCompleted: number
+    roundsWon: number
+    champsCompleted: number
+    champsWon: number
     positionHistory: number[]
   }
   created_by: ObjectId
@@ -61,6 +65,10 @@ const driverSchema = new mongoose.Schema<driverType>({
     birthday: { type: String, required: true },
     moustache: { type: Boolean, default: false },
     mullet: { type: Boolean, default: false },
+    roundsCompleted: { type: Number, default: 0 }, // Total rounds the driver has participated in
+    roundsWon: { type: Number, default: 0 }, // Rounds where driver finished P10
+    champsCompleted: { type: Number, default: 0 }, // Championships the driver has completed
+    champsWon: { type: Number, default: 0 }, // Championships where driver finished 1st in driver standings
     positionHistory: { type: [Number], default: [] }, // Array of finish counts per position (index 0 = P1)
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the driver.

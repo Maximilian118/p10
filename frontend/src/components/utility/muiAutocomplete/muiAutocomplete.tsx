@@ -3,6 +3,8 @@ import React, { SyntheticEvent } from "react"
 import './_muiAutocomplete.scss'
 import { Add } from "@mui/icons-material"
 import ImageIcon from "../icon/imageIcon/ImageIcon"
+import BadgeOption from "../badgePicker/badgeOption/BadgeOption"
+import { badgeOutcomeType, getOutcomeByHow } from "../../../shared/badges"
 
 interface muiAutocompleteType<T> {
   label: string
@@ -21,6 +23,7 @@ interface muiAutocompleteType<T> {
   onLiClick?: (value: T) => void // Custom onClick functionality for options. NOTE: Stops textArea from retaining clicked option. Useful for adding option to a list.
   disabled?: boolean
   style?: React.CSSProperties
+  badgeMode?: boolean // Enable badge outcome display mode with BadgeOption component.
 }
 
 // Return JSX for the onClick element to create a new of whatever is being listed.
@@ -53,23 +56,24 @@ const displayCreateNew = (
   return null
 }
 
-const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }>({ 
-  label, 
-  options, 
-  value, 
-  error, 
+const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }>({
+  label,
+  options,
+  value,
+  error,
   onChange,
   setValue,
   setObjValue,
-  loading, 
-  variant, 
-  className, 
-  customNewLabel, 
+  loading,
+  variant,
+  className,
+  customNewLabel,
   displayNew,
   onNewMouseDown,
   onLiClick,
   disabled,
-  style 
+  style,
+  badgeMode,
 }: muiAutocompleteType<T>) => {
   const findValueString = (value: T | string | null): string | null => {
     if (!value) {
@@ -109,12 +113,33 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       options={options as (T | string)[]}
       isOptionEqualToValue={(option, value) => findValueString(option) === findValueString(value)}
       getOptionLabel={(option: T | string | null) => findValueString(option) as string}
-      renderOption={({ key, ...props }: React.HTMLAttributes<HTMLLIElement> & { key: string }, option: T | string | null) => (
-        <li key={key} {...props}>
-          {typeof option !== "string" && !!option && <ImageIcon src={option.url || option.icon || ""} style={{ marginRight: 16 }}/>}
-          <p>{findValueString(option)}</p>
-        </li>
-      )}
+      renderOption={({ key, ...props }: React.HTMLAttributes<HTMLLIElement> & { key: string }, option: T | string | null) => {
+        const optionValue = findValueString(option)
+
+        // Badge mode: render using BadgeOption component.
+        if (badgeMode && optionValue) {
+          const badgeOutcome = getOutcomeByHow(optionValue)
+          if (badgeOutcome) {
+            return (
+              <li key={key} {...props}>
+                <BadgeOption
+                  name={badgeOutcome.name}
+                  awardedDesc={badgeOutcome.awardedDesc}
+                  rarity={badgeOutcome.rarity}
+                />
+              </li>
+            )
+          }
+        }
+
+        // Default rendering for non-badge options.
+        return (
+          <li key={key} {...props}>
+            {typeof option !== "string" && !!option && <ImageIcon src={option.url || option.icon || ""} style={{ marginRight: 16 }}/>}
+            <p>{optionValue}</p>
+          </li>
+        )
+      }}
       loading={loading}
       PaperComponent={({ children }) => {
         let hasOptions = true

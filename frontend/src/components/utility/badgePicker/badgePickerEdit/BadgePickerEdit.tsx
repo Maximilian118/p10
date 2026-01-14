@@ -3,12 +3,12 @@ import './_badgePickerEdit.scss'
 import DropZone from "../../dropZone/DropZone"
 import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
 import MUISlider from "../../muiSlider/MUISlider"
-import { Diamond, Groups, ZoomInMap, ZoomOutMap } from "@mui/icons-material"
-import BadgeOverlay, { getBadgeColour } from "../../badge/badgeOverlay/BadgeOverlay"
+import { ZoomInMap, ZoomOutMap } from "@mui/icons-material"
+import BadgeOverlay from "../../badge/badgeOverlay/BadgeOverlay"
 import { Button, CircularProgress, TextField } from "@mui/material"
 import { inputLabel, updateForm } from "../../../../shared/formValidation"
 import MUIAutocomplete from "../../muiAutocomplete/muiAutocomplete"
-import { badgeOutcomeType, badgeRewardOutcomes } from "../../../../shared/badges"
+import { badgeOutcomeType, badgeRewardOutcomes, getRarityByHow, getOutcomeByHow } from "../../../../shared/badges"
 import { badgeType } from "../../../../shared/types"
 import { badgePickerErrors } from "../badgePickerUtility"
 import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
@@ -28,7 +28,7 @@ interface badgePickerEditType<T> {
 }
 
 interface editFormType {
-  badgeName: string
+  customName: string
   icon: File | string | null
   profile_picture: File | string | null
 }
@@ -36,6 +36,7 @@ interface editFormType {
 export interface editFormErrType {
   dropzone: string
   awardedHow: string
+  customName: string
   [key: string]: string
 }
 
@@ -53,18 +54,20 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ editForm, setEditForm ] = useState<editFormType>({
-    badgeName: isNewBadge ? "" : isEdit.name,
+    customName: isNewBadge ? "" : (isEdit.customName || ""),
     icon: initIcon(isEdit),
     profile_picture: null,
   })
   const [ editFormErr, setEditFormErr ] = useState<editFormErrType>({
-    badgeName: "",
+    customName: "",
     awardedHow: "",
     dropzone: "",
   })
   const [ zoom, setZoom ] = useState<number>(isNewBadge ? 100 : isEdit.zoom)
-  const [ rarity, setRarity ] = useState<number>(isNewBadge ? 0 : isEdit.rarity)
   const [ how, setHow ] = useState<string | null>(isNewBadge ? null : isEdit.awardedHow)
+
+  // Rarity is determined by the selected awardedHow outcome.
+  const rarity = how ? getRarityByHow(how) : 0
 
   const displayOverlay = !isNewBadge || editForm.icon
 
@@ -93,7 +96,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   const onSubmitHandler = async () => {
     // Check for errors.
     const hasErr = badgePickerErrors(isNewBadge, {
-      name: editForm.badgeName,
+      customName: editForm.customName,
       awardedHow: how,
       icon: editForm.icon,
     }, setEditFormErr, form.champBadges)
@@ -119,13 +122,18 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         setEditForm(prev => ({ ...prev, icon: s3Url }))
       }
 
+      // Get the catchy name from the outcome.
+      const outcome = getOutcomeByHow(how as string)
+      const outcomeName = outcome?.name || ""
+
       // Add badge data to form (no DB call - backend creates it during createChamp).
       setForm(prevForm => ({
         ...prevForm,
         champBadges: [
           {
             url: s3Url,
-            name: editForm.badgeName,
+            name: outcomeName,
+            customName: editForm.customName || undefined,
             rarity,
             awardedHow: how,
             awardedDesc: findDesc(badgeRewardOutcomes, how),
@@ -150,6 +158,10 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         badgeUrl = editForm.icon
       }
 
+      // Get the catchy name from the outcome.
+      const editOutcome = getOutcomeByHow(how as string)
+      const editOutcomeName = editOutcome?.name || ""
+
       setForm(prevForm => ({
         ...prevForm,
         champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
@@ -157,7 +169,8 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
             return {
               ...badge,
               url: badgeUrl,
-              name: editForm.badgeName,
+              name: editOutcomeName,
+              customName: editForm.customName || undefined,
               zoom,
               rarity,
               awardedHow: how ? how : badge.awardedHow,
@@ -235,30 +248,18 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         iconRight={<ZoomOutMap/>}
         min={25}
         max={175}
-        style={{ padding: "0 20px" }}
-      />
-      <MUISlider
-        ariaLabel="Rarity Level"
-        value={rarity}
-        setValue={setRarity}
-        label="Rarity"
-        iconLeft={<Groups/>}
-        iconRight={<Diamond/>}
-        steps={1}
-        min={0}
-        max={5}
         style={{ padding: "0 20px", marginBottom: 30 }}
-        colour={getBadgeColour(rarity)}
       />
       <TextField
-        name="badgeName"
+        name="customName"
         inputProps={{ maxLength: 30 }}
         className="mui-form-el"
-        label={inputLabel("badgeName", editFormErr, backendErr)}
-        variant="filled" 
+        label={inputLabel("customName", editFormErr, backendErr)}
+        variant="filled"
         onChange={e => updateForm<editFormType, editFormErrType>(e, editForm, setEditForm, setEditFormErr, backendErr, setBackendErr)}
-        value={editForm.badgeName}
-        error={editFormErr.badgeName || backendErr.type === "badgeName" ? true : false}
+        value={editForm.customName}
+        error={editFormErr.customName || backendErr.type === "customName" ? true : false}
+        placeholder="Optional custom name"
       />
       <MUIAutocomplete
         label={inputLabel("awardedHow", editFormErr, backendErr)}
@@ -273,6 +274,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
             awardedHow: "",
           }
         })}
+        badgeMode={true}
       />
       {showButtonBar && (
         <div className="button-bar">
