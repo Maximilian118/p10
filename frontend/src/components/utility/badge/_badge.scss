@@ -8,6 +8,7 @@
   position: relative;
   z-index: 2;
   cursor: pointer;
+  flex-shrink: 0;
 
   .outer-ring {
     width: 100%;

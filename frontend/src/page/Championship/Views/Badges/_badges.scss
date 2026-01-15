@@ -7,4 +7,9 @@
   flex-shrink: 0;
   flex-grow: 1;
   box-sizing: border-box;
+
+  .badge-info-card-container {
+    padding: 20px 7.5% 0;
+    box-sizing: border-box;
+  }
 }

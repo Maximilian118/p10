@@ -10,9 +10,10 @@ interface badgeCompType {
   zoom: number
   onClick?: () => void
   style?: React.CSSProperties
+  showEditButton?: boolean // Controls edit button visibility, defaults to true when onClick exists.
 }
 
-const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {
+const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditButton = true }) => {
   const [ error, setError ] = useState<boolean>(false)
 
   // Get display URL - prefer S3 URL, fall back to preview URL for local display.
@@ -43,7 +44,7 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {
 
   return (
     <div className="badge" style={style} onClick={onClick}>
-      {onClick && (
+      {onClick && showEditButton && (
         <IconButton className="edit-button">
           <Edit/>
         </IconButton>

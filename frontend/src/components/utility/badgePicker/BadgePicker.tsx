@@ -31,6 +31,7 @@ interface badgePickerType<T> {
   setDraw?: React.Dispatch<React.SetStateAction<boolean>> // Controlled filter drawer setter from parent.
   onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void // Callback to expose edit handlers.
   championship?: string // Championship ID for badge association.
+  onBadgeClick?: (badge: badgeType) => void // Callback when a badge is clicked in read-only mode.
 }
 
 const BadgePicker = <T extends { champBadges: badgeType[] }>({
@@ -52,6 +53,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   setDraw: controlledSetDraw,
   onEditHandlersReady,
   championship,
+  onBadgeClick,
 }: badgePickerType<T>) => {
   // Support both controlled and uncontrolled state patterns.
   const [ internalIsEdit, setInternalIsEdit ] = useState<boolean | badgeType>(false)
@@ -104,8 +106,8 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         badgesFiltered.length > 0 ?
         <div className="badge-list-container">
           {badgesFiltered.map((badge: badgeType, i: number) => (
-            <div key={i} className="badge-item">
-              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)}/>
+            <div key={i} className="badge-item" onClick={(e) => e.stopPropagation()}>
+              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? () => onBadgeClick?.(badge) : () => setIsEdit(badge)} showEditButton={!readOnly}/>
             </div>
           ))}
         </div> :

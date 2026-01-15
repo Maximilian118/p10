@@ -1,0 +1,79 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+// Wrapper handles height animation using CSS grid trick.
+.badge-info-card-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out, margin-top 0.3s ease-out;
+  width: 85%;
+  margin: 0 7.5%;
+
+  &--open {
+    grid-template-rows: 1fr;
+    margin-top: 20px;
+  }
+
+  // Hide border when collapsed by using opacity on the card.
+  .badge-info-card {
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+  }
+
+  &--open .badge-info-card {
+    opacity: 1;
+    transition: opacity 0.15s ease-in 0.1s;
+  }
+}
+
+.badge-info-card {
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  background: white;
+  border-radius: 8px;
+  @include mixins.flexbox-start-column;
+  border: 1px solid variables.$border;
+
+  .badge-info-header {
+    width: 100%;
+    @include mixins.flexbox-start;
+    padding: 15px 20px;
+    box-sizing: border-box;
+    gap: 15px;
+
+    // Badge is scaled to 84px (2x default 42px) via style prop.
+    .badge {
+      width: 75px;
+      height: 75px;
+    }
+
+    .badge-info-name {
+      font-weight: 500;
+      color: variables.$colour-6;
+      text-transform: capitalize;
+    }
+  }
+
+  .badge-info {
+    width: 100%;
+    box-sizing: border-box;
+    @include mixins.flexbox-start-column;
+
+    span {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 5px;
+    }
+
+    p {
+      width: 100%;
+      text-align: left;
+      margin: 0;
+      font-size: 14px;
+      color: variables.$colour-4;
+      line-height: 1.5;
+    }
+  }
+}
