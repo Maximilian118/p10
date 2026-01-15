@@ -9,12 +9,9 @@
   bottom: 0;
   z-index: 3;
   pointer-events: none;
+  gap: 10px;
 
   * {
     pointer-events: all;
-  }
-
-  > *:not(:first-child) {
-    margin-left: 10px;
   }
 }

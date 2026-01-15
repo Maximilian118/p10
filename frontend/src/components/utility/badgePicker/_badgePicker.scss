@@ -14,19 +14,18 @@
     flex-grow: 1;
   }
 
-  .badge-list-container, .badge-list-empty, .badge-picker-loading {
+  .badge-list-container, .badge-picker-loading {
     width: 100%;
-    @include mixins.flexbox-start;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, max-content));
+    justify-content: space-evenly;
     padding: 20px 7.5% 60px;
     box-sizing: border-box;
-    align-items: start;
-    flex-flow: wrap;
     overflow-y: auto;
+    row-gap: 10px;
 
     .badge-item {
       @include mixins.flexbox;
-      flex: 0 0 16.66%;
-      margin-bottom: 10px;
       position: relative;
     }
   }
