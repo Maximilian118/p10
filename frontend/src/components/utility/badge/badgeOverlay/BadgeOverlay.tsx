@@ -2,7 +2,7 @@ import React from "react"
 import './_badgeOverlay.scss'
 import BadgeSpinner from "./badgeSpinner/BadgeSpinner"
 import Shimmer from "./shimmer/Shimmer"
-import { getBadgeColour } from "./badgeOverlayUtility"
+import { getBadgeColour, getBadgeGlow } from "./badgeOverlayUtility"
 
 interface badgeOverlayType {
   rarity: number
@@ -14,7 +14,7 @@ interface badgeOverlayType {
 const BadgeOverlay: React.FC<badgeOverlayType> = ({ rarity, thickness, error, style }) => {
   return (
     <>
-      <div className="badge-outer" style={{ border: `${thickness ? thickness : 6}px solid ${getBadgeColour(rarity, error)}`, opacity: 0.9, ...style }}>
+      <div className="badge-outer" style={{ border: `${thickness ? thickness : 6}px solid ${getBadgeColour(rarity, error)}`, boxShadow: getBadgeGlow(rarity, error), opacity: 0.9, ...style }}>
         <div className="badge-middle" style={{ border: `${thickness ? thickness / 2 : 4}px solid ${getBadgeColour(rarity, error)}`, opacity: 0.6, ...style }}>
           <div className="badge-inner" style={{ border: `${thickness ? thickness / 4 : 2}px solid ${getBadgeColour(rarity, error)}`, opacity: 0.5, ...style }} />
         </div>

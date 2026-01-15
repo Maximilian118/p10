@@ -12,7 +12,7 @@
   border: 6px solid variables.$silver;
   opacity: 0.9;
   @include mixins.flexbox;
-  transition: 1s;
+  transition: border 1s, box-shadow 1s;
 
   .badge-middle {
     width: 94%;
