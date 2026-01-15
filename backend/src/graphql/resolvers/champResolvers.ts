@@ -188,7 +188,7 @@ const STATUS_PRIORITY: Record<RoundStatus, number> = {
 }
 
 // Lightweight return type for getMyTopChampionship.
-interface FloatingChampType {
+export interface FloatingChampType {
   _id: string
   name: string
   icon: string
