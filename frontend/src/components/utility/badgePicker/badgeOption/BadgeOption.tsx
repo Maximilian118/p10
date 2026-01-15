@@ -1,6 +1,6 @@
 import React from "react"
 import "./_badgeOption.scss"
-import { getBadgeColour } from "../../badge/badgeOverlay/BadgeOverlay"
+import { getBadgeColour } from "../../badge/badgeOverlay/badgeOverlayUtility"
 
 interface BadgeOptionProps {
   name: string // Catchy display name

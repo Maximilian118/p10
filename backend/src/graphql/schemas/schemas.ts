@@ -48,6 +48,7 @@ const Schema = buildSchema(`
     deleteChamp(_id: ID!, confirmName: String!): DeletedChamp!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!
+    deleteBadge(_id: ID!): Badge!
     newSeries(seriesInput: seriesInput): Series!
     updateSeries(seriesInput: seriesInput): Series!
     deleteSeries(_id: ID!): Series!

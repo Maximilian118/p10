@@ -56,7 +56,7 @@ const getBottomStats = (champ: ChampType, viewedRoundNumber?: number) => {
     { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds.length}` },
     { icon: <PersonIcon />, value: `${getCompetitors(champ).length}/${champ.settings.maxCompetitors}` },
     { icon: <SportsMotorsportsIcon />, value: champ.series.drivers.length },
-    { icon: <WorkspacePremiumIcon />, value: champ.champBadges.length }
+    { icon: <WorkspacePremiumIcon />, value: champ.champBadges?.length || 0 }
   ]
 }
 

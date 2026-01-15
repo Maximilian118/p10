@@ -196,3 +196,57 @@ export const updateBadge = async (
 
   setLoading(false)
 }
+
+// Delete a badge from the database and S3.
+export const deleteBadge = async (
+  _id: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<badgeType | null> => {
+  setLoading(true)
+
+  let result: badgeType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            mutation DeleteBadge($_id: ID!) {
+              deleteBadge(_id: $_id) {
+                _id
+                url
+                name
+                customName
+                rarity
+                awardedHow
+                awardedDesc
+                zoom
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteBadge", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("deleteBadge", res, user, setUser, false) as badgeType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteBadge", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteBadge", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+  return result
+}

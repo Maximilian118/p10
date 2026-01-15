@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react"
+import React, { useState, useCallback, useEffect, useRef } from "react"
 import './_badgePickerEdit.scss'
 import DropZone from "../../dropZone/DropZone"
 import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
@@ -14,6 +14,8 @@ import { badgePickerErrors } from "../badgePickerUtility"
 import { userType } from "../../../../shared/localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { useChampFlowForm } from "../../../../context/ChampFlowContext"
+import { newBadge, updateBadge, deleteBadge } from "../../../../shared/requests/badgeRequests"
+import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
 
 interface badgePickerEditType<T> {
   isEdit: boolean | badgeType
@@ -23,6 +25,9 @@ interface badgePickerEditType<T> {
   user: userType
   setUser: React.Dispatch<React.SetStateAction<userType>>
   navigate: NavigateFunction
+  backendErr: graphQLErrorType
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+  championship?: string // Championship ID for badge association.
   embedded?: boolean // When true, registers handlers with ChampFlowContext.
   onHandlersReady?: (handlers: BadgePickerEditRef) => void // Callback to expose handlers to parent.
 }
@@ -57,10 +62,10 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
   }
 }
 
-const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, embedded = true, onHandlersReady }: badgePickerEditType<T>) => {
+const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, user, setUser, navigate, backendErr, setBackendErr, championship, embedded = true, onHandlersReady }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
-  const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ loading, setLoading ] = useState<boolean>(false)
+  const [ delLoading, setDelLoading ] = useState<boolean>(false)
   const [ editForm, setEditForm ] = useState<editFormType>({
     customName: isNewBadge ? "" : (isEdit.customName || ""),
     icon: initIcon(isEdit),
@@ -106,10 +111,10 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     return getHows
   }
 
-  // Depending on whether we're editing or creating a new badge, setForm accordingly.
-  // For new badges: upload to S3, store badge data in form (backend creates in MongoDB during createChamp).
-  // For editing: update form locally (S3 upload if new image).
-  const onSubmitHandler = async () => {
+  // Submit handler - makes direct API calls for badge operations.
+  // For new badges: upload to S3 → call newBadge API.
+  // For editing: optionally upload to S3 → call updateBadge API.
+  const onSubmitHandler = useCallback(async () => {
     // Check for errors.
     const hasErr = badgePickerErrors(isNewBadge, {
       customName: editForm.customName,
@@ -124,92 +129,112 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
 
     setLoading(true)
 
+    // Get the catchy name from the outcome.
+    const outcome = getOutcomeByHow(how as string)
+    const outcomeName = outcome?.name || ""
+
     if (isNewBadge) {
-      // Get the catchy name from the outcome.
-      const outcome = getOutcomeByHow(how as string)
-      const outcomeName = outcome?.name || ""
+      // Upload badge image to S3.
+      const badgeName = editForm.customName || outcomeName || "badge"
+      const s3Url = await uplaodS3("badges", badgeName, "icon", editForm.icon, setBackendErr)
 
-      // Create preview URL for display before S3 upload.
-      const previewUrl = editForm.icon instanceof File
-        ? URL.createObjectURL(editForm.icon)
-        : ""
+      // If S3 upload failed, stop.
+      if (!s3Url && editForm.icon instanceof File) {
+        setLoading(false)
+        return
+      }
 
-      // Add badge data to form. File is stored for later S3 upload during championship submission.
-      setForm(prevForm => ({
-        ...prevForm,
-        champBadges: [
-          {
-            url: "",
-            file: editForm.icon instanceof File ? editForm.icon : null,
-            previewUrl,
-            name: outcomeName,
-            customName: editForm.customName || undefined,
-            rarity,
-            awardedHow: how,
-            awardedDesc: findDesc(badgeRewardOutcomes, how),
-            zoom,
-            default: false,
-          } as badgeType,
-          ...prevForm.champBadges,
-        ]
-      }))
+      // Call newBadge API.
+      const createdBadge = await newBadge({
+        url: s3Url,
+        name: outcomeName,
+        customName: editForm.customName || undefined,
+        rarity,
+        awardedHow: how as string,
+        awardedDesc: findDesc(badgeRewardOutcomes, how),
+        zoom,
+        championship: championship || undefined,
+      } as badgeType, user, setUser, navigate, setBackendErr, setLoading)
+
+      // If newBadge succeeded, add to form state.
+      if (createdBadge) {
+        setForm(prevForm => ({
+          ...prevForm,
+          champBadges: [createdBadge, ...prevForm.champBadges]
+        }))
+        setIsEdit(false)
+      }
     } else {
-      // Editing existing badge - update form locally.
-      // File is stored for later S3 upload during championship submission.
-      const editOutcome = getOutcomeByHow(how as string)
-      const editOutcomeName = editOutcome?.name || ""
+      // Editing existing badge.
+      // Upload new image to S3 if changed.
+      let s3Url = isEdit.url
+      if (editForm.icon instanceof File) {
+        const badgeName = editForm.customName || outcomeName || "badge"
+        s3Url = await uplaodS3("badges", badgeName, "icon", editForm.icon, setBackendErr)
+        if (!s3Url) {
+          setLoading(false)
+          return
+        }
+      }
 
-      // Create new preview URL if new file uploaded, otherwise keep existing.
-      const editPreviewUrl = editForm.icon instanceof File
-        ? URL.createObjectURL(editForm.icon)
-        : isEdit.previewUrl
+      // Call updateBadge API.
+      await updateBadge({
+        _id: isEdit._id,
+        url: s3Url,
+        name: outcomeName,
+        customName: editForm.customName || undefined,
+        rarity,
+        awardedHow: how as string,
+        awardedDesc: findDesc(badgeRewardOutcomes, how),
+        zoom,
+      } as badgeType, user, setUser, navigate, setLoading, setBackendErr)
 
+      // Update form state with new badge data.
       setForm(prevForm => ({
         ...prevForm,
         champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
-          if (badge._id === isEdit._id || badge.awardedHow === isEdit.awardedHow) {
+          if (badge._id === isEdit._id) {
             return {
               ...badge,
-              url: editForm.icon instanceof File ? "" : (typeof editForm.icon === "string" ? editForm.icon : isEdit.url),
-              file: editForm.icon instanceof File ? editForm.icon : badge.file,
-              previewUrl: editPreviewUrl,
-              name: editOutcomeName,
+              url: s3Url,
+              name: outcomeName,
               customName: editForm.customName || undefined,
               zoom,
               rarity,
               awardedHow: how ? how : badge.awardedHow,
               awardedDesc: findDesc(badgeRewardOutcomes, how),
-              default: false,
             }
           } else {
             return badge
           }
         })
       }))
+      setIsEdit(false)
     }
 
     setLoading(false)
-    setIsEdit(false)
-  }
+  }, [isNewBadge, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
 
-  // Remove/delete a badge from form.champBadges.
+  // Delete a badge from database and S3 via API call.
   const deleteBadgeHandler = useCallback(async () => {
-    if (!isNewBadge) {
-      // Revoke preview URL to prevent memory leaks.
-      if (isEdit.previewUrl) {
-        URL.revokeObjectURL(isEdit.previewUrl)
+    if (!isNewBadge && isEdit._id) {
+      setDelLoading(true)
+
+      // Call deleteBadge API (deletes from DB and S3).
+      const deleted = await deleteBadge(isEdit._id, user, setUser, navigate, setDelLoading, setBackendErr)
+
+      // If delete succeeded, remove from form state.
+      if (deleted) {
+        setForm(prevForm => ({
+          ...prevForm,
+          champBadges: prevForm.champBadges.filter((badge: badgeType) => badge._id !== isEdit._id)
+        }))
+        setIsEdit(false)
       }
 
-      setForm(prevForm => {
-        return {
-          ...prevForm,
-          champBadges: prevForm.champBadges.filter((badge: badgeType) => badge._id !== isEdit._id && badge.awardedHow !== isEdit.awardedHow)
-        }
-      })
+      setDelLoading(false)
     }
-
-    setIsEdit(false)
-  }, [isNewBadge, isEdit, setForm, setIsEdit])
+  }, [isNewBadge, isEdit, setForm, setIsEdit, user, setUser, navigate, setBackendErr])
 
   // Back handler for context.
   const handleBack = useCallback(() => setIsEdit(false), [setIsEdit])
@@ -220,21 +245,28 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     back: handleBack,
     isEditing: !isNewBadge,
     loading,
-    delLoading: false,
-    canDelete: !isNewBadge,
+    delLoading,
+    canDelete: !isNewBadge && !!isEdit._id,
     onDelete: deleteBadgeHandler,
   }, embedded)
 
-  // Expose handlers to parent component via callback.
+  // Store current handlers in a ref to avoid stale closures when parent calls them.
+  const handlersRef = useRef({ submit: onSubmitHandler, delete: deleteBadgeHandler })
+  useEffect(() => {
+    handlersRef.current = { submit: onSubmitHandler, delete: deleteBadgeHandler }
+  }, [onSubmitHandler, deleteBadgeHandler])
+
+  // Expose stable wrapper functions to parent component (only called once on mount).
   useEffect(() => {
     if (onHandlersReady) {
       onHandlersReady({
-        submit: onSubmitHandler,
-        delete: deleteBadgeHandler,
+        submit: () => handlersRef.current.submit(),
+        delete: () => handlersRef.current.delete(),
         loading,
         isNewBadge,
       })
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onHandlersReady, loading, isNewBadge])
 
   return (

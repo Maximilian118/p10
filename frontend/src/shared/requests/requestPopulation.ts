@@ -499,16 +499,6 @@ export const populateChamp = `
       }
     }
   }
-  champBadges {
-    _id
-    url
-    name
-    rarity
-    awardedTo
-    awardedHow
-    awardedDesc
-    zoom
-  }
   waitingList {
     _id
     name

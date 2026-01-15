@@ -1,5 +1,6 @@
 import { AuthRequest } from "../../middleware/auth"
 import Badge, { badgeType } from "../../models/badge"
+import Champ from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import { ObjectId } from "mongodb"
 import {
@@ -17,6 +18,7 @@ import {
 } from "./resolverErrors"
 import moment from "moment"
 import badgeRewardOutcomes, { findDesc } from "../../shared/badgeOutcomes"
+import { clientS3, deleteS3 } from "../../shared/utility"
 
 const badgeResolvers = {
   newBadge: async (args: { badgeInput: badgeType }, req: AuthRequest): Promise<badgeType> => {
@@ -53,10 +55,17 @@ const badgeResolvers = {
         isDefault: isDefault || false,
       })
 
-      // Save the new user to the DB.
+      // Save the new badge to the DB.
       await badge.save()
 
-      // Return the new user with tokens.
+      // If badge has a championship, add badge ID to championship's champBadges array.
+      if (championship) {
+        await Champ.findByIdAndUpdate(championship, {
+          $push: { champBadges: badge._id }
+        })
+      }
+
+      // Return the new badge with tokens.
       return {
         ...badge._doc,
         tokens: req.tokens,
@@ -144,6 +153,54 @@ const badgeResolvers = {
       await badge.save()
 
       // Return the new user with tokens.
+      return {
+        ...badge._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+  // Delete a badge and its S3 image.
+  deleteBadge: async (
+    { _id }: { _id: ObjectId },
+    req: AuthRequest,
+  ): Promise<badgeType> => {
+    if (!req.isAuth) {
+      throwError("deleteBadge", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(req._id)) as userTypeMongo
+
+      // Check for errors.
+      userErrors(user)
+
+      // Find badge by _id.
+      const badge = await Badge.findById(_id)
+
+      if (!badge) {
+        throwError("deleteBadge", badge, "No badge by that _id was found!")
+        return { _id } as badgeType
+      }
+
+      // Delete the S3 image.
+      const deleteErr = await deleteS3(clientS3(), clientS3(badge.url).params, 0)
+      if (deleteErr) {
+        throwError("deleteBadge", deleteErr, deleteErr)
+      }
+
+      // If badge has a championship, remove badge ID from championship's champBadges array.
+      if (badge.championship) {
+        await Champ.findByIdAndUpdate(badge.championship, {
+          $pull: { champBadges: badge._id }
+        })
+      }
+
+      // Delete badge from database.
+      await Badge.findByIdAndDelete(_id)
+
+      // Return the deleted badge with tokens.
       return {
         ...badge._doc,
         tokens: req.tokens,

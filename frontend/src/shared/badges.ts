@@ -1,11 +1,18 @@
-import { getBadgeColour } from "../components/utility/badge/badgeOverlay/BadgeOverlay"
+import { getBadgeColour } from "../components/utility/badge/badgeOverlay/badgeOverlayUtility"
 
 // A list of badge reward outcomes with pre-determined rarity.
 // Rarity Scale: 0=Common, 1=Uncommon, 2=Rare, 3=Epic, 4=Legendary, 5=Mythic
 // SORTED BY RARITY: Common first, Mythic last
-// name: Catchy display name | awardedHow: Evaluation key | awardedDesc: Long description
-export type badgeOutcomeType = { name: string; awardedHow: string; awardedDesc: string; rarity: number }
 
+// name: Catchy display name | awardedHow: Evaluation key | awardedDesc: Long description
+export type badgeOutcomeType = {
+  name: string
+  awardedHow: string
+  awardedDesc: string
+  rarity: number
+}
+
+//prettier-ignore
 export const badgeRewardOutcomes: badgeOutcomeType[] = [
   // ============================================================================
   // COMMON (Rarity 0) - Easy to earn
@@ -245,9 +252,7 @@ export const getRarityByHow = (awardedHow: string): number => {
 
 // Get badge outcome by awardedHow string.
 export const getOutcomeByHow = (awardedHow: string): badgeOutcomeType | undefined => {
-  return badgeRewardOutcomes.find(
-    (outcome: badgeOutcomeType) => outcome.awardedHow === awardedHow,
-  )
+  return badgeRewardOutcomes.find((outcome: badgeOutcomeType) => outcome.awardedHow === awardedHow)
 }
 
 export type badgeRarityType = {

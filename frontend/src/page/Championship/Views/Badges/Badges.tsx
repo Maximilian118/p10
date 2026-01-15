@@ -36,14 +36,15 @@ const Badges: React.FC<BadgesProps> = ({
   onEditHandlersReady,
 }) => {
   // Create a wrapper form interface for BadgePicker compatibility.
-  const badgeForm = { champBadges: champ.champBadges }
+  // champBadges may be undefined if not yet loaded (lazy loading).
+  const badgeForm = { champBadges: champ.champBadges || [] }
 
   // Handler to update champ state when badges are modified (adjudicator only).
   const setBadgeForm = (updater: React.SetStateAction<{ champBadges: badgeType[] }>) => {
     if (typeof updater === "function") {
       setChamp((prev) => {
         if (!prev) return prev
-        const newBadgeForm = updater({ champBadges: prev.champBadges })
+        const newBadgeForm = updater({ champBadges: prev.champBadges || [] })
         return { ...prev, champBadges: newBadgeForm.champBadges }
       })
     } else {
@@ -61,13 +62,13 @@ const Badges: React.FC<BadgesProps> = ({
         backendErr={backendErr}
         setBackendErr={setBackendErr}
         readOnly={!isAdjudicator}
-        showUnearnedOverlay={true}
         hideToolbar={true}
         isEdit={isEdit}
         setIsEdit={setIsEdit}
         draw={draw}
         setDraw={setDraw}
         onEditHandlersReady={onEditHandlersReady}
+        championship={champ._id}
       />
     </div>
   )

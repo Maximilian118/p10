@@ -24,13 +24,13 @@ interface badgePickerType<T> {
   defaultBadges?: badgeType[]
   setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
   readOnly?: boolean // Hides toolbar and disables badge click for non-adjudicators.
-  showUnearnedOverlay?: boolean // Shows overlay on badges where awardedTo.length === 0.
   hideToolbar?: boolean // Hides the internal toolbar (when parent provides toolbar).
   isEdit?: boolean | badgeType // Controlled edit state from parent.
   setIsEdit?: React.Dispatch<React.SetStateAction<boolean | badgeType>> // Controlled edit setter from parent.
   draw?: boolean // Controlled filter drawer state from parent.
   setDraw?: React.Dispatch<React.SetStateAction<boolean>> // Controlled filter drawer setter from parent.
   onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void // Callback to expose edit handlers.
+  championship?: string // Championship ID for badge association.
 }
 
 const BadgePicker = <T extends { champBadges: badgeType[] }>({
@@ -45,13 +45,13 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   defaultBadges,
   setDefaultBadges,
   readOnly = false,
-  showUnearnedOverlay = false,
   hideToolbar = false,
   isEdit: controlledIsEdit,
   setIsEdit: controlledSetIsEdit,
   draw: controlledDraw,
   setDraw: controlledSetDraw,
   onEditHandlersReady,
+  championship,
 }: badgePickerType<T>) => {
   // Support both controlled and uncontrolled state patterns.
   const [ internalIsEdit, setInternalIsEdit ] = useState<boolean | badgeType>(false)
@@ -69,15 +69,15 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
 
   const navigate = useNavigate()
 
-  // Send a request for default badges of first mount of the BadgePicker componenet.
-  // Send a subsequent request if local reqSent state or if it exists non-local badgeReqSent state is true. 
+  // Fetch badges on mount - either for a specific championship or default badges.
   useEffect(() => {
     if (form.champBadges.length === 0 && !reqSent && !badgesReqSent) {
       setReqSent(true) // Local state to ensure req doesn't send twice.
       if (setBadgesReqSent) setBadgesReqSent(true) // Remote state to ensure req doesn't send again even if component unloads and reloads.
-      getBadgesByChamp(null, user, setUser, navigate, setLoading, setBackendErr, setForm, setDefaults, setDefaultBadges) // Req
+      // If championship ID provided, fetch badges for that championship. Otherwise fetch default badges.
+      getBadgesByChamp(championship || null, user, setUser, navigate, setLoading, setBackendErr, setForm, setDefaults, setDefaultBadges)
     }
-  }, [form, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges])
+  }, [form, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges, championship])
 
   const badgesFiltered = form.champBadges.filter((badge) => filtered.includes(badge.rarity))
 
@@ -90,6 +90,9 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
       user={user}
       setUser={setUser}
       navigate={navigate}
+      backendErr={backendErr}
+      setBackendErr={setBackendErr}
+      championship={championship}
       embedded={!hideToolbar}
       onHandlersReady={onEditHandlersReady}
     /> : (
@@ -100,16 +103,11 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         </div> : 
         badgesFiltered.length > 0 ?
         <div className="badge-list-container">
-          {badgesFiltered.map((badge: badgeType, i: number) => {
-            // Determine if badge is unearned (nobody has it yet).
-            const isUnearned = showUnearnedOverlay && (!badge.awardedTo || badge.awardedTo.length === 0)
-            return (
-              <div key={i} className={`badge-item ${isUnearned ? "badge-item-unearned" : ""}`}>
-                <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)}/>
-                {isUnearned && <div className="unearned-overlay" />}
-              </div>
-            )
-          })}
+          {badgesFiltered.map((badge: badgeType, i: number) => (
+            <div key={i} className="badge-item">
+              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)} hidden={!badge.awardedTo || badge.awardedTo.length === 0}/>
+            </div>
+          ))}
         </div> :
         <div className="badge-list-empty">
           {backendErr.message ? 
