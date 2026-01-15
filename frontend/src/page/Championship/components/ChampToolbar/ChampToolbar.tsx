@@ -226,7 +226,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
         </Button>
       )}
       {/* Badge view buttons - Add and Filter (only for adjudicators, not in edit mode) */}
-      {view === "badges" && isAdjudicator && !badgeIsEdit && (
+      {view === "badges" && !badgeIsEdit && (
         <div className="badge-buttons">
           <Button
             variant="contained"
@@ -241,7 +241,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({ champ, setChamp, user, setUs
           >
             Filter
           </Button>
-          <AddButton onClick={() => onBadgeAdd && onBadgeAdd()} />
+          {isAdjudicator && <AddButton onClick={() => onBadgeAdd && onBadgeAdd()} />}
         </div>
       )}
       {/* Badge edit mode - Delete and Submit/Update buttons on the right */}

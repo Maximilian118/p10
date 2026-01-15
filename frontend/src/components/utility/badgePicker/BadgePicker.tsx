@@ -105,7 +105,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         <div className="badge-list-container">
           {badgesFiltered.map((badge: badgeType, i: number) => (
             <div key={i} className="badge-item">
-              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)} hidden={!badge.awardedTo || badge.awardedTo.length === 0}/>
+              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? undefined : () => setIsEdit(badge)}/>
             </div>
           ))}
         </div> :
