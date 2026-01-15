@@ -19,7 +19,7 @@ const BadgeOverlay: React.FC<badgeOverlayType> = ({ rarity, thickness, error, st
           <div className="badge-inner" style={{ border: `${thickness ? thickness / 4 : 2}px solid ${getBadgeColour(rarity, error)}`, opacity: 0.5, ...style }} />
         </div>
       </div>
-      {!error && rarity >= 4 && <BadgeSpinner thickness={thickness ? thickness : 2} style={style}/>}
+      {!error && rarity >= 2 && <BadgeSpinner thickness={thickness ? thickness : 2} rarity={rarity} style={style}/>}
       {!error && rarity === 5 && <Shimmer style={style}/>}
     </>
   )

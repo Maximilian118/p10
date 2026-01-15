@@ -48,7 +48,7 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style }) => {
           <Edit/>
         </IconButton>
       )}
-      <BadgeOverlay rarity={badge.rarity} thickness={3}/>
+      <BadgeOverlay rarity={badge.rarity} thickness={2}/>
       <div className="outer-ring">
         <div className="inner-ring"/>
           {iconContent(error, displayUrl)}
