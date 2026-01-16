@@ -174,6 +174,28 @@ const badgeResolvers = {
         return args.updateBadgeInput
       }
 
+      // Check authorization for championship badges.
+      if (badge.championship) {
+        const champ = await Champ.findById(badge.championship)
+        if (champ) {
+          const isAdmin = user?.permissions?.admin === true
+          const isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+
+          // Only adjudicator or admin can edit badges.
+          if (!isAdmin && !isAdjudicator) {
+            return throwError("updateBadge", req._id, "Only adjudicator or admin can edit badges!", 403)
+          }
+
+          // Check if adjudicator is trying to edit a hidden badge when not allowed.
+          const adjCanSeeBadges = champ.settings?.admin?.adjCanSeeBadges ?? true
+          const hasBeenEarned = badge.awardedTo && badge.awardedTo.length > 0
+
+          if (!hasBeenEarned && isAdjudicator && !isAdmin && !adjCanSeeBadges) {
+            return throwError("updateBadge", badge._id, "Cannot edit hidden badges!", 403)
+          }
+        }
+      }
+
       // Mutate badge.
       badge.url = url
       badge.name = name
@@ -217,6 +239,28 @@ const badgeResolvers = {
       if (!badge) {
         throwError("deleteBadge", badge, "No badge by that _id was found!")
         return { _id } as badgeType
+      }
+
+      // Check authorization for championship badges.
+      if (badge.championship) {
+        const champ = await Champ.findById(badge.championship)
+        if (champ) {
+          const isAdmin = user?.permissions?.admin === true
+          const isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+
+          // Only adjudicator or admin can delete badges.
+          if (!isAdmin && !isAdjudicator) {
+            return throwError("deleteBadge", req._id, "Only adjudicator or admin can delete badges!", 403)
+          }
+
+          // Check if adjudicator is trying to delete a hidden badge when not allowed.
+          const adjCanSeeBadges = champ.settings?.admin?.adjCanSeeBadges ?? true
+          const hasBeenEarned = badge.awardedTo && badge.awardedTo.length > 0
+
+          if (!hasBeenEarned && isAdjudicator && !isAdmin && !adjCanSeeBadges) {
+            return throwError("deleteBadge", badge._id, "Cannot delete hidden badges!", 403)
+          }
+        }
       }
 
       // Delete the S3 image.

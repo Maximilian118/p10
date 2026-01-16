@@ -109,7 +109,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         <div className="badge-list-container">
           {badgesFiltered.map((badge: badgeType, i: number) => (
             <div key={i} className="badge-item" onClick={(e) => e.stopPropagation()}>
-              <Badge badge={badge} zoom={badge.zoom} onClick={readOnly ? () => onBadgeClick?.(badge) : () => setIsEdit(badge)} showEditButton={!readOnly}/>
+              <Badge badge={badge} zoom={badge.zoom} onClick={() => {
+                // Badge is hidden if it has no url (backend filters based on adjCanSeeBadges setting).
+                const isHidden = !badge.url && !badge.previewUrl
+                // If readOnly OR badge is hidden from this user, show info card instead of edit mode.
+                if (readOnly || isHidden) {
+                  onBadgeClick?.(badge)
+                } else {
+                  setIsEdit(badge)
+                }
+              }} showEditButton={!readOnly && (!!badge.url || !!badge.previewUrl)}/>
             </div>
           ))}
         </div> :
