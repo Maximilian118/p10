@@ -8,7 +8,7 @@ import { graphQLErrorType, initGraphQLError } from "../../shared/requests/reques
 import ChampBanner from "./components/ChampBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
-import ChampToolbar from "./components/ChampToolbar/ChampToolbar"
+import ChampToolbar, { FormToolbarProps, BadgeToolbarProps } from "./components/ChampToolbar/ChampToolbar"
 import CompetitorListCard from "../../components/cards/competitorListCard/CompetitorListCard"
 import DriverListCard from "../../components/cards/driverListCard/DriverListCard"
 import TeamListCard from "../../components/cards/teamListCard/TeamListCard"
@@ -20,9 +20,10 @@ import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/A
 import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import Badges from "./Views/Badges/Badges"
+import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -40,10 +41,12 @@ import {
   initAutomationForm,
   initProtestsForm,
   initRuleChangesForm,
+  initAdminForm,
   hasSettingsChanged,
   hasAutomationChanged,
   hasProtestsChanged,
   hasRuleChangesChanged,
+  hasAdminChanged,
   buildSettingsUpdates,
   buildAutomationUpdates,
   buildProtestsUpdates,
@@ -52,6 +55,7 @@ import {
   applyAutomationOptimistically,
   applyProtestsOptimistically,
   applyRuleChangesOptimistically,
+  applyAdminOptimistically,
 } from "./champUtility"
 
 const Championship: React.FC = () => {
@@ -122,6 +126,10 @@ const Championship: React.FC = () => {
   const [ ruleChangesFormErr, setRuleChangesFormErr ] = useState<RuleChangesFormErrType>({
     ruleChangesExpiry: "",
   })
+  const [ adminForm, setAdminForm ] = useState<AdminFormType>({
+    adjCanSeeBadges: true,
+  })
+  const [ adminFormErr ] = useState<AdminFormErrType>({})
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
 
   // RoundsBar state - which round to view and which standings type.
@@ -338,6 +346,13 @@ const Championship: React.FC = () => {
     }
   }, [champ])
 
+  // Initialize admin form when champ data is loaded.
+  useEffect(() => {
+    if (champ) {
+      setAdminForm(initAdminForm(champ))
+    }
+  }, [champ])
+
   // Check current round status on load - show status view if round is active.
   // Runs when champ data is loaded (champ._id changes).
   // Resets roundStatusView when navigating to a championship without an active round.
@@ -358,6 +373,7 @@ const Championship: React.FC = () => {
   const automationChanged = champ ? hasAutomationChanged(automationForm, champ) : false
   const protestsChanged = champ ? hasProtestsChanged(protestsForm, champ) : false
   const ruleChangesChanged = champ ? hasRuleChangesChanged(ruleChangesForm, champ) : false
+  const adminChanged = champ ? hasAdminChanged(adminForm, champ) : false
 
   // Handle settings form submission with optimistic updates.
   const handleSettingsSubmit = async () => {
@@ -516,6 +532,35 @@ const Championship: React.FC = () => {
     }
   }
 
+  // Handle admin form submission with optimistic updates.
+  const handleAdminSubmit = async () => {
+    if (!champ) return
+
+    const adminUpdates = { adjCanSeeBadges: adminForm.adjCanSeeBadges }
+
+    // Exit early if no changes.
+    if (!adminChanged) return
+
+    const previousChamp = champ
+
+    // Optimistic update: immediately reflect changes in UI.
+    setChamp(prev => prev ? applyAdminOptimistically(prev, adminUpdates) : prev)
+
+    await updateAdminSettings(
+      champ._id,
+      adminUpdates,
+      user,
+      setUser,
+      navigate,
+      setChamp,
+      setBackendErr,
+    )
+
+    // If the request failed, the setChamp in updateAdminSettings won't be called
+    // and our optimistic update remains. The backend error will show in UI.
+    // If successful, setChamp is called with the server response.
+  }
+
   // Handle starting a round (adjudicator clicks start button).
   // Transitions the current round from "waiting" to "countDown".
   const handleStartRound = async () => {
@@ -628,6 +673,48 @@ const Championship: React.FC = () => {
   const viewedRoundNumber = activeRoundIndex >= 0
     ? activeRoundIndex + 1  // Show active round number when a round is in progress.
     : (completedRoundsCount > 0 ? viewedIndex + 1 : 0)  // Show viewed completed round.
+
+  // Grouped toolbar props for form views.
+  const settingsToolbarProps: FormToolbarProps = {
+    formErr: settingsFormErr,
+    onSubmit: handleSettingsSubmit,
+    changed: settingsChanged,
+  }
+
+  const automationToolbarProps: FormToolbarProps = {
+    formErr: automationFormErr,
+    onSubmit: handleAutomationSubmit,
+    changed: automationChanged,
+  }
+
+  const protestsToolbarProps: FormToolbarProps = {
+    formErr: protestsFormErr,
+    onSubmit: handleProtestsSubmit,
+    changed: protestsChanged,
+  }
+
+  const ruleChangesToolbarProps: FormToolbarProps = {
+    formErr: ruleChangesFormErr,
+    onSubmit: handleRuleChangesSubmit,
+    changed: ruleChangesChanged,
+  }
+
+  const adminToolbarProps: FormToolbarProps = {
+    formErr: adminFormErr,
+    onSubmit: handleAdminSubmit,
+    changed: adminChanged,
+  }
+
+  // Grouped toolbar props for badge view.
+  const badgeToolbarProps: BadgeToolbarProps = {
+    onAdd: () => setBadgeIsEdit(true),
+    onFilter: () => setBadgeDraw(!badgeDraw),
+    isEdit: badgeIsEdit,
+    onBack: () => setBadgeIsEdit(false),
+    onDelete: badgeEditHandlers?.delete,
+    onSubmit: badgeEditHandlers?.submit,
+    loading: badgeEditHandlers?.loading,
+  }
 
   return (
     <>
@@ -884,6 +971,13 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {view === "admin" && isAdmin && (
+          <Admin
+            adminForm={adminForm}
+            setAdminForm={setAdminForm}
+          />
+        )}
+
         {/* ChampToolbar - hidden during active round status views and confirmation */}
         {!isInRoundStatusView && !showStartConfirm && (
           <ChampToolbar
@@ -896,25 +990,12 @@ const Championship: React.FC = () => {
             onBack={navigateBack}
             onJoinSuccess={() => setJustJoined(true)}
             onDrawerClick={() => setDrawerOpen(true)}
-            settingsFormErr={settingsFormErr}
-            onSettingsSubmit={handleSettingsSubmit}
-            settingsChanged={settingsChanged}
-            automationFormErr={automationFormErr}
-            onAutomationSubmit={handleAutomationSubmit}
-            automationChanged={automationChanged}
-            protestsFormErr={protestsFormErr}
-            onProtestsSubmit={handleProtestsSubmit}
-            protestsChanged={protestsChanged}
-            ruleChangesFormErr={ruleChangesFormErr}
-            onRuleChangesSubmit={handleRuleChangesSubmit}
-            ruleChangesChanged={ruleChangesChanged}
-            onBadgeAdd={() => setBadgeIsEdit(true)}
-            onBadgeFilter={() => setBadgeDraw(!badgeDraw)}
-            badgeIsEdit={badgeIsEdit}
-            onBadgeBack={() => setBadgeIsEdit(false)}
-            onBadgeDelete={badgeEditHandlers?.delete}
-            onBadgeSubmit={badgeEditHandlers?.submit}
-            badgeLoading={badgeEditHandlers?.loading}
+            settingsProps={settingsToolbarProps}
+            automationProps={automationToolbarProps}
+            protestsProps={protestsToolbarProps}
+            ruleChangesProps={ruleChangesToolbarProps}
+            adminProps={adminToolbarProps}
+            badgeProps={badgeToolbarProps}
           />
         )}
       </div>
@@ -925,6 +1006,7 @@ const Championship: React.FC = () => {
         setView={navigateToView}
         onBackToDefault={navigateToDefault}
         canAccessSettings={canAccessSettings}
+        isAdmin={isAdmin}
       />
     </>
   )

@@ -94,6 +94,7 @@ const badgeResolvers = {
       // Find badges - if no championship provided, return default badges.
       let badges
       let isAdjudicator = false
+      let champ = null
 
       if (championship === null) {
         // Default badges are templates - show full info to everyone.
@@ -103,19 +104,22 @@ const badgeResolvers = {
         badges = await Badge.find({ championship }).exec()
 
         // Check if user is the current adjudicator of this championship.
-        const champ = await Champ.findById(championship)
+        champ = await Champ.findById(championship)
         if (champ) {
           isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
         }
       }
 
-      // Filter sensitive fields for unearned badges if user is not adjudicator.
+      // Check if adjudicator can see hidden badges (admin setting).
+      const adjCanSeeBadges = champ?.settings?.admin?.adjCanSeeBadges ?? true
+
+      // Filter sensitive fields for unearned badges.
       const filteredBadges = badges.map((badge) => {
         const badgeDoc = badge._doc
         const hasBeenEarned = badgeDoc.awardedTo && badgeDoc.awardedTo.length > 0
 
-        // If badge has been earned OR user is adjudicator, return full badge.
-        if (hasBeenEarned || isAdjudicator) {
+        // If badge has been earned OR (user is adjudicator AND setting allows), return full badge.
+        if (hasBeenEarned || (isAdjudicator && adjCanSeeBadges)) {
           return badgeDoc
         }
 

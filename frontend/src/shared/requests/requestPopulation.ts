@@ -498,6 +498,9 @@ export const populateChamp = `
         }
       }
     }
+    admin {
+      adjCanSeeBadges
+    }
   }
   waitingList {
     _id

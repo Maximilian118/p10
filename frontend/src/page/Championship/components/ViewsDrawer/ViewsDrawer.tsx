@@ -7,6 +7,7 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import BarChartIcon from "@mui/icons-material/BarChart"
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings"
 import "./_viewsDrawer.scss"
 
 interface ViewsDrawerProps {
@@ -16,6 +17,7 @@ interface ViewsDrawerProps {
   setView: (view: ChampView) => void
   onBackToDefault: () => void
   canAccessSettings: boolean
+  isAdmin: boolean
 }
 
 // View item configuration.
@@ -35,6 +37,7 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   setView,
   onBackToDefault,
   canAccessSettings,
+  isAdmin,
 }) => {
   // Close drawer when clicking outside.
   const handleClickAway = () => {
@@ -56,6 +59,16 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
 
   // View items for the drawer.
   const items: ViewItem[] = [
+    {
+      icon: <AdminPanelSettingsIcon />,
+      label: "Admin",
+      onClick: () => {
+        setOpen(false)
+        setView("admin")
+      },
+      visible: isAdmin,
+      viewId: "admin",
+    },
     {
       icon: <SettingsIcon />,
       label: "Settings",

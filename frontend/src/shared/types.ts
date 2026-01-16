@@ -305,6 +305,9 @@ export interface ChampType {
     protests: VotingSettingsType
     ruleChanges: VotingSettingsType
     automation: AutomationSettingsType
+    admin?: {
+      adjCanSeeBadges: boolean
+    }
   }
 
   // Badges that can be awarded.

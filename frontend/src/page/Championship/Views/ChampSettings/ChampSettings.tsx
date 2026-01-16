@@ -19,7 +19,7 @@ import MUISwitch from "../../../../components/utility/muiSwitch/MUISwitch"
 import SeriesListCard from "../../../../components/cards/seriesListCard/SeriesListCard"
 
 // View type for the Championship page.
-export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges" | "series" | "badges"
+export type ChampView = "competitors" | "settings" | "deleteChamp" | "automation" | "protests" | "ruleChanges" | "series" | "badges" | "admin"
 
 // Form type for championship settings.
 export interface ChampSettingsFormType {

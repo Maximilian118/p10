@@ -745,6 +745,53 @@ export const updateChampSettings = async (
   return result
 }
 
+// Admin settings input type for updateAdminSettings mutation.
+interface AdminSettingsUpdate {
+  adjCanSeeBadges?: boolean
+}
+
+// Updates admin-only settings for a championship.
+export const updateAdminSettings = async (
+  _id: string,
+  settings: AdminSettingsUpdate,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id, settings },
+          query: `
+            mutation UpdateAdminSettings($_id: ID!, $settings: AdminSettingsInput!) {
+              updateAdminSettings(_id: $_id, settings: $settings) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateAdminSettings", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("updateAdminSettings", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateAdminSettings", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateAdminSettings", err, setUser, navigate, setBackendErr, true)
+  }
+}
+
 // Deletes a championship (requires name confirmation).
 export const deleteChamp = async (
   _id: string,

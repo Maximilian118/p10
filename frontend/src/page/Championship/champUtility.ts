@@ -1,6 +1,7 @@
 import { ChampType, pointsStructureType } from "../../shared/types"
 import { ChampSettingsFormType } from "./Views/ChampSettings/ChampSettings"
 import { AutomationFormType } from "./Views/Automation/Automation"
+import { AdminFormType } from "./Views/Admin/Admin"
 import { ProtestsFormType, RuleChangesFormType } from "../../shared/formValidation"
 
 // ============================================
@@ -54,6 +55,11 @@ export const initRuleChangesForm = (champ: ChampType): RuleChangesFormType => {
   }
 }
 
+// Initialize admin form state from championship data.
+export const initAdminForm = (champ: ChampType): AdminFormType => ({
+  adjCanSeeBadges: champ.settings.admin?.adjCanSeeBadges ?? true,
+})
+
 // ============================================
 // Change Detection Functions
 // ============================================
@@ -105,6 +111,11 @@ export const hasRuleChangesChanged = (form: RuleChangesFormType, champ: ChampTyp
     form.allowMultiple !== (champ.settings.ruleChanges?.allowMultiple ?? false) ||
     form.expiry !== Math.round((champ.settings.ruleChanges?.expiry ?? 10080) / 1440)
   )
+}
+
+// Check if admin form has changes compared to championship data.
+export const hasAdminChanged = (form: AdminFormType, champ: ChampType): boolean => {
+  return form.adjCanSeeBadges !== (champ.settings.admin?.adjCanSeeBadges ?? true)
 }
 
 // ============================================
@@ -466,6 +477,28 @@ export const applyRuleChangesOptimistically = (
         alwaysVote: updates.alwaysVote ?? champ.settings.ruleChanges.alwaysVote,
         allowMultiple: updates.allowMultiple ?? champ.settings.ruleChanges.allowMultiple,
         expiry: updates.expiry ?? champ.settings.ruleChanges.expiry,
+      },
+    },
+  }
+}
+
+// Admin updates type.
+export interface AdminUpdatesType {
+  adjCanSeeBadges?: boolean
+}
+
+// Apply admin updates optimistically to championship state.
+export const applyAdminOptimistically = (
+  champ: ChampType,
+  updates: AdminUpdatesType,
+): ChampType => {
+  return {
+    ...champ,
+    settings: {
+      ...champ.settings,
+      admin: {
+        ...champ.settings.admin,
+        adjCanSeeBadges: updates.adjCanSeeBadges ?? champ.settings.admin?.adjCanSeeBadges ?? true,
       },
     },
   }

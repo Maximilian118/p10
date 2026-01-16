@@ -175,6 +175,9 @@ export interface ChampType {
         }
       }
     }
+    admin: {
+      adjCanSeeBadges: boolean // Can the adjudicator see hidden/undiscovered badges?
+    }
   }
 
   // Badges that can be awarded.
@@ -416,6 +419,9 @@ const champSchema = new mongoose.Schema<ChampType>({
           bettingWindowClosed: [{ type: String }],
         },
       },
+    },
+    admin: {
+      adjCanSeeBadges: { type: Boolean, default: true },
     },
   },
 

@@ -165,6 +165,11 @@ const champSchema = `
     audio: AudioSettings!
   }
 
+  # Admin-only settings.
+  type AdminSettings {
+    adjCanSeeBadges: Boolean!
+  }
+
   # Championship settings.
   type ChampSettings {
     skipCountDown: Boolean!
@@ -175,6 +180,7 @@ const champSchema = `
     protests: VotingSettings!
     ruleChanges: VotingSettings!
     automation: AutomationSettings!
+    admin: AdminSettings
   }
 
   # Championship history entry (archived season).
@@ -265,6 +271,11 @@ const champSchema = `
     alwaysVote: Boolean
     allowMultiple: Boolean
     expiry: Int
+  }
+
+  # Input for updating admin settings (admin-only).
+  input AdminSettingsInput {
+    adjCanSeeBadges: Boolean
   }
 
   # Input for updating championship settings.

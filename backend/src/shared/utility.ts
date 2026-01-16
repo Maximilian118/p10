@@ -226,3 +226,18 @@ export const findPrefix = (filename: string, depth?: number): string => {
 
 // Capatalise the first letter in a string.
 export const capitalise = (s: string) => (s && s[0].toUpperCase() + s.slice(1)) || ""
+
+// Filter admin settings from champ data for non-admin users.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const filterChampForUser = (champ: any, isAdmin: boolean) => {
+  if (isAdmin || !champ) return champ
+
+  // Clone and remove admin settings.
+  const filtered = { ...champ }
+  if (filtered.settings) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { admin, ...settingsWithoutAdmin } = filtered.settings
+    filtered.settings = settingsWithoutAdmin
+  }
+  return filtered
+}

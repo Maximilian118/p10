@@ -16,7 +16,7 @@ import Badge from "../../models/badge"
 import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
-import { clientS3, deleteS3 } from "../../shared/utility"
+import { clientS3, deleteS3, filterChampForUser } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange, broadcastBetPlaced } from "../../socket/socketHandler"
@@ -296,10 +296,14 @@ const champResolvers = {
         return throwError("getChampById", _id, "Championship not found!", 404)
       }
 
-      return {
+      // Check if user is admin to determine if admin settings should be visible.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
         ...champ._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -321,8 +325,12 @@ const champResolvers = {
         .populate("rounds.competitors.competitor", "_id icon")
         .exec()
 
+      // Check if user is admin to determine if admin settings should be visible.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
       return {
-        array: champs,
+        array: champs.map(champ => filterChampForUser(champ._doc || champ, isAdmin)),
         tokens: req.tokens,
       }
     } catch (err) {
@@ -443,6 +451,9 @@ const champResolvers = {
         settings: {
           inviteOnly: inviteOnly || false,
           maxCompetitors: maxCompetitors || 24,
+          admin: {
+            adjCanSeeBadges: true,
+          },
         },
         champBadges: [],
         competitors: [user._id], // Creator is the first competitor.
@@ -487,10 +498,13 @@ const champResolvers = {
       await user.save()
 
       // Return the created championship with tokens.
-      return {
+      // Filter admin settings for non-admin users.
+      const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
         ...newChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -573,10 +587,13 @@ const champResolvers = {
         return throwError("joinChamp", _id, "Championship not found after update!", 404)
       }
 
-      return {
+      // Filter admin settings for non-admin users.
+      const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -713,10 +730,10 @@ const champResolvers = {
         broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
       }
 
-      return {
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -782,10 +799,12 @@ const champResolvers = {
       // If user is trying to bet on the same driver they already have, no-op.
       if (previousDriverId === driverId) {
         const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
-        return {
+        const user = await User.findById(req._id)
+        const isAdmin = user?.permissions?.admin === true
+        return filterChampForUser({
           ...populatedChamp!._doc,
           tokens: req.tokens,
-        }
+        }, isAdmin)
       }
 
       // Check if the driver is already taken by another competitor.
@@ -854,10 +873,14 @@ const champResolvers = {
         return throwError("placeBet", _id, "Championship not found after update!", 404)
       }
 
-      return {
+      // Filter admin settings for non-admin users.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -989,10 +1012,10 @@ const champResolvers = {
           `Positions submitted, transitioning to results`,
       )
 
-      return {
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -1042,10 +1065,10 @@ const champResolvers = {
         return throwError("updateChampPP", _id, "Championship not found after update!", 404)
       }
 
-      return {
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
-      }
+      }, isAdmin)
     } catch (err) {
       throw err
     }
@@ -1427,10 +1450,74 @@ const champResolvers = {
         return throwError("updateChampSettings", _id, "Championship not found after update!", 404)
       }
 
-      return {
+      return filterChampForUser({
         ...populatedChamp._doc,
         tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Updates admin-only settings for a championship. Only admins can access this.
+  updateAdminSettings: async (
+    {
+      _id,
+      settings,
+    }: {
+      _id: string
+      settings: {
+        adjCanSeeBadges?: boolean
       }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("updateAdminSettings", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("updateAdminSettings", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is an admin - this is admin-only, not adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      if (!isAdmin) {
+        return throwError(
+          "updateAdminSettings",
+          req._id,
+          "Only an admin can update admin settings!",
+          403,
+        )
+      }
+
+      // Update adjCanSeeBadges if provided.
+      if (typeof settings.adjCanSeeBadges === "boolean") {
+        if (!champ.settings.admin) {
+          champ.settings.admin = { adjCanSeeBadges: true }
+        }
+        champ.settings.admin.adjCanSeeBadges = settings.adjCanSeeBadges
+      }
+
+      // Save and return populated championship.
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("updateAdminSettings", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
     } catch (err) {
       throw err
     }
