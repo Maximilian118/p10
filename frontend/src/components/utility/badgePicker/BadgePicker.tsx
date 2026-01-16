@@ -72,14 +72,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   const navigate = useNavigate()
 
   // Fetch badges on mount - either for a specific championship or default badges.
+  // Check for url field to determine if we have full badge data (not just minimal stat data).
+  const hasFullBadgeData = form.champBadges.length > 0 && form.champBadges[0]?.url
   useEffect(() => {
-    if (form.champBadges.length === 0 && !reqSent && !badgesReqSent) {
+    if (!hasFullBadgeData && !reqSent && !badgesReqSent) {
       setReqSent(true) // Local state to ensure req doesn't send twice.
       if (setBadgesReqSent) setBadgesReqSent(true) // Remote state to ensure req doesn't send again even if component unloads and reloads.
       // If championship ID provided, fetch badges for that championship. Otherwise fetch default badges.
       getBadgesByChamp(championship || null, user, setUser, navigate, setLoading, setBackendErr, setForm, setDefaults, setDefaultBadges)
     }
-  }, [form, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges, championship])
+  }, [hasFullBadgeData, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges, championship])
 
   const badgesFiltered = form.champBadges.filter((badge) => filtered.includes(badge.rarity))
 
