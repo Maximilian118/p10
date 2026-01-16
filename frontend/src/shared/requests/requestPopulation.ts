@@ -612,6 +612,10 @@ export const populateChamp = `
       points
     }
   }
+  champBadges {
+    _id
+    awardedTo
+  }
   created_by {
     _id
     name

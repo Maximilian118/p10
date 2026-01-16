@@ -97,4 +97,6 @@ export const champPopulation = [
   { path: "history.rounds.teams.drivers", select: "_id name icon driverID" },
   { path: "history.rounds.winner", select: "_id name icon" },
   { path: "history.rounds.runnerUp", select: "_id name icon" },
+  // Badge population for badge stats display.
+  { path: "champBadges", select: "_id awardedTo" },
 ]
