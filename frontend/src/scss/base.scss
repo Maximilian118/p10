@@ -18,6 +18,11 @@ html, body {
   height: calc(var(--vh, 1vh) * 100);
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none; /* Disables iOS callout menu on long-press */
+}
+
 body {
   margin: 0;
   padding: 0;
