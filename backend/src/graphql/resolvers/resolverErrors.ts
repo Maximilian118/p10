@@ -414,8 +414,8 @@ export const badgeDuplicateErrors = async (badge: badgeType): Promise<void> => {
 
   // Find badges by championship value.
   const dbBadges = await Badge.find({ championship: badge.championship }).exec()
-  // Remove the targeted badge from the array.
-  const badges = dbBadges.filter((b: badgeType) => b._id === badge._id)
+  // Remove the targeted badge from the array (exclude current badge to allow editing without false duplicate errors).
+  const badges = dbBadges.filter((b: badgeType) => b._id.toString() !== badge._id?.toString())
   // Loop through all of the badges in the DB for this championship and check if the badge has any duplicate values.
   badges.forEach((b: badgeType) => {
     if (b.name.toLowerCase() === badge.name.toLowerCase()) {
