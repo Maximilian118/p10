@@ -2,13 +2,13 @@ const badgeSchema = `
   type Badge {
     _id: ID!
     championship: String
-    url: String!
-    name: String!
+    url: String
+    name: String
     customName: String
     rarity: Int!
     awardedTo: [String!]!
-    awardedHow: String!
-    awardedDesc: String!
+    awardedHow: String
+    awardedDesc: String
     zoom: Int!
     isDefault: Boolean!
     created_at: String!

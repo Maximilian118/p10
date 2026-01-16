@@ -104,7 +104,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
       !form.champBadges.some((badge: badgeType) => badge.awardedHow === outcome.awardedHow)
     ).map((outcome: badgeOutcomeType) => outcome.awardedHow)
 
-    if (!isNewBadge) {
+    if (!isNewBadge && isEdit.awardedHow) {
       getHows.push(isEdit.awardedHow)
     }
 

@@ -67,6 +67,12 @@
       margin-bottom: 5px;
     }
 
+    // Hidden badge title styling - italicized to differentiate.
+    .badge-info-name--hidden {
+      font-style: italic;
+      color: variables.$colour-4;
+    }
+
     p {
       width: 100%;
       text-align: left;
@@ -74,6 +80,11 @@
       font-size: 14px;
       color: variables.$colour-4;
       line-height: 1.5;
+    }
+
+    // Hidden badge description styling - italicized to differentiate.
+    .badge-info-desc--hidden {
+      font-style: italic;
     }
   }
 }

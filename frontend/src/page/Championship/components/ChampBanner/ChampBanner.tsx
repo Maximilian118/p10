@@ -52,11 +52,17 @@ const getBottomStats = (champ: ChampType, viewedRoundNumber?: number) => {
   const displayedRound = viewedRoundNumber ?? 0
   const autoNextRound = champ.settings.automation?.enabled && champ.settings.automation?.round?.autoNextRound
 
+  // Calculate discovered vs total badges.
+  const totalBadges = champ.champBadges?.length || 0
+  const discoveredBadges = champ.champBadges?.filter(
+    badge => badge.awardedTo && badge.awardedTo.length > 0
+  ).length || 0
+
   return [
     { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds.length}` },
     { icon: <PersonIcon />, value: `${getCompetitors(champ).length}/${champ.settings.maxCompetitors}` },
     { icon: <SportsMotorsportsIcon />, value: champ.series.drivers.length },
-    { icon: <WorkspacePremiumIcon />, value: champ.champBadges?.length || 0 }
+    { icon: <WorkspacePremiumIcon />, value: `${discoveredBadges}/${totalBadges}` }
   ]
 }
 

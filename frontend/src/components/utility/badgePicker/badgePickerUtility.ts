@@ -45,7 +45,7 @@ export const badgePickerErrors = (
     if (badge.icon instanceof File) {
       const newFilename = formatString(badge.icon.name)
 
-      if (newFilename === formatString(getFilename(b.url))) {
+      if (b.url && newFilename === formatString(getFilename(b.url))) {
         setEditFormErr(prev => ({ ...prev, dropzone: "Duplicate badge image." }))
         hasErrors = true
         break

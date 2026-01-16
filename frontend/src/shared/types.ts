@@ -83,13 +83,13 @@ export type rulesAndRegsType = ruleOrRegType[]
 export interface badgeType {
   _id?: string
   championship?: ChampType
-  url: string
-  name: string
-  customName?: string
+  url: string | null
+  name: string | null
+  customName?: string | null
   rarity: number
   awardedTo?: userType[]
-  awardedHow: string
-  awardedDesc: string
+  awardedHow: string | null
+  awardedDesc: string | null
   zoom: number
   created_at?: string
   updated_at?: string

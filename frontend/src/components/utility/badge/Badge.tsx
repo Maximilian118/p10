@@ -16,18 +16,32 @@ interface badgeCompType {
 const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditButton = true }) => {
   const [ error, setError ] = useState<boolean>(false)
 
+  // Check if badge is hidden (no URL means unearned and hidden from non-adjudicators).
+  const isHidden = !badge.url && !badge.previewUrl
+
   // Get display URL - prefer S3 URL, fall back to preview URL for local display.
   const displayUrl = badge.url || badge.previewUrl || ""
 
+  // Renders badge content based on state (hidden, error, or normal image).
   const iconContent = (error: boolean, src: string) => {
+    // Hidden badge shows mysterious question mark with shimmer effect.
+    if (isHidden) {
+      return (
+        <div className="badge-hidden">
+          <div className="badge-hidden__shimmer" />
+          <span className="badge-hidden__question">?</span>
+        </div>
+      )
+    }
+
     if (!error) {
       return (
-        <img 
+        <img
           alt="badge"
-          src={src} 
+          src={src}
           onError={() => setError(true)}
           className="badge-img"
-          style={{ 
+          style={{
             width: zoom ? `${zoom}%` : "100%",
             height: zoom ? `${zoom}%` : "100%",
           }}
@@ -44,7 +58,7 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditB
 
   return (
     <div className="badge" style={style} onClick={onClick}>
-      {onClick && showEditButton && (
+      {onClick && showEditButton && !isHidden && (
         <IconButton className="edit-button">
           <Edit/>
         </IconButton>

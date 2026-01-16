@@ -20,6 +20,24 @@ export interface badgeType {
   _doc: badgeType
 }
 
+// Response type for API - allows nullable fields for hidden badges.
+export interface badgeResponseType {
+  _id: ObjectId
+  championship: ObjectId
+  url: string | null
+  name: string | null
+  customName?: string | null
+  rarity: number
+  awardedTo: ObjectId[]
+  awardedHow: string | null
+  awardedDesc: string | null
+  zoom: number
+  isDefault: boolean
+  created_at: string
+  updated_at: string
+  tokens?: string[]
+}
+
 const badgeSchema = new mongoose.Schema<badgeType>({
   championship: { type: mongoose.Schema.ObjectId, ref: "Champ" }, // The Championship that this badge belongs to.
   url: { type: String, required: true }, // URL to an image in AWS S3.

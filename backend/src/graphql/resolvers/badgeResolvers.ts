@@ -1,5 +1,5 @@
 import { AuthRequest } from "../../middleware/auth"
-import Badge, { badgeType } from "../../models/badge"
+import Badge, { badgeResponseType, badgeType } from "../../models/badge"
 import Champ from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import { ObjectId } from "mongodb"
@@ -78,7 +78,7 @@ const badgeResolvers = {
     { championship }: { championship: ObjectId | null },
     req: AuthRequest,
   ): Promise<{
-    array: badgeType[]
+    array: badgeResponseType[]
     tokens: string[]
   }> => {
     if (!req.isAuth) {
@@ -91,17 +91,48 @@ const badgeResolvers = {
       // Check for errors.
       userErrors(user)
 
-      // Find badges - if no championship provided, return default badges
+      // Find badges - if no championship provided, return default badges.
       let badges
+      let isAdjudicator = false
+
       if (championship === null) {
+        // Default badges are templates - show full info to everyone.
         badges = await Badge.find({ isDefault: true }).exec()
+        isAdjudicator = true
       } else {
         badges = await Badge.find({ championship }).exec()
+
+        // Check if user is the current adjudicator of this championship.
+        const champ = await Champ.findById(championship)
+        if (champ) {
+          isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+        }
       }
 
-      // Return the new user with tokens.
+      // Filter sensitive fields for unearned badges if user is not adjudicator.
+      const filteredBadges = badges.map((badge) => {
+        const badgeDoc = badge._doc
+        const hasBeenEarned = badgeDoc.awardedTo && badgeDoc.awardedTo.length > 0
+
+        // If badge has been earned OR user is adjudicator, return full badge.
+        if (hasBeenEarned || isAdjudicator) {
+          return badgeDoc
+        }
+
+        // Otherwise, hide sensitive fields.
+        return {
+          ...badgeDoc,
+          url: null,
+          name: null,
+          customName: null,
+          awardedHow: null,
+          awardedDesc: null,
+        }
+      })
+
+      // Return badges with tokens.
       return {
-        array: badges,
+        array: filteredBadges,
         tokens: req.tokens,
       }
     } catch (err) {
