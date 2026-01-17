@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react"
-import { useNavigate, useParams, useLocation } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { ResponsiveLine } from "@nivo/line"
 import './_team.scss'
 import { driverType, teamType } from "../../shared/types"
@@ -28,14 +28,10 @@ import {
 const Team: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const { user, setUser } = useContext(AppContext)
-  const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if team was passed via navigation state.
-  const locationTeam = (location.state as { team?: teamType })?.team
-
-  const [team, setTeam] = useState<teamType | null>(locationTeam || null)
-  const [loading, setLoading] = useState<boolean>(false)
+  const [team, setTeam] = useState<teamType | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
   const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
 
   // Always fetch team by ID to get fresh data with dominantColour.

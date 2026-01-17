@@ -168,7 +168,10 @@ export const getAllDriversForRound = (
 
   const sorted = series.drivers.map(driver => {
     const existing = entryMap.get(String(driver._id))
-    if (existing) return existing
+    if (existing) {
+      // Use driver from series (has teams populated) with entry data from round.
+      return { ...existing, driver }
+    }
     // Create default entry with 0 points.
     return {
       driver,

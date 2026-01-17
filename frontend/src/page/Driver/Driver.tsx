@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react"
-import { useNavigate, useParams, useLocation } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { ResponsiveLine } from "@nivo/line"
 import './_driver.scss'
 import AppContext from "../../context"
@@ -28,14 +28,10 @@ import { createdByID } from "../../shared/utility"
 const Driver: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const { user, setUser } = useContext(AppContext)
-  const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if driver was passed via navigation state.
-  const locationDriver = (location.state as { driver?: driverType })?.driver
-
-  const [ driver, setDriver ] = useState<driverType | null>(locationDriver || null)
-  const [ loading, setLoading ] = useState<boolean>(false)
+  const [ driver, setDriver ] = useState<driverType | null>(null)
+  const [ loading, setLoading ] = useState<boolean>(true)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   // Always fetch fresh driver data to ensure full population.

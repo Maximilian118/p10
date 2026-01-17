@@ -896,6 +896,8 @@ const Championship: React.FC = () => {
                     key={d.driver._id || i}
                     driver={d.driver}
                     entry={d}
+                    onClick={() => navigate(`/driver/${d.driver._id}`, { state: { driver: d.driver } })}
+                    onTeamClick={(team) => navigate(`/team/${team._id}`, { state: { team } })}
                   />
                 ))
               }
@@ -905,6 +907,8 @@ const Championship: React.FC = () => {
                     key={t.team._id || i}
                     team={t.team}
                     entry={t}
+                    onClick={() => navigate(`/team/${t.team._id}`, { state: { team: t.team } })}
+                    onDriverClick={(driver) => navigate(`/driver/${driver._id}`, { state: { driver } })}
                   />
                 ))
               }
