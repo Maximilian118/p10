@@ -115,6 +115,9 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   // For new badges: upload to S3 → call newBadge API.
   // For editing: optionally upload to S3 → call updateBadge API.
   const onSubmitHandler = useCallback(async () => {
+    // Prevent double-clicks while loading.
+    if (loading) return
+
     // Check for errors.
     const hasErr = badgePickerErrors(isNewBadge, {
       customName: editForm.customName,
@@ -213,7 +216,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     }
 
     setLoading(false)
-  }, [isNewBadge, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
+  }, [loading, isNewBadge, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
 
   // Delete a badge from database and S3 via API call.
   const deleteBadgeHandler = useCallback(async () => {

@@ -42,6 +42,20 @@ const badgeResolvers = {
       badgeChampErrors(championship)
       await badgeDuplicateErrors(args.badgeInput)
 
+      // If badge has a championship, check authorization.
+      if (championship) {
+        const champ = await Champ.findById(championship)
+        if (champ) {
+          const isAdmin = user?.permissions?.admin === true
+          const isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+
+          // Only adjudicator or admin can create badges for a championship.
+          if (!isAdmin && !isAdjudicator) {
+            return throwError("newBadge", req._id, "Only adjudicator or admin can create badges!", 403)
+          }
+        }
+      }
+
       // Create a new badge DB object.
       const badge = new Badge({
         url,
@@ -93,6 +107,7 @@ const badgeResolvers = {
 
       // Find badges - if no championship provided, return default badges.
       let badges
+      let isAdmin = false
       let isAdjudicator = false
       let champ = null
 
@@ -103,9 +118,10 @@ const badgeResolvers = {
       } else {
         badges = await Badge.find({ championship }).exec()
 
-        // Check if user is the current adjudicator of this championship.
+        // Check if user is admin or the current adjudicator of this championship.
         champ = await Champ.findById(championship)
         if (champ) {
+          isAdmin = user?.permissions?.admin === true
           isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
         }
       }
@@ -118,8 +134,8 @@ const badgeResolvers = {
         const badgeDoc = badge._doc
         const hasBeenEarned = badgeDoc.awardedTo && badgeDoc.awardedTo.length > 0
 
-        // If badge has been earned OR (user is adjudicator AND setting allows), return full badge.
-        if (hasBeenEarned || (isAdjudicator && adjCanSeeBadges)) {
+        // If badge has been earned OR user is admin OR (user is adjudicator AND setting allows), return full badge.
+        if (hasBeenEarned || isAdmin || (isAdjudicator && adjCanSeeBadges)) {
           return badgeDoc
         }
 

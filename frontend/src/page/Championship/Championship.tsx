@@ -130,6 +130,14 @@ const Championship: React.FC = () => {
     adjCanSeeBadges: true,
   })
   const [ adminFormErr ] = useState<AdminFormErrType>({})
+
+  // Loading states for form submissions.
+  const [ settingsLoading, setSettingsLoading ] = useState(false)
+  const [ automationLoading, setAutomationLoading ] = useState(false)
+  const [ protestsLoading, setProtestsLoading ] = useState(false)
+  const [ ruleChangesLoading, setRuleChangesLoading ] = useState(false)
+  const [ adminLoading, setAdminLoading ] = useState(false)
+
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
 
   // RoundsBar state - which round to view and which standings type.
@@ -377,188 +385,208 @@ const Championship: React.FC = () => {
 
   // Handle settings form submission with optimistic updates.
   const handleSettingsSubmit = async () => {
-    if (!champ) return
+    if (!champ || settingsLoading) return
+    setSettingsLoading(true)
+    try {
+      // Build updates object with only changed fields.
+      const updates = buildSettingsUpdates(settingsForm, champ)
 
-    // Build updates object with only changed fields.
-    const updates = buildSettingsUpdates(settingsForm, champ)
+      // Upload images to S3 if changed.
+      if (settingsForm.icon instanceof File) {
+        const iconURL = await uplaodS3(
+          "championships",
+          champ.name,
+          "icon",
+          settingsForm.icon,
+          setBackendErr,
+          user,
+          setUser,
+          navigate,
+          2,
+        )
+        if (!iconURL) return
+        updates.icon = iconURL
+      }
 
-    // Upload images to S3 if changed.
-    if (settingsForm.icon instanceof File) {
-      const iconURL = await uplaodS3(
-        "championships",
-        champ.name,
-        "icon",
-        settingsForm.icon,
-        setBackendErr,
+      if (settingsForm.profile_picture instanceof File) {
+        const ppURL = await uplaodS3(
+          "championships",
+          champ.name,
+          "profile_picture",
+          settingsForm.profile_picture,
+          setBackendErr,
+          user,
+          setUser,
+          navigate,
+          2,
+        )
+        if (!ppURL) return
+        updates.profile_picture = ppURL
+      }
+
+      // Exit early if no changes.
+      if (Object.keys(updates).length === 0) return
+
+      // Store previous state for rollback.
+      const previousChamp = champ
+
+      // Optimistic update: immediately reflect changes in UI.
+      setChamp(prev => prev ? applySettingsOptimistically(prev, updates, settingsForm) : prev)
+
+      // Make the API request.
+      const result = await updateChampSettings(
+        champ._id,
+        updates,
         user,
         setUser,
         navigate,
-        2,
-      )
-      if (!iconURL) return
-      updates.icon = iconURL
-    }
-
-    if (settingsForm.profile_picture instanceof File) {
-      const ppURL = await uplaodS3(
-        "championships",
-        champ.name,
-        "profile_picture",
-        settingsForm.profile_picture,
         setBackendErr,
-        user,
-        setUser,
-        navigate,
-        2,
       )
-      if (!ppURL) return
-      updates.profile_picture = ppURL
-    }
 
-    // Exit early if no changes.
-    if (Object.keys(updates).length === 0) return
-
-    // Store previous state for rollback.
-    const previousChamp = champ
-
-    // Optimistic update: immediately reflect changes in UI.
-    setChamp(prev => prev ? applySettingsOptimistically(prev, updates, settingsForm) : prev)
-
-    // Make the API request.
-    const result = await updateChampSettings(
-      champ._id,
-      updates,
-      user,
-      setUser,
-      navigate,
-      setBackendErr,
-    )
-
-    if (result) {
-      setChamp(result)
-      setSettingsForm(prev => ({ ...prev, icon: null, profile_picture: null }))
-    } else {
-      setChamp(previousChamp)
+      if (result) {
+        setChamp(result)
+        setSettingsForm(prev => ({ ...prev, icon: null, profile_picture: null }))
+      } else {
+        setChamp(previousChamp)
+      }
+    } finally {
+      setSettingsLoading(false)
     }
   }
 
   // Handle automation form submission with optimistic updates.
   const handleAutomationSubmit = async () => {
-    if (!champ) return
+    if (!champ || automationLoading) return
+    setAutomationLoading(true)
+    try {
+      const automationUpdates = buildAutomationUpdates(automationForm, champ)
 
-    const automationUpdates = buildAutomationUpdates(automationForm, champ)
+      // Exit early if no changes.
+      if (Object.keys(automationUpdates).length === 0) return
 
-    // Exit early if no changes.
-    if (Object.keys(automationUpdates).length === 0) return
+      const previousChamp = champ
 
-    const previousChamp = champ
+      // Optimistic update: immediately reflect changes in UI.
+      setChamp(prev => prev ? applyAutomationOptimistically(prev, automationUpdates) : prev)
 
-    // Optimistic update: immediately reflect changes in UI.
-    setChamp(prev => prev ? applyAutomationOptimistically(prev, automationUpdates) : prev)
+      const result = await updateChampSettings(
+        champ._id,
+        { automation: automationUpdates },
+        user,
+        setUser,
+        navigate,
+        setBackendErr,
+      )
 
-    const result = await updateChampSettings(
-      champ._id,
-      { automation: automationUpdates },
-      user,
-      setUser,
-      navigate,
-      setBackendErr,
-    )
-
-    if (result) {
-      setChamp(result)
-    } else {
-      setChamp(previousChamp)
+      if (result) {
+        setChamp(result)
+      } else {
+        setChamp(previousChamp)
+      }
+    } finally {
+      setAutomationLoading(false)
     }
   }
 
   // Handle protests form submission with optimistic updates.
   const handleProtestsSubmit = async () => {
-    if (!champ) return
+    if (!champ || protestsLoading) return
+    setProtestsLoading(true)
+    try {
+      const protestsUpdates = buildProtestsUpdates(protestsForm, champ)
 
-    const protestsUpdates = buildProtestsUpdates(protestsForm, champ)
+      // Exit early if no changes.
+      if (Object.keys(protestsUpdates).length === 0) return
 
-    // Exit early if no changes.
-    if (Object.keys(protestsUpdates).length === 0) return
+      const previousChamp = champ
 
-    const previousChamp = champ
+      // Optimistic update: immediately reflect changes in UI.
+      setChamp(prev => prev ? applyProtestsOptimistically(prev, protestsUpdates) : prev)
 
-    // Optimistic update: immediately reflect changes in UI.
-    setChamp(prev => prev ? applyProtestsOptimistically(prev, protestsUpdates) : prev)
+      const result = await updateChampSettings(
+        champ._id,
+        { protests: protestsUpdates },
+        user,
+        setUser,
+        navigate,
+        setBackendErr,
+      )
 
-    const result = await updateChampSettings(
-      champ._id,
-      { protests: protestsUpdates },
-      user,
-      setUser,
-      navigate,
-      setBackendErr,
-    )
-
-    if (result) {
-      setChamp(result)
-    } else {
-      setChamp(previousChamp)
+      if (result) {
+        setChamp(result)
+      } else {
+        setChamp(previousChamp)
+      }
+    } finally {
+      setProtestsLoading(false)
     }
   }
 
   // Handle rule changes form submission with optimistic updates.
   const handleRuleChangesSubmit = async () => {
-    if (!champ) return
+    if (!champ || ruleChangesLoading) return
+    setRuleChangesLoading(true)
+    try {
+      const ruleChangesUpdates = buildRuleChangesUpdates(ruleChangesForm, champ)
 
-    const ruleChangesUpdates = buildRuleChangesUpdates(ruleChangesForm, champ)
+      // Exit early if no changes.
+      if (Object.keys(ruleChangesUpdates).length === 0) return
 
-    // Exit early if no changes.
-    if (Object.keys(ruleChangesUpdates).length === 0) return
+      const previousChamp = champ
 
-    const previousChamp = champ
+      // Optimistic update: immediately reflect changes in UI.
+      setChamp(prev => prev ? applyRuleChangesOptimistically(prev, ruleChangesUpdates) : prev)
 
-    // Optimistic update: immediately reflect changes in UI.
-    setChamp(prev => prev ? applyRuleChangesOptimistically(prev, ruleChangesUpdates) : prev)
+      const result = await updateChampSettings(
+        champ._id,
+        { ruleChanges: ruleChangesUpdates },
+        user,
+        setUser,
+        navigate,
+        setBackendErr,
+      )
 
-    const result = await updateChampSettings(
-      champ._id,
-      { ruleChanges: ruleChangesUpdates },
-      user,
-      setUser,
-      navigate,
-      setBackendErr,
-    )
-
-    if (result) {
-      setChamp(result)
-    } else {
-      setChamp(previousChamp)
+      if (result) {
+        setChamp(result)
+      } else {
+        setChamp(previousChamp)
+      }
+    } finally {
+      setRuleChangesLoading(false)
     }
   }
 
   // Handle admin form submission with optimistic updates.
   const handleAdminSubmit = async () => {
-    if (!champ) return
+    if (!champ || adminLoading) return
+    setAdminLoading(true)
+    try {
+      const adminUpdates = { adjCanSeeBadges: adminForm.adjCanSeeBadges }
 
-    const adminUpdates = { adjCanSeeBadges: adminForm.adjCanSeeBadges }
+      // Exit early if no changes.
+      if (!adminChanged) return
 
-    // Exit early if no changes.
-    if (!adminChanged) return
+      const previousChamp = champ
 
-    const previousChamp = champ
+      // Optimistic update: immediately reflect changes in UI.
+      setChamp(prev => prev ? applyAdminOptimistically(prev, adminUpdates) : prev)
 
-    // Optimistic update: immediately reflect changes in UI.
-    setChamp(prev => prev ? applyAdminOptimistically(prev, adminUpdates) : prev)
+      await updateAdminSettings(
+        champ._id,
+        adminUpdates,
+        user,
+        setUser,
+        navigate,
+        setChamp,
+        setBackendErr,
+      )
 
-    await updateAdminSettings(
-      champ._id,
-      adminUpdates,
-      user,
-      setUser,
-      navigate,
-      setChamp,
-      setBackendErr,
-    )
-
-    // If the request failed, the setChamp in updateAdminSettings won't be called
-    // and our optimistic update remains. The backend error will show in UI.
-    // If successful, setChamp is called with the server response.
+      // If the request failed, the setChamp in updateAdminSettings won't be called
+      // and our optimistic update remains. The backend error will show in UI.
+      // If successful, setChamp is called with the server response.
+    } finally {
+      setAdminLoading(false)
+    }
   }
 
   // Handle starting a round (adjudicator clicks start button).
@@ -679,30 +707,35 @@ const Championship: React.FC = () => {
     formErr: settingsFormErr,
     onSubmit: handleSettingsSubmit,
     changed: settingsChanged,
+    loading: settingsLoading,
   }
 
   const automationToolbarProps: FormToolbarProps = {
     formErr: automationFormErr,
     onSubmit: handleAutomationSubmit,
     changed: automationChanged,
+    loading: automationLoading,
   }
 
   const protestsToolbarProps: FormToolbarProps = {
     formErr: protestsFormErr,
     onSubmit: handleProtestsSubmit,
     changed: protestsChanged,
+    loading: protestsLoading,
   }
 
   const ruleChangesToolbarProps: FormToolbarProps = {
     formErr: ruleChangesFormErr,
     onSubmit: handleRuleChangesSubmit,
     changed: ruleChangesChanged,
+    loading: ruleChangesLoading,
   }
 
   const adminToolbarProps: FormToolbarProps = {
     formErr: adminFormErr,
     onSubmit: handleAdminSubmit,
     changed: adminChanged,
+    loading: adminLoading,
   }
 
   // Grouped toolbar props for badge view.

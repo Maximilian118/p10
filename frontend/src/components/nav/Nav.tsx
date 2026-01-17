@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import UserIcon from "../utility/userIcon/UserIcon"
 import { userType } from "../../shared/localStorage"
-import { Home, Menu as MenuIcon, Close } from "@mui/icons-material"
+import { Home, Menu as MenuIcon, Close, Notifications } from "@mui/icons-material"
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
 import GroupsIcon from "@mui/icons-material/Groups"
@@ -9,6 +9,7 @@ import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import { IconButton } from "@mui/material"
 import { useNavigate, useLocation } from "react-router-dom"
 import "./_nav.scss"
+import BadgeIcon from "../utility/icon/badgeIcon/BadgeIcon"
 
 interface navType {
   user: userType,
@@ -59,6 +60,13 @@ const Nav: React.FC<navType> = ({ user }) => {
     setDrawerOpen(false)
   }
 
+  // Open notifications drawer.
+  const handleNotificationsClicked = () => {
+    
+  }
+
+  const notificationsCount = 0
+
   return (
     <div className="nav-container" ref={navContainerRef}>
       <nav onClick={handleNavClick}>
@@ -76,7 +84,14 @@ const Nav: React.FC<navType> = ({ user }) => {
             {drawerOpen ? <Close /> : <MenuIcon />}
           </IconButton>
         </div>
-        <UserIcon user={user} style={{ marginRight: 20 }}/>
+        <div className="nav-right">
+          <BadgeIcon 
+            svg={Notifications} 
+            onClick={() => handleNotificationsClicked()} 
+            count={notificationsCount}
+          />
+          <UserIcon user={user} style={{ margin: "0 20px 0 10px" }}/>
+        </div>
       </nav>
       <div className={`nav-drawer ${drawerOpen ? "nav-drawer-open" : ""}`}>
         {menuItems.map((item) => (

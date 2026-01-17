@@ -16,6 +16,7 @@ export interface FormToolbarProps {
   formErr?: Record<string, string>
   onSubmit?: () => void
   changed?: boolean
+  loading?: boolean
 }
 
 // Grouped props for badge view.
@@ -175,8 +176,8 @@ const ChampToolbar: React.FC<champToolbarType> = ({
           e.stopPropagation()
           props.onSubmit!()
         }}
-        disabled={!props.changed || Object.values(props.formErr || {}).some(err => !!err)}
-        startIcon={<Save />}
+        disabled={!props.loading && (!props.changed || Object.values(props.formErr || {}).some(err => !!err))}
+        startIcon={props.loading ? <CircularProgress size={18} color="inherit" /> : <Save />}
       >
         Save
       </Button>
@@ -256,9 +257,9 @@ const ChampToolbar: React.FC<champToolbarType> = ({
                 badgeProps.onSubmit()
               }
             }}
-            disabled={badgeProps?.loading}
+            startIcon={badgeProps?.loading ? <CircularProgress size={20} color="inherit" /> : undefined}
           >
-            {badgeProps?.loading ? <CircularProgress size={24} /> : (typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit")}
+            {typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit"}
           </Button>
         </>
       )}

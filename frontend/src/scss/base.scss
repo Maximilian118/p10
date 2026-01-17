@@ -59,13 +59,9 @@ body {
         background: white;
         margin-bottom: 2px;
 
-        .nav-left {
+        .nav-left, .nav-right {
           height: 100%;
           @include mixins.flexbox;
-
-          .nav-item:first-child {
-            padding-left: 20px;
-          }
         }
       }
 
