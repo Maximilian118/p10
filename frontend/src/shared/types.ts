@@ -287,6 +287,9 @@ export interface ChampType {
   // Core data - all rounds with competitor snapshots.
   rounds: RoundType[]
 
+  // Championship-level competitors (source of truth for who is competing).
+  competitors: userType[]
+
   // Configuration
   series: seriesType
   pointsStructure: pointsStructureType

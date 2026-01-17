@@ -1,0 +1,14 @@
+@use '../../../../../scss/mixins';
+@use '../../../../../scss/variables';
+
+.image-error {
+  width: 100%;
+  height: 100%;
+  background: variables.$error;
+  @include mixins.flexbox;
+
+  p {
+    color: white;
+    font-size: 12px;
+  }
+}

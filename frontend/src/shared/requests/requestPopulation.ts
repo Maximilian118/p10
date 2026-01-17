@@ -334,6 +334,11 @@ export const populateChamp = `
       positionConstructors
     }
   }
+  competitors {
+    _id
+    name
+    icon
+  }
   series {
     _id
     url

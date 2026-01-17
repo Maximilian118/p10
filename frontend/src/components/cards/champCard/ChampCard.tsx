@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import './_champCard.scss'
 import { ChampType } from "../../../shared/types"
 import { userType } from "../../../shared/localStorage"
-import { getCompetitors } from "../../../shared/utility"
 import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
@@ -18,8 +17,8 @@ interface champCardType {
 const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditClicked }) => {
   const navigate = useNavigate()
 
-  // Extract competitor users for the icon list.
-  const competitors = getCompetitors(champ).map(c => c.competitor)
+  // Championship-level competitors for the icon list.
+  const competitors = champ.competitors
 
   // Navigate to competitor profile.
   const handleCompetitorClick = (competitor: userType) => {

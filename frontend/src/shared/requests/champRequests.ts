@@ -37,6 +37,10 @@ export const getChamps = async (
                   active
                   created_at
                   updated_at
+                  competitors {
+                    _id
+                    icon
+                  }
                   rounds {
                     round
                     status

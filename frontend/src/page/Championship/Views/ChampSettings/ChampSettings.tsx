@@ -3,7 +3,6 @@ import "./_champSettings.scss"
 import { ChampType, pointsStructureType, seriesType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
-import { getCompetitors } from "../../../../shared/utility"
 import { Button, Pagination } from "@mui/material"
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"
 import ImageIcon from "@mui/icons-material/Image"
@@ -96,7 +95,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
   // Handle max competitors pagination change with validation.
   const handleMaxCompetitorsChange = (_e: React.ChangeEvent<unknown>, value: number) => {
     // Can't set below current competitor count.
-    const currentCompetitors = getCompetitors(champ).length
+    const currentCompetitors = champ.competitors.length
     if (value < currentCompetitors) return
     if (value > 99) return
     setSettingsForm(prev => ({ ...prev, maxCompetitors: value }))

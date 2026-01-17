@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react"
-import UserIcon from "../utility/userIcon/UserIcon"
+import UserIcon from "../utility/icon/userIcon/userIcon"
 import { userType } from "../../shared/localStorage"
 import { Home, Menu as MenuIcon, Close, Notifications } from "@mui/icons-material"
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"

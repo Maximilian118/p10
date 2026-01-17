@@ -4,7 +4,6 @@ import './_champToolbar.scss'
 import { Button, CircularProgress } from "@mui/material"
 import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save } from "@mui/icons-material"
 import { ChampType, badgeType } from "../../../../shared/types"
-import { getCompetitors } from "../../../../shared/utility"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../../shared/requests/champRequests"
@@ -71,8 +70,8 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   const navigate = useNavigate()
 
   // Check if user is already a competitor in the championship.
-  const competitors = getCompetitors(champ)
-  const isCompetitor = competitors.some(c => c.competitor._id === user._id)
+  const competitors = champ.competitors
+  const isCompetitor = competitors.some(c => c._id === user._id)
 
   // Check if user is the adjudicator.
   const isAdjudicator = champ.adjudicator?.current?._id === user._id

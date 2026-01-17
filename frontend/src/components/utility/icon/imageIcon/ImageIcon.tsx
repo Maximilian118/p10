@@ -1,6 +1,8 @@
 import React, { SyntheticEvent, useState } from "react"
 import '../_icon.scss'
 import './_imageIcon.scss'
+import ImageError from "../utility/imageError/ImageError"
+import { shouldShowImageError } from "../utility/iconUtility"
 
 interface iconType {
   src: string
@@ -14,16 +16,12 @@ interface iconType {
 const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick, background }) => {
   const [ error, setError ] = useState<boolean>(false)
 
+  // Renders image or error fallback if src is missing/invalid.
   const iconContent = (error: boolean, src: string) => {
-    if (!error) {
-      return <img alt="Icon" onError={() => setError(true)} src={src}/>
-    } else {
-      return (
-        <div className="image-error">
-          <p>{`err`}</p>
-        </div>
-      )
+    if (shouldShowImageError(src, error)) {
+      return <ImageError />
     }
+    return <img alt="Icon" onError={() => setError(true)} src={src}/>
   }
 
   // Enable pointer events and cursor when onClick is provided.

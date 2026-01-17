@@ -8,7 +8,6 @@ import { Button, CircularProgress } from "@mui/material"
 import { updateChampPP } from "../../../../shared/requests/champRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
-import { getCompetitors } from "../../../../shared/utility"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import RotateRightIcon from "@mui/icons-material/RotateRight"
@@ -60,7 +59,7 @@ const getBottomStats = (champ: ChampType, viewedRoundNumber?: number) => {
 
   return [
     { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds.length}` },
-    { icon: <PersonIcon />, value: `${getCompetitors(champ).length}/${champ.settings.maxCompetitors}` },
+    { icon: <PersonIcon />, value: `${champ.competitors.length}/${champ.settings.maxCompetitors}` },
     { icon: <SportsMotorsportsIcon />, value: champ.series.drivers.length },
     { icon: <WorkspacePremiumIcon />, value: `${discoveredBadges}/${totalBadges}` }
   ]

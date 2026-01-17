@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react"
 import { ChampType } from "../shared/types"
-import { getCompetitors } from "../shared/utility"
 import Search from "../components/utility/search/Search"
 import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate } from "react-router-dom"
@@ -33,8 +32,8 @@ const Championships: React.FC = () => {
     const sorted = [...champs].sort((a, b) => {
       const isAdjudicatorA = a.adjudicator?.current?._id === user._id
       const isAdjudicatorB = b.adjudicator?.current?._id === user._id
-      const isCompetitorA = getCompetitors(a).some(c => c.competitor._id === user._id)
-      const isCompetitorB = getCompetitors(b).some(c => c.competitor._id === user._id)
+      const isCompetitorA = a.competitors.some(c => c._id === user._id)
+      const isCompetitorB = b.competitors.some(c => c._id === user._id)
 
       // Assign priority: adjudicator = 0, competitor = 1, other = 2
       const priorityA = isAdjudicatorA ? 0 : isCompetitorA ? 1 : 2

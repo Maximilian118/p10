@@ -322,6 +322,7 @@ const champResolvers = {
       const champs = await Champ.find({})
         .populate("adjudicator.current", "_id name icon")
         .populate("series", "_id name")
+        .populate("competitors", "_id icon")
         .populate("rounds.competitors.competitor", "_id icon")
         .exec()
 
