@@ -39,7 +39,7 @@ export interface badgeResponseType {
 }
 
 const badgeSchema = new mongoose.Schema<badgeType>({
-  championship: { type: mongoose.Schema.ObjectId, ref: "Champ" }, // The Championship that this badge belongs to.
+  championship: { type: mongoose.Schema.ObjectId, ref: "Champ", required: true }, // The Championship that this badge belongs to.
   url: { type: String, required: true }, // URL to an image in AWS S3.
   name: { type: String, required: true }, // Name of the badge (from badgeRewardOutcomes).
   customName: { type: String }, // Optional user-provided custom name override.

@@ -1,4 +1,7 @@
-import { userType } from "./localStorage"
+import { userType, userBadgeSnapshotType } from "./localStorage"
+
+// Re-export for convenience.
+export type { userBadgeSnapshotType }
 
 // Type for viewing another user's profile (populated data).
 export interface userProfileType {
@@ -7,7 +10,7 @@ export interface userProfileType {
   icon: string
   profile_picture: string
   championships: ChampType[]
-  badges: badgeType[]
+  badges: userBadgeSnapshotType[]
   permissions: {
     admin: boolean
     adjudicator: boolean

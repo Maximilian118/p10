@@ -159,6 +159,13 @@ const badgeResolvers = {
       throw err
     }
   },
+  // Update a badge's properties.
+  //
+  // IMPORTANT - BADGE SNAPSHOTS:
+  // This only updates the Badge document itself.
+  // User.badges[] snapshots are NEVER modified - they preserve how the badge
+  // looked when earned. For example, changing awardedHow affects how FUTURE
+  // badges are awarded, but existing user snapshots retain their original awardedHow.
   updateBadge: async (
     args: { updateBadgeInput: badgeType },
     req: AuthRequest,
@@ -235,6 +242,12 @@ const badgeResolvers = {
     }
   },
   // Delete a badge and its S3 image.
+  //
+  // IMPORTANT - BADGE SNAPSHOTS:
+  // This deletes the Badge document and removes the ref from champ.champBadges.
+  // However, User.badges[] snapshots are NEVER deleted - they are permanent records.
+  // Users who earned this badge will still see it on their profile forever.
+  // This is intentional: snapshots preserve the badge as it was when earned.
   deleteBadge: async (
     { _id }: { _id: ObjectId },
     req: AuthRequest,

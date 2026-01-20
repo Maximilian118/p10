@@ -11,14 +11,28 @@ export interface userInputType {
   profile_picture: string
 }
 
+// User's embedded badge snapshot.
+// IMMUTABLE: Once created, snapshots should NEVER be modified or deleted.
+// They preserve exactly how the badge looked when the user earned it.
+// This ensures badges persist even if the original Badge document is deleted or edited.
+export interface userBadgeSnapshotType {
+  _id: ObjectId
+  championship: ObjectId
+  url: string
+  name: string
+  customName?: string
+  rarity: number
+  awardedHow: string
+  awardedDesc: string
+  zoom: number
+  awarded_at: string
+}
+
 export interface userType extends Omit<userInputType, "email"> {
   _id: ObjectId
   email: string | null // Nullable for privacy (non-owners get null).
   championships: object[]
-  badges: {
-    badge: ObjectId
-    dateTime: string
-  }[]
+  badges: userBadgeSnapshotType[] // Embedded badge snapshots (permanent)
   permissions: {
     admin: boolean
     adjudicator: boolean
@@ -42,11 +56,20 @@ const userSchema = new mongoose.Schema<userType>({
   password: { type: String, required: false, min: 8 }, // User encryptied password.
   icon: { type: String, required: true }, // User Icon. Same image as Profile Picture but compressed to aprox 0.05mb.
   profile_picture: { type: String, required: true }, // User Profile Picture. Compressed to aprox 0.5mb.
-  championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Array of Championships the User has created.
+  championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Championships the user is part of.
+  // Embedded badge snapshots - permanent copies of badge data at time of earning.
   badges: [
     {
-      badge: { type: mongoose.Schema.ObjectId, ref: "Badge" }, // Badge object.
-      dateTime: { type: String, default: moment().format() }, // dateTime user won this Badge.
+      _id: { type: mongoose.Schema.ObjectId, required: true }, // Original badge ID
+      url: { type: String, required: true },
+      name: { type: String, required: true },
+      customName: { type: String },
+      rarity: { type: Number, required: true },
+      awardedHow: { type: String, required: true },
+      awardedDesc: { type: String, required: true },
+      zoom: { type: Number, default: 100 },
+      championship: { type: mongoose.Schema.ObjectId, ref: "Champ", required: true },
+      awarded_at: { type: String, default: moment().format() },
     },
   ],
   refresh_count: { type: Number, default: 0 }, // Refresh count.

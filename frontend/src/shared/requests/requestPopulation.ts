@@ -14,8 +14,13 @@ export const populateUser = `
     _id
     url
     name
+    customName
     rarity
-    created_at
+    awardedHow
+    awardedDesc
+    zoom
+    championship
+    awarded_at
   }
   permissions {
     admin
@@ -42,10 +47,13 @@ export const populateUserProfile = `
     _id
     url
     name
+    customName
     rarity
     awardedHow
     awardedDesc
-    created_at
+    zoom
+    championship
+    awarded_at
   }
   permissions {
     admin

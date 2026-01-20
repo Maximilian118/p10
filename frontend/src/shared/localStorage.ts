@@ -1,5 +1,19 @@
 import { NavigateFunction } from "react-router-dom"
 
+// User's embedded badge snapshot. Persists even if the original Badge is deleted.
+export interface userBadgeSnapshotType {
+  _id: string
+  championship: string
+  url: string | null
+  name: string | null
+  customName?: string | null
+  rarity: number
+  awardedHow: string | null
+  awardedDesc: string | null
+  zoom: number
+  awarded_at: string
+}
+
 export interface userType {
   _id: string
   token: string
@@ -8,7 +22,7 @@ export interface userType {
   icon: string
   profile_picture: string
   championships: object[]
-  badges: object[]
+  badges: userBadgeSnapshotType[]
   created_at: string
   permissions: {
     admin: boolean

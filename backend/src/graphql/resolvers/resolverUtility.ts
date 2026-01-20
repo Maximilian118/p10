@@ -4,7 +4,7 @@ import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
 import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType } from "../../models/champ"
 import Badge from "../../models/badge"
-import User from "../../models/user"
+import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
 import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
 
@@ -269,7 +269,7 @@ export const calculateCompetitorPoints = (
     rankIndex: number
   }> = round.competitors.map((c) => {
     const betDriverId = c.bet?.toString() || null
-    const positionActual = betDriverId ? driverPositions.get(betDriverId) ?? null : null
+    const positionActual = betDriverId ? (driverPositions.get(betDriverId) ?? null) : null
     const rankIndex = positionActual !== null ? positionToRankIndex(positionActual) : Infinity
 
     return {
@@ -683,6 +683,15 @@ const updateDriverStats = async (
 // Award badges to competitors based on badge criteria.
 // Evaluates all championship badges against each competitor.
 // Uses batch operations for performance.
+//
+// BADGE SNAPSHOT SYSTEM:
+// When a badge is awarded, it is saved in TWO places:
+// 1. Badge.awardedTo[] - User ID added to track who has earned this badge.
+// 2. User.badges[] - Full badge snapshot embedded on user for PERMANENT storage.
+//
+// The snapshot on User.badges[] preserves how the badge looked at the time of earning.
+// This ensures users keep their badge even if the original Badge document is later
+// deleted or modified. Snapshots are IMMUTABLE - they should never be updated.
 const awardBadges = async (
   champ: ChampType,
   currentRound: Round,
@@ -701,14 +710,17 @@ const awardBadges = async (
   // Load driver data for attribute-based badges (oldest, tallest, moustache, etc.).
   const driverIds = currentRound.drivers.map((d) => d.driver)
   const drivers = await Driver.find({ _id: { $in: driverIds } })
-  const populatedDrivers = new Map<string, driverType>(
-    drivers.map((d) => [d._id.toString(), d]),
-  )
+  const populatedDrivers = new Map<string, driverType>(drivers.map((d) => [d._id.toString(), d]))
 
   // Track awards to batch save at end.
   const badgeAwards: { badgeId: ObjectId; competitorId: ObjectId; awardedHow: string }[] = []
-  const userBadgeUpdates: { userId: ObjectId; badgeId: ObjectId; dateTime: string }[] = []
-  const dateTime = moment().format()
+  // User badge snapshots - full badge data embedded on user for permanence.
+  const userBadgeSnapshots: {
+    userId: ObjectId
+    snapshot: userBadgeSnapshotType
+  }[] = []
+
+  const awarded_at = moment().format()
 
   // Track already awarded within this evaluation to avoid duplicate checks.
   const newlyAwarded = new Set<string>()
@@ -753,10 +765,21 @@ const awardBadges = async (
           competitorId: competitorEntry.competitor,
           awardedHow: badge.awardedHow,
         })
-        userBadgeUpdates.push({
+        // Create full badge snapshot for permanent storage on user.
+        userBadgeSnapshots.push({
           userId: competitorEntry.competitor,
-          badgeId: badge._id,
-          dateTime,
+          snapshot: {
+            _id: badge._id,
+            url: badge.url,
+            name: badge.name,
+            customName: badge.customName,
+            rarity: badge.rarity,
+            awardedHow: badge.awardedHow,
+            awardedDesc: badge.awardedDesc,
+            zoom: badge.zoom || 100,
+            championship: badge.championship,
+            awarded_at,
+          },
         })
         newlyAwarded.add(awardKey)
 
@@ -774,22 +797,19 @@ const awardBadges = async (
         filter: { _id: award.badgeId },
         update: {
           $addToSet: { awardedTo: award.competitorId },
-          $set: { updated_at: dateTime },
+          $set: { updated_at: awarded_at },
         },
       },
     }))
     await Badge.bulkWrite(badgeBulkOps)
 
-    // Batch save user badge updates.
-    const userBulkOps = userBadgeUpdates.map((update) => ({
+    // Batch save user badge snapshots (full badge data embedded on user).
+    const userBulkOps = userBadgeSnapshots.map((update) => ({
       updateOne: {
         filter: { _id: update.userId },
         update: {
           $addToSet: {
-            badges: {
-              badge: update.badgeId,
-              dateTime: update.dateTime,
-            },
+            badges: update.snapshot,
           },
         },
       },
