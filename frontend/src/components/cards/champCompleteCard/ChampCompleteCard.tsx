@@ -3,7 +3,7 @@ import './_champCompleteCard.scss'
 import { SportsScore, Error } from "@mui/icons-material"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import ErrorDisplay from "../../utility/errorDisplay/ErrorDisplay"
-import { createChampFormErrType } from "../../../page/CreateChamp"
+import { createChampFormErrType } from "../../../page/CreateChamp/CreateChamp"
 
 interface champCompleteCardType {
   backendErr?: graphQLErrorType

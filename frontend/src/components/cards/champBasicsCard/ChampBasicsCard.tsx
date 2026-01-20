@@ -7,7 +7,7 @@ import { Pagination } from "@mui/material"
 import PointsPicker from "../../utility/pointsPicker/PointsPicker"
 import { inputLabel, updateForm } from "../../../shared/formValidation"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
-import { createChampFormErrType, createChampFormType } from "../../../page/CreateChamp"
+import { createChampFormErrType, createChampFormType } from "../../../page/CreateChamp/CreateChamp"
 
 interface champBaiscsCard<T, U> {
   form: T,

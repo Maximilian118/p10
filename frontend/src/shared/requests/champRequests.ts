@@ -4,7 +4,7 @@ import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
 import { ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
-import { createChampFormType } from "../../page/CreateChamp"
+import { createChampFormType } from "../../page/CreateChamp/CreateChamp"
 import { populateChamp } from "./requestPopulation"
 import { newBadge } from "./badgeRequests"
 

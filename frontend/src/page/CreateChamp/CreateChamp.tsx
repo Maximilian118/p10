@@ -1,23 +1,24 @@
 import React, { useContext, useState, useCallback, useMemo } from "react"
-import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
+import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { useNavigate } from "react-router-dom"
-import { presetArrays } from "../components/utility/pointsPicker/ppPresets"
-import { badgeType, seriesType, pointsStructureType, rulesAndRegsType } from "../shared/types"
-import { defaultRulesAndRegs } from "../shared/rulesAndRegs"
-import AppContext from "../context"
-import { ChampFlowProvider, FormHandlers, getActiveHandlers } from "../context/ChampFlowContext"
-import ChampBasicsCard from "../components/cards/champBasicsCard/ChampBasicsCard"
-import { muiStepperSteps } from "../components/utility/muiStepper/muiStepperUtility"
-import CreateChampHeader from "../components/cards/createChampHeader/CreateChampHeader"
-import SeriesPicker from "../components/utility/seriesPicker/SeriesPicker"
-import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
-import BadgePicker from "../components/utility/badgePicker/BadgePicker"
-import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
+import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
+import { badgeType, seriesType, pointsStructureType, rulesAndRegsType } from "../../shared/types"
+import { defaultRulesAndRegs } from "../../shared/rulesAndRegs"
+import AppContext from "../../context"
+import { ChampFlowProvider, FormHandlers, getActiveHandlers } from "../../context/ChampFlowContext"
+import ChampBasicsCard from "../../components/cards/champBasicsCard/ChampBasicsCard"
+import { muiStepperSteps } from "../../components/utility/muiStepper/muiStepperUtility"
+import CreateChampHeader from "../../components/cards/createChampHeader/CreateChampHeader"
+import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
+import RulesAndRegsPicker from "../../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
+import BadgePicker from "../../components/utility/badgePicker/BadgePicker"
+import ChampCompleteCard from "../../components/cards/champCompleteCard/ChampCompleteCard"
 import { ArrowBack, Delete } from "@mui/icons-material"
-import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import { createChamp } from "../shared/requests/champRequests"
-import Toggle from "../components/utility/toggle/Toggle"
-import Arrows from "../components/utility/arrows/Arrows"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
+import { createChamp } from "../../shared/requests/champRequests"
+import Toggle from "../../components/utility/toggle/Toggle"
+import Arrows from "../../components/utility/arrows/Arrows"
+import { validateChampForm } from "./createChampUtility"
 
 interface createChampFormBaseType {
   champName: string
@@ -109,28 +110,9 @@ const CreateChamp: React.FC = () => {
     e.preventDefault()
 
     // Validate required fields before submission
-    if (!form.champName) {
-      setFormErr(prev => ({ ...prev, champName: "Championship name is required." }))
-      return
-    }
-
-    if (!form.icon || !form.profile_picture) {
-      setFormErr(prev => ({ ...prev, dropzone: "Championship icon is required." }))
-      return
-    }
-
-    if (!form.series) {
-      setFormErr(prev => ({ ...prev, series: "A series is required." }))
-      return
-    }
-
-    if (form.pointsStructure.length === 0) {
-      setFormErr(prev => ({ ...prev, pointsStructure: "Points structure is required." }))
-      return
-    }
-
-    if (form.rulesAndRegs.length === 0) {
-      setFormErr(prev => ({ ...prev, rulesAndRegs: "At least one rule is required." }))
+    const validationError = validateChampForm(form)
+    if (validationError) {
+      setFormErr(prev => ({ ...prev, ...validationError }))
       return
     }
 
@@ -246,7 +228,7 @@ const CreateChamp: React.FC = () => {
           onClick: () => activeFormHandlers
             ? activeFormHandlers.submit()
             : lastStep
-              ? document.querySelector<HTMLFormElement>('form.content-container')?.requestSubmit()
+              ? document.querySelector<HTMLFormElement>('form.create-champ')?.requestSubmit()
               : setActiveStep(prevStep => prevStep + 1),
           endIcon: (!activeFormHandlers && !lastStep && <Arrows />),
           loading: activeFormHandlers?.loading || loading
