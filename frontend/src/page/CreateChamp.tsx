@@ -13,9 +13,11 @@ import SeriesPicker from "../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../components/cards/champCompleteCard/ChampCompleteCard"
+import { ArrowBack, Delete } from "@mui/icons-material"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
 import { createChamp } from "../shared/requests/champRequests"
 import Toggle from "../components/utility/toggle/Toggle"
+import Arrows from "../components/utility/arrows/Arrows"
 
 interface createChampFormBaseType {
   champName: string
@@ -154,7 +156,7 @@ const CreateChamp: React.FC = () => {
 
   return (
   <ChampFlowProvider value={champFlowContextValue}>
-    <form className="content-container" onSubmit={e => onSubmitHandler(e)} style={{ height: "100vh" }}>
+    <form className="content-container" onSubmit={e => onSubmitHandler(e)}>
       <CreateChampHeader activeStep={activeStep}/>
         {activeStep === 0 &&
         <ChampBasicsCard
@@ -218,25 +220,38 @@ const CreateChamp: React.FC = () => {
       }
     </form>
     <ButtonBar
-      onBack={() => activeFormHandlers
-        ? activeFormHandlers.back()
-        : setActiveStep(prevStep => prevStep - 1)
-      }
-      onSubmit={() => activeFormHandlers
-        ? activeFormHandlers.submit()
-        : lastStep
-          ? document.querySelector<HTMLFormElement>('form.content-container')?.requestSubmit()
-          : setActiveStep(prevStep => prevStep + 1)
-      }
-      onDelete={activeFormHandlers?.canDelete ? activeFormHandlers.onDelete : undefined}
-      showDelete={!!activeFormHandlers?.canDelete && activeFormHandlers?.isEditing}
-      backDisabled={firstStep && !activeFormHandlers}
-      submitLabel={activeFormHandlers
-        ? (activeFormHandlers.isEditing ? "Update" : "Submit")
-        : (lastStep ? "Create Championship" : "Next")
-      }
-      loading={activeFormHandlers?.loading || loading}
-      delLoading={activeFormHandlers?.delLoading}
+      background
+      position="relative"
+      buttons={[
+        {
+          label: "Back",
+          onClick: () => activeFormHandlers
+            ? activeFormHandlers.back()
+            : setActiveStep(prevStep => prevStep - 1),
+          startIcon: <ArrowBack />,
+          color: "inherit",
+          disabled: firstStep && !activeFormHandlers
+        },
+        ...(activeFormHandlers?.canDelete && activeFormHandlers?.isEditing ? [{
+          label: "Delete",
+          onClick: activeFormHandlers.onDelete,
+          startIcon: <Delete />,
+          color: "error" as const,
+          loading: activeFormHandlers?.delLoading
+        }] : []),
+        {
+          label: activeFormHandlers
+            ? (activeFormHandlers.isEditing ? "Update" : "Submit")
+            : (lastStep ? "Create Championship" : "Next"),
+          onClick: () => activeFormHandlers
+            ? activeFormHandlers.submit()
+            : lastStep
+              ? document.querySelector<HTMLFormElement>('form.content-container')?.requestSubmit()
+              : setActiveStep(prevStep => prevStep + 1),
+          endIcon: (!activeFormHandlers && !lastStep && <Arrows />),
+          loading: activeFormHandlers?.loading || loading
+        }
+      ]}
     />
   </ChampFlowProvider>
   )

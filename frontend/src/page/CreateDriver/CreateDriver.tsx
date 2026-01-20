@@ -21,6 +21,7 @@ import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocom
 import MUICheckbox from "../../components/utility/muiCheckbox/MUICheckbox"
 import TeamPicker from "../../components/utility/teamPicker/TeamPicker"
 import CreateTeam from "../CreateTeam/CreateTeam"
+import { ArrowBack, Delete } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createDriver.scss"
 
@@ -584,14 +585,25 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     </div>
     {showButtonBar && (
       <ButtonBar
-        onBack={handleBack}
-        onDelete={onDeleteHandler}
-        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
-        showDelete={permissions === "delete" && isEditing}
-        submitDisabled={!permissions || (isEditing && !hasDriverFormChanged(editingDriver, form))}
-        submitLabel={isEditing ? "Update" : "Submit"}
-        loading={loading}
-        delLoading={delLoading}
+        background
+        position="relative"
+        size="medium"
+        buttons={[
+          { label: "Back", onClick: handleBack, startIcon: <ArrowBack />, color: "inherit" },
+          ...(permissions === "delete" && isEditing ? [{
+            label: "Delete",
+            onClick: onDeleteHandler,
+            startIcon: <Delete />,
+            color: "error" as const,
+            loading: delLoading
+          }] : []),
+          {
+            label: isEditing ? "Update" : "Submit",
+            onClick: isEditing ? onUpdateHandler : onSubmitHandler,
+            disabled: !permissions || (isEditing && !hasDriverFormChanged(editingDriver, form)),
+            loading
+          }
+        ]}
       />
     )}
   </>

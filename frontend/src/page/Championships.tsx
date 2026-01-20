@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react"
 import { ChampType } from "../shared/types"
 import Search from "../components/utility/search/Search"
+import ButtonBar from "../components/utility/buttonBar/ButtonBar"
 import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate } from "react-router-dom"
 import AppContext from "../context"
@@ -84,10 +85,9 @@ const Championships: React.FC = () => {
       <div className="champs-list">
         {renderChampsList()}
       </div>
-      <AddButton
-        onClick={() => navigate("/create-championship")}
-        absolute
-      />
+      <ButtonBar>
+        <AddButton onClick={() => navigate("/create-championship")} />
+      </ButtonBar>
     </div>
   )
 }

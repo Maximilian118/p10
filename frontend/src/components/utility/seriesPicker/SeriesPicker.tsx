@@ -10,6 +10,7 @@ import { initSeries } from "../../../shared/init"
 import SeriesListCard from "../../cards/seriesListCard/SeriesListCard"
 import { sortAlphabetically } from "../../../shared/utility"
 import Search from "../search/Search"
+import ButtonBar from "../buttonBar/ButtonBar"
 import AddButton from "../button/addButton/AddButton"
 import { canEditSeries } from "./seriesEdit/seriesUtility"
 import FillLoading from "../fillLoading/FillLoading"
@@ -36,7 +37,6 @@ interface seriesPickerType<T, E extends seriesPickerFormErr> {
 const SeriesPicker = <T extends { series: seriesType | null }, E extends seriesPickerFormErr>({
   form,
   setForm,
-  formErr,
   setFormErr,
   seriesList,
   setSeriesList,
@@ -119,6 +119,7 @@ const SeriesPicker = <T extends { series: seriesType | null }, E extends seriesP
       <Search
         original={seriesList}
         setSearch={setSearch}
+        label="Search Series"
       />
       <div className="series-list-container">
         {loading ?
@@ -159,11 +160,10 @@ const SeriesPicker = <T extends { series: seriesType | null }, E extends seriesP
             }
           </div>
         }
-        <AddButton
-          onClick={() => setIsEdit(true)}
-          absolute
-        />
       </div>
+      <ButtonBar position="sticky">
+        <AddButton onClick={() => setIsEdit(true)} />
+      </ButtonBar>
     </div>
   )
 }

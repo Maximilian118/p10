@@ -14,6 +14,7 @@ import DropZone from "../../components/utility/dropZone/DropZone"
 import MUICountrySelect, { countryType, findCountryByString } from "../../components/utility/muiCountrySelect/MUICountrySelect"
 import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
+import { ArrowBack, Delete } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createTeam.scss"
 
@@ -379,14 +380,24 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     </div>
     {showButtonBar && (
       <ButtonBar
-        onBack={handleBack}
-        onDelete={onDeleteHandler}
-        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
-        showDelete={permissions === "delete" && isEditing}
-        submitDisabled={!permissions || (isEditing && !hasFormChanged())}
-        submitLabel={isEditing ? "Update" : "Submit"}
-        loading={loading}
-        delLoading={delLoading}
+        background
+        position="relative"
+        buttons={[
+          { label: "Back", onClick: handleBack, startIcon: <ArrowBack />, color: "inherit" },
+          ...(permissions === "delete" && isEditing ? [{
+            label: "Delete",
+            onClick: onDeleteHandler,
+            startIcon: <Delete />,
+            color: "error" as const,
+            loading: delLoading
+          }] : []),
+          {
+            label: isEditing ? "Update" : "Submit",
+            onClick: isEditing ? onUpdateHandler : onSubmitHandler,
+            disabled: !permissions || (isEditing && !hasFormChanged()),
+            loading
+          }
+        ]}
       />
     )}
   </>

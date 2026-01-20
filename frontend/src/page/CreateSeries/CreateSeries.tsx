@@ -13,6 +13,7 @@ import { createdByID } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import CreateDriver from "../CreateDriver/CreateDriver"
+import { ArrowBack, Delete } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createSeries.scss"
 
@@ -408,14 +409,24 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     </div>
     {showButtonBar && (
       <ButtonBar
-        onBack={handleBack}
-        onDelete={onDeleteHandler}
-        onSubmit={isEditing ? onUpdateHandler : onSubmitHandler}
-        showDelete={permissions === "delete" && isEditing}
-        submitDisabled={!permissions || form.drivers.length < 2 || (isEditing && !hasFormChanged())}
-        submitLabel={isEditing ? "Update" : "Submit"}
-        loading={loading}
-        delLoading={delLoading}
+        background
+        position="relative"
+        buttons={[
+          { label: "Back", onClick: handleBack, startIcon: <ArrowBack />, color: "inherit" },
+          ...(permissions === "delete" && isEditing ? [{
+            label: "Delete",
+            onClick: onDeleteHandler,
+            startIcon: <Delete />,
+            color: "error" as const,
+            loading: delLoading
+          }] : []),
+          {
+            label: isEditing ? "Update" : "Submit",
+            onClick: isEditing ? onUpdateHandler : onSubmitHandler,
+            disabled: !permissions || form.drivers.length < 2 || (isEditing && !hasFormChanged()),
+            loading
+          }
+        ]}
       />
     )}
   </>

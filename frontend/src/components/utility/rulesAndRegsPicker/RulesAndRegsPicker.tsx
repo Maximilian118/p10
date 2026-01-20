@@ -1,11 +1,14 @@
 import React, { useState } from "react"
 import './_rulesAndRegsPicker.scss'
+import { Button } from "@mui/material"
 import RuleOrReg from "./ruleOrReg/RuleOrReg"
-import { isDefaultRorR } from "../../../shared/rulesAndRegs"
+import { defaultRulesAndRegs, isDefaultRorR } from "../../../shared/rulesAndRegs"
 import { userType } from "../../../shared/localStorage"
 import { ruleOrRegType, rulesAndRegsType } from "../../../shared/types"
 import RulesAndRegsEdit from "./rulesAndRegsEdit/RulesAndRegsEdit"
-import RulesAndRegsToolbar from "./rulesAndRegsToolbar/RulesAndRegsToolbar"
+import ButtonBar from "../buttonBar/ButtonBar"
+import AddButton from "../button/addButton/AddButton"
+import { initEditState } from "./rulesAndRegsUtility"
 
 interface rulesAndRegsFormErr {
   rulesAndRegs?: string
@@ -26,12 +29,6 @@ export interface editStateType {
   ruleReg: ruleOrRegType | null
 }
 
-export const initEditState = {
-  newRuleReg: false,
-  index: null,
-  ruleReg: null,
-}
-
 const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U extends rulesAndRegsFormErr>({
   user,
   form,
@@ -41,6 +38,22 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
   const [ edit, setEdit ] = useState<editStateType>(initEditState)
 
   const isEdit = edit.newRuleReg || edit.ruleReg
+  const hasDefs = form.rulesAndRegs.some((rr: ruleOrRegType) => isDefaultRorR(user, rr))
+
+  // Adds or removes default rules.
+  const defaultsHandler = () => {
+    const isAdding = !hasDefs
+    setForm(prevForm => ({
+      ...prevForm,
+      rulesAndRegs: hasDefs
+        ? prevForm.rulesAndRegs.filter((rr: ruleOrRegType) => !isDefaultRorR(user, rr))
+        : [...prevForm.rulesAndRegs, ...defaultRulesAndRegs(user)]
+    }))
+    // Clear any rules validation error when adding defaults.
+    if (isAdding && setFormErr) {
+      setFormErr(prev => ({ ...prev, rulesAndRegs: "" }))
+    }
+  }
 
   return isEdit ?
     <RulesAndRegsEdit<T, U>
@@ -67,13 +80,14 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
           <p>You need some Rules and Regulations. This is simply illegal!</p>
         </div>
       }
-      <RulesAndRegsToolbar<T, U>
-        user={user}
-        form={form}
-        setForm={setForm}
-        setEdit={setEdit}
-        setFormErr={setFormErr}
-      />
+      <ButtonBar position="sticky">
+        <div className="button-group">
+          <Button variant="contained" size="small" onClick={defaultsHandler}>
+            {`${hasDefs ? "Remove" : "Add"} Defaults`}
+          </Button>
+          <AddButton onClick={() => setEdit(prev => ({ ...prev, newRuleReg: true }))} />
+        </div>
+      </ButtonBar>
     </div>
   )
 }

@@ -10,7 +10,7 @@ import UpdateEmailCard from "../../components/cards/updateEmailCard/updateEmailC
 import UpdateNameCard from "../../components/cards/updateNameCard/updateNameCard"
 import UpdatePPCard from "../../components/cards/updatePPCard/UpdatePPCard"
 import UpdatePassCard from "../../components/cards/updatePassCard/UpdatePassCard"
-import FloatingButtonBar from "../../components/utility/floatingButtonBar/FloatingButtonBar"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()
@@ -67,7 +67,7 @@ const Settings: React.FC = () => {
       />
       <UpdatePPCard />
       <UpdatePassCard />
-      <FloatingButtonBar buttons={[
+      <ButtonBar buttons={[
         { label: "Back", onClick: () => navigate("/profile"), startIcon: <ArrowBack />, color: "inherit" },
         { label: "Save", onClick: handleSave, startIcon: <Save />, disabled: !hasChanges || hasErrors, loading, color: "success" },
         { label: "Logout", onClick: () => logout(setUser, navigate), endIcon: <Logout />, color: "error" },

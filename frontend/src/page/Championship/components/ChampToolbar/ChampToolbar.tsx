@@ -7,7 +7,7 @@ import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../../shared/requests/champRequests"
 import { ChampView } from "../../Views/ChampSettings/ChampSettings"
-import FloatingButtonBar, { FloatingButtonConfig } from "../../../../components/utility/floatingButtonBar/FloatingButtonBar"
+import ButtonBar, { ButtonConfig } from "../../../../components/utility/buttonBar/ButtonBar"
 
 // Grouped props for form views (settings, automation, protests, ruleChanges, admin).
 export interface FormToolbarProps {
@@ -99,7 +99,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   )
 
   // Get join/invite button config based on championship state.
-  const getJoinButtonConfig = (): FloatingButtonConfig | undefined => {
+  const getJoinButtonConfig = (): ButtonConfig | undefined => {
     if (!champ.settings.inviteOnly) {
       if (isCompetitor) return undefined
       if (isFull) {
@@ -134,7 +134,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   }
 
   // Back button config used across multiple views.
-  const getBackButton = (): FloatingButtonConfig => {
+  const getBackButton = (): ButtonConfig => {
     const backHandler = view === "badges" && badgeProps?.isEdit && badgeProps?.onBack
       ? badgeProps.onBack
       : onBack
@@ -149,7 +149,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
 
   // Badges view (not edit mode) - uses grouped layout.
   if (view === "badges" && !badgeProps?.isEdit) {
-    const rightButtons: FloatingButtonConfig[] = [
+    const rightButtons: ButtonConfig[] = [
       { label: "Filter", onClick: badgeProps?.onFilter, endIcon: <FilterList /> },
     ]
     if (isAdjudicator) {
@@ -161,7 +161,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
       })
     }
     return (
-      <FloatingButtonBar
+      <ButtonBar
         leftButtons={[getBackButton()]}
         rightButtons={rightButtons}
       />
@@ -169,8 +169,8 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   }
 
   // Build buttons array for other views.
-  const getButtons = (): FloatingButtonConfig[] => {
-    const buttons: FloatingButtonConfig[] = []
+  const getButtons = (): ButtonConfig[] => {
+    const buttons: ButtonConfig[] = []
 
     // Back button - all views except competitors.
     if (view !== "competitors") {
@@ -224,7 +224,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
     return buttons
   }
 
-  return <FloatingButtonBar buttons={getButtons()} />
+  return <ButtonBar buttons={getButtons()} />
 }
 
 export default ChampToolbar

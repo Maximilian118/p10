@@ -5,26 +5,24 @@
   width: 100%;
   @include mixins.flexbox-column;
   flex-grow: 1;
-  flex-shrink: 0;
 
   .search {
     position: sticky;
-    top: 66px;
-    z-index: 6;
+    top: 64px !important;
+    flex-shrink: 0;
+    z-index: 4;
     margin-bottom: 0 !important;
     border-bottom: 2px solid variables.$background !important;
   }
 
   .series-list-container {
     width: 100%;
-    position: relative;
     flex-grow: 1;
     @include mixins.flexbox-start-column;
 
     .series-list, .series-empty {
       width: 100%;
       @include mixins.flexbox-start-column;
-      overflow-y: scroll;
     }
 
     .series-list {
@@ -39,5 +37,10 @@
     .series-error {
       color: variables.$delete-hover;
     }
+  }
+
+  // Sticky ButtonBar overlaps content (no blank space at bottom).
+  .button-bar {
+    margin-top: -72px;
   }
 }

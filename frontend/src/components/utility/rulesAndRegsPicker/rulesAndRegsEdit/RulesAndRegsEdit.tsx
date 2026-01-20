@@ -1,12 +1,13 @@
 import React, { useState } from "react"
 import './_rulesAndRegsEdit.scss'
-import { editStateType, initEditState } from "../RulesAndRegsPicker"
+import { editStateType} from "../RulesAndRegsPicker"
 import { Button, TextField } from "@mui/material"
 import { ruleOrRegType, ruleSubsectionType, rulesAndRegsType } from "../../../../shared/types"
 import moment from "moment"
 import { userType } from "../../../../shared/localStorage"
 import RemoveButton from "../../button/removeButton/RemoveButton"
 import { isDefaultRorR } from "../../../../shared/rulesAndRegs"
+import { initEditState } from "../rulesAndRegsUtility"
 
 interface rulesAndRegsFormErr {
   rulesAndRegs?: string

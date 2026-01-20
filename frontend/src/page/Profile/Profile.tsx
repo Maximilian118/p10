@@ -6,7 +6,7 @@ import { graphQLErrorType, initGraphQLError } from "../../shared/requests/reques
 import AppContext from "../../context"
 import ProfileCard from "../../components/cards/profileCard/ProfileCard"
 import { formErrType, formType } from "../../shared/types"
-import FloatingButtonBar from "../../components/utility/floatingButtonBar/FloatingButtonBar"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 
 const Profile: React.FC = () => {
   const navigate = useNavigate()
@@ -36,7 +36,7 @@ const Profile: React.FC = () => {
         backendErr={backendErr}
         setBackendErr={setBackendErr}
       />
-      <FloatingButtonBar buttons={[
+      <ButtonBar buttons={[
         { label: "Settings", onClick: () => navigate("/settings"), endIcon: <Settings /> },
       ]} />
     </div>

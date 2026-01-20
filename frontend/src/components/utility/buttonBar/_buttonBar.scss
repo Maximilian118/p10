@@ -1,16 +1,58 @@
 @use "../../../scss/mixins";
 @use "../../../scss/variables";
 
-// Button bar for form pages - white background with border.
+// Button bar for page toolbars - transparent, absolutely positioned by default.
 .button-bar {
   width: 100%;
   @include mixins.flexbox;
-  justify-content: space-evenly;
+  justify-content: space-between;
   z-index: 5;
   box-sizing: border-box;
-  background: white;
-  border-top: 2px solid variables.$background;
-  padding: 15px 0;
-  flex-shrink: 0;
-  position: relative;
+  position: absolute;
+  bottom: 0;
+  padding: 20px 7.5%;
+  pointer-events: none;
+
+  // Enable pointer events on child elements.
+  * {
+    pointer-events: all;
+  }
+
+  // Push single item to the right.
+  > *:only-child {
+    margin-left: auto;
+  }
+
+  // Group container for left/right button grouping.
+  .button-group {
+    @include mixins.flexbox;
+    gap: 8px;
+  }
+
+  // Background variant - white with border-top.
+  &--background {
+    background: white;
+    border-top: 2px solid variables.$background;
+  }
+
+  // Position variants.
+  &--relative {
+    position: relative;
+  }
+
+  &--absolute {
+    position: absolute;
+  }
+
+  &--fixed {
+    position: fixed;
+  }
+
+  &--sticky {
+    position: sticky;
+  }
+
+  &--static {
+    position: static;
+  }
 }

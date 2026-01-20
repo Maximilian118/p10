@@ -5,7 +5,7 @@ export const muiStepperSteps = {
       description: ``,
     },
     {
-      label: "Driver Groups",
+      label: "Series",
       description: ``,
     },
     {

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react"
 import { seriesType } from "../shared/types"
 import Search from "../components/utility/search/Search"
+import ButtonBar from "../components/utility/buttonBar/ButtonBar"
 import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
@@ -66,10 +67,9 @@ const Series: React.FC = () => {
       <div className="champs-list">
         {renderSeriesList()}
       </div>
-      <AddButton
-        onClick={() => navigate("/create-series")}
-        absolute
-      />
+      <ButtonBar>
+        <AddButton onClick={() => navigate("/create-series")} />
+      </ButtonBar>
     </div>
   )
 }
