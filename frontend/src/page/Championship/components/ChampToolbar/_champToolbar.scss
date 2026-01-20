@@ -2,19 +2,10 @@
 @use '../../../../scss/mixins';
 @use '../../../../scss/variables';
 
+// Positioning now handled by ButtonBar wrapper.
 .champ-toolbar {
   width: 100%;
   @include mixins.flexbox-space-between;
-  padding: 20px 7.5%;
-  box-sizing: border-box;
-  position: absolute;
-  bottom: 0;
-  z-index: 3;
-  pointer-events: none;
-
-  * {
-    pointer-events: all;
-  }
 
   // Push single item to the right.
   > *:only-child {

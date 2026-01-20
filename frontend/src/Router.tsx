@@ -8,7 +8,8 @@ import Splash from './page/Splash'
 import Login from './page/Login'
 import Forgot from "./page/Forgot"
 import Create from "./page/Create"
-import Profile from "./page/Profile"
+import Profile from "./page/Profile/Profile"
+import Settings from "./page/Settings/Settings"
 import Password from "./page/Password"
 import PassSuccess from "./page/PassSuccess"
 import Championships from "./page/Championships"
@@ -34,6 +35,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="*" Component={Notfound}/>
     <Route path="/" Component={Home}/>
     <Route path="/profile" Component={Profile}/>
+    <Route path="/settings" Component={Settings}/>
     <Route path="/profile/:id" Component={UserProfile}/>
     <Route path="/verify-email" Component={VerifyEmail}/>
     <Route path="/password" Component={Password}/>

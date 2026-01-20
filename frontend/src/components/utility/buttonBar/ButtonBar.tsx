@@ -3,9 +3,9 @@ import { Button, CircularProgress } from "@mui/material"
 import "./_buttonBar.scss"
 
 interface ButtonBarProps {
-  onBack: () => void
+  onBack?: () => void
   onDelete?: () => void
-  onSubmit: () => void
+  onSubmit?: () => void
   showDelete?: boolean
   backDisabled?: boolean
   submitDisabled?: boolean
@@ -15,7 +15,8 @@ interface ButtonBarProps {
   backLabel?: string
 }
 
-// Reusable button bar component for form actions (back, delete, submit).
+// Button bar for form pages (back, delete, submit buttons).
+// Used in create/edit pages like CreateChamp, CreateSeries, etc.
 const ButtonBar: React.FC<ButtonBarProps> = ({
   onBack,
   onDelete,
@@ -30,14 +31,16 @@ const ButtonBar: React.FC<ButtonBarProps> = ({
 }) => {
   return (
     <div className="button-bar">
-      <Button
-        variant="contained"
-        color="inherit"
-        disabled={backDisabled}
-        onClick={onBack}
-      >
-        {backLabel}
-      </Button>
+      {onBack && (
+        <Button
+          variant="contained"
+          color="inherit"
+          disabled={backDisabled}
+          onClick={onBack}
+        >
+          {backLabel}
+        </Button>
+      )}
       {showDelete && onDelete && (
         <Button
           variant="contained"
@@ -48,14 +51,16 @@ const ButtonBar: React.FC<ButtonBarProps> = ({
           Delete
         </Button>
       )}
-      <Button
-        variant="contained"
-        disabled={submitDisabled}
-        onClick={onSubmit}
-        startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
-      >
-        {submitLabel}
-      </Button>
+      {onSubmit && (
+        <Button
+          variant="contained"
+          disabled={submitDisabled}
+          onClick={onSubmit}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
+        >
+          {submitLabel}
+        </Button>
+      )}
     </div>
   )
 }

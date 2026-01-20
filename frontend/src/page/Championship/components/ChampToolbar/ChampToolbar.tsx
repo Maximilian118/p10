@@ -1,14 +1,13 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
-import { Button, CircularProgress } from "@mui/material"
-import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add } from "@mui/icons-material"
 import { ChampType, badgeType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../../shared/requests/champRequests"
 import { ChampView } from "../../Views/ChampSettings/ChampSettings"
-import AddButton from "../../../../components/utility/button/addButton/AddButton"
+import FloatingButtonBar, { FloatingButtonConfig } from "../../../../components/utility/floatingButtonBar/FloatingButtonBar"
 
 // Grouped props for form views (settings, automation, protests, ruleChanges, admin).
 export interface FormToolbarProps {
@@ -39,7 +38,6 @@ interface champToolbarType {
   onBack?: () => void
   onJoinSuccess?: () => void
   onDrawerClick?: () => void
-  style?: React.CSSProperties
   settingsProps?: FormToolbarProps
   automationProps?: FormToolbarProps
   protestsProps?: FormToolbarProps
@@ -59,7 +57,6 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   onBack,
   onJoinSuccess,
   onDrawerClick,
-  style,
   settingsProps,
   automationProps,
   protestsProps,
@@ -79,207 +76,155 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   // Check if championship has reached max competitors.
   const isFull = competitors.length >= champ.settings.maxCompetitors
 
-  // Determine which join/invite button to render.
-  const renderJoinButton = () => {
-    // Championship is NOT invite only.
-    if (!champ.settings.inviteOnly) {
-      // User is already a competitor - no join button needed.
-      if (isCompetitor) return null
+  // Form views that use the save button pattern.
+  const formViews: ChampView[] = ["settings", "series", "automation", "protests", "ruleChanges", "admin"]
+  const isFormView = formViews.includes(view)
 
+  // Get form props based on current view.
+  const getFormProps = (): FormToolbarProps | undefined => {
+    if (view === "settings" || view === "series") return settingsProps
+    if (view === "automation") return automationProps
+    if (view === "protests") return protestsProps
+    if (view === "ruleChanges") return ruleChangesProps
+    if (view === "admin") return adminProps
+    return undefined
+  }
+
+  const formProps = getFormProps()
+
+  // Check if save button should be disabled (no changes or form errors).
+  const isSaveDisabled = !formProps?.loading && (
+    !formProps?.changed ||
+    Object.values(formProps?.formErr || {}).some(err => !!err)
+  )
+
+  // Get join/invite button config based on championship state.
+  const getJoinButtonConfig = (): FloatingButtonConfig | undefined => {
+    if (!champ.settings.inviteOnly) {
+      if (isCompetitor) return undefined
       if (isFull) {
-        return (
-          <Button
-            variant="contained"
-            size="small"
-            disabled
-            endIcon={<Block />}
-          >
-            Championship Full
-          </Button>
-        )
+        return { label: "Championship Full", endIcon: <Block />, disabled: true }
       }
-      return (
-        <Button
-          variant="contained"
-          size="small"
-          className="champ-toolbar-join"
-          onClick={async e => {
-            e.stopPropagation()
-            const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
-            if (success && onJoinSuccess) {
-              onJoinSuccess()
-            }
-          }}
-          endIcon={<GroupAdd />}
-        >
-          Join Championship
-        </Button>
-      )
+      return {
+        label: "Join Championship",
+        onClick: async () => {
+          const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+          if (success && onJoinSuccess) onJoinSuccess()
+        },
+        endIcon: <GroupAdd />,
+        className: "champ-toolbar-join",
+      }
     }
 
-    // Championship IS invite only.
-    // Adjudicator always sees invite button (regardless of competitor status).
+    // Invite only championship.
     if (isAdjudicator) {
       if (isFull) {
-        return (
-          <Button
-            variant="contained"
-            size="small"
-            disabled
-            endIcon={<Block />}
-          >
-            Championship Full
-          </Button>
-        )
+        return { label: "Championship Full", endIcon: <Block />, disabled: true }
       }
-      return (
-        <Button
-          variant="contained"
-          size="small"
-          className="champ-toolbar-join"
-          onClick={e => {
-            e.stopPropagation()
-          }}
-          endIcon={<GroupAdd />}
-        >
-          Invite Competitors
-        </Button>
-      )
+      return {
+        label: "Invite Competitors",
+        onClick: () => {},
+        endIcon: <GroupAdd />,
+        className: "champ-toolbar-join",
+      }
     }
 
-    // User is not the adjudicator - if already a competitor, no button needed.
-    if (isCompetitor) return null
+    if (isCompetitor) return undefined
+    return { label: "Invite Only", endIcon: <Lock />, disabled: true }
+  }
 
-    // User is not the adjudicator and not a competitor - show disabled invite only button.
+  // Back button config used across multiple views.
+  const getBackButton = (): FloatingButtonConfig => {
+    const backHandler = view === "badges" && badgeProps?.isEdit && badgeProps?.onBack
+      ? badgeProps.onBack
+      : onBack
+    return {
+      label: "Back",
+      onClick: backHandler,
+      startIcon: <ArrowBack />,
+      className: "champ-toolbar-back",
+      color: "inherit",
+    }
+  }
+
+  // Badges view (not edit mode) - uses grouped layout.
+  if (view === "badges" && !badgeProps?.isEdit) {
+    const rightButtons: FloatingButtonConfig[] = [
+      { label: "Filter", onClick: badgeProps?.onFilter, endIcon: <FilterList /> },
+    ]
+    if (isAdjudicator) {
+      rightButtons.push({
+        onClick: badgeProps?.onAdd,
+        endIcon: <Add />,
+        className: "button-medium add-button",
+        color: "success",
+      })
+    }
     return (
-      <Button
-        variant="contained"
-        size="small"
-        disabled
-        endIcon={<Lock />}
-      >
-        Invite Only
-      </Button>
+      <FloatingButtonBar
+        leftButtons={[getBackButton()]}
+        rightButtons={rightButtons}
+      />
     )
   }
 
-  // Render save button for form views.
-  const renderSaveButton = (props: FormToolbarProps | undefined) => {
-    if (!props?.onSubmit) return null
-    return (
-      <Button
-        variant="contained"
-        size="small"
-        className="champ-toolbar-save"
-        onClick={e => {
-          e.stopPropagation()
-          props.onSubmit!()
-        }}
-        disabled={!props.loading && (!props.changed || Object.values(props.formErr || {}).some(err => !!err))}
-        startIcon={props.loading ? <CircularProgress size={18} color="inherit" /> : <Save />}
-      >
-        Save
-      </Button>
-    )
+  // Build buttons array for other views.
+  const getButtons = (): FloatingButtonConfig[] => {
+    const buttons: FloatingButtonConfig[] = []
+
+    // Back button - all views except competitors.
+    if (view !== "competitors") {
+      buttons.push(getBackButton())
+    }
+
+    // Competitors view - Join/Invite button.
+    if (view === "competitors") {
+      const joinConfig = getJoinButtonConfig()
+      if (joinConfig) buttons.push(joinConfig)
+    }
+
+    // Form views - Save button.
+    if (isFormView) {
+      buttons.push({
+        label: "Save",
+        onClick: formProps?.onSubmit,
+        startIcon: <Save />,
+        disabled: isSaveDisabled,
+        loading: formProps?.loading,
+        className: "champ-toolbar-save",
+        color: "success",
+      })
+    }
+
+    // Badges edit mode - Delete and Submit/Update buttons.
+    if (view === "badges" && badgeProps?.isEdit) {
+      if (typeof badgeProps.isEdit !== "boolean") {
+        buttons.push({
+          label: "Delete",
+          onClick: badgeProps?.onDelete,
+          color: "error",
+        })
+      }
+      buttons.push({
+        label: typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit",
+        onClick: badgeProps?.onSubmit,
+        loading: badgeProps?.loading,
+      })
+    }
+
+    // Views button - all views except badges.
+    if (view !== "badges") {
+      buttons.push({
+        label: "Views",
+        onClick: onDrawerClick,
+        endIcon: <FilterList />,
+      })
+    }
+
+    return buttons
   }
 
-  return (
-    <div className="champ-toolbar" style={style}>
-      {/* Back button - uses badgeProps.onBack in badge edit mode, onBack otherwise */}
-      {view !== "competitors" && (
-        <Button
-          variant="contained"
-          size="small"
-          className="champ-toolbar-back"
-          onClick={e => {
-            e.stopPropagation()
-            if (view === "badges" && badgeProps?.isEdit && badgeProps?.onBack) {
-              badgeProps.onBack()
-            } else if (onBack) {
-              onBack()
-            }
-          }}
-          startIcon={<ArrowBack />}
-        >
-          Back
-        </Button>
-      )}
-      {view === "competitors" && renderJoinButton()}
-      {(view === "settings" || view === "series") && renderSaveButton(settingsProps)}
-      {view === "automation" && renderSaveButton(automationProps)}
-      {view === "protests" && renderSaveButton(protestsProps)}
-      {view === "ruleChanges" && renderSaveButton(ruleChangesProps)}
-      {view === "admin" && renderSaveButton(adminProps)}
-      {/* Badge view buttons - Add and Filter (only for adjudicators, not in edit mode) */}
-      {view === "badges" && !badgeProps?.isEdit && (
-        <div className="badge-buttons">
-          <Button
-            variant="contained"
-            size="small"
-            onClick={e => {
-              e.stopPropagation()
-              if (badgeProps?.onFilter) {
-                badgeProps.onFilter()
-              }
-            }}
-            endIcon={<FilterList />}
-          >
-            Filter
-          </Button>
-          {isAdjudicator && <AddButton onClick={() => badgeProps?.onAdd && badgeProps.onAdd()} />}
-        </div>
-      )}
-      {/* Badge edit mode - Delete and Submit/Update buttons on the right */}
-      {view === "badges" && badgeProps?.isEdit && (
-        <>
-          {typeof badgeProps.isEdit !== "boolean" && (
-            <Button
-              variant="contained"
-              size="small"
-              color="error"
-              onClick={e => {
-                e.stopPropagation()
-                if (badgeProps?.onDelete) {
-                  badgeProps.onDelete()
-                }
-              }}
-            >
-              Delete
-            </Button>
-          )}
-          <Button
-            variant="contained"
-            size="small"
-            onClick={e => {
-              e.stopPropagation()
-              if (badgeProps?.onSubmit) {
-                badgeProps.onSubmit()
-              }
-            }}
-            startIcon={badgeProps?.loading ? <CircularProgress size={20} color="inherit" /> : undefined}
-          >
-            {typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit"}
-          </Button>
-        </>
-      )}
-      {/* Views button - hidden in badges view */}
-      {view !== "badges" && (
-        <Button
-          variant="contained"
-          size="small"
-          onClick={e => {
-            e.stopPropagation()
-            if (onDrawerClick) {
-              onDrawerClick()
-            }
-          }}
-          endIcon={<FilterList />}
-        >
-          Views
-        </Button>
-      )}
-    </div>
-  )
+  return <FloatingButtonBar buttons={getButtons()} />
 }
 
 export default ChampToolbar

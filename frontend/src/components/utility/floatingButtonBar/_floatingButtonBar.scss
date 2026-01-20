@@ -1,0 +1,30 @@
+@use "../../../scss/mixins";
+
+// Floating button bar for page toolbars - transparent, absolutely positioned.
+.floating-button-bar {
+  width: 100%;
+  @include mixins.flexbox;
+  justify-content: space-between;
+  z-index: 5;
+  box-sizing: border-box;
+  position: absolute;
+  bottom: 0;
+  padding: 20px 7.5%;
+  pointer-events: none;
+
+  // Enable pointer events on child elements.
+  * {
+    pointer-events: all;
+  }
+
+  // Push single item to the right.
+  > *:only-child {
+    margin-left: auto;
+  }
+
+  // Group container for left/right button grouping.
+  .floating-button-group {
+    @include mixins.flexbox;
+    gap: 8px;
+  }
+}

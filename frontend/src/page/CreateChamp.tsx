@@ -200,6 +200,7 @@ const CreateChamp: React.FC = () => {
           setBadgesReqSent={setBadgesReqSent}
           defaultBadges={defaultBadges}
           setDefaultBadges={setDefaultBadges}
+          defaultsButton
         />
       }
       {activeStep === 4 &&

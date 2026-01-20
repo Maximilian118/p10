@@ -1,14 +1,16 @@
 @use "../../../scss/mixins";
 @use "../../../scss/variables";
 
+// Button bar for form pages - white background with border.
 .button-bar {
   width: 100%;
-  flex-shrink: 0;
-  background: white;
   @include mixins.flexbox;
   justify-content: space-evenly;
   z-index: 5;
+  box-sizing: border-box;
+  background: white;
   border-top: 2px solid variables.$background;
   padding: 15px 0;
-  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
 }

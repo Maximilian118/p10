@@ -13,8 +13,7 @@ interface badgeFilterDrawType<T> {
   defaults: badgeType[]
   filtered: number[]
   setFiltered: React.Dispatch<React.SetStateAction<number[]>>
-  defaultBadges?: badgeType[]
-  setDefaultBadges?: React.Dispatch<React.SetStateAction<badgeType[]>>
+  defaultsButton?: boolean
 }
 
 const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
@@ -25,6 +24,7 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
   defaults,
   filtered,
   setFiltered,
+  defaultsButton,
 }: badgeFilterDrawType<T>) => {
   const hasDefbadges = (form: T) => form.champBadges.some(a => defaults.map(b => b._id).includes(a._id))
 
@@ -95,13 +95,15 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
               />
             ))}
           </div>
-          <div className="badge-filter-buttons">
-            <Button
-              variant="contained" 
-              size="small"
-              onClick={() => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
-            >{`${!hasDefbadges(form) ? "Add" : "Remove"} defaults`}</Button>
-          </div>
+          {defaultsButton && (
+            <div className="badge-filter-buttons">
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
+              >{`${!hasDefbadges(form) ? "Add" : "Remove"} defaults`}</Button>
+            </div>
+          )}
       </div>
     </ClickAwayListener>
   )
