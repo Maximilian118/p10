@@ -138,7 +138,7 @@ const CreateChamp: React.FC = () => {
 
   return (
   <ChampFlowProvider value={champFlowContextValue}>
-    <form className="content-container" onSubmit={e => onSubmitHandler(e)}>
+    <form className="content-container create-champ" onSubmit={e => onSubmitHandler(e)}>
       <CreateChampHeader activeStep={activeStep}/>
         {activeStep === 0 &&
         <ChampBasicsCard

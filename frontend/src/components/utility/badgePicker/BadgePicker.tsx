@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react"
 import './_badgePicker.scss'
-import BadgePickerToolbar from "./badgePickerToolbar/BadgePickerToolbar"
 import { badgeType } from "../../../shared/types"
 import Badge from "../badge/Badge"
 import BadgePickerEdit from "./badgePickerEdit/BadgePickerEdit"
 import { getBadgesByChamp } from "../../../shared/requests/badgeRequests"
 import { userType } from "../../../shared/localStorage"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
-import { CircularProgress } from "@mui/material"
+import { Button, CircularProgress } from "@mui/material"
+import { FilterList } from "@mui/icons-material"
 import BadgeFilterDraw from "./badgeFilterDraw/BadgeFilterDraw"
 import { badgeRarities, badgeRarityType } from "../../../shared/badges"
 import { useNavigate } from "react-router-dom"
+import ButtonBar from "../buttonBar/ButtonBar"
+import AddButton from "../button/addButton/AddButton"
 
 interface badgePickerType<T> {
   form: T
@@ -132,11 +134,14 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         </div>
       }
       {!readOnly && !hideToolbar && (
-        <BadgePickerToolbar
-          setIsEdit={setIsEdit}
-          draw={draw}
-          setDraw={setDraw}
-        />
+        <ButtonBar>
+          <div className="button-group">
+            <Button variant="contained" size="small" endIcon={<FilterList />} onClick={(e) => { e.stopPropagation(); setDraw(!draw) }}>
+              Filter
+            </Button>
+            <AddButton onClick={() => setIsEdit(true)}/>
+          </div>
+        </ButtonBar>
       )}
       <BadgeFilterDraw
         draw={draw}
