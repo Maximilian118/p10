@@ -10,6 +10,7 @@ import { Button, CircularProgress } from "@mui/material"
 import { updatePP } from "../../../shared/requests/userRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
+import BadgePlaceholder from "../../utility/badge/badgePlaceholder/BadgePlaceholder"
 
 // Props for editable profile (own profile).
 interface profileCardEditableType<T, U> {
@@ -49,6 +50,11 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
           <h5 style={{ textTransform: "capitalize" }}>
             {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
           </h5>
+          <div className="featured-badge-placeholders">
+            {[1, 2, 3, 4, 5, 6].map((position) => (
+              <BadgePlaceholder key={position} position={position} />
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -103,6 +109,11 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
       />
       <div className="profile-info">
         {filesInForm(form)}
+        <div className="featured-badge-placeholders">
+          {[1, 2, 3, 4, 5, 6].map((position) => (
+            <BadgePlaceholder key={position} position={position} />
+          ))}
+        </div>
       </div>
     </div>
   )
