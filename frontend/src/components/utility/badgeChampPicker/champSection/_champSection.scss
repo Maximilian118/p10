@@ -14,24 +14,41 @@
     .image-icon {
       margin-right: 15px;
     }
+
+    .champ-section-info {
+      flex: 1;
+      min-width: 0;
+      margin-left: 15px;
+
+      .champ-name {
+        font-size: 14px;
+        font-weight: 300;
+        color: variables.$colour-9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .champ-banner-stats {
+        margin: 5px 0 0 0;
+      }
+    }
   }
 
-  .champ-section-info {
-    flex: 1;
-    min-width: 0;
-    margin-left: 15px;
+  .champ-badges-grid {
+    width: 100%;
+    margin-top: 25px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, max-content));
+    justify-content: space-between;
+    box-sizing: border-box;
+    row-gap: 10px;
+  }
 
-    .champ-name {
-      font-size: 14px;
-      font-weight: 300;
-      color: variables.$colour-9;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .champ-banner-stats {
-      margin: 5px 0 0 0;
-    }
+  .no-badges {
+    width: 100%;
+    margin-top: 30px;
+    font-size: 14px;
+    color: variables.$colour-4;
   }
 }

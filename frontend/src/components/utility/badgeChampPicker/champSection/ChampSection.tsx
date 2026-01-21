@@ -7,6 +7,7 @@ import './_champSection.scss'
 import ChampQuickStats from "../champQuickStats/ChampQuickStats"
 import ChampBannerStats from "../../../../page/Championship/components/ChampBannerStats/ChampBannerStats"
 import { buildChampBannerStats } from "../../../../page/Championship/champUtility"
+import Badge from "../../badge/Badge"
 
 interface ChampSectionProps {
   user: userType
@@ -15,6 +16,11 @@ interface ChampSectionProps {
 
 const ChampSection: React.FC<ChampSectionProps> = ({ user, champ }) => {
   const navigate = useNavigate()
+
+  // Filter user's badges to get those earned from this championship, sorted by rarity (Mythic first)
+  const earnedBadges = user.badges
+    .filter(badge => badge.championship === champ._id)
+    .sort((a, b) => b.rarity - a.rarity)
 
   // Navigates to the championship details page
   const handleChampClick = () => {
@@ -31,11 +37,13 @@ const ChampSection: React.FC<ChampSectionProps> = ({ user, champ }) => {
           <ChampBannerStats stats={buildChampBannerStats(champ, undefined, { showDrivers: false })}/>
         </div>
       </div>
-      {/* <div className="champ-badges-grid">
-        {earnedBadges.map(badge => (
-          <Badge key={badge._id} badge={badge} zoom={badge.zoom}/>
-        ))}
-      </div> */}
+      {earnedBadges.length > 0 ? (
+        <div className="champ-badges-grid">
+          {earnedBadges.map(badge => (
+            <Badge key={badge._id} badge={badge} zoom={badge.zoom}/>
+          ))}
+        </div>
+      ) : <p className="no-badges">No badges earned</p>}
     </div>
   )
 }
