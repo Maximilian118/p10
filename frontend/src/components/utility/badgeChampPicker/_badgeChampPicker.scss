@@ -1,0 +1,9 @@
+@use '../../../scss/mixins';
+
+.badge-champ-picker {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  padding: 20px 7.5%;
+  box-sizing: border-box;
+  gap: 40px
+}

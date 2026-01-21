@@ -1,12 +1,12 @@
 import React, { useState } from "react"
 import './_badge.scss'
-import { badgeType } from "../../../shared/types"
+import { badgeType, userBadgeSnapshotType } from "../../../shared/types"
 import BadgeOverlay from "./badgeOverlay/BadgeOverlay"
 import { IconButton } from "@mui/material"
 import { Edit } from "@mui/icons-material"
 
 interface badgeCompType {
-  badge: badgeType
+  badge: badgeType | userBadgeSnapshotType
   zoom: number
   onClick?: () => void
   style?: React.CSSProperties
@@ -16,11 +16,14 @@ interface badgeCompType {
 const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditButton = true }) => {
   const [ error, setError ] = useState<boolean>(false)
 
+  // Get previewUrl if it exists (only on badgeType, not userBadgeSnapshotType).
+  const previewUrl = 'previewUrl' in badge ? badge.previewUrl : null
+
   // Check if badge is hidden (no URL means unearned and hidden from non-adjudicators).
-  const isHidden = !badge.url && !badge.previewUrl
+  const isHidden = !badge.url && !previewUrl
 
   // Get display URL - prefer S3 URL, fall back to preview URL for local display.
-  const displayUrl = badge.url || badge.previewUrl || ""
+  const displayUrl = badge.url || previewUrl || ""
 
   // Renders badge content based on state (hidden, error, or normal image).
   const iconContent = (error: boolean, src: string) => {

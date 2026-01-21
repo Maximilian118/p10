@@ -42,7 +42,7 @@ export interface userBadgeSnapshotType {
 export interface userType extends Omit<userInputType, "email"> {
   _id: ObjectId
   email: string | null // Nullable for privacy (non-owners get null).
-  championships: object[]
+  championships: ObjectId[] // Championships this user is a part of.
   badges: userBadgeSnapshotType[] // Embedded badge snapshots (permanent)
   permissions: {
     admin: boolean

@@ -1,0 +1,27 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.champ-quick-stats {
+  width: 80px;
+  height: 50px;
+  position: relative;
+  flex-shrink: 0;
+
+  .champ-quick-stats-left {
+    width: 50%;
+    height: 100%;
+    @include mixins.flexbox-column;
+
+    h5 {
+      color: variables.$colour-9;
+      font-weight: 300;
+    }
+  }
+
+  .points-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 10px 0;
+  }
+}

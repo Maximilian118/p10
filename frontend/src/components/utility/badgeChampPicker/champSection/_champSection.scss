@@ -1,0 +1,27 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.champ-section {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  box-sizing: border-box;
+
+  .champ-section-header {
+    width: 100%;
+    @include mixins.flexbox-start;
+
+    .image-icon {
+      margin-right: 10px;
+    }
+  }
+
+  .champ-section-info {
+    width: 100%;
+    margin-left: 20px;
+
+    h5 {
+      font-weight: 300;
+      color: variables.$colour-9;
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import React from "react"
 import './_points.scss'
+import { getPodiumClass } from "../../../shared/utility"
 
 interface PointsType {
   total: number // totalPoints
@@ -8,19 +9,13 @@ interface PointsType {
 }
 
 const Points: React.FC<PointsType> = ({ total, last, position }) => {
-  // Determine podium class based on position (only if points exist).
-  const getPodiumClass = () => {
-    if (total <= 0) return ''
-    if (position === 1) return 'gold'
-    if (position === 2) return 'silver'
-    if (position === 3) return 'bronze'
-    return ''
-  }
+  // Only apply podium class if points exist.
+  const podiumClass = total > 0 ? getPodiumClass(position ?? 0) : ''
 
   return (
     <div className="points-container">
       {(last ?? 0) > 0 && <p className="last">+{last}</p>}
-      <p className={`total ${getPodiumClass()}`}>{total}</p>
+      <p className={`total ${podiumClass}`}>{total}</p>
       <p className="pts">pts</p>
     </div>
   )

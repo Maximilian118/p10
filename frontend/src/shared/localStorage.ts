@@ -1,4 +1,5 @@
 import { NavigateFunction } from "react-router-dom"
+import { ChampType } from "./types"
 
 // User's embedded badge snapshot. Persists even if the original Badge is deleted.
 // featured: Slot position (1-6) for profile display, or null if not featured.
@@ -23,7 +24,7 @@ export interface userType {
   email: string
   icon: string
   profile_picture: string
-  championships: object[]
+  championships: ChampType[]
   badges: userBadgeSnapshotType[]
   created_at: string
   permissions: {

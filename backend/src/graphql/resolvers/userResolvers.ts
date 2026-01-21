@@ -3,6 +3,7 @@ import crypto from "crypto"
 import User, { userInputType, userType, userTypeMongo } from "../../models/user"
 import EmailVerification from "../../models/emailVerification"
 import { comparePass, hashPass, signTokens } from "../../shared/utility"
+import { champPopulation } from "../../shared/population"
 import generator from "generate-password"
 import { Resend } from "resend"
 
@@ -112,8 +113,10 @@ const userResolvers = {
 
     try {
       const user = (await User.findById(_id)
-        .populate("championships")
-        .populate("badges.badge")
+        .populate({
+          path: "championships",
+          populate: champPopulation,
+        })
         .exec()) as userTypeMongo
 
       userErrors(user)

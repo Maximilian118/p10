@@ -41,6 +41,19 @@ export const populateUserProfile = `
     icon
     profile_picture
     season
+    active
+    rounds {
+      round
+      status
+      competitors {
+        competitor {
+          _id
+        }
+        points
+        totalPoints
+        position
+      }
+    }
     created_at
   }
   badges {
