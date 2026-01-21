@@ -14,13 +14,13 @@ interface ChartLine {
 
 // Sum P10 finishes across all team drivers.
 export const getP10Finishes = (drivers: driverType[]): number => {
-  return drivers.reduce((sum, d) => sum + (d.stats?.positionHistory?.[9] || 0), 0)
+  return drivers.reduce((sum, d) => sum + (d.stats?.positionHistory?.["P10"] || 0), 0)
 }
 
 // Sum P9 finishes (runner-ups) across all team drivers.
 // P9 is one position better than the winning P10 position.
 export const getRunnerUps = (drivers: driverType[]): number => {
-  return drivers.reduce((sum, d) => sum + (d.stats?.positionHistory?.[8] || 0), 0)
+  return drivers.reduce((sum, d) => sum + (d.stats?.positionHistory?.["P9"] || 0), 0)
 }
 
 // Find best position any team driver achieved.
@@ -28,14 +28,19 @@ export const getBestPosition = (drivers: driverType[]): number | null => {
   let best: number | null = null
 
   drivers.forEach(d => {
-    d.stats?.positionHistory?.forEach((count, idx) => {
-      if (count > 0 && (best === null || idx < best)) {
-        best = idx
-      }
-    })
+    const history = d.stats?.positionHistory
+    if (history) {
+      Object.entries(history).forEach(([key, count]) => {
+        // Keys are prefixed with "P" (e.g., "P1", "P10")
+        const position = parseInt(key.replace("P", ""), 10)
+        if (count > 0 && (best === null || position < best)) {
+          best = position
+        }
+      })
+    }
   })
 
-  return best !== null ? best + 1 : null
+  return best
 }
 
 // Find worst position any team driver achieved.
@@ -43,14 +48,19 @@ export const getWorstPosition = (drivers: driverType[]): number | null => {
   let worst: number | null = null
 
   drivers.forEach(d => {
-    d.stats?.positionHistory?.forEach((count, idx) => {
-      if (count > 0 && (worst === null || idx > worst)) {
-        worst = idx
-      }
-    })
+    const history = d.stats?.positionHistory
+    if (history) {
+      Object.entries(history).forEach(([key, count]) => {
+        // Keys are prefixed with "P" (e.g., "P1", "P10")
+        const position = parseInt(key.replace("P", ""), 10)
+        if (count > 0 && (worst === null || position > worst)) {
+          worst = position
+        }
+      })
+    }
   })
 
-  return worst !== null ? worst + 1 : null
+  return worst
 }
 
 // Calculate weighted average position across all team drivers.
@@ -59,12 +69,17 @@ export const getAveragePosition = (drivers: driverType[]): number | null => {
   let weightedSum = 0
 
   drivers.forEach(d => {
-    d.stats?.positionHistory?.forEach((count, idx) => {
-      if (count > 0) {
-        totalCount += count
-        weightedSum += (idx + 1) * count
-      }
-    })
+    const history = d.stats?.positionHistory
+    if (history) {
+      Object.entries(history).forEach(([key, count]) => {
+        // Keys are prefixed with "P" (e.g., "P1", "P10")
+        const position = parseInt(key.replace("P", ""), 10)
+        if (count > 0) {
+          totalCount += count
+          weightedSum += position * count
+        }
+      })
+    }
   })
 
   return totalCount > 0 ? Math.round(weightedSum / totalCount) : null

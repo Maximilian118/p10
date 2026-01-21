@@ -6,7 +6,7 @@ const driverSchema = `
     birthday: String!
     moustache: Boolean!
     mullet: Boolean!
-    positionHistory: [Int!]!
+    positionHistory: JSON!
   }
 
   type Driver {

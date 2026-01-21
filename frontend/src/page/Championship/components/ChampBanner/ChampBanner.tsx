@@ -8,12 +8,8 @@ import { Button, CircularProgress } from "@mui/material"
 import { updateChampPP } from "../../../../shared/requests/champRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
-import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
-import RotateRightIcon from "@mui/icons-material/RotateRight"
-import AutoModeIcon from "@mui/icons-material/AutoMode"
-import PersonIcon from "@mui/icons-material/Person"
 import ChampBannerStats from "../ChampBannerStats/ChampBannerStats"
+import { buildChampBannerStats } from "../../champUtility"
 
 // Props for editable championship banner (when user is adjudicator).
 interface champBannerEditableType<T, U> {
@@ -46,25 +42,6 @@ interface champBannerReadOnlyType {
 
 type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnlyType
 
-// Generates the bottom stats array for the championship banner.
-const getBottomStats = (champ: ChampType, viewedRoundNumber?: number) => {
-  const displayedRound = viewedRoundNumber ?? 0
-  const autoNextRound = champ.settings.automation?.enabled && champ.settings.automation?.round?.autoNextRound
-
-  // Calculate discovered vs total badges.
-  const totalBadges = champ.champBadges?.length || 0
-  const discoveredBadges = champ.champBadges?.filter(
-    badge => badge.awardedTo && badge.awardedTo.length > 0
-  ).length || 0
-
-  return [
-    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds.length}` },
-    { icon: <PersonIcon />, value: `${champ.competitors.length}/${champ.settings.maxCompetitors}` },
-    { icon: <SportsMotorsportsIcon />, value: champ.series.drivers.length },
-    { icon: <WorkspacePremiumIcon />, value: `${discoveredBadges}/${totalBadges}` }
-  ]
-}
-
 // Displays championship banner with profile picture, name, and stats.
 // Editable mode allows adjudicator to update the profile picture.
 const ChampBanner = <T extends formType, U extends formErrType>(props: champBannerType<T, U>) => {
@@ -83,7 +60,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
+          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
         </div>
       </div>
     )
@@ -109,7 +86,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
+          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
         </>
       )
     }
@@ -121,7 +98,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={getBottomStats(champ, viewedRoundNumber)} />
+          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
         </>
       )
     } else {

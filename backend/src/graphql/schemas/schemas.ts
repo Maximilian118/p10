@@ -8,6 +8,8 @@ import seriesSchema from "./seriesSchema"
 import teamSchema from "./teamSchema"
 
 const Schema = buildSchema(`
+  scalar JSON
+
   ${userSchema}
   ${bucketSchema}
   ${champSchema}

@@ -1,8 +1,15 @@
+import React from "react"
 import { ChampType, pointsStructureType } from "../../shared/types"
 import { ChampSettingsFormType } from "./Views/ChampSettings/ChampSettings"
 import { AutomationFormType } from "./Views/Automation/Automation"
 import { AdminFormType } from "./Views/Admin/Admin"
 import { ProtestsFormType, RuleChangesFormType } from "../../shared/formValidation"
+import { StatItem } from "./components/ChampBannerStats/ChampBannerStats"
+import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
+import RotateRightIcon from "@mui/icons-material/RotateRight"
+import AutoModeIcon from "@mui/icons-material/AutoMode"
+import PersonIcon from "@mui/icons-material/Person"
 
 // ============================================
 // Form Initialization Functions
@@ -502,4 +509,43 @@ export const applyAdminOptimistically = (
       },
     },
   }
+}
+
+// ============================================
+// Stats Builder Functions
+// ============================================
+
+// Configuration options for buildChampBannerStats.
+interface ChampBannerStatsOptions {
+  showDrivers?: boolean
+}
+
+// Builds stats array for ChampBannerStats component display.
+export const buildChampBannerStats = (
+  champ: ChampType,
+  viewedRoundNumber?: number,
+  options?: ChampBannerStatsOptions
+): StatItem[] => {
+  const { showDrivers = true } = options ?? {}
+  const displayedRound = viewedRoundNumber ?? 0
+  const autoNextRound = champ.settings?.automation?.enabled && champ.settings?.automation?.round?.autoNextRound
+
+  // Calculate discovered vs total badges.
+  const totalBadges = champ.champBadges?.length || 0
+  const discoveredBadges = champ.champBadges?.filter(
+    badge => badge.awardedTo && badge.awardedTo.length > 0
+  ).length || 0
+
+  const stats: StatItem[] = [
+    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds?.length || 0}` },
+    { icon: <PersonIcon />, value: `${champ.competitors?.length || 0}/${champ.settings?.maxCompetitors || 0}` },
+  ]
+
+  if (showDrivers) {
+    stats.push({ icon: <SportsMotorsportsIcon />, value: champ.series?.drivers?.length || 0 })
+  }
+
+  stats.push({ icon: <WorkspacePremiumIcon />, value: `${discoveredBadges}/${totalBadges}` })
+
+  return stats
 }

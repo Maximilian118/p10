@@ -2,7 +2,7 @@ import React from "react"
 import './_champBannerStats.scss'
 
 // Represents a single stat item with an optional icon, value, and color.
-interface StatItem {
+export interface StatItem {
   icon?: React.ReactNode
   value: string | number
   color?: string

@@ -654,11 +654,10 @@ const updateDriverStats = async (
       }
     }
 
-    // Update positionHistory array (index 0 = P1, index 9 = P10).
-    // This tracks how many times a driver has finished in each position.
+    // Update positionHistory map (key "P1" = P1 finishes, key "P10" = P10 finishes).
+    // Prefix with "P" so MongoDB treats as object key, not array index.
     if (driverEntry.positionActual > 0) {
-      const posIndex = driverEntry.positionActual - 1
-      updateOps[`stats.positionHistory.${posIndex}`] = 1
+      updateOps[`stats.positionHistory.P${driverEntry.positionActual}`] = 1
     }
 
     return {

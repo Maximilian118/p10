@@ -2,7 +2,7 @@
 @use '../../../../scss/variables';
 
 .champ-quick-stats {
-  width: 80px;
+  width: 75px;
   height: 50px;
   position: relative;
   flex-shrink: 0;
@@ -18,10 +18,17 @@
     }
   }
 
-  .points-container {
+  .position-container, .points-container  {
     position: absolute;
     top: 0;
-    right: 0;
     margin: 10px 0;
+  }
+  
+  .position-container {
+    left: 0;
+  }
+
+  .points-container {
+    right: 0;
   }
 }

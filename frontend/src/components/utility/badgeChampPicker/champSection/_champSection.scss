@@ -9,19 +9,29 @@
   .champ-section-header {
     width: 100%;
     @include mixins.flexbox-start;
+    cursor: pointer;
 
     .image-icon {
-      margin-right: 10px;
+      margin-right: 15px;
     }
   }
 
   .champ-section-info {
-    width: 100%;
-    margin-left: 20px;
+    flex: 1;
+    min-width: 0;
+    margin-left: 15px;
 
-    h5 {
+    .champ-name {
+      font-size: 14px;
       font-weight: 300;
       color: variables.$colour-9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .champ-banner-stats {
+      margin: 5px 0 0 0;
     }
   }
 }

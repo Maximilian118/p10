@@ -14,48 +14,62 @@ interface ChartLine {
 
 // Get P10 finishes for driver.
 export const getDriverP10Finishes = (driver: driverType | null): number => {
-  return driver?.stats?.positionHistory?.[9] || 0
+  return driver?.stats?.positionHistory?.["P10"] || 0
 }
 
 // Get P9 finishes (runner-ups) for driver.
 export const getDriverRunnerUps = (driver: driverType | null): number => {
-  return driver?.stats?.positionHistory?.[8] || 0
+  return driver?.stats?.positionHistory?.["P9"] || 0
 }
 
 // Find best position driver achieved.
 export const getDriverBestPosition = (driver: driverType | null): number | null => {
   const history = driver?.stats?.positionHistory
-  if (!history) return null
+  if (!history || Object.keys(history).length === 0) return null
 
-  for (let i = 0; i < history.length; i++) {
-    if (history[i] > 0) return i + 1
-  }
-  return null
+  let best: number | null = null
+  Object.entries(history).forEach(([key, count]) => {
+    // Keys are prefixed with "P" (e.g., "P1", "P10")
+    const position = parseInt(key.replace("P", ""), 10)
+    if (count > 0 && (best === null || position < best)) {
+      best = position
+    }
+  })
+
+  return best
 }
 
 // Find worst position driver achieved.
 export const getDriverWorstPosition = (driver: driverType | null): number | null => {
   const history = driver?.stats?.positionHistory
-  if (!history) return null
+  if (!history || Object.keys(history).length === 0) return null
 
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i] > 0) return i + 1
-  }
-  return null
+  let worst: number | null = null
+  Object.entries(history).forEach(([key, count]) => {
+    // Keys are prefixed with "P" (e.g., "P1", "P10")
+    const position = parseInt(key.replace("P", ""), 10)
+    if (count > 0 && (worst === null || position > worst)) {
+      worst = position
+    }
+  })
+
+  return worst
 }
 
 // Calculate weighted average position.
 export const getDriverAveragePosition = (driver: driverType | null): number | null => {
   const history = driver?.stats?.positionHistory
-  if (!history) return null
+  if (!history || Object.keys(history).length === 0) return null
 
   let totalCount = 0
   let weightedSum = 0
 
-  history.forEach((count, idx) => {
+  Object.entries(history).forEach(([key, count]) => {
+    // Keys are prefixed with "P" (e.g., "P1", "P10")
+    const position = parseInt(key.replace("P", ""), 10)
     if (count > 0) {
       totalCount += count
-      weightedSum += (idx + 1) * count
+      weightedSum += position * count
     }
   })
 

@@ -136,7 +136,7 @@ export interface driverType {
     birthday: string | null
     moustache: boolean
     mullet: boolean
-    positionHistory: number[]
+    positionHistory: Record<string, number>
   }
   created_by?: userType | string
   created_at?: string

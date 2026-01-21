@@ -54,6 +54,28 @@ export const populateUserProfile = `
         position
       }
     }
+    competitors {
+      _id
+    }
+    series {
+      _id
+      drivers {
+        _id
+      }
+    }
+    settings {
+      maxCompetitors
+      automation {
+        enabled
+        round {
+          autoNextRound
+        }
+      }
+    }
+    champBadges {
+      _id
+      awardedTo
+    }
     created_at
   }
   badges {

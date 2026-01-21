@@ -22,7 +22,7 @@ export interface driverType {
     roundsWon: number
     champsCompleted: number
     champsWon: number
-    positionHistory: number[]
+    positionHistory: Record<string, number>
   }
   created_by: ObjectId
   created_at: string
@@ -69,7 +69,7 @@ const driverSchema = new mongoose.Schema<driverType>({
     roundsWon: { type: Number, default: 0 }, // Rounds where driver finished P10
     champsCompleted: { type: Number, default: 0 }, // Championships the driver has completed
     champsWon: { type: Number, default: 0 }, // Championships where driver finished 1st in driver standings
-    positionHistory: { type: [Number], default: [] }, // Array of finish counts per position (index 0 = P1)
+    positionHistory: { type: Map, of: Number, default: {} }, // Map of position -> finish count (key "1" = P1 finishes)
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the driver.
   created_at: { type: String, default: moment().format() }, // When the driver was created.
