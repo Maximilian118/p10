@@ -31,4 +31,11 @@
   .points-container {
     right: 0;
   }
+
+  .champ-deleted {
+    width: 100%;
+    color: variables.$pirelli-red;
+    text-align: center;
+    font-weight: 300;
+  }
 }

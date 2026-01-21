@@ -22,6 +22,27 @@ const userSchema = `
     featured: Int
   }
 
+  # Embedded championship snapshot stored in user's championships array.
+  # Updated after each round for active champs, preserved when champ is deleted.
+  type UserChampSnapshot {
+    _id: ID!
+    name: String!
+    icon: String!
+    season: Int!
+    position: Int!
+    positionChange: Int
+    totalPoints: Int!
+    lastPoints: Int!
+    roundsCompleted: Int!
+    totalRounds: Int!
+    competitorCount: Int!
+    maxCompetitors: Int!
+    discoveredBadges: Int!
+    totalBadges: Int!
+    deleted: Boolean!
+    updated_at: String!
+  }
+
   type User {
     _id: ID!
     refresh_count: Int!
@@ -29,7 +50,7 @@ const userSchema = `
     email: String
     icon: String
     profile_picture: String
-    championships: [Champ]!
+    championships: [UserChampSnapshot!]!
     badges: [UserBadgeSnapshot!]!
     permissions: Permissions!
     logged_in_at: String!

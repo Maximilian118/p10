@@ -1,5 +1,5 @@
 import React from "react"
-import { ChampType, pointsStructureType } from "../../shared/types"
+import { ChampType, pointsStructureType, userChampSnapshotType } from "../../shared/types"
 import { ChampSettingsFormType } from "./Views/ChampSettings/ChampSettings"
 import { AutomationFormType } from "./Views/Automation/Automation"
 import { AdminFormType } from "./Views/Admin/Admin"
@@ -548,4 +548,13 @@ export const buildChampBannerStats = (
   stats.push({ icon: <WorkspacePremiumIcon />, value: `${discoveredBadges}/${totalBadges}` })
 
   return stats
+}
+
+// Builds stats array for ChampBannerStats using pre-calculated snapshot data.
+export const buildChampBannerStatsFromSnapshot = (champ: userChampSnapshotType): StatItem[] => {
+  return [
+    { icon: <RotateRightIcon />, value: `${champ.roundsCompleted}/${champ.totalRounds}` },
+    { icon: <PersonIcon />, value: `${champ.competitorCount}/${champ.maxCompetitors}` },
+    { icon: <WorkspacePremiumIcon />, value: `${champ.discoveredBadges}/${champ.totalBadges}` },
+  ]
 }

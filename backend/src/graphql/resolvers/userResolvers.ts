@@ -3,7 +3,6 @@ import crypto from "crypto"
 import User, { userInputType, userType, userTypeMongo } from "../../models/user"
 import EmailVerification from "../../models/emailVerification"
 import { comparePass, hashPass, signTokens } from "../../shared/utility"
-import { champPopulation } from "../../shared/population"
 import generator from "generate-password"
 import { Resend } from "resend"
 
@@ -104,7 +103,7 @@ const userResolvers = {
       throw err
     }
   },
-  // Fetches a user by ID with populated championships and badges.
+  // Fetches a user by ID with embedded championship snapshots and badges.
   // Security: Limits exposed data for non-owners (hides email, tokens).
   getUserById: async ({ _id }: { _id: string }, req: AuthRequest): Promise<userType> => {
     if (!req.isAuth) {
@@ -112,12 +111,8 @@ const userResolvers = {
     }
 
     try {
-      const user = (await User.findById(_id)
-        .populate({
-          path: "championships",
-          populate: champPopulation,
-        })
-        .exec()) as userTypeMongo
+      // Championships are now embedded snapshots, no populate needed.
+      const user = (await User.findById(_id)) as userTypeMongo
 
       userErrors(user)
 

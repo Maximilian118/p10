@@ -77,6 +77,19 @@ const badgeResolvers = {
         await Champ.findByIdAndUpdate(championship, {
           $push: { champBadges: badge._id }
         })
+
+        // Update user championship snapshots with new badge count.
+        const totalBadges = await Badge.countDocuments({ championship })
+
+        await User.updateMany(
+          { "championships._id": championship },
+          {
+            $set: {
+              "championships.$.totalBadges": totalBadges,
+              "championships.$.updated_at": moment().format(),
+            },
+          }
+        )
       }
 
       // Return the new badge with tokens.
@@ -303,6 +316,26 @@ const badgeResolvers = {
         await Champ.findByIdAndUpdate(badge.championship, {
           $pull: { champBadges: badge._id }
         })
+
+        // Update user championship snapshots with new badge counts.
+        const champId = badge.championship
+        const totalBadges = await Badge.countDocuments({ championship: champId }) - 1 // -1 because badge isn't deleted yet
+        const discoveredBadges = await Badge.countDocuments({
+          championship: champId,
+          awardedTo: { $exists: true, $ne: [] },
+          _id: { $ne: badge._id }, // Exclude the badge being deleted
+        })
+
+        await User.updateMany(
+          { "championships._id": champId },
+          {
+            $set: {
+              "championships.$.totalBadges": totalBadges,
+              "championships.$.discoveredBadges": discoveredBadges,
+              "championships.$.updated_at": moment().format(),
+            },
+          }
+        )
       }
 
       // Delete badge from database.

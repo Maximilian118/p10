@@ -16,7 +16,7 @@ import Badge from "../../models/badge"
 import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
-import { clientS3, deleteS3, filterChampForUser } from "../../shared/utility"
+import { filterChampForUser } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange, broadcastBetPlaced } from "../../socket/socketHandler"
@@ -494,8 +494,26 @@ const champResolvers = {
       seriesDoc.championships.push(newChamp._id)
       await seriesDoc.save()
 
-      // Update user with championship reference.
-      user.championships.push(newChamp._id)
+      // Create championship snapshot for the user's profile.
+      const champSnapshot = {
+        _id: newChamp._id,
+        name: newChamp.name,
+        icon: newChamp.icon,
+        season: newChamp.season,
+        position: 1, // Creator is first/only competitor.
+        positionChange: null,
+        totalPoints: 0,
+        lastPoints: 0,
+        roundsCompleted: 0,
+        totalRounds: newChamp.rounds.length,
+        competitorCount: 1,
+        maxCompetitors: newChamp.settings.maxCompetitors,
+        discoveredBadges: 0,
+        totalBadges: badgeIds.length,
+        deleted: false,
+        updated_at: moment().format(),
+      }
+      user.championships.push(champSnapshot)
       await user.save()
 
       // Return the created championship with tokens.
@@ -577,8 +595,33 @@ const champResolvers = {
       champ.updated_at = moment().format()
       await champ.save()
 
-      // Add championship to user's championships.
-      user.championships.push(champ._id)
+      // Calculate badge stats for the snapshot.
+      const totalBadges = await Badge.countDocuments({ championship: champ._id })
+      const discoveredBadges = await Badge.countDocuments({
+        championship: champ._id,
+        awardedTo: { $exists: true, $ne: [] },
+      })
+
+      // Create championship snapshot for the user's profile.
+      const champSnapshot = {
+        _id: champ._id,
+        name: champ.name,
+        icon: champ.icon,
+        season: champ.season,
+        position: newPosition,
+        positionChange: null,
+        totalPoints: 0,
+        lastPoints: 0,
+        roundsCompleted: champ.rounds.filter((r) => r.status === "completed").length,
+        totalRounds: champ.rounds.length,
+        competitorCount: champ.competitors.length,
+        maxCompetitors: champ.settings.maxCompetitors,
+        discoveredBadges,
+        totalBadges,
+        deleted: false,
+        updated_at: moment().format(),
+      }
+      user.championships.push(champSnapshot)
       await user.save()
 
       // Return populated championship.
@@ -1059,6 +1102,17 @@ const champResolvers = {
 
       await champ.save()
 
+      // Update user snapshots with new icon.
+      await User.updateMany(
+        { "championships._id": champ._id },
+        {
+          $set: {
+            "championships.$.icon": champ.icon,
+            "championships.$.updated_at": moment().format(),
+          },
+        }
+      )
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -1444,6 +1498,23 @@ const champResolvers = {
       champ.updated_at = moment().format()
       await champ.save()
 
+      // Update user championship snapshots if relevant settings changed.
+      const snapshotUpdates: Record<string, unknown> = {
+        "championships.$.updated_at": moment().format(),
+      }
+      if (name) snapshotUpdates["championships.$.name"] = champ.name
+      if (icon) snapshotUpdates["championships.$.icon"] = champ.icon
+      if (rounds) snapshotUpdates["championships.$.totalRounds"] = champ.rounds.length
+      if (maxCompetitors) snapshotUpdates["championships.$.maxCompetitors"] = champ.settings.maxCompetitors
+
+      // Only update if there are relevant changes beyond just updated_at.
+      if (name || icon || rounds || maxCompetitors) {
+        await User.updateMany(
+          { "championships._id": champ._id },
+          { $set: snapshotUpdates }
+        )
+      }
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -1570,19 +1641,8 @@ const champResolvers = {
       const champName = champ.name
       const champId = champ._id
 
-      // Delete S3 images (icon and profile_picture).
-      if (champ.icon) {
-        const iconErr = await deleteS3(clientS3(), clientS3(champ.icon).params, 0)
-        if (iconErr) {
-          throwError("deleteChamp", champ.icon, iconErr)
-        }
-      }
-      if (champ.profile_picture) {
-        const ppErr = await deleteS3(clientS3(), clientS3(champ.profile_picture).params, 0)
-        if (ppErr) {
-          throwError("deleteChamp", champ.profile_picture, ppErr)
-        }
-      }
+      // NOTE: S3 images (icon, profile_picture) are NOT deleted.
+      // They must persist so userChampSnapshotType.icon URLs remain valid on user profiles.
 
       // Delete all Protests for this championship.
       await Protest.deleteMany({ championship: champId })
@@ -1590,8 +1650,11 @@ const champResolvers = {
       // Remove championship from Series.championships array.
       await Series.updateOne({ _id: champ.series }, { $pull: { championships: champId } })
 
-      // Remove championship from all Users.championships arrays.
-      await User.updateMany({ championships: champId }, { $pull: { championships: champId } })
+      // Mark championship snapshots as deleted on all users (preserves snapshot data for profile display).
+      await User.updateMany(
+        { "championships._id": champId },
+        { $set: { "championships.$.deleted": true, "championships.$.updated_at": moment().format() } }
+      )
 
       // Update all Badges: set championship to null (keep badge for users who earned it).
       await Badge.updateMany({ championship: champId }, { $set: { championship: null } })

@@ -1,5 +1,25 @@
 import { NavigateFunction } from "react-router-dom"
-import { ChampType } from "./types"
+
+// User's embedded championship snapshot. Persists even if the original Championship is deleted.
+// Updated after each round for active champs, preserved when champ is deleted.
+export interface userChampSnapshotType {
+  _id: string
+  name: string
+  icon: string
+  season: number
+  position: number
+  positionChange: number | null
+  totalPoints: number
+  lastPoints: number
+  roundsCompleted: number
+  totalRounds: number
+  competitorCount: number
+  maxCompetitors: number
+  discoveredBadges: number
+  totalBadges: number
+  deleted: boolean
+  updated_at: string
+}
 
 // User's embedded badge snapshot. Persists even if the original Badge is deleted.
 // featured: Slot position (1-6) for profile display, or null if not featured.
@@ -24,7 +44,7 @@ export interface userType {
   email: string
   icon: string
   profile_picture: string
-  championships: ChampType[]
+  championships: userChampSnapshotType[]
   badges: userBadgeSnapshotType[]
   created_at: string
   permissions: {

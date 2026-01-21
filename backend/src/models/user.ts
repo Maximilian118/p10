@@ -39,10 +39,37 @@ export interface userBadgeSnapshotType {
   featured?: number | null
 }
 
+// Snapshots of the champs the user is currently a part of or has been a part of.
+// Champs the user currently is a part of are actively updated with the latest info after each round.
+// Champs that have been deleted will be preserved here with the last known data after its last round.
+export interface userChampSnapshotType {
+  _id: ObjectId                    // Original champ ID (for badge matching)
+  name: string                     // Champ name
+  icon: string                     // Champ icon URL
+  season: number                   // Current/final season
+
+  // User's stats (updated each round, frozen when deleted)
+  position: number                 // User's current/final position
+  positionChange: number | null    // Position change from previous round
+  totalPoints: number              // User's total points
+  lastPoints: number               // Points from last completed round
+  roundsCompleted: number          // Number of completed rounds
+
+  // Champ-level stats
+  totalRounds: number              // Total rounds in championship
+  competitorCount: number          // Number of competitors
+  maxCompetitors: number           // Max competitors setting
+  discoveredBadges: number         // Badges discovered (awardedTo.length > 0)
+  totalBadges: number              // Total badges in champ
+
+  deleted: boolean                 // True if champ no longer exists in DB
+  updated_at: string               // When snapshot was last updated
+}
+
 export interface userType extends Omit<userInputType, "email"> {
   _id: ObjectId
   email: string | null // Nullable for privacy (non-owners get null).
-  championships: ObjectId[] // Championships this user is a part of.
+  championships: userChampSnapshotType[] // Embedded Championship snapshots (permanent)
   badges: userBadgeSnapshotType[] // Embedded badge snapshots (permanent)
   permissions: {
     admin: boolean
@@ -68,7 +95,27 @@ const userSchema = new mongoose.Schema<userType>({
   password: { type: String, required: false, min: 8 }, // User encryptied password.
   icon: { type: String, required: true }, // User Icon. Same image as Profile Picture but compressed to aprox 0.05mb.
   profile_picture: { type: String, required: true }, // User Profile Picture. Compressed to aprox 0.5mb.
-  championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Championships the user is part of.
+  // Embedded championship snapshots - updated each round, preserved when champ deleted.
+  championships: [
+    {
+      _id: { type: mongoose.Schema.ObjectId, required: true }, // Original champ ID
+      name: { type: String, required: true },
+      icon: { type: String, required: true },
+      season: { type: Number, required: true },
+      position: { type: Number, default: 0 },
+      positionChange: { type: Number, default: null },
+      totalPoints: { type: Number, default: 0 },
+      lastPoints: { type: Number, default: 0 },
+      roundsCompleted: { type: Number, default: 0 },
+      totalRounds: { type: Number, required: true },
+      competitorCount: { type: Number, default: 1 },
+      maxCompetitors: { type: Number, required: true },
+      discoveredBadges: { type: Number, default: 0 },
+      totalBadges: { type: Number, default: 0 },
+      deleted: { type: Boolean, default: false },
+      updated_at: { type: String, default: moment().format() },
+    },
+  ],
   // Embedded badge snapshots - permanent copies of badge data at time of earning.
   badges: [
     {

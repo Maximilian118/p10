@@ -597,24 +597,30 @@ export const calculateTeamPoints = (round: Round): void => {
  * - P10-centric: P10 > P9 > P8 > ... > P1 > P11 > P12 > ...
  * - Set round.winner and round.runnerUp
  *
- * STEP 4: CALCULATE DRIVER POINTS
+ * STEP 3: CALCULATE DRIVER POINTS
  * - Award points to drivers using same P10-centric hierarchy
  * - Tight Arse: P10 driver = 2pts (winner), P9 driver = 1pt (runner-up)
  * - Sync totalPoints and positionDrivers to next round
  *
- * STEP 5: CALCULATE TEAM POINTS
+ * STEP 4: CALCULATE TEAM POINTS
  * - Sum drivers' points for each team
  * - Sync totalPoints and positionConstructors to next round
  *
- * STEP 3: BADGE AWARDS
+ * STEP 5: UPDATE DRIVER STATS
+ * - Update driver statistics (roundsCompleted, roundsWon, positionHistory, etc.)
+ *
+ * STEP 6: AWARD BADGES
  * - Check each badge's unlock criteria against the round results
  * - Award badges to users who have met the criteria
+ *
+ * STEP 7: UPDATE USER CHAMPIONSHIP SNAPSHOTS
+ * - Update each competitor's championship snapshot with their latest stats
  *
  * ============================================================================
  * FUTURE FUNCTIONALITY (TO BE IMPLEMENTED):
  * ============================================================================
  *
- * STEP 6: NOTIFICATIONS
+ * STEP 8: NOTIFICATIONS
  * - Notify users of their results
  * - Notify badge earners
  * - Notify of position changes in standings
@@ -842,6 +848,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // New joiners who aren't in current round get totalPoints: 0.
 
   const hasNextRound = roundIndex + 1 < champ.rounds.length
+
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
 
@@ -901,7 +908,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   }
 
   // ============================================================================
-  // STEP 4: CALCULATE DRIVER POINTS
+  // STEP 3: CALCULATE DRIVER POINTS
   // ============================================================================
   // Award points to drivers based on their positionActual and the pointsStructure.
   // Uses P10-centric hierarchy (P10 > P9 > P8 > ... > P1 > P11 > P12 > ...).
@@ -926,7 +933,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   }
 
   // ============================================================================
-  // STEP 5: CALCULATE TEAM POINTS
+  // STEP 4: CALCULATE TEAM POINTS
   // ============================================================================
   // Aggregate driver points by team for constructor standings.
   // Must be called after calculateDriverPoints.
@@ -948,7 +955,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   }
 
   // ============================================================================
-  // STEP 6: UPDATE DRIVER STATS
+  // STEP 5: UPDATE DRIVER STATS
   // ============================================================================
   // Update driver statistics in the database:
   // - roundsCompleted: incremented for all drivers in the round
@@ -959,13 +966,53 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   await updateDriverStats(currentRound, champ, roundIndex)
 
   // ============================================================================
-  // STEP 3: AWARD BADGES
+  // STEP 6: AWARD BADGES
   // ============================================================================
   // For each competitor, evaluate all badge criteria and award earned badges.
   await awardBadges(champ, currentRound, roundIndex)
 
   // ============================================================================
-  // STEP 6: SEND NOTIFICATIONS (FUTURE)
+  // STEP 7: UPDATE USER CHAMPIONSHIP SNAPSHOTS
+  // ============================================================================
+  // Update each competitor's championship snapshot with their latest stats.
+  const roundsCompleted = champ.rounds.filter((r) => r.status === "completed").length + 1
+  const previousRound = roundIndex > 0 ? champ.rounds[roundIndex - 1] : null
+
+  // Calculate badge counts for snapshots.
+  const totalBadges = await Badge.countDocuments({ championship: champ._id })
+  const discoveredBadges = await Badge.countDocuments({
+    championship: champ._id,
+    awardedTo: { $exists: true, $ne: [] },
+  })
+
+  // Update each competitor's snapshot.
+  for (const entry of currentRound.competitors) {
+    const competitorId = entry.competitor.toString()
+    const prevEntry = previousRound?.competitors?.find(
+      (c) => c.competitor.toString() === competitorId,
+    )
+    const positionChange = prevEntry ? prevEntry.position - entry.position : null
+
+    await User.updateOne(
+      { _id: entry.competitor, "championships._id": champ._id },
+      {
+        $set: {
+          "championships.$.position": entry.position,
+          "championships.$.positionChange": positionChange,
+          "championships.$.totalPoints": entry.totalPoints,
+          "championships.$.lastPoints": entry.points,
+          "championships.$.roundsCompleted": roundsCompleted,
+          "championships.$.competitorCount": champ.competitors.length,
+          "championships.$.discoveredBadges": discoveredBadges,
+          "championships.$.totalBadges": totalBadges,
+          "championships.$.updated_at": moment().format(),
+        },
+      },
+    )
+  }
+
+  // ============================================================================
+  // STEP 8: SEND NOTIFICATIONS (FUTURE)
   // ============================================================================
   // TODO: Implement notification system:
   // - Notify users of their round results

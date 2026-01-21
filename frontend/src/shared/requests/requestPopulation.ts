@@ -1,4 +1,5 @@
 // User population template literal.
+// Championships are now embedded snapshots with all necessary data.
 export const populateUser = `
   _id
   tokens
@@ -8,6 +9,21 @@ export const populateUser = `
   profile_picture
   championships {
     _id
+    name
+    icon
+    season
+    position
+    positionChange
+    totalPoints
+    lastPoints
+    roundsCompleted
+    totalRounds
+    competitorCount
+    maxCompetitors
+    discoveredBadges
+    totalBadges
+    deleted
+    updated_at
   }
   created_at
   badges {
@@ -30,6 +46,7 @@ export const populateUser = `
 `
 
 // User profile population template (for viewing other users).
+// Championships are now embedded snapshots, no longer populated from Champ collection.
 export const populateUserProfile = `
   _id
   name
@@ -39,44 +56,19 @@ export const populateUserProfile = `
     _id
     name
     icon
-    profile_picture
     season
-    active
-    rounds {
-      round
-      status
-      competitors {
-        competitor {
-          _id
-        }
-        points
-        totalPoints
-        position
-      }
-    }
-    competitors {
-      _id
-    }
-    series {
-      _id
-      drivers {
-        _id
-      }
-    }
-    settings {
-      maxCompetitors
-      automation {
-        enabled
-        round {
-          autoNextRound
-        }
-      }
-    }
-    champBadges {
-      _id
-      awardedTo
-    }
-    created_at
+    position
+    positionChange
+    totalPoints
+    lastPoints
+    roundsCompleted
+    totalRounds
+    competitorCount
+    maxCompetitors
+    discoveredBadges
+    totalBadges
+    deleted
+    updated_at
   }
   badges {
     _id
