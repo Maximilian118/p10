@@ -38,6 +38,7 @@ const Schema = buildSchema(`
     updateEmail(email: String!): String!
     confirmEmailChange(token: String!): User!
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
+    setFeaturedBadge(badgeId: ID!, position: Int): User!
     createChamp(champInput: ChampInput): Champ!
     updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!
     updateChampSettings(_id: ID!, settings: ChampSettingsInput!): Champ!

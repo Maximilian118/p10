@@ -779,6 +779,7 @@ const awardBadges = async (
             zoom: badge.zoom || 100,
             championship: badge.championship,
             awarded_at,
+            featured: null,
           },
         })
         newlyAwarded.add(awardKey)

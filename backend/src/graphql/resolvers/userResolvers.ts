@@ -339,6 +339,61 @@ const userResolvers = {
       throw err
     }
   },
+  // Sets or unsets a badge's featured position (1-6) on the user's profile.
+  // position: 1-6 to feature, null/0 to unfeature.
+  // If another badge occupies the target position, it is automatically unset.
+  setFeaturedBadge: async (
+    { badgeId, position }: { badgeId: string; position: number | null },
+    req: AuthRequest,
+  ): Promise<userType> => {
+    if (!req.isAuth) {
+      throwError("setFeaturedBadge", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Find the badge in the user's badges array.
+      const badgeIndex = user.badges.findIndex(
+        (b) => b._id.toString() === badgeId
+      )
+      if (badgeIndex === -1) {
+        throwError("badgeId", badgeId, "Badge not found in user's collection.")
+      }
+
+      // Validate position (must be 1-6 or null/0 to unset).
+      const normalizedPosition = position === 0 ? null : position
+      if (normalizedPosition !== null && (normalizedPosition < 1 || normalizedPosition > 6)) {
+        throwError("position", position, "Position must be between 1 and 6.")
+      }
+
+      // If setting a position, clear any other badge that has this position.
+      if (normalizedPosition !== null) {
+        for (let i = 0; i < user.badges.length; i++) {
+          if (user.badges[i].featured === normalizedPosition) {
+            user.badges[i].featured = null
+          }
+        }
+      }
+
+      // Set the badge's featured position.
+      user.badges[badgeIndex].featured = normalizedPosition
+      user.updated_at = moment().format()
+
+      // Mark badges array as modified for Mongoose to detect nested changes.
+      user.markModified("badges")
+      await user.save()
+
+      return {
+        ...user._doc,
+        tokens: req.tokens,
+        password: null,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
 }
 
 export default userResolvers

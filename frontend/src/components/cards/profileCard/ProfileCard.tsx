@@ -50,7 +50,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
           <h5 style={{ textTransform: "capitalize" }}>
             {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
           </h5>
-          <div className="featured-badge-placeholders">
+          <div className="featured-badges">
             {[1, 2, 3, 4, 5, 6].map((position) => (
               <BadgePlaceholder key={position} position={position} />
             ))}
@@ -109,7 +109,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
       />
       <div className="profile-info">
         {filesInForm(form)}
-        <div className="featured-badge-placeholders">
+        <div className="featured-badges">
           {[1, 2, 3, 4, 5, 6].map((position) => (
             <BadgePlaceholder key={position} position={position} />
           ))}

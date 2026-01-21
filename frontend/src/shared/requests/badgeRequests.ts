@@ -197,6 +197,57 @@ export const updateBadge = async (
   setLoading(false)
 }
 
+// Set or unset a badge's featured position (1-6) on the user's profile.
+// position: 1-6 to feature, null/0 to unfeature.
+export const setFeaturedBadge = async (
+  badgeId: string,
+  position: number | null,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  setLoading?: React.Dispatch<React.SetStateAction<boolean>>,
+): Promise<void> => {
+  if (setLoading) setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { badgeId, position },
+          query: `
+            mutation SetFeaturedBadge($badgeId: ID!, $position: Int) {
+              setFeaturedBadge(badgeId: $badgeId, position: $position) {
+                _id
+                badges {
+                  _id
+                  featured
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("setFeaturedBadge", res, setUser, navigate, setBackendErr, true)
+        } else {
+          graphQLResponse("setFeaturedBadge", res, user, setUser)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("setFeaturedBadge", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("setFeaturedBadge", err, setUser, navigate, setBackendErr, true)
+  }
+
+  if (setLoading) setLoading(false)
+}
+
 // Delete a badge from the database and S3.
 export const deleteBadge = async (
   _id: string,

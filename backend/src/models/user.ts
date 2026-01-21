@@ -15,6 +15,16 @@ export interface userInputType {
 // IMMUTABLE: Once created, snapshots should NEVER be modified or deleted.
 // They preserve exactly how the badge looked when the user earned it.
 // This ensures badges persist even if the original Badge document is deleted or edited.
+//
+// FEATURED BADGES SYSTEM:
+// Users can showcase up to 6 badges in "featured" slots on their profile.
+// - featured: null → Badge is NOT featured (default)
+// - featured: 1-6  → Badge is displayed in that slot position
+//
+// When a badge is dragged to a featured slot in the UI, we update this field
+// to match the slot position. Only one badge can occupy each position.
+// Setting a new badge to a position automatically clears any existing badge
+// from that position.
 export interface userBadgeSnapshotType {
   _id: ObjectId
   championship: ObjectId
@@ -26,6 +36,7 @@ export interface userBadgeSnapshotType {
   awardedDesc: string
   zoom: number
   awarded_at: string
+  featured?: number | null
 }
 
 export interface userType extends Omit<userInputType, "email"> {
@@ -48,6 +59,7 @@ export interface userType extends Omit<userInputType, "email"> {
 
 export interface userTypeMongo extends userType {
   save: () => Promise<{}>
+  markModified: (path: string) => void
 }
 
 const userSchema = new mongoose.Schema<userType>({
@@ -70,6 +82,7 @@ const userSchema = new mongoose.Schema<userType>({
       zoom: { type: Number, default: 100 },
       championship: { type: mongoose.Schema.ObjectId, ref: "Champ", required: true },
       awarded_at: { type: String, default: moment().format() },
+      featured: { type: Number, default: null }, // Featured slot position (1-6) or null
     },
   ],
   refresh_count: { type: Number, default: 0 }, // Refresh count.

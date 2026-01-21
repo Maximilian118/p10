@@ -1,6 +1,7 @@
 import { NavigateFunction } from "react-router-dom"
 
 // User's embedded badge snapshot. Persists even if the original Badge is deleted.
+// featured: Slot position (1-6) for profile display, or null if not featured.
 export interface userBadgeSnapshotType {
   _id: string
   championship: string
@@ -12,6 +13,7 @@ export interface userBadgeSnapshotType {
   awardedDesc: string | null
   zoom: number
   awarded_at: string
+  featured?: number | null
 }
 
 export interface userType {

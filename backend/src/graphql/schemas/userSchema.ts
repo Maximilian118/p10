@@ -7,6 +7,7 @@ const userSchema = `
 
   # Embedded badge snapshot stored in user's badges array.
   # Permanent copy of badge data at time of earning.
+  # featured: Slot position (1-6) for profile display, or null if not featured.
   type UserBadgeSnapshot {
     _id: ID!
     url: String
@@ -18,6 +19,7 @@ const userSchema = `
     zoom: Int!
     championship: ID!
     awarded_at: String!
+    featured: Int
   }
 
   type User {
