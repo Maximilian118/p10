@@ -68,22 +68,11 @@
       transform: scale(1.1);
     }
 
-    // Slightly dim already-featured badges.
-    &.already-featured {
-      .badge {
-        opacity: 0.7;
-      }
-
-      &:hover .badge {
-        opacity: 1;
-      }
-    }
-
     // Slot number indicator in corner for already-featured badges.
     .featured-indicator {
       position: absolute;
-      top: -5px;
-      right: -5px;
+      top: -4px;
+      right: -4px;
       width: 16px;
       height: 16px;
       background: variables.$mui-blue;

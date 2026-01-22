@@ -43,23 +43,12 @@
         &:hover {
           transform: scale(1.05);
         }
+      }
 
-        // Selected state (when this slot is target for badge assignment).
-        &--selected {
-          box-shadow: 0 0 0 3px rgba(variables.$mui-blue, 0.4);
-          animation: badgePulse 1.5s ease infinite;
-        }
+      .badge {
+        width: 32px;
+        height: 32px;
       }
     }
-  }
-}
-
-// Pulse animation for selected featured badge.
-@keyframes badgePulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
   }
 }

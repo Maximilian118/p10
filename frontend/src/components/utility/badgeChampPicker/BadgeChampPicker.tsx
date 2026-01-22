@@ -58,7 +58,7 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
               allEarnedBadges.map((badge) => (
                 <div
                   key={badge._id}
-                  className={`selectable-badge ${badge.featured ? 'already-featured' : ''}`}
+                  className="selectable-badge"
                   onClick={() => handleBadgeClick(badge)}
                 >
                   <Badge badge={badge} zoom={badge.zoom} showEditButton={false} />

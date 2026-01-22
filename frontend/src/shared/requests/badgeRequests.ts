@@ -235,7 +235,20 @@ export const setFeaturedBadge = async (
         if (res.data.errors) {
           graphQLErrors("setFeaturedBadge", res, setUser, navigate, setBackendErr, true)
         } else {
+          const response = res.data.data.setFeaturedBadge
           graphQLResponse("setFeaturedBadge", res, user, setUser)
+
+          // Update user.badges with the new featured values from the response and persist to localStorage
+          setUser((prev) => {
+            const updatedBadges = prev.badges.map((badge) => {
+              const updated = response.badges.find(
+                (b: { _id: string; featured: number | null }) => b._id === badge._id
+              )
+              return updated ? { ...badge, featured: updated.featured } : badge
+            })
+            localStorage.setItem("badges", JSON.stringify(updatedBadges))
+            return { ...prev, badges: updatedBadges }
+          })
         }
       })
       .catch((err: unknown) => {

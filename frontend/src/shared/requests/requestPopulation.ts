@@ -37,6 +37,7 @@ export const populateUser = `
     zoom
     championship
     awarded_at
+    featured
   }
   permissions {
     admin
@@ -81,6 +82,7 @@ export const populateUserProfile = `
     zoom
     championship
     awarded_at
+    featured
   }
   permissions {
     admin
