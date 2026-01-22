@@ -33,6 +33,33 @@
       margin-top: 10px;
       display: flex;
       gap: 5px;
+
+      // Wrapper for badges in featured slots - makes them clickable.
+      .featured-slot {
+        cursor: pointer;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+
+        // Selected state (when this slot is target for badge assignment).
+        &--selected {
+          box-shadow: 0 0 0 3px rgba(variables.$mui-blue, 0.4);
+          animation: badgePulse 1.5s ease infinite;
+        }
+      }
     }
+  }
+}
+
+// Pulse animation for selected featured badge.
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
   }
 }

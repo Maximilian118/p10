@@ -3,6 +3,12 @@ import { userType, userBadgeSnapshotType, userChampSnapshotType } from "./localS
 // Re-export for convenience.
 export type { userBadgeSnapshotType, userChampSnapshotType }
 
+// State for badge selection mode on profile page.
+export interface SelectionModeState {
+  active: boolean
+  targetSlot: number | null
+}
+
 // Type for viewing another user's profile (populated data).
 export interface userProfileType {
   _id: string

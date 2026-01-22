@@ -5,12 +5,13 @@ import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
 import { userType } from "../../../shared/localStorage"
 import { getPermLevel, getPermLevelFromPermissions } from "../../../shared/utility"
 import moment from "moment"
-import { formErrType, formType, userProfileType } from "../../../shared/types"
+import { formErrType, formType, SelectionModeState, userProfileType } from "../../../shared/types"
 import { Button, CircularProgress } from "@mui/material"
 import { updatePP } from "../../../shared/requests/userRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import BadgePlaceholder from "../../utility/badge/badgePlaceholder/BadgePlaceholder"
+import Badge from "../../utility/badge/Badge"
 
 // Props for editable profile (own profile).
 interface profileCardEditableType<T, U> {
@@ -22,6 +23,8 @@ interface profileCardEditableType<T, U> {
   setFormErr: React.Dispatch<React.SetStateAction<U>>
   backendErr: graphQLErrorType
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
+  selectionMode: SelectionModeState
+  setSelectionMode: React.Dispatch<React.SetStateAction<SelectionModeState>>
   readOnly?: false
 }
 
@@ -40,6 +43,16 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   // Read-only mode for viewing other users.
   if (props.readOnly) {
     const { user } = props
+
+    // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
+    const renderReadOnlySlot = (position: number) => {
+      const featuredBadge = user.badges.find(b => b.featured === position)
+      if (featuredBadge) {
+        return <Badge key={position} badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
+      }
+      return <BadgePlaceholder key={position} position={position} />
+    }
+
     return (
       <div className="profile-card">
         <div className="profile-icon-container">
@@ -51,9 +64,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
             {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
           </h5>
           <div className="featured-badges">
-            {[1, 2, 3, 4, 5, 6].map((position) => (
-              <BadgePlaceholder key={position} position={position} />
-            ))}
+            {[1, 2, 3, 4, 5, 6].map(renderReadOnlySlot)}
           </div>
         </div>
       </div>
@@ -61,10 +72,42 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   }
 
   // Editable mode for own profile.
-  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr } = props
+  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode } = props
 
   const uploadPPHandler = async () => {
     await updatePP(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
+  }
+
+  // Enters selection mode for a specific slot position.
+  const handleSlotClick = (position: number) => {
+    setSelectionMode({ active: true, targetSlot: position })
+  }
+
+  // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
+  // Both are clickable to enter selection mode.
+  const renderFeaturedSlot = (position: number) => {
+    const featuredBadge = user.badges.find(b => b.featured === position)
+    const isSelected = selectionMode.active && selectionMode.targetSlot === position
+
+    if (featuredBadge) {
+      return (
+        <div
+          key={position}
+          className={`featured-slot ${isSelected ? 'featured-slot--selected' : ''}`}
+          onClick={() => handleSlotClick(position)}
+        >
+          <Badge badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
+        </div>
+      )
+    }
+    return (
+      <BadgePlaceholder
+        key={position}
+        position={position}
+        isSelected={isSelected}
+        onClick={() => handleSlotClick(position)}
+      />
+    )
   }
 
   const filesInForm = (form: T): JSX.Element => {
@@ -110,9 +153,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
       <div className="profile-info">
         {filesInForm(form)}
         <div className="featured-badges">
-          {[1, 2, 3, 4, 5, 6].map((position) => (
-            <BadgePlaceholder key={position} position={position} />
-          ))}
+          {[1, 2, 3, 4, 5, 6].map(renderFeaturedSlot)}
         </div>
       </div>
     </div>

@@ -19,6 +19,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(50px, max-content));
     justify-content: space-between;
+    justify-items: center;
+    align-items: center;
     padding: 20px 7.5% 60px;
     box-sizing: border-box;
     overflow-y: auto;

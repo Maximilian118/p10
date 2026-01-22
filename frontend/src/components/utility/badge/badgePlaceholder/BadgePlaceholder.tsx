@@ -4,6 +4,8 @@ import './_badgePlaceholder.scss'
 interface BadgePlaceholderProps {
   position: number // 1-6 position for the featured badge slot
   isActive?: boolean // Highlight when drag target is over
+  isSelected?: boolean // Highlight when this slot is selected for badge assignment
+  onClick?: () => void // Handler for click to enter selection mode
   onDragOver?: (e: React.DragEvent) => void // Handler when drag enters
   onDragLeave?: (e: React.DragEvent) => void // Handler when drag leaves
   onDrop?: (e: React.DragEvent) => void // Handler for drop event
@@ -11,19 +13,29 @@ interface BadgePlaceholderProps {
 
 // Placeholder component for empty featured badge slots.
 // Displays a circular target area with corner brackets and a plus icon.
-// Supports drag-and-drop from badge items.
+// Supports drag-and-drop from badge items and click-to-select mode.
 const BadgePlaceholder: React.FC<BadgePlaceholderProps> = ({
   position,
   isActive = false,
+  isSelected = false,
+  onClick,
   onDragOver,
   onDragLeave,
   onDrop,
 }) => {
+  // Build class list based on state.
+  const classNames = [
+    'badge-placeholder',
+    isActive && 'badge-placeholder--active',
+    isSelected && 'badge-placeholder--selected',
+  ].filter(Boolean).join(' ')
+
   return (
     <div
-      className={`badge-placeholder ${isActive ? 'badge-placeholder--active' : ''}`}
+      className={classNames}
       data-position={position}
       data-droppable="true"
+      onClick={onClick}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}

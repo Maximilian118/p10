@@ -114,4 +114,42 @@
     border: 2px dashed variables.$mui-blue;
     background: rgba(variables.$mui-blue, 0.1);
   }
+
+  // Selected state (when this slot is the target for badge assignment).
+  &--selected {
+    --arc-color: #{variables.$mui-blue};
+    --plus-color: #{variables.$mui-blue};
+    --arc-opacity: 1;
+    --rotation-duration: 4s;
+
+    box-shadow: 0 0 0 3px rgba(variables.$mui-blue, 0.4);
+
+    // Ensure corners are blue.
+    .badge-placeholder__corner {
+      border-color: variables.$mui-blue;
+
+      &--top-left {
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+      }
+      &--top-right {
+        border-left-color: transparent;
+        border-bottom-color: transparent;
+      }
+      &--bottom-left {
+        border-right-color: transparent;
+        border-top-color: transparent;
+      }
+      &--bottom-right {
+        border-left-color: transparent;
+        border-top-color: transparent;
+      }
+    }
+
+    // Ensure plus is blue.
+    .badge-placeholder__plus::before,
+    .badge-placeholder__plus::after {
+      background: variables.$mui-blue;
+    }
+  }
 }
