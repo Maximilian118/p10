@@ -7,7 +7,9 @@
   @include mixins.flexbox;
   margin-bottom: 2px;
 
-  .profile-icon-container {
+  .profile-icon-container,
+  .profile-dropzone-container {
+    position: relative;
     width: 100px;
     height: 100px;
     margin: 20px;

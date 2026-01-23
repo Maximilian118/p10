@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import './_profileCard.scss'
 import DropZone from "../../utility/dropZone/DropZone"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
@@ -12,6 +12,8 @@ import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import BadgePlaceholder from "../../utility/badge/badgePlaceholder/BadgePlaceholder"
 import Badge from "../../utility/badge/Badge"
+import AuraRingWrapper from "../../utility/auraRing/AuraRingWrapper"
+import { getBadgeColour } from "../../utility/badge/badgeOverlay/badgeOverlayUtility"
 
 // Props for editable profile (own profile).
 interface profileCardEditableType<T, U> {
@@ -44,6 +46,11 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   if (props.readOnly) {
     const { user } = props
 
+    // Collect colors from featured badges for the AuraRing
+    const featuredBadgeColors = user.badges
+      .filter(b => b.featured !== null && b.featured !== undefined)
+      .map(b => getBadgeColour(b.rarity))
+
     // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
     const renderReadOnlySlot = (position: number) => {
       const featuredBadge = user.badges.find(b => b.featured === position)
@@ -55,9 +62,9 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
 
     return (
       <div className="profile-card">
-        <div className="profile-icon-container">
+        <AuraRingWrapper colors={featuredBadgeColors} className="profile-icon-container">
           <ImageIcon src={user.icon} size="contained" />
-        </div>
+        </AuraRingWrapper>
         <div className="profile-info">
           <p>{user.name}</p>
           <h5 style={{ textTransform: "capitalize" }}>
@@ -73,6 +80,13 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
 
   // Editable mode for own profile.
   const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode } = props
+
+  // Collect colors from featured badges for the AuraRing
+  const featuredBadgeColors = useMemo(() => {
+    return user.badges
+      .filter(b => b.featured !== null && b.featured !== undefined)
+      .map(b => getBadgeColour(b.rarity))
+  }, [user.badges])
 
   const uploadPPHandler = async () => {
     await updatePP(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
@@ -138,18 +152,20 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
 
   return (
     <div className="profile-card">
-      <DropZone<T, U>
-        form={form}
-        setForm={setForm}
-        user={user}
-        formErr={formErr}
-        setFormErr={setFormErr}
-        backendErr={backendErr}
-        setBackendErr={setBackendErr}
-        purposeText="User"
-        thumbImg={user.icon}
-        style={{ width: 100, margin: 20 }}
-      />
+      <AuraRingWrapper colors={featuredBadgeColors} className="profile-dropzone-container">
+        <DropZone<T, U>
+          form={form}
+          setForm={setForm}
+          user={user}
+          formErr={formErr}
+          setFormErr={setFormErr}
+          backendErr={backendErr}
+          setBackendErr={setBackendErr}
+          purposeText="User"
+          thumbImg={user.icon}
+          style={{ width: 100 }}
+        />
+      </AuraRingWrapper>
       <div className="profile-info">
         {filesInForm(form)}
         <div className="featured-badges">
