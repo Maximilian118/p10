@@ -34,7 +34,7 @@ import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import { getAPIView } from "./Views/RoundStatus/APIViews"
-import ConfirmView from "./Views/RoundStatus/ConfirmView/ConfirmView"
+import Confirm from "../Confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import {
   initSettingsForm,
@@ -858,7 +858,7 @@ const Championship: React.FC = () => {
 
         {/* Start Round Confirmation - shown before countdown begins */}
         {showStartConfirm && (
-          <ConfirmView
+          <Confirm
             variant="success"
             icon={<PlayArrowIcon />}
             heading={`Start Round ${completedRoundsCount + 1}?`}

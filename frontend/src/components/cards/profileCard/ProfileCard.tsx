@@ -29,6 +29,8 @@ interface profileCardEditableType<T, U> {
   setSelectionMode: React.Dispatch<React.SetStateAction<SelectionModeState>>
   featuredBadgeLoading: boolean
   readOnly?: false
+  dropzoneOpenRef?: React.MutableRefObject<(() => void) | null>
+  disableBadgeSlots?: boolean
 }
 
 // Props for read-only profile (viewing other users).
@@ -82,7 +84,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   }
 
   // Editable mode for own profile.
-  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode, featuredBadgeLoading } = props
+  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode, featuredBadgeLoading, dropzoneOpenRef, disableBadgeSlots } = props
 
   const uploadPPHandler = async () => {
     await updatePP(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
@@ -94,10 +96,18 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   }
 
   // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
-  // Both are clickable to enter selection mode.
+  // Both are clickable to enter selection mode (unless disableBadgeSlots is true).
   const renderFeaturedSlot = (position: number) => {
     const featuredBadge = user.badges.find(b => b.featured === position)
     const isSelected = selectionMode.active && selectionMode.targetSlot === position
+
+    // If badge slots are disabled, render non-clickable versions.
+    if (disableBadgeSlots) {
+      if (featuredBadge) {
+        return <Badge key={position} badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
+      }
+      return <BadgePlaceholder key={position} position={position} />
+    }
 
     // Show spinner on the target slot while featured badge mutation is in progress.
     if (featuredBadgeLoading && selectionMode.targetSlot === position) {
@@ -126,17 +136,13 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
     )
   }
 
-  const filesInForm = (form: T): JSX.Element => {
-    if (!form.icon && !form.profile_picture) {
-      return (
-        <>
-          <p>{user.name}</p>
-          <h5 style={{ textTransform: "capitalize" }}>
-            {`${getPermLevel(user)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
-          </h5>
-        </>
-      )
-    } else {
+  // Renders user info or confirmation prompt based on form state.
+  // When disableBadgeSlots is true (Settings context), always show user info
+  // since the save button handles confirmation externally.
+  const renderProfileInfo = (): JSX.Element => {
+    const showConfirmation = !disableBadgeSlots && (form.icon || form.profile_picture)
+
+    if (showConfirmation) {
       return (
         <>
           <p>Are you sure?</p>
@@ -150,6 +156,15 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
         </>
       )
     }
+
+    return (
+      <>
+        <p>{user.name}</p>
+        <h5 style={{ textTransform: "capitalize" }}>
+          {`${getPermLevel(user)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
+        </h5>
+      </>
+    )
   }
 
   return (
@@ -166,11 +181,12 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
           purposeText="User"
           thumbImg={user.icon}
           style={{ width: 100 }}
+          openRef={dropzoneOpenRef}
         />
       </AuraRingWrapper>
       <div className="profile-info">
-        {filesInForm(form)}
-        <div className="featured-badges">
+        {renderProfileInfo()}
+        <div className={`featured-badges${disableBadgeSlots ? ' featured-badges--disabled' : ''}`}>
           {[1, 2, 3, 4, 5, 6].map(renderFeaturedSlot)}
         </div>
       </div>

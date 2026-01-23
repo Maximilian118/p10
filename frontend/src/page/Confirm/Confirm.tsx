@@ -1,8 +1,8 @@
 import React from "react"
-import "./_confirmView.scss"
+import "./_confirm.scss"
 import { Button } from "@mui/material"
 
-interface ConfirmViewProps {
+interface ConfirmProps {
   variant: "danger" | "success"
   icon: React.ReactNode
   heading: string
@@ -13,8 +13,8 @@ interface ConfirmViewProps {
   onConfirm: () => void
 }
 
-// Reusable confirmation view for adjudicator actions.
-const ConfirmView: React.FC<ConfirmViewProps> = ({
+// Reusable confirmation view for actions requiring user confirmation.
+const Confirm: React.FC<ConfirmProps> = ({
   variant,
   icon,
   heading,
@@ -25,28 +25,28 @@ const ConfirmView: React.FC<ConfirmViewProps> = ({
   onConfirm
 }) => {
   return (
-    <div className={`confirm-view confirm-view--${variant}`}>
-      <div className="confirm-view__header">
-        <span className="confirm-view__icon">{icon}</span>
+    <div className={`confirm confirm--${variant}`}>
+      <div className="confirm__header">
+        <span className="confirm__icon">{icon}</span>
         <h2>{heading}</h2>
       </div>
-      <div className="confirm-view__content">
+      <div className="confirm__content">
         {paragraphs.map((text, index) => (
           <p key={index}>{text}</p>
         ))}
       </div>
-      <div className="confirm-view__actions">
+      <div className="confirm__actions">
         <Button
           variant="outlined"
           onClick={onCancel}
-          className="confirm-view__btn confirm-view__btn--cancel"
+          className="confirm__btn confirm__btn--cancel"
         >
           {cancelText}
         </Button>
         <Button
           variant="contained"
           onClick={onConfirm}
-          className="confirm-view__btn confirm-view__btn--confirm"
+          className="confirm__btn confirm__btn--confirm"
         >
           {confirmText}
         </Button>
@@ -55,4 +55,4 @@ const ConfirmView: React.FC<ConfirmViewProps> = ({
   )
 }
 
-export default ConfirmView
+export default Confirm

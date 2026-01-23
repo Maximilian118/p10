@@ -8,7 +8,7 @@ import { NavigateFunction } from "react-router-dom"
 import { loginFormType } from "../../page/Login"
 import { forgotFormType } from "../../page/Forgot"
 import { formType, userProfileType } from "../types"
-import { passFormType } from "../../page/Password"
+import { passFormType } from "../../page/Password/Password"
 
 export const createUser = async <U extends { dropzone: string }>(
   form: createFormType,
@@ -380,67 +380,127 @@ export const confirmEmailChange = async (
   setLoading(false)
 }
 
-export const updateName = async <T extends formType>(
+// Updates user profile fields (name, email, icon, profile_picture).
+// Only sends fields that have changed from original values.
+// Returns emailChanged boolean to trigger email verification notice.
+export const updateUser = async <T extends formType>(
   form: T,
-  setForm: React.Dispatch<React.SetStateAction<T>>,
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
   setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
-  setSuccess: React.Dispatch<React.SetStateAction<boolean>>,
-): Promise<void> => {
+): Promise<{ success: boolean; emailChanged: boolean }> => {
   setLoading(true)
 
-  try {
-    await axios
-      .post(
-        "",
-        {
-          variables: form,
-          query: `
-            mutation UpdateName($name: String!) {
-              updateName(name: $name) {
-                name
-                tokens
-              }
-            }
-          `,
-        },
-        { headers: headers(user.token) },
-      )
-      .then((res: AxiosResponse) => {
-        if (res.data.errors) {
-          graphQLErrors("updateName", res, setUser, navigate, setBackendErr, true)
-        } else {
-          const response = graphQLResponse("updateName", res, user, setUser) as userType
+  // Build input with only changed fields.
+  const input: { name?: string; email?: string; icon?: string; profile_picture?: string } = {}
 
-          setUser((prevUser) => {
-            return {
-              ...prevUser,
-              name: response.name,
-            }
-          })
-
-          setForm((prevForm) => {
-            return {
-              ...prevForm,
-              name: response.name,
-            }
-          })
-
-          localStorage.setItem("name", response.name)
-          setSuccess(true)
-        }
-      })
-      .catch((err: unknown) => {
-        graphQLErrors("updateName", err, setUser, navigate, setBackendErr, true)
-      })
-  } catch (err: unknown) {
-    graphQLErrors("updateName", err, setUser, navigate, setBackendErr, true)
+  if (form.name && form.name !== user.name) {
+    input.name = form.name
   }
 
-  setLoading(false)
+  if (form.email && form.email !== user.email) {
+    input.email = form.email
+  }
+
+  // Handle profile picture upload if File objects are in form.
+  if (form.icon instanceof File || form.profile_picture instanceof File) {
+    const iconURL = await uplaodS3(
+      "users",
+      user.name,
+      "icon",
+      form.icon,
+      setBackendErr,
+      user,
+      setUser,
+      navigate,
+      2,
+    )
+    if (!iconURL && form.icon) {
+      setLoading(false)
+      return { success: false, emailChanged: false }
+    }
+
+    const ppURL = await uplaodS3(
+      "users",
+      user.name,
+      "profile_picture",
+      form.profile_picture ?? null,
+      setBackendErr,
+      user,
+      setUser,
+      navigate,
+      2,
+    )
+    if (!ppURL && form.profile_picture) {
+      setLoading(false)
+      return { success: false, emailChanged: false }
+    }
+
+    if (iconURL) input.icon = iconURL
+    if (ppURL) input.profile_picture = ppURL
+  }
+
+  // If nothing changed, return early.
+  if (Object.keys(input).length === 0) {
+    setLoading(false)
+    return { success: false, emailChanged: false }
+  }
+
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { input },
+        query: `
+          mutation UpdateUser($input: UpdateUserInput!) {
+            updateUser(input: $input) {
+              user {
+                name
+                email
+                icon
+                profile_picture
+                tokens
+              }
+              emailChanged
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("updateUser", res, setUser, navigate, setBackendErr, true)
+      setLoading(false)
+      return { success: false, emailChanged: false }
+    }
+
+    const response = res.data.data.updateUser
+    const updatedUser = response.user
+
+    // Update user state with new values.
+    setUser((prev) => ({
+      ...prev,
+      name: updatedUser.name,
+      icon: updatedUser.icon,
+      profile_picture: updatedUser.profile_picture,
+      // Don't update email yet if emailChanged - wait for verification.
+    }))
+
+    // Update localStorage.
+    localStorage.setItem("name", updatedUser.name)
+    localStorage.setItem("icon", updatedUser.icon)
+    localStorage.setItem("profile_picture", updatedUser.profile_picture)
+
+    setLoading(false)
+    return { success: true, emailChanged: response.emailChanged }
+  } catch (err: unknown) {
+    graphQLErrors("updateUser", err, setUser, navigate, setBackendErr, true)
+    setLoading(false)
+    return { success: false, emailChanged: false }
+  }
 }
 
 export const updatePassword = async <T extends passFormType>(

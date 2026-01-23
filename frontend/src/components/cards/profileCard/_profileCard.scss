@@ -51,6 +51,15 @@
         width: 32px !important;
         height: 32px !important;
       }
+
+      // Disabled state for settings page - slots not clickable.
+      &--disabled {
+        cursor: not-allowed;
+
+        .badge, .badge-placeholder {
+          pointer-events: none;
+        }
+      }
     }
   }
 }

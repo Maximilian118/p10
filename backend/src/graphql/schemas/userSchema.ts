@@ -68,5 +68,21 @@ const userSchema = `
     icon: String!
     profile_picture: String!
   }
+
+  # Input for updating user profile fields.
+  # All fields optional - only provided fields will be updated.
+  input UpdateUserInput {
+    name: String
+    email: String
+    icon: String
+    profile_picture: String
+  }
+
+  # Result from updateUser mutation.
+  # emailChanged indicates if email verification was triggered.
+  type UpdateUserResult {
+    user: User!
+    emailChanged: Boolean!
+  }
 `
 export default userSchema

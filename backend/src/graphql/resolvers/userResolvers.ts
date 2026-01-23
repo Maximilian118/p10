@@ -262,26 +262,78 @@ const userResolvers = {
       throw err
     }
   },
-  updateName: async ({ name }: { name: string }, req: AuthRequest): Promise<userType> => {
+  // Updates user profile fields (name, email, icon, profile_picture).
+  // Only processes fields that are provided. Returns emailChanged flag if email verification was triggered.
+  updateUser: async (
+    { input }: { input: { name?: string; email?: string; icon?: string; profile_picture?: string } },
+    req: AuthRequest,
+  ): Promise<{ user: userType; emailChanged: boolean }> => {
     if (!req.isAuth) {
-      throwError("updateName", req.isAuth, "Not Authenticated!", 401)
+      throwError("updateUser", req.isAuth, "Not Authenticated!", 401)
     }
 
     try {
       const user = (await User.findById(req._id)) as userTypeMongo
       userErrors(user)
-      await nameErrors(name, user)
 
-      // Consolidate double whitespaces to single and trim.
-      user.name = name.replace(/\s+/g, ' ').trim()
+      let emailChanged = false
+
+      // Handle name update if provided and different.
+      if (input.name !== undefined && input.name !== user.name) {
+        await nameErrors(input.name, user)
+        // Consolidate double whitespaces to single and trim.
+        user.name = input.name.replace(/\s+/g, ' ').trim()
+      }
+
+      // Handle email update if provided and different (triggers verification flow).
+      if (input.email !== undefined && input.email !== user.email) {
+        await emailErrors(input.email, user)
+
+        // Generate secure verification token.
+        const token = crypto.randomBytes(32).toString("hex")
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+        // Remove any existing pending verification for this user.
+        await EmailVerification.findOneAndDelete({ userId: req._id })
+
+        // Create new verification record.
+        await new EmailVerification({
+          userId: req._id,
+          newEmail: input.email,
+          token,
+          expiresAt,
+        }).save()
+
+        // Send verification email to the new address.
+        const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`
+
+        await sendEmail({
+          to: input.email,
+          subject: "P10-Game Email Verification",
+          text: `Please click the link below to verify your new email address:\n\n${verifyUrl}\n\nThis link expires in 24 hours.\n\nIf you did not request this change, please ignore this email.`,
+        })
+
+        emailChanged = true
+      }
+
+      // Handle icon/profile_picture update if both provided.
+      if (input.icon !== undefined && input.profile_picture !== undefined) {
+        iconErrors(input.icon, input.profile_picture, user)
+        profilePictureErrors(input.profile_picture, input.icon, user)
+        user.icon = input.icon
+        user.profile_picture = input.profile_picture
+      }
+
       user.updated_at = moment().format()
-
       await user.save()
 
       return {
-        ...user._doc,
-        tokens: req.tokens,
-        password: null,
+        user: {
+          ...user._doc,
+          tokens: req.tokens,
+          password: null,
+        },
+        emailChanged,
       }
     } catch (err) {
       throw err

@@ -1,22 +1,25 @@
-import React, { useContext, useState } from "react"
+import React, { useContext, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowBack, Logout, Save } from "@mui/icons-material"
+import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email } from "@mui/icons-material"
+import { Button } from "@mui/material"
 import "./_settings.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import AppContext from "../../context"
 import { logout } from "../../shared/localStorage"
-import { formErrType, formType } from "../../shared/types"
-import UpdateEmailCard from "../../components/cards/updateEmailCard/updateEmailCard"
-import UpdateNameCard from "../../components/cards/updateNameCard/updateNameCard"
-import UpdatePPCard from "../../components/cards/updatePPCard/UpdatePPCard"
-import UpdatePassCard from "../../components/cards/updatePassCard/UpdatePassCard"
+import { formErrType, formType, SelectionModeState } from "../../shared/types"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
+import MUITextField from "../../components/utility/muiTextField/MUITextField"
+import { inputLabel, updateForm } from "../../shared/formValidation"
+import ProfileCard from "../../components/cards/profileCard/ProfileCard"
+import { updateUser } from "../../shared/requests/userRequests"
+import Confirm from "../Confirm/Confirm"
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()
   const { user, setUser } = useContext(AppContext)
   const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
   const [loading, setLoading] = useState(false)
+  const [showEmailChanged, setShowEmailChanged] = useState(false)
   const [form, setForm] = useState<formType>({
     icon: null,
     profile_picture: null,
@@ -28,9 +31,19 @@ const Settings: React.FC = () => {
     email: "",
     dropzone: "",
   })
+  const [selectionMode, setSelectionMode] = useState<SelectionModeState>({
+    active: false,
+    targetSlot: null,
+  })
+  const [featuredBadgeLoading] = useState(false)
+  const dropzoneOpenRef = useRef<(() => void) | null>(null)
 
   // Check if form has changes compared to current user data.
-  const hasChanges = form.name !== user.name || form.email !== user.email
+  const hasChanges =
+    form.name !== user.name ||
+    form.email !== user.email ||
+    form.icon !== null ||
+    form.profile_picture !== null
 
   // Check if form has any validation errors.
   const hasErrors = Object.values(formErr).some(err => !!err)
@@ -38,14 +51,48 @@ const Settings: React.FC = () => {
   // Handle save button click.
   const handleSave = async () => {
     if (!hasChanges || hasErrors) return
-    setLoading(true)
-    // TODO: Implement save logic for name/email updates.
-    setLoading(false)
+
+    const result = await updateUser(form, user, setUser, navigate, setLoading, setBackendErr)
+
+    if (result.success) {
+      // Reset form to reflect saved values.
+      setForm(prev => ({
+        ...prev,
+        name: user.name,
+        email: user.email,
+        icon: null,
+        profile_picture: null,
+      }))
+
+      if (result.emailChanged) {
+        setShowEmailChanged(true)
+      }
+    }
+  }
+
+  // Show email changed confirmation view.
+  if (showEmailChanged) {
+    return (
+      <Confirm
+        variant="success"
+        icon={<Email />}
+        heading="Verification Email Sent"
+        paragraphs={[
+          "We've sent a verification link to your new email address.",
+          "Please check your inbox and click the link to confirm the change.",
+          "The link will expire in 24 hours."
+        ]}
+        cancelText="Back to Settings"
+        confirmText="Got it"
+        onCancel={() => setShowEmailChanged(false)}
+        onConfirm={() => setShowEmailChanged(false)}
+      />
+    )
   }
 
   return (
-    <div className="content-container settings-content">
-      <UpdateNameCard
+    <div className="content-container">
+      <ProfileCard<formType, formErrType>
         user={user}
         setUser={setUser}
         form={form}
@@ -54,19 +101,49 @@ const Settings: React.FC = () => {
         setFormErr={setFormErr}
         backendErr={backendErr}
         setBackendErr={setBackendErr}
+        selectionMode={selectionMode}
+        setSelectionMode={setSelectionMode}
+        featuredBadgeLoading={featuredBadgeLoading}
+        dropzoneOpenRef={dropzoneOpenRef}
+        disableBadgeSlots
       />
-      <UpdateEmailCard
-        user={user}
-        setUser={setUser}
-        form={form}
-        setForm={setForm}
-        formErr={formErr}
-        setFormErr={setFormErr}
-        backendErr={backendErr}
-        setBackendErr={setBackendErr}
-      />
-      <UpdatePPCard />
-      <UpdatePassCard />
+      <div className="settings-content">
+        <MUITextField
+          inputProps={{ maxLength: 30 }}
+          className="mui-form-el"
+          name="name"
+          label={inputLabel("name", formErr, backendErr)}
+          value={form.name ?? ""}
+          onChange={e => updateForm<formType, formErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
+          error={!!formErr.name || backendErr.type === "name"}
+        />
+        <MUITextField
+          className="mui-form-el"
+          name="email"
+          label={inputLabel("email", formErr, backendErr)}
+          value={form.email ?? ""}
+          onChange={e => updateForm<formType, formErrType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
+          error={!!formErr.email || backendErr.type === "email"}
+        />
+        <Button
+          variant="contained"
+          className="settings-action-btn"
+          onClick={() => dropzoneOpenRef.current?.()}
+          startIcon={<ImageIcon />}
+          fullWidth
+        >
+          Change Profile Picture
+        </Button>
+        <Button
+          variant="contained"
+          className="settings-action-btn"
+          onClick={() => navigate("/password")}
+          startIcon={<LockIcon />}
+          fullWidth
+        >
+          Change Password
+        </Button>
+      </div>
       <ButtonBar buttons={[
         { label: "Back", onClick: () => navigate("/profile"), startIcon: <ArrowBack />, color: "inherit" },
         { label: "Save", onClick: handleSave, startIcon: <Save />, disabled: !hasChanges || hasErrors, loading, color: "success" },

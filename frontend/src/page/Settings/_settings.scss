@@ -1,3 +1,14 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
 .settings-content {
-  padding-bottom: 80px; // Space for floating button bar.
+  padding: 20px 7.5% 80px !important;
+  background: white;
+  flex-grow: 1;
+
+  // Full-width action buttons for profile picture and password changes.
+  .settings-action-btn {
+    width: 100%;
+    margin-bottom: 20px !important;
+  }
 }

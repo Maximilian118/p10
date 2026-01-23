@@ -36,7 +36,7 @@ const Schema = buildSchema(`
     createUser(userInput: userInput): User!
     forgot(email: String!): String!
     updatePP(icon: String!, profile_picture: String!): User!
-    updateName(name: String!): User!
+    updateUser(input: UpdateUserInput!): UpdateUserResult!
     updateEmail(email: String!): String!
     confirmEmailChange(token: String!): User!
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!

@@ -1,10 +1,13 @@
-import { Button, CircularProgress, TextField } from "@mui/material"
+import { TextField } from "@mui/material"
 import React, { useContext, useState } from "react"
-import { inputLabel, updateForm } from "../shared/formValidation"
-import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
-import { updatePassword } from "../shared/requests/userRequests"
-import AppContext from "../context"
+import { ArrowBack, Lock } from "@mui/icons-material"
+import { inputLabel, updateForm } from "../../shared/formValidation"
+import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
+import { updatePassword } from "../../shared/requests/userRequests"
+import AppContext from "../../context"
 import { useNavigate } from "react-router-dom"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
+import "./_password.scss"
 
 export interface passFormType {
   currentPass: string
@@ -21,33 +24,29 @@ const initPassForm = {
 
 const Password: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
-  const [ loading, setLoading ] = useState<boolean>(false)
-  const [ success, setSuccess ] = useState<boolean>(false)
-  const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
-  const [ form, setForm ] = useState<passFormType>(initPassForm)
-  const [ formErr, setFormErr ] = useState<passFormType>(initPassForm)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [success, setSuccess] = useState<boolean>(false)
+  const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
+  const [form, setForm] = useState<passFormType>(initPassForm)
+  const [formErr, setFormErr] = useState<passFormType>(initPassForm)
 
   const navigate = useNavigate()
 
-  const updatePassHandler = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  // Handle password change submission.
+  const updatePassHandler = async () => {
     setSuccess(false)
     await updatePassword(form, user, setUser, setLoading, setBackendErr, setSuccess, navigate)
   }
 
   return (
-    <form 
-      className="content-container" 
-      style={{ background: "white" }}
-      onSubmit={e => updatePassHandler(e)}
-    >
+    <div className="content-container password-content">
       <TextField
         required={!formErr.currentPass}
         type="password"
         className="mui-form-el"
         style={{ marginTop: 40 }}
         name="currentPass"
-        label={inputLabel("currentPass", formErr, backendErr)} 
+        label={inputLabel("currentPass", formErr, backendErr)}
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.currentPass}
@@ -69,21 +68,24 @@ const Password: React.FC = () => {
         required={!formErr.newPass}
         type="password"
         className="mui-form-el"
-        name="passConfirm" 
-        label={inputLabel("passConfirm", formErr, backendErr)} 
+        name="passConfirm"
+        label={inputLabel("passConfirm", formErr, backendErr)}
         variant="filled"
         onChange={e => updateForm<passFormType, passFormType>(e, form, setForm, setFormErr, backendErr, setBackendErr)}
         value={form.passConfirm}
         error={formErr.passConfirm || backendErr.type === "passConfirm" ? true : false}
       />
-      <Button
-        variant="contained" 
-        type="submit"
-        style={{ margin: "20px 0 40px 0" }}
-        startIcon={loading && <CircularProgress size={20} color={"inherit"}/>}
-        color={success ? "success" : "primary"}
-      >{success? "Password Changed" : "Change Password"}</Button>
-    </form>
+      <ButtonBar buttons={[
+        { label: "Back", onClick: () => navigate("/settings"), startIcon: <ArrowBack />, color: "inherit" },
+        {
+          label: success ? "Password Changed" : "Change Password",
+          onClick: updatePassHandler,
+          startIcon: <Lock />,
+          loading,
+          color: success ? "success" : "primary",
+        },
+      ]} />
+    </div>
   )
 }
 

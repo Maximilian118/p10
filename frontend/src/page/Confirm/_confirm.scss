@@ -1,8 +1,8 @@
-@use '../../../../../scss/mixins';
-@use '../../../../../scss/variables';
+@use '../../scss/mixins';
+@use '../../scss/variables';
 
 // Reusable confirmation view styles with variant support.
-.confirm-view {
+.confirm {
   width: 100%;
   flex-grow: 1;
   color: white;
@@ -15,7 +15,7 @@
   &--danger {
     background-color: variables.$f1-red;
 
-    .confirm-view__btn--confirm {
+    .confirm__btn--confirm {
       background-color: white !important;
       color: variables.$f1-red !important;
 
@@ -29,7 +29,7 @@
   &--success {
     background-color: variables.$mui-success;
 
-    .confirm-view__btn--confirm {
+    .confirm__btn--confirm {
       background-color: white !important;
       color: variables.$mui-success !important;
 
