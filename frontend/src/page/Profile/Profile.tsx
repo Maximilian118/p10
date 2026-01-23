@@ -36,6 +36,9 @@ const Profile: React.FC = () => {
     targetSlot: null,
   })
 
+  // Loading state for featured badge mutations (add/remove).
+  const [featuredBadgeLoading, setFeaturedBadgeLoading] = useState<boolean>(false)
+
   // Ref for badge picker area to detect clicks outside.
   const badgePickerRef = useRef<HTMLDivElement>(null)
 
@@ -86,7 +89,29 @@ const Profile: React.FC = () => {
       user,
       setUser,
       navigate,
-      setBackendErr
+      setBackendErr,
+      setFeaturedBadgeLoading
+    )
+    setSelectionMode({ active: false, targetSlot: null })
+  }, [selectionMode, user, setUser, navigate])
+
+  // Handler for removing a badge from the currently selected slot.
+  const handleBadgeRemove = useCallback(async () => {
+    if (!selectionMode.active || selectionMode.targetSlot === null) return
+
+    // Find the badge currently in the target slot.
+    const badgeInSlot = user.badges.find(b => b.featured === selectionMode.targetSlot)
+    if (!badgeInSlot) return
+
+    // Call setFeaturedBadge with position=null to remove from featured.
+    await setFeaturedBadge(
+      badgeInSlot._id,
+      null,
+      user,
+      setUser,
+      navigate,
+      setBackendErr,
+      setFeaturedBadgeLoading
     )
     setSelectionMode({ active: false, targetSlot: null })
   }, [selectionMode, user, setUser, navigate])
@@ -106,11 +131,13 @@ const Profile: React.FC = () => {
         setBackendErr={setBackendErr}
         selectionMode={selectionMode}
         setSelectionMode={setSelectionMode}
+        featuredBadgeLoading={featuredBadgeLoading}
       />
       <BadgeChampPicker
         user={user}
         selectionMode={selectionMode}
         onBadgeSelect={handleBadgeSelect}
+        onBadgeRemove={handleBadgeRemove}
         ref={badgePickerRef}
       />
       <ButtonBar buttons={[

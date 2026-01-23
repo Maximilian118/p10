@@ -497,6 +497,8 @@ const countries: readonly countryType[] = [
   { code: 'ZW', label: 'Zimbabwe', phone: '263' },
 ]
 
+// Utility function to find country by label string.
+// eslint-disable-next-line react-refresh/only-export-components
 export const findCountryByString = (countryStr: string): countryType | null => {
   let country = null
 

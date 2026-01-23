@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useRef } from "react"
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useEffect, useRef } from "react"
 
 // Handlers that a nested form provides to the parent ButtonBar.
 export interface FormHandlers {

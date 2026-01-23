@@ -33,7 +33,6 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
 }) => {
   // Navigation constraints - can only view completed rounds.
   const lastCompletedIndex = Math.max(0, completedRounds - 1)
-  const isAtLatestCompleted = viewedRoundIndex >= lastCompletedIndex
   const canGoBack = viewedRoundIndex > 0
   const canGoForward = completedRounds > 0 && viewedRoundIndex < lastCompletedIndex
 

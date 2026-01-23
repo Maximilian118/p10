@@ -566,8 +566,6 @@ const Championship: React.FC = () => {
       // Exit early if no changes.
       if (!adminChanged) return
 
-      const previousChamp = champ
-
       // Optimistic update: immediately reflect changes in UI.
       setChamp(prev => prev ? applyAdminOptimistically(prev, adminUpdates) : prev)
 

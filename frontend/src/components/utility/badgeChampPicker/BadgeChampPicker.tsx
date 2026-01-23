@@ -5,17 +5,19 @@ import { userBadgeSnapshotType, userType } from "../../../shared/localStorage"
 import { SelectionModeState } from "../../../shared/types"
 import Badge from "../badge/Badge"
 import { WorkspacePremium } from "@mui/icons-material"
+import { Button } from "@mui/material"
 
 interface BadgeChampPickerProps {
   user: userType
   selectionMode: SelectionModeState
   onBadgeSelect: (badgeId: string) => void
+  onBadgeRemove: () => void
 }
 
 // Badge picker component that displays badges organized by championship.
 // In selection mode, displays a unified grid of all badges for easy selection.
 const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
-  ({ user, selectionMode, onBadgeSelect }, ref) => {
+  ({ user, selectionMode, onBadgeSelect, onBadgeRemove }, ref) => {
 
     // Collect all earned badges sorted by rarity (highest first) for selection mode.
     const allEarnedBadges = useMemo(() => {
@@ -23,6 +25,12 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
         .filter(badge => badge.url)
         .sort((a, b) => b.rarity - a.rarity)
     }, [user.badges])
+
+    // Check if the currently selected slot already has a badge assigned.
+    const targetSlotHasBadge = useMemo(() => {
+      if (!selectionMode.active || selectionMode.targetSlot === null) return false
+      return user.badges.some(badge => badge.featured === selectionMode.targetSlot)
+    }, [selectionMode, user.badges])
 
     // Handles badge click during selection mode.
     const handleBadgeClick = (badge: userBadgeSnapshotType) => {
@@ -40,6 +48,16 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
         <div className={`badge-champ-tooltip ${selectionMode.active ? 'visible' : ''}`}>
           <WorkspacePremium/>
           <h5 className="tooltip-text">Select a Badge</h5>
+          {targetSlotHasBadge && (
+            <Button
+              variant="contained"
+              size="small"
+              sx={{ marginLeft: "auto" }}
+              onClick={onBadgeRemove}
+            >
+              Remove
+            </Button>
+          )}
         </div>
 
         {/* Normal mode: Championship sections with headers */}

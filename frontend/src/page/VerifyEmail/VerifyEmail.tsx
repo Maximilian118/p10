@@ -24,6 +24,8 @@ const VerifyEmail: React.FC = () => {
       setError("No verification token provided.")
       setLoading(false)
     }
+    // Only run on token change (mount-time verification).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   return (

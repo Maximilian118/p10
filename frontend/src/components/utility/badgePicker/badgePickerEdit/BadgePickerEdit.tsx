@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react"
 import './_badgePickerEdit.scss'
 import DropZone from "../../dropZone/DropZone"
-import { graphQLErrorType, initGraphQLError } from "../../../../shared/requests/requestsUtility"
+import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import MUISlider from "../../muiSlider/MUISlider"
 import { ZoomInMap, ZoomOutMap } from "@mui/icons-material"
 import BadgeOverlay from "../../badge/badgeOverlay/BadgeOverlay"
@@ -269,7 +269,6 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         isNewBadge,
       })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onHandlersReady, loading, isNewBadge])
 
   return (

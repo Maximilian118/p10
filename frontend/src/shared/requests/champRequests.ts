@@ -97,7 +97,6 @@ export const getChamps = async (
 export const getMyTopChampionship = async (
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
-  navigate: NavigateFunction,
 ): Promise<FloatingChampType | null> => {
   try {
     const res: AxiosResponse = await axios.post(

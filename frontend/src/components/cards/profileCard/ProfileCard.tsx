@@ -27,6 +27,7 @@ interface profileCardEditableType<T, U> {
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
   selectionMode: SelectionModeState
   setSelectionMode: React.Dispatch<React.SetStateAction<SelectionModeState>>
+  featuredBadgeLoading: boolean
   readOnly?: false
 }
 
@@ -81,7 +82,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   }
 
   // Editable mode for own profile.
-  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode } = props
+  const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode, featuredBadgeLoading } = props
 
   const uploadPPHandler = async () => {
     await updatePP(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
@@ -98,6 +99,11 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
     const featuredBadge = user.badges.find(b => b.featured === position)
     const isSelected = selectionMode.active && selectionMode.targetSlot === position
 
+    // Show spinner on the target slot while featured badge mutation is in progress.
+    if (featuredBadgeLoading && selectionMode.targetSlot === position) {
+      return <CircularProgress key={position} size="small"/>
+    }
+
     if (featuredBadge) {
       return (
         <div
@@ -109,6 +115,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
         </div>
       )
     }
+
     return (
       <BadgePlaceholder
         key={position}

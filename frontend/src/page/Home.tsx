@@ -20,7 +20,7 @@ const Home: React.FC = () => {
 
       // Fetch all home page data in parallel.
       const [topChamp] = await Promise.all([
-        getMyTopChampionship(user, setUser, navigate),
+        getMyTopChampionship(user, setUser),
       ])
 
       setFloatingChamp(topChamp)
