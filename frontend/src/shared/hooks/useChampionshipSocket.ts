@@ -14,12 +14,14 @@ import {
 
 // Hook to manage socket connection and championship room subscription.
 // Automatically joins the championship room and listens for round status changes and bet updates.
+// If isBanned is true, the socket room will not be joined.
 export const useChampionshipSocket = (
   champId: string | undefined,
   onRoundStatusChange?: (payload: RoundStatusPayload) => void,
   onBetPlaced?: (payload: BetPlacedPayload) => void,
   onBetConfirmed?: (payload: BetConfirmedPayload) => void,
   onBetRejected?: (payload: BetRejectedPayload) => void,
+  isBanned?: boolean,
 ): void => {
   const { user } = useContext(AppContext)
   const statusCallbackRef = useRef(onRoundStatusChange)
@@ -52,8 +54,12 @@ export const useChampionshipSocket = (
   }, [user.token])
 
   // Join/leave championship room when champId changes.
+  // Skips joining if user is banned from the championship.
   useEffect(() => {
     if (!champId || !user.token) return
+
+    // Don't join socket room if user is banned.
+    if (isBanned) return
 
     const socket = getSocket()
     if (!socket) return
@@ -73,7 +79,7 @@ export const useChampionshipSocket = (
       socket.off("connect", joinRoom)
       leaveChampionshipRoom(champId)
     }
-  }, [champId, user.token])
+  }, [champId, user.token, isBanned])
 
   // Listen for round status changes.
   useEffect(() => {

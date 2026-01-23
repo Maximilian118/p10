@@ -844,3 +844,98 @@ export const deleteChamp = async (
 
   return result
 }
+
+// Bans a competitor from a championship (adjudicator or admin only).
+// The competitor will be removed from the active roster but their points remain.
+export const banCompetitor = async (
+  champId: string,
+  competitorId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId, competitorId },
+          query: `
+            mutation BanCompetitor($_id: ID!, $competitorId: ID!) {
+              banCompetitor(_id: $_id, competitorId: $competitorId) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("banCompetitor", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("banCompetitor", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("banCompetitor", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("banCompetitor", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}
+
+// Unbans a competitor from a championship (adjudicator or admin only).
+export const unbanCompetitor = async (
+  champId: string,
+  competitorId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId, competitorId },
+          query: `
+            mutation UnbanCompetitor($_id: ID!, $competitorId: ID!) {
+              unbanCompetitor(_id: $_id, competitorId: $competitorId) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("unbanCompetitor", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("unbanCompetitor", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("unbanCompetitor", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("unbanCompetitor", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}

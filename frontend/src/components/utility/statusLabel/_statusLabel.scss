@@ -1,0 +1,25 @@
+@use '../../../scss/variables';
+
+.status-label {
+  margin-left: auto;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: white;
+  border-radius: 4px;
+  text-transform: capitalize;
+
+  // Colour variants.
+  &--default {
+    background: variables.$colour-4;
+  }
+  
+  &--error {
+    background: variables.$error;
+  }
+
+  &--success {
+    background: variables.$mui-success;
+  }
+}

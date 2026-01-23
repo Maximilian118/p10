@@ -75,6 +75,7 @@ export const champPopulation = [
   { path: "series", populate: { path: "drivers", populate: { path: "teams", model: "Team", select: "_id name icon emblem" } } },
   { path: "competitors", select: "_id name icon profile_picture permissions created_at" },
   { path: "waitingList", select: "_id name icon" },
+  { path: "banned", select: "_id name icon" },
   { path: "created_by", select: "_id name icon" },
   // Rules and regulations population.
   { path: "rulesAndRegs.created_by", select: "_id name icon" },

@@ -9,6 +9,7 @@ import {
   seriesType,
   teamType,
   driverType,
+  userType as fullUserType,
 } from "./types"
 
 // Returns the backend API URL based on current browser location.
@@ -174,30 +175,29 @@ export const getTeamsFromRound = (round: RoundType): TeamEntryType[] => {
 
 // Get all drivers from series, with entry data if available in round.
 // Uses String() conversion for ID comparison to handle ObjectId vs string type mismatches.
+// Returns drivers sorted by their season standing (positionDrivers) for display.
 export const getAllDriversForRound = (series: seriesType, round: RoundType): DriverEntryType[] => {
   const entryMap = new Map(round.drivers?.map((d) => [String(d.driver._id), d]) || [])
 
-  const sorted = series.drivers
+  return series.drivers
     .map((driver) => {
       const existing = entryMap.get(String(driver._id))
       if (existing) {
         // Use driver from series (has teams populated) with entry data from round.
         return { ...existing, driver }
       }
-      // Create default entry with 0 points.
+      // Create default entry with 0 points for drivers not in the round.
       return {
         driver,
         points: 0,
         totalPoints: 0,
         position: 0,
-        positionDrivers: 0,
+        positionDrivers: series.drivers.length, // New drivers start at the end.
         positionActual: 0,
       }
     })
-    .sort((a, b) => b.totalPoints - a.totalPoints || a.driver.name.localeCompare(b.driver.name))
-
-  // Assign positions based on sorted order.
-  return sorted.map((entry, i) => ({ ...entry, position: i + 1 }))
+    // Sort by backend-calculated season standing (positionDrivers), then alphabetically as tiebreaker.
+    .sort((a, b) => a.positionDrivers - b.positionDrivers || a.driver.name.localeCompare(b.driver.name))
 }
 
 // Returns podium class for coloring based on position.
@@ -237,6 +237,9 @@ export const getContrastTextColor = (hexColor: string): "black" | "white" => {
 
 // Get all unique teams from series drivers, with entry data if available.
 // Uses String() conversion for ID comparison to handle ObjectId vs string type mismatches.
+// Get all unique teams from series drivers, with entry data if available.
+// Uses String() conversion for ID comparison to handle ObjectId vs string type mismatches.
+// Returns teams sorted by their season standing (positionConstructors) for display.
 export const getAllTeamsForRound = (series: seriesType, round: RoundType): TeamEntryType[] => {
   const entryMap = new Map(round.teams?.map((t) => [String(t.team._id), t]) || [])
 
@@ -257,7 +260,9 @@ export const getAllTeamsForRound = (series: seriesType, round: RoundType): TeamE
     })
   })
 
-  const sorted = Array.from(teamsMap.values())
+  const totalTeams = teamsMap.size
+
+  return Array.from(teamsMap.values())
     .map((team) => {
       const existing = entryMap.get(String(team._id))
       // Build team with drivers populated from series data.
@@ -271,18 +276,85 @@ export const getAllTeamsForRound = (series: seriesType, round: RoundType): TeamE
           team: teamWithDrivers,
         }
       }
-      // Create default entry with 0 points.
+      // Create default entry with 0 points for teams not in the round.
       return {
         team: teamWithDrivers,
         drivers: teamDriversMap.get(team._id!) || [],
         points: 0,
         totalPoints: 0,
         position: 0,
-        positionConstructors: 0,
+        positionConstructors: totalTeams, // New teams start at the end.
       }
     })
-    .sort((a, b) => b.totalPoints - a.totalPoints || a.team.name.localeCompare(b.team.name))
+    // Sort by backend-calculated season standing (positionConstructors), then alphabetically as tiebreaker.
+    .sort((a, b) => a.positionConstructors - b.positionConstructors || a.team.name.localeCompare(b.team.name))
+}
 
-  // Assign positions based on sorted order.
-  return sorted.map((entry, i) => ({ ...entry, position: i + 1 }))
+// Collects all unique competitor IDs that have participated in any round.
+export const getAllRoundCompetitorIds = (rounds: RoundType[]): Set<string> => {
+  const ids = new Set<string>()
+  rounds.forEach((round) => {
+    round.competitors?.forEach((c) => {
+      if (c.competitor?._id) {
+        ids.add(c.competitor._id)
+      }
+    })
+  })
+  return ids
+}
+
+// Checks if a competitor is inactive (not in champ.competitors array or is banned).
+export const isCompetitorInactive = (
+  competitorId: string,
+  champCompetitors: fullUserType[],
+  banned: fullUserType[],
+): boolean => {
+  const inCompetitors = champCompetitors.some((c) => c._id === competitorId)
+  const isBanned = banned?.some((b) => b._id === competitorId)
+  return !inCompetitors || isBanned
+}
+
+// Aggregates all competitors from all rounds into a single array with their latest data.
+// Returns competitors sorted by their last known position, including inactive ones.
+export const aggregateAllCompetitors = (
+  rounds: RoundType[],
+  champCompetitors: fullUserType[],
+  banned: fullUserType[],
+): (CompetitorEntryType & { isInactive: boolean; isBanned: boolean })[] => {
+  // Build a map of competitor ID to their latest entry data.
+  const competitorMap = new Map<string, CompetitorEntryType>()
+
+  // Only consider completed rounds where totalPoints has been calculated.
+  const completedRounds = rounds.filter(r => r.status === "completed" || r.status === "results")
+
+  // Iterate through completed rounds to collect competitor data.
+  completedRounds.forEach((round) => {
+    round.competitors?.forEach((entry) => {
+      if (entry.competitor?._id) {
+        // Always update with the latest completed round data.
+        competitorMap.set(entry.competitor._id, entry)
+      }
+    })
+  })
+
+  // Convert to array and add inactive/banned status.
+  const competitors = Array.from(competitorMap.values()).map((entry) => {
+    const isBanned = banned?.some((b) => b._id === entry.competitor._id) ?? false
+    const inCompetitors = champCompetitors.some((c) => c._id === entry.competitor._id)
+    return {
+      ...entry,
+      isInactive: !inCompetitors || isBanned,
+      isBanned,
+    }
+  })
+
+  // Sort by position (active competitors first, then by position).
+  return competitors.sort((a, b) => {
+    // Active competitors come before inactive.
+    if (a.isInactive !== b.isInactive) {
+      return a.isInactive ? 1 : -1
+    }
+    // Then sort by position.
+    return a.position - b.position
+  })
 }

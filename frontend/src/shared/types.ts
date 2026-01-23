@@ -203,6 +203,7 @@ export interface RoundType {
   round: number
   status: RoundStatus
   statusChangedAt: string | null // ISO timestamp for when status changed (for countdown sync).
+  resultsProcessed: boolean // Has resultsHandler() already processed this round? Prevents double execution.
   winner: userType | null // Competitor who scored max points (null if none).
   runnerUp: userType | null // Runner-up competitor for this round.
   competitors: CompetitorEntryType[]
@@ -327,6 +328,9 @@ export interface ChampType {
 
   // Waiting list (position is array index).
   waitingList: userType[]
+
+  // Banned users - cannot rejoin the championship.
+  banned: userType[]
 
   // History of each season.
   history: ChampHistoryType[]

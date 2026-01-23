@@ -98,14 +98,29 @@ export const initializeSocket = (io: Server): void => {
     socket.on(SOCKET_EVENTS.JOIN_CHAMPIONSHIP, async (champId: string) => {
       if (!champId) return
       const roomName = `championship:${champId}`
-      socket.join(roomName)
-      console.log(`User ${socket.data.userId} joined room ${roomName}`)
 
-      // Fetch current championship state and emit to the joining socket.
+      // Fetch current championship state and check if user is banned.
       try {
         const champ = await Champ.findById(champId)
-        if (champ) {
-          const activeRoundIndex = champ.rounds.findIndex(
+        if (!champ) {
+          socket.emit(SOCKET_EVENTS.ERROR, { message: "Championship not found" })
+          return
+        }
+
+        // Check if user is banned from this championship.
+        const isBanned = champ.banned?.some((b) => b.toString() === socket.data.userId)
+        if (isBanned) {
+          socket.emit(SOCKET_EVENTS.ERROR, { message: "You are banned from this championship" })
+          console.log(`User ${socket.data.userId} tried to join room ${roomName} but is banned`)
+          return
+        }
+
+        // Join the room.
+        socket.join(roomName)
+        console.log(`User ${socket.data.userId} joined room ${roomName}`)
+
+        // Emit current round state to the joining socket.
+        const activeRoundIndex = champ.rounds.findIndex(
             (r) => r.status !== "completed" && r.status !== "waiting",
           )
           if (activeRoundIndex !== -1) {
@@ -119,7 +134,6 @@ export const initializeSocket = (io: Server): void => {
             socket.emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
             console.log(`Sent initial state to user ${socket.data.userId}: round ${activeRoundIndex} -> ${round.status}`)
           }
-        }
       } catch (err) {
         console.error(`Error fetching initial state for ${champId}:`, err)
       }

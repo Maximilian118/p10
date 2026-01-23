@@ -46,6 +46,8 @@ const Schema = buildSchema(`
     updateChampSettings(_id: ID!, settings: ChampSettingsInput!): Champ!
     updateAdminSettings(_id: ID!, settings: AdminSettingsInput!): Champ!
     joinChamp(_id: ID!): Champ!
+    banCompetitor(_id: ID!, competitorId: ID!): Champ!
+    unbanCompetitor(_id: ID!, competitorId: ID!): Champ!
     updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     placeBet(_id: ID!, input: PlaceBetInput!): Champ!
     submitDriverPositions(_id: ID!, input: SubmitDriverPositionsInput!): Champ!

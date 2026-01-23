@@ -38,6 +38,8 @@ interface champToolbarType {
   onBack?: () => void
   onJoinSuccess?: () => void
   onDrawerClick?: () => void
+  adjudicatorView?: boolean
+  onExitAdjudicatorView?: () => void
   settingsProps?: FormToolbarProps
   automationProps?: FormToolbarProps
   protestsProps?: FormToolbarProps
@@ -57,6 +59,8 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   onBack,
   onJoinSuccess,
   onDrawerClick,
+  adjudicatorView,
+  onExitAdjudicatorView,
   settingsProps,
   automationProps,
   protestsProps,
@@ -98,8 +102,21 @@ const ChampToolbar: React.FC<champToolbarType> = ({
     Object.values(formProps?.formErr || {}).some(err => !!err)
   )
 
+  // Check if user is banned from this championship.
+  const isBanned = champ.banned?.some(b => b._id === user._id)
+
   // Get join/invite button config based on championship state.
   const getJoinButtonConfig = (): ButtonConfig | undefined => {
+    // Show "You are banned" button if user is banned.
+    if (isBanned) {
+      return {
+        label: "You are banned",
+        endIcon: <Block />,
+        color: "error",
+        disabled: true,
+      }
+    }
+
     if (!champ.settings.inviteOnly) {
       if (isCompetitor) return undefined
       if (isFull) {
@@ -144,6 +161,21 @@ const ChampToolbar: React.FC<champToolbarType> = ({
       startIcon: <ArrowBack />,
       color: "inherit",
     }
+  }
+
+  // Adjudicator view on competitors - simplified toolbar (back + views only).
+  if (view === "competitors" && adjudicatorView) {
+    return (
+      <ButtonBar
+        leftButtons={[{
+          label: "Back",
+          onClick: onExitAdjudicatorView,
+          startIcon: <ArrowBack />,
+          color: "inherit",
+        }]}
+        rightButtons={[{ label: "Views", onClick: onDrawerClick, endIcon: <FilterList /> }]}
+      />
+    )
   }
 
   // Badges view (not edit mode) - uses grouped layout.

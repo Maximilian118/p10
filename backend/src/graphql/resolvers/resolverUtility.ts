@@ -841,6 +841,25 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   const currentRound = champ.rounds[roundIndex]
 
   // ============================================================================
+  // SAFETY GUARDS: Prevent invalid or duplicate processing
+  // ============================================================================
+  // Guard 1: Only process rounds in "results" status.
+  if (currentRound.status !== "results") {
+    console.warn(
+      `[resultsHandler] Skipping - round ${roundIndex + 1} has status "${currentRound.status}", expected "results"`,
+    )
+    return
+  }
+
+  // Guard 2: Prevent double execution using the resultsProcessed flag.
+  if (currentRound.resultsProcessed) {
+    console.log(
+      `[resultsHandler] Skipping - round ${roundIndex + 1} already processed`,
+    )
+    return
+  }
+
+  // ============================================================================
   // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
   // ============================================================================
   // Use championship-level competitors as the roster (source of truth).
@@ -1018,6 +1037,9 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // - Notify users of their round results
   // - Notify users of badges earned
   // - Notify users of position changes
+
+  // Mark this round as processed to prevent double execution.
+  currentRound.resultsProcessed = true
 
   // Save all changes to the database.
   // Mark rounds as modified so Mongoose detects changes to nested driver/team arrays.

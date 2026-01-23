@@ -549,6 +549,11 @@ export const populateChamp = `
     name
     icon
   }
+  banned {
+    _id
+    name
+    icon
+  }
   history {
     season
     adjudicator {

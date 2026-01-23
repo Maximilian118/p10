@@ -8,6 +8,7 @@ import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import BarChartIcon from "@mui/icons-material/BarChart"
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings"
+import VisibilityIcon from "@mui/icons-material/Visibility"
 import "./_viewsDrawer.scss"
 
 interface ViewsDrawerProps {
@@ -18,6 +19,8 @@ interface ViewsDrawerProps {
   onBackToDefault: () => void
   canAccessSettings: boolean
   isAdmin: boolean
+  adjudicatorViewActive?: boolean
+  onToggleAdjudicatorView?: () => void
 }
 
 // View item configuration.
@@ -27,6 +30,8 @@ interface ViewItem {
   onClick: () => void
   visible?: boolean
   viewId?: ChampView
+  isToggle?: boolean
+  isActive?: boolean
 }
 
 // Championship views drawer - slides up from bottom.
@@ -38,6 +43,8 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   onBackToDefault,
   canAccessSettings,
   isAdmin,
+  adjudicatorViewActive,
+  onToggleAdjudicatorView,
 }) => {
   // Close drawer when clicking outside.
   const handleClickAway = () => {
@@ -75,6 +82,17 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
       onClick: handleSettingsClick,
       visible: canAccessSettings,
       viewId: "settings",
+    },
+    {
+      icon: <VisibilityIcon />,
+      label: "Adjudicator View",
+      onClick: () => {
+        setOpen(false)
+        onToggleAdjudicatorView?.()
+      },
+      visible: canAccessSettings,
+      isToggle: true,
+      isActive: adjudicatorViewActive,
     },
     {
       icon: <GavelIcon />,
@@ -116,16 +134,20 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
       <div className={`views-drawer ${open ? "views-drawer-open" : ""}`}>
-        {visibleItems.map((item, index) => (
-          <div
-            key={index}
-            onClick={item.onClick}
-            className={`views-drawer-item ${item.viewId === view ? "views-drawer-item-active" : ""}`}
-          >
-            {item.icon}
-            {item.label}
-          </div>
-        ))}
+        {visibleItems.map((item, index) => {
+          // Determine if item should show active state.
+          const isActive = item.isToggle ? item.isActive : item.viewId === view
+          return (
+            <div
+              key={index}
+              onClick={item.onClick}
+              className={`views-drawer-item ${isActive ? "views-drawer-item-active" : ""}`}
+            >
+              {item.icon}
+              {item.label}
+            </div>
+          )
+        })}
       </div>
     </ClickAwayListener>
   )

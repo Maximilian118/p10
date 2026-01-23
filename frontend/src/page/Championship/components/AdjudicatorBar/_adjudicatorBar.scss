@@ -1,0 +1,17 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+.adjudicator-bar {
+  width: 100%;
+  height: 40px;
+  @include mixins.flexbox;
+  background: black;
+  flex-shrink: 0;
+  border-bottom: 2px solid variables.$background;
+  color: white;
+  flex-shrink: 0;
+
+  h5 {
+    font-weight: 300;
+  }
+}

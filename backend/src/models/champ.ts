@@ -43,6 +43,7 @@ export interface Round {
   round: number // Which round is it in the championship?
   status: RoundStatus // Current status of the round
   statusChangedAt: string | null // ISO timestamp when status was last changed (for 24h expiry)
+  resultsProcessed: boolean // Has resultsHandler() already processed this round? Prevents double execution.
   competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
   drivers: DriverEntry[] // All of the drivers in the champ and their data for this round.
   randomisedDrivers: DriverEntry[] // Randomized order of drivers for betting_open display.
@@ -189,6 +190,9 @@ export interface ChampType {
   // A waiting list of users that would like to join the championship but can't because it's full
   waitingList: ObjectId[]
 
+  // Users banned from this championship - cannot rejoin.
+  banned: ObjectId[]
+
   // History of each round of each season of this championship
   history: SeasonHistory[]
 
@@ -250,6 +254,7 @@ const roundSchema = new mongoose.Schema(
       default: "waiting",
     },
     statusChangedAt: { type: String, default: null },
+    resultsProcessed: { type: Boolean, default: false }, // Prevents double execution of resultsHandler()
     competitors: [competitorEntrySchema],
     drivers: [driverEntrySchema],
     randomisedDrivers: [driverEntrySchema],
@@ -433,6 +438,9 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Waiting list (position is array index).
   waitingList: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+
+  // Banned users - cannot rejoin the championship.
+  banned: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
   // History of each season.
   history: [SeasonHistorySchema],

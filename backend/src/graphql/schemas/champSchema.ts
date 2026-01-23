@@ -53,6 +53,7 @@ const champSchema = `
     round: Int!
     status: RoundStatus!
     statusChangedAt: String
+    resultsProcessed: Boolean!
     winner: User
     runnerUp: User
     competitors: [CompetitorEntry!]!
@@ -209,6 +210,7 @@ const champSchema = `
     champBadges: [Badge!]!
     competitors: [User!]!
     waitingList: [User!]!
+    banned: [User!]!
     history: [ChampHistory!]
     created_by: User
     created_at: String!

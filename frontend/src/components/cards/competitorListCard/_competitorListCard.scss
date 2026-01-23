@@ -33,6 +33,31 @@
   &__highlight {
     animation: highlightFade 1.5s ease-out forwards;
   }
+
+  // Inactive competitor styling (banned/left/deleted).
+  &--inactive {
+    background: variables.$background;
+    cursor: default;
+
+    // Fade child elements individually (not the unban button).
+    .image-icon,
+    .points,
+    .competitor-name {
+      opacity: 0.7;
+    }
+  }
+
+  // Ban button styling.
+  .ban-button {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  // Unban button styling.
+  .unban-button {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
 }
 
 // Keyframes for green to white fade animation.

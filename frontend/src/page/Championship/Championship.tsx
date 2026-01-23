@@ -2,8 +2,8 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType } from "../../shared/types"
-import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
+import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType, CompetitorEntryType } from "../../shared/types"
+import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound, aggregateAllCompetitors, isCompetitorInactive } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "./components/ChampBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
@@ -23,7 +23,7 @@ import Badges from "./Views/Badges/Badges"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -36,6 +36,7 @@ import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import { getAPIView } from "./Views/RoundStatus/APIViews"
 import Confirm from "../Confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
+import BlockIcon from "@mui/icons-material/Block"
 import {
   initSettingsForm,
   initAutomationForm,
@@ -57,6 +58,7 @@ import {
   applyRuleChangesOptimistically,
   applyAdminOptimistically,
 } from "./champUtility"
+import AdjudicatorBar from "./components/AdjudicatorBar/AdjudicatorBar"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -155,6 +157,13 @@ const Championship: React.FC = () => {
 
   // Show start round confirmation before beginning countdown.
   const [ showStartConfirm, setShowStartConfirm ] = useState<boolean>(false)
+
+  // Adjudicator view mode - reveals management controls on competitor cards.
+  const [ adjudicatorView, setAdjudicatorView ] = useState<boolean>(false)
+
+  // Ban confirmation dialog state.
+  const [ showBanConfirm, setShowBanConfirm ] = useState<boolean>(false)
+  const [ competitorToBan, setCompetitorToBan ] = useState<CompetitorEntryType | null>(null)
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -277,7 +286,9 @@ const Championship: React.FC = () => {
   }, [])
 
   // Connect to championship socket for real-time updates.
-  useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected)
+  // Skip joining socket room if user is banned from this championship.
+  const isBannedFromChamp = champ?.banned?.some(b => b._id === user._id) ?? false
+  useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected, isBannedFromChamp)
 
   // Navigate to a new view while tracking history.
   const navigateToView = (newView: ChampView) => {
@@ -676,7 +687,7 @@ const Championship: React.FC = () => {
     && roundStatusView !== "completed"
 
   // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm ? 1 : shrinkRatio
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm ? 1 : shrinkRatio
 
   // Compute round viewing state - based on COMPLETED rounds only.
   // Users can only navigate between completed rounds; "waiting" rounds are not viewable.
@@ -790,17 +801,22 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && (
-        <RoundsBar
-          totalRounds={champ.rounds.length}
-          completedRounds={completedRoundsCount}
-          viewedRoundIndex={viewedIndex}
-          standingsView={standingsView}
-          setViewedRoundIndex={setViewedRoundIndex}
-          setStandingsView={setStandingsView}
-          isAdjudicator={isAdjudicator}
-          onStartNextRound={() => setShowStartConfirm(true)}
-        />
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
+        <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
+          <div className="action-bar-inner">
+            {isAdjudicator && <AdjudicatorBar/>}
+            <RoundsBar
+              totalRounds={champ.rounds.length}
+              completedRounds={completedRoundsCount}
+              viewedRoundIndex={viewedIndex}
+              standingsView={standingsView}
+              setViewedRoundIndex={setViewedRoundIndex}
+              setStandingsView={setStandingsView}
+              isAdjudicator={isAdjudicator}
+              onStartNextRound={() => setShowStartConfirm(true)}
+            />
+          </div>
+        </div>
       )}
 
       <div className="content-container" onScroll={handleScroll}>
@@ -876,18 +892,80 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Ban competitor confirmation dialog */}
+        {showBanConfirm && competitorToBan && (
+          <Confirm
+            variant="danger"
+            icon={<BlockIcon />}
+            heading={`Ban ${competitorToBan.competitor.name}?`}
+            paragraphs={[
+              "This competitor will be banned from the championship.",
+              "They will not be able to rejoin.",
+              "Their current points will remain but they will be marked as inactive."
+            ]}
+            cancelText="Cancel"
+            confirmText="Ban Competitor"
+            onCancel={() => {
+              setShowBanConfirm(false)
+              setCompetitorToBan(null)
+            }}
+            onConfirm={async () => {
+              await banCompetitor(
+                champ._id,
+                competitorToBan.competitor._id,
+                setChamp,
+                user,
+                setUser,
+                navigate,
+                setBackendErr,
+              )
+              setShowBanConfirm(false)
+              setCompetitorToBan(null)
+            }}
+          />
+        )}
+
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
           <div className="championship-list">
-              {standingsView === "competitors" && viewedRound &&
-                getCompetitorsFromRound(viewedRound).map((c, i) => (
+              {standingsView === "competitors" && viewedRound && (() => {
+                // In adjudicator view, show all competitors from all rounds with inactive status.
+                // Filter out inactive competitors with 0 points (banned/left with no contribution).
+                const competitors = adjudicatorView
+                  ? aggregateAllCompetitors(champ.rounds, champ.competitors, champ.banned || [])
+                    .filter(c => !(c.isInactive && c.totalPoints === 0))
+                  : getCompetitorsFromRound(viewedRound).map(c => ({
+                      ...c,
+                      isInactive: isCompetitorInactive(c.competitor._id, champ.competitors, champ.banned || []),
+                      isBanned: champ.banned?.some(b => b._id === c.competitor._id) ?? false,
+                    })).filter(c => !(c.isInactive && c.totalPoints === 0))
+
+                return competitors.map((c, i) => (
                   <CompetitorListCard
                     key={c.competitor._id || i}
                     highlight={justJoined && c.competitor._id === user._id}
                     entry={c}
+                    adjudicatorView={adjudicatorView}
+                    isInactive={c.isInactive}
+                    isBanned={c.isBanned}
+                    onBanClick={() => {
+                      setCompetitorToBan(c)
+                      setShowBanConfirm(true)
+                    }}
+                    onUnbanClick={() => {
+                      unbanCompetitor(
+                        champ._id,
+                        c.competitor._id,
+                        setChamp,
+                        user,
+                        setUser,
+                        navigate,
+                        setBackendErr,
+                      )
+                    }}
                   />
                 ))
-              }
+              })()}
               {standingsView === "drivers" && viewedRound &&
                 getAllDriversForRound(champ.series, viewedRound).map((d, i) => (
                   <DriverListCard
@@ -1014,7 +1092,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && (
+        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}
@@ -1025,6 +1103,8 @@ const Championship: React.FC = () => {
             onBack={navigateBack}
             onJoinSuccess={() => setJustJoined(true)}
             onDrawerClick={() => setDrawerOpen(true)}
+            adjudicatorView={adjudicatorView}
+            onExitAdjudicatorView={() => setAdjudicatorView(false)}
             settingsProps={settingsToolbarProps}
             automationProps={automationToolbarProps}
             protestsProps={protestsToolbarProps}
@@ -1042,6 +1122,8 @@ const Championship: React.FC = () => {
         onBackToDefault={navigateToDefault}
         canAccessSettings={canAccessSettings}
         isAdmin={isAdmin}
+        adjudicatorViewActive={adjudicatorView}
+        onToggleAdjudicatorView={() => setAdjudicatorView(prev => !prev)}
       />
     </>
   )

@@ -86,6 +86,7 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
   round: roundNumber,
   status: "waiting",
   statusChangedAt: null, // Only set when status changes to an active state
+  resultsProcessed: false,
   competitors,
   drivers: [],
   randomisedDrivers: [],
@@ -563,6 +564,12 @@ const champResolvers = {
         )
       }
 
+      // Check if user is banned from this championship.
+      const isBanned = champ.banned?.some((b) => b.toString() === req._id)
+      if (isBanned) {
+        return throwError("joinChamp", req._id, "You are banned from this championship!", 403)
+      }
+
       // Check if championship is invite only.
       if (champ.settings.inviteOnly) {
         return throwError("joinChamp", req._id, "This championship is invite only!", 403)
@@ -621,7 +628,18 @@ const champResolvers = {
         deleted: false,
         updated_at: moment().format(),
       }
-      user.championships.push(champSnapshot)
+      // Check if championship snapshot already exists (user may be rejoining).
+      const existingSnapshotIndex = user.championships.findIndex(
+        (c) => c._id.toString() === champ._id.toString()
+      )
+
+      if (existingSnapshotIndex !== -1) {
+        // Update existing snapshot with current data.
+        user.championships[existingSnapshotIndex] = champSnapshot
+      } else {
+        // Add new snapshot.
+        user.championships.push(champSnapshot)
+      }
       await user.save()
 
       // Return populated championship.
@@ -633,6 +651,152 @@ const champResolvers = {
 
       // Filter admin settings for non-admin users.
       const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Bans a competitor from a championship (adjudicator or admin only).
+  // Banned users cannot rejoin and are marked as inactive in standings.
+  banCompetitor: async (
+    { _id, competitorId }: { _id: string; competitorId: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("banCompetitor", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("banCompetitor", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "banCompetitor",
+          req._id,
+          "Only adjudicator or admin can ban competitors!",
+          403,
+        )
+      }
+
+      // Cannot ban yourself.
+      if (competitorId === req._id) {
+        return throwError("banCompetitor", competitorId, "Cannot ban yourself!", 400)
+      }
+
+      // Cannot ban the current adjudicator.
+      if (competitorId === champ.adjudicator.current.toString()) {
+        return throwError("banCompetitor", competitorId, "Cannot ban the adjudicator!", 400)
+      }
+
+      // Check if competitor exists in championship competitors or in any round.
+      const inCompetitors = champ.competitors.some((c) => c.toString() === competitorId)
+      const inRounds = champ.rounds.some((r) =>
+        r.competitors.some((c) => c.competitor.toString() === competitorId),
+      )
+
+      if (!inCompetitors && !inRounds) {
+        return throwError(
+          "banCompetitor",
+          competitorId,
+          "User is not a competitor in this championship!",
+          400,
+        )
+      }
+
+      // Check if already banned.
+      const alreadyBanned = champ.banned?.some((b) => b.toString() === competitorId)
+      if (alreadyBanned) {
+        return throwError("banCompetitor", competitorId, "User is already banned!", 400)
+      }
+
+      // Add to banned array and remove from competitors array.
+      if (!champ.banned) {
+        champ.banned = []
+      }
+      champ.banned.push(new ObjectId(competitorId))
+
+      // Remove from championship-level competitors.
+      champ.competitors = champ.competitors.filter((c) => c.toString() !== competitorId)
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("banCompetitor", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Unbans a competitor from a championship (adjudicator or admin only).
+  unbanCompetitor: async (
+    { _id, competitorId }: { _id: string; competitorId: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("unbanCompetitor", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("unbanCompetitor", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "unbanCompetitor",
+          req._id,
+          "Only adjudicator or admin can unban competitors!",
+          403,
+        )
+      }
+
+      // Check if competitor is actually banned.
+      const isBanned = champ.banned?.some((b) => b.toString() === competitorId)
+      if (!isBanned) {
+        return throwError("unbanCompetitor", competitorId, "User is not banned!", 400)
+      }
+
+      // Remove from banned array.
+      champ.banned = champ.banned.filter((b) => b.toString() !== competitorId)
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("unbanCompetitor", _id, "Championship not found after update!", 404)
+      }
 
       return filterChampForUser({
         ...populatedChamp._doc,
