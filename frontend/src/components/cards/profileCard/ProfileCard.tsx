@@ -42,14 +42,16 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   const [ loading, setLoading ] = useState<boolean>(false)
   const navigate = useNavigate()
 
+  // Collect colors from featured badges for the AuraRing (must be before early return)
+  const featuredBadgeColors = useMemo(() => {
+    return props.user.badges
+      .filter(b => b.featured !== null && b.featured !== undefined)
+      .map(b => getBadgeColour(b.rarity))
+  }, [props.user.badges])
+
   // Read-only mode for viewing other users.
   if (props.readOnly) {
     const { user } = props
-
-    // Collect colors from featured badges for the AuraRing
-    const featuredBadgeColors = user.badges
-      .filter(b => b.featured !== null && b.featured !== undefined)
-      .map(b => getBadgeColour(b.rarity))
 
     // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
     const renderReadOnlySlot = (position: number) => {
@@ -80,13 +82,6 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
 
   // Editable mode for own profile.
   const { user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, selectionMode, setSelectionMode } = props
-
-  // Collect colors from featured badges for the AuraRing
-  const featuredBadgeColors = useMemo(() => {
-    return user.badges
-      .filter(b => b.featured !== null && b.featured !== undefined)
-      .map(b => getBadgeColour(b.rarity))
-  }, [user.badges])
 
   const uploadPPHandler = async () => {
     await updatePP(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
