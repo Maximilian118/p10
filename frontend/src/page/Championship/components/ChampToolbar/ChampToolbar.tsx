@@ -112,7 +112,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
           if (success && onJoinSuccess) onJoinSuccess()
         },
         endIcon: <GroupAdd />,
-        className: "champ-toolbar-join",
+        color: "success",
       }
     }
 
@@ -125,7 +125,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
         label: "Invite Competitors",
         onClick: () => {},
         endIcon: <GroupAdd />,
-        className: "champ-toolbar-join",
+        color: "success",
       }
     }
 
@@ -142,7 +142,6 @@ const ChampToolbar: React.FC<champToolbarType> = ({
       label: "Back",
       onClick: backHandler,
       startIcon: <ArrowBack />,
-      className: "champ-toolbar-back",
       color: "inherit",
     }
   }
@@ -191,7 +190,6 @@ const ChampToolbar: React.FC<champToolbarType> = ({
         startIcon: <Save />,
         disabled: isSaveDisabled,
         loading: formProps?.loading,
-        className: "champ-toolbar-save",
         color: "success",
       })
     }
