@@ -29,7 +29,6 @@
 .championship-list {
   width: 100%;
   @include mixins.flexbox-column;
-  padding-bottom: 80px;
   gap: 2px;
 }
 
