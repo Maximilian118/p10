@@ -60,6 +60,11 @@
           pointer-events: none;
         }
       }
+
+      // Read-only state for viewing other users' profiles.
+      &--readonly {
+        pointer-events: none;
+      }
     }
   }
 }

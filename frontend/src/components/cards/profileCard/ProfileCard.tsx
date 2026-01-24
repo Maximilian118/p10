@@ -75,7 +75,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
           <h5 style={{ textTransform: "capitalize" }}>
             {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
           </h5>
-          <div className="featured-badges">
+          <div className="featured-badges featured-badges--readonly">
             {[1, 2, 3, 4, 5, 6].map(renderReadOnlySlot)}
           </div>
         </div>
