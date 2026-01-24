@@ -52,14 +52,9 @@
   // Start next round button (adjudicator only)
   .rounds-bar-start-btn {
     @include mixins.flexbox;
-    background: variables.$mui-success;
 
     p, svg {
-      color: white;
-    }
-
-    &:hover {
-      background-color: variables.$mui-success-hover;
+      color: variables.$mui-success;
     }
 
     .rounds-bar-favicon {
