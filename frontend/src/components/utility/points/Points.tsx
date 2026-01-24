@@ -1,7 +1,7 @@
 import React from "react"
 import './_points.scss'
 import { getPodiumClass } from "../../../shared/utility"
-import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material"
+import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material"
 
 interface PointsType {
   total: number // totalPoints
@@ -22,12 +22,12 @@ const Points: React.FC<PointsType> = ({ total, last, position, canEdit, onPoints
 
   const top = !canEdit ? pointsDif : (
     <span className="add-points" onClick={e => pointsClickedHandler(e, 1)}>
-      <ArrowDropUp/>
+      <KeyboardArrowUp/>
     </span>
   )
   const bottom = !canEdit ? <p className="pts">pts</p> : (
     <span className="remove-points" onClick={e => pointsClickedHandler(e, -1)}>
-      <ArrowDropDown/>
+      <KeyboardArrowDown/>
     </span>
   )
 
