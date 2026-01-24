@@ -193,6 +193,9 @@ export interface ChampType {
   // Users banned from this championship - cannot rejoin.
   banned: ObjectId[]
 
+  // Users kicked from this championship - can rejoin later.
+  kicked: ObjectId[]
+
   // History of each round of each season of this championship
   history: SeasonHistory[]
 
@@ -441,6 +444,9 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Banned users - cannot rejoin the championship.
   banned: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+
+  // Kicked users - can rejoin later.
+  kicked: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
   // History of each season.
   history: [SeasonHistorySchema],

@@ -48,6 +48,7 @@ const Schema = buildSchema(`
     joinChamp(_id: ID!): Champ!
     banCompetitor(_id: ID!, competitorId: ID!): Champ!
     unbanCompetitor(_id: ID!, competitorId: ID!): Champ!
+    kickCompetitor(_id: ID!, competitorId: ID!): Champ!
     updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     placeBet(_id: ID!, input: PlaceBetInput!): Champ!
     submitDriverPositions(_id: ID!, input: SubmitDriverPositionsInput!): Champ!

@@ -303,15 +303,17 @@ export const getAllRoundCompetitorIds = (rounds: RoundType[]): Set<string> => {
   return ids
 }
 
-// Checks if a competitor is inactive (not in champ.competitors array or is banned).
+// Checks if a competitor is inactive (not in champ.competitors array, banned, or kicked).
 export const isCompetitorInactive = (
   competitorId: string,
   champCompetitors: fullUserType[],
   banned: fullUserType[],
+  kicked: fullUserType[] = [],
 ): boolean => {
   const inCompetitors = champCompetitors.some((c) => c._id === competitorId)
   const isBanned = banned?.some((b) => b._id === competitorId)
-  return !inCompetitors || isBanned
+  const isKicked = kicked?.some((k) => k._id === competitorId)
+  return !inCompetitors || isBanned || isKicked
 }
 
 // Aggregates all competitors from all rounds into a single array with their latest data.
@@ -320,7 +322,8 @@ export const aggregateAllCompetitors = (
   rounds: RoundType[],
   champCompetitors: fullUserType[],
   banned: fullUserType[],
-): (CompetitorEntryType & { isInactive: boolean; isBanned: boolean })[] => {
+  kicked: fullUserType[] = [],
+): (CompetitorEntryType & { isInactive: boolean; isBanned: boolean; isKicked: boolean })[] => {
   // Build a map of competitor ID to their latest entry data.
   const competitorMap = new Map<string, CompetitorEntryType>()
 
@@ -337,14 +340,16 @@ export const aggregateAllCompetitors = (
     })
   })
 
-  // Convert to array and add inactive/banned status.
+  // Convert to array and add inactive/banned/kicked status.
   const competitors = Array.from(competitorMap.values()).map((entry) => {
     const isBanned = banned?.some((b) => b._id === entry.competitor._id) ?? false
+    const isKicked = kicked?.some((k) => k._id === entry.competitor._id) ?? false
     const inCompetitors = champCompetitors.some((c) => c._id === entry.competitor._id)
     return {
       ...entry,
-      isInactive: !inCompetitors || isBanned,
+      isInactive: !inCompetitors || isBanned || isKicked,
       isBanned,
+      isKicked,
     }
   })
 

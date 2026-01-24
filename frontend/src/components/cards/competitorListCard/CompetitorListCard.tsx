@@ -13,9 +13,12 @@ interface competitorListCardType {
   highlight?: boolean
   adjudicatorView?: boolean
   isBanned?: boolean
+  isKicked?: boolean
   isInactive?: boolean
   onBanClick?: () => void
   onUnbanClick?: () => void
+  onKickClick?: () => void
+  onInviteClick?: () => void
 }
 
 // Card component for displaying a competitor in a list.
@@ -25,9 +28,12 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   highlight,
   adjudicatorView,
   isBanned,
+  isKicked,
   isInactive,
   onBanClick,
   onUnbanClick,
+  onKickClick,
+  onInviteClick
 }) => {
   const navigate = useNavigate()
 
@@ -52,6 +58,18 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
     onUnbanClick?.()
   }
 
+  // Handle kick button click - stop propagation to prevent card click.
+  const handleKickClick = (e: SyntheticEvent) => {
+    e.stopPropagation()
+    onKickClick?.()
+  }
+
+  // Handle invite button click - stop propagation to prevent card click.
+  const handleInviteClick = (e: SyntheticEvent) => {
+    e.stopPropagation()
+    onInviteClick?.()
+  }
+
   // Build class name with optional modifiers.
   const classNames = [
     "competitor-list-card",
@@ -65,24 +83,45 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
       <Points total={entry.totalPoints} last={entry.points} position={entry.position}/>
       <p className="competitor-name">{entry.competitor.name}</p>
 
-      {/* Inactive badge for left competitors (not banned in adjudicator view) */}
-      {isInactive && !(adjudicatorView && isBanned) && (
+      {/* Inactive badge for left/kicked/banned competitors (not banned/kicked in adjudicator view) */}
+      {isInactive && !(adjudicatorView && (isBanned || isKicked)) && (
         <StatusLabel
-          text={isBanned ? "BANNED" : "LEFT"}
+          text={isBanned ? "BANNED" : isKicked ? "KICKED" : "LEFT"}
           colour={isBanned ? "error" : "default"}
         />
       )}
 
-      {/* Ban button in adjudicator view (only for active, non-banned competitors) */}
-      {adjudicatorView && !isBanned && !isInactive && (
+      {/* Kick and Ban buttons in adjudicator view (only for active competitors) */}
+      {adjudicatorView && !isBanned && !isKicked && !isInactive && (
+        <>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleKickClick}
+            className="kick-button"
+          >
+            Kick
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            color="error"
+            onClick={handleBanClick}
+            className="ban-button"
+          >
+            Ban
+          </Button>
+        </>
+      )}
+
+      {adjudicatorView && isKicked && (
         <Button
           variant="contained"
           size="small"
-          color="error"
-          onClick={handleBanClick}
-          className="ban-button"
+          onClick={handleInviteClick}
+          className="invite-button"
         >
-          Ban
+          Invite
         </Button>
       )}
 

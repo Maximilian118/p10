@@ -939,3 +939,51 @@ export const unbanCompetitor = async (
 
   return success
 }
+
+// Kicks a competitor from a championship (adjudicator or admin only).
+// Unlike ban, kicked users CAN rejoin the championship later.
+export const kickCompetitor = async (
+  champId: string,
+  competitorId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId, competitorId },
+          query: `
+            mutation KickCompetitor($_id: ID!, $competitorId: ID!) {
+              kickCompetitor(_id: $_id, competitorId: $competitorId) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("kickCompetitor", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("kickCompetitor", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("kickCompetitor", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("kickCompetitor", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}

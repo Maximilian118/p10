@@ -23,7 +23,7 @@ import Badges from "./Views/Badges/Badges"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -164,6 +164,10 @@ const Championship: React.FC = () => {
   // Ban confirmation dialog state.
   const [ showBanConfirm, setShowBanConfirm ] = useState<boolean>(false)
   const [ competitorToBan, setCompetitorToBan ] = useState<CompetitorEntryType | null>(null)
+
+  // Kick confirmation dialog state.
+  const [ showKickConfirm, setShowKickConfirm ] = useState<boolean>(false)
+  const [ competitorToKick, setCompetitorToKick ] = useState<CompetitorEntryType | null>(null)
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -687,7 +691,7 @@ const Championship: React.FC = () => {
     && roundStatusView !== "completed"
 
   // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm ? 1 : shrinkRatio
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm ? 1 : shrinkRatio
 
   // Compute round viewing state - based on COMPLETED rounds only.
   // Users can only navigate between completed rounds; "waiting" rounds are not viewable.
@@ -801,7 +805,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
         <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
           <div className="action-bar-inner">
             {isAdjudicator && <AdjudicatorBar/>}
@@ -925,19 +929,53 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Kick competitor confirmation dialog */}
+        {showKickConfirm && competitorToKick && (
+          <Confirm
+            variant="danger"
+            icon={<BlockIcon />}
+            heading={`Kick ${competitorToKick.competitor.name}?`}
+            paragraphs={[
+              "This competitor will be removed from the championship.",
+              "They can rejoin later if they wish.",
+              "Their current points will remain but they will be marked as inactive."
+            ]}
+            cancelText="Cancel"
+            confirmText="Kick Competitor"
+            onCancel={() => {
+              setShowKickConfirm(false)
+              setCompetitorToKick(null)
+            }}
+            onConfirm={async () => {
+              await kickCompetitor(
+                champ._id,
+                competitorToKick.competitor._id,
+                setChamp,
+                user,
+                setUser,
+                navigate,
+                setBackendErr,
+              )
+              setShowKickConfirm(false)
+              setCompetitorToKick(null)
+            }}
+          />
+        )}
+
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
                 // In adjudicator view, show all competitors from all rounds with inactive status.
-                // Filter out inactive competitors with 0 points (banned/left with no contribution).
+                // Filter out inactive competitors with 0 points (banned/kicked/left with no contribution).
                 const competitors = adjudicatorView
-                  ? aggregateAllCompetitors(champ.rounds, champ.competitors, champ.banned || [])
+                  ? aggregateAllCompetitors(champ.rounds, champ.competitors, champ.banned || [], champ.kicked || [])
                     .filter(c => !(c.isInactive && c.totalPoints === 0))
                   : getCompetitorsFromRound(viewedRound).map(c => ({
                       ...c,
-                      isInactive: isCompetitorInactive(c.competitor._id, champ.competitors, champ.banned || []),
+                      isInactive: isCompetitorInactive(c.competitor._id, champ.competitors, champ.banned || [], champ.kicked || []),
                       isBanned: champ.banned?.some(b => b._id === c.competitor._id) ?? false,
+                      isKicked: champ.kicked?.some(k => k._id === c.competitor._id) ?? false,
                     })).filter(c => !(c.isInactive && c.totalPoints === 0))
 
                 return competitors.map((c, i) => (
@@ -948,6 +986,11 @@ const Championship: React.FC = () => {
                     adjudicatorView={adjudicatorView}
                     isInactive={c.isInactive}
                     isBanned={c.isBanned}
+                    isKicked={c.isKicked}
+                    onKickClick={() => {
+                      setCompetitorToKick(c)
+                      setShowKickConfirm(true)
+                    }}
                     onBanClick={() => {
                       setCompetitorToBan(c)
                       setShowBanConfirm(true)
@@ -1092,7 +1135,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && (
+        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}

@@ -554,6 +554,11 @@ export const populateChamp = `
     name
     icon
   }
+  kicked {
+    _id
+    name
+    icon
+  }
   history {
     season
     adjudicator {

@@ -570,6 +570,11 @@ const champResolvers = {
         return throwError("joinChamp", req._id, "You are banned from this championship!", 403)
       }
 
+      // Remove user from kicked array if they were kicked before (they can rejoin).
+      if (champ.kicked?.some((k) => k.toString() === req._id)) {
+        champ.kicked = champ.kicked.filter((k) => k.toString() !== req._id)
+      }
+
       // Check if championship is invite only.
       if (champ.settings.inviteOnly) {
         return throwError("joinChamp", req._id, "This championship is invite only!", 403)
@@ -796,6 +801,92 @@ const champResolvers = {
 
       if (!populatedChamp) {
         return throwError("unbanCompetitor", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Kicks a competitor from a championship (adjudicator or admin only).
+  // Unlike ban, kicked users CAN rejoin the championship later.
+  kickCompetitor: async (
+    { _id, competitorId }: { _id: string; competitorId: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("kickCompetitor", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("kickCompetitor", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "kickCompetitor",
+          req._id,
+          "Only adjudicator or admin can kick competitors!",
+          403,
+        )
+      }
+
+      // Cannot kick yourself.
+      if (competitorId === req._id) {
+        return throwError("kickCompetitor", competitorId, "Cannot kick yourself!", 400)
+      }
+
+      // Cannot kick the current adjudicator.
+      if (competitorId === champ.adjudicator.current.toString()) {
+        return throwError("kickCompetitor", competitorId, "Cannot kick the adjudicator!", 400)
+      }
+
+      // Check if competitor exists in championship competitors.
+      const inCompetitors = champ.competitors.some((c) => c.toString() === competitorId)
+
+      if (!inCompetitors) {
+        return throwError(
+          "kickCompetitor",
+          competitorId,
+          "User is not an active competitor in this championship!",
+          400,
+        )
+      }
+
+      // Check if already kicked.
+      const alreadyKicked = champ.kicked?.some((k) => k.toString() === competitorId)
+      if (alreadyKicked) {
+        return throwError("kickCompetitor", competitorId, "User is already kicked!", 400)
+      }
+
+      // Add to kicked array and remove from competitors array.
+      if (!champ.kicked) {
+        champ.kicked = []
+      }
+      champ.kicked.push(new ObjectId(competitorId))
+
+      // Remove from championship-level competitors.
+      champ.competitors = champ.competitors.filter((c) => c.toString() !== competitorId)
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("kickCompetitor", _id, "Championship not found after update!", 404)
       }
 
       return filterChampForUser({

@@ -36,7 +36,7 @@
 
   // Inactive competitor styling (banned/left/deleted).
   &--inactive {
-    background: variables.$background;
+    background: variables.$colour-1;
     cursor: default;
 
     // Fade child elements individually (not the unban button).
@@ -47,9 +47,32 @@
     }
   }
 
+  // Kick button styling (grey, to the left of ban).
+  .kick-button {
+    margin-left: auto;
+    flex-shrink: 0;
+    background-color: variables.$colour-6 !important;
+    color: white !important;
+
+    &:hover {
+      background-color: variables.$colour-9 !important;
+    }
+  }
+
+  .invite-button {
+    margin-left: auto;
+    flex-shrink: 0;
+    background-color: variables.$mui-success !important;
+    color: white !important;
+
+    &:hover {
+      background-color: variables.$mui-success-hover !important;
+    }
+  }
+
   // Ban button styling.
   .ban-button {
-    margin-left: auto;
+    margin-left: 8px;
     flex-shrink: 0;
   }
 

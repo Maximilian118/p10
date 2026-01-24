@@ -332,6 +332,9 @@ export interface ChampType {
   // Banned users - cannot rejoin the championship.
   banned: userType[]
 
+  // Kicked users - can rejoin the championship later.
+  kicked: userType[]
+
   // History of each season.
   history: ChampHistoryType[]
 

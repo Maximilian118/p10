@@ -76,6 +76,7 @@ export const champPopulation = [
   { path: "competitors", select: "_id name icon profile_picture permissions created_at" },
   { path: "waitingList", select: "_id name icon" },
   { path: "banned", select: "_id name icon" },
+  { path: "kicked", select: "_id name icon" },
   { path: "created_by", select: "_id name icon" },
   // Rules and regulations population.
   { path: "rulesAndRegs.created_by", select: "_id name icon" },
