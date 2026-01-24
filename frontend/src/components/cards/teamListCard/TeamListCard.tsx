@@ -29,7 +29,7 @@ const TeamListCard: React.FC<teamListCardType> = ({ team, entry, onClick, canEdi
           }}
         />}
       </div>
-      {entry && <Points total={entry.totalPoints} last={entry.points} position={entry.position} />}
+      {entry && <Points total={entry.grandTotalPoints} last={entry.grandTotalPoints - (entry.totalPoints - entry.points)} position={entry.position} />}
       <div className="team-list-content">
         <p className="team-list-title">{team.name}</p>
         <IconList items={team.drivers} onItemClick={onDriverClick} />

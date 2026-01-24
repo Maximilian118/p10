@@ -1026,7 +1026,7 @@ const Championship: React.FC = () => {
                   <DriverListCard
                     key={d.driver._id || i}
                     driver={d.driver}
-                    entry={d}
+                    entry={{ ...d, position: i + 1 }}
                     onClick={() => navigate(`/driver/${d.driver._id}`, { state: { driver: d.driver } })}
                     onTeamClick={(team) => navigate(`/team/${team._id}`, { state: { team } })}
                   />
@@ -1037,7 +1037,7 @@ const Championship: React.FC = () => {
                   <TeamListCard
                     key={t.team._id || i}
                     team={t.team}
-                    entry={t}
+                    entry={{ ...t, position: i + 1 }}
                     onClick={() => navigate(`/team/${t.team._id}`, { state: { team: t.team } })}
                     onDriverClick={(driver) => navigate(`/driver/${driver._id}`, { state: { driver } })}
                   />

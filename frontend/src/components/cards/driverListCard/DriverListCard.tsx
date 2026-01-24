@@ -29,7 +29,7 @@ const DriverListCard: React.FC<driverListCardType> = ({ driver, entry, onClick, 
           }}
         />}
       </div>
-      {entry && <Points total={entry.totalPoints} last={entry.points} position={entry.position} />}
+      {entry && <Points total={entry.grandTotalPoints} last={entry.grandTotalPoints - (entry.totalPoints - entry.points)} position={entry.position} />}
       <div className="driver-list-content">
         <p className="driver-list-title">{driver.name}</p>
         <IconList items={driver.teams} onItemClick={onTeamClick} />
