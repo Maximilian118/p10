@@ -17,12 +17,31 @@ const champSchema = `
     passed
   }
 
+  # Points adjustment by adjudicator - manual or penalty.
+  type PointsAdjustment {
+    adjustment: Int!
+    type: String!
+    reason: String
+    updated_at: String
+    created_at: String
+  }
+
+  # Minimal response for adjustment mutations.
+  type AdjustmentResult {
+    competitorId: ID!
+    roundIndex: Int!
+    adjustment: [PointsAdjustment]!
+    grandTotalPoints: Int!
+  }
+
   # Competitor entry within a round - all data for that competitor in that round.
   type CompetitorEntry {
     competitor: User!
     bet: Driver
     points: Int!
     totalPoints: Int!
+    grandTotalPoints: Int!
+    adjustment: [PointsAdjustment]
     position: Int!
     updated_at: String
     created_at: String
@@ -33,6 +52,8 @@ const champSchema = `
     driver: Driver!
     points: Int!
     totalPoints: Int!
+    grandTotalPoints: Int!
+    adjustment: [PointsAdjustment]
     position: Int!
     positionDrivers: Int!
     positionActual: Int!
@@ -44,6 +65,8 @@ const champSchema = `
     drivers: [Driver!]!
     points: Int!
     totalPoints: Int!
+    grandTotalPoints: Int!
+    adjustment: [PointsAdjustment]
     position: Int!
     positionConstructors: Int!
   }

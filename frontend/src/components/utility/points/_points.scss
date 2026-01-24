@@ -24,6 +24,30 @@
     bottom: -5px;
   }
 
+  .add-points, .remove-points {
+    position: absolute;
+    color: variables.$mui-blue;
+    cursor: pointer;
+    display: flex;
+    transition: transform variables.$trans-speed;
+    
+    svg {
+      font-size: 42px;
+    }
+
+    &:hover {
+      transform: scale(1.30);
+    }
+  }
+
+  .add-points {
+    top: -26px;
+  }
+
+  .remove-points {
+    bottom: -26px;
+  }
+
   .total {
     &.gold { color: variables.$gold; }
     &.silver { color: variables.$silver; }

@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios"
 import { userType } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
+import { AdjustmentResultType, ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp/CreateChamp"
 import { populateChamp } from "./requestPopulation"
@@ -986,4 +986,141 @@ export const kickCompetitor = async (
   }
 
   return success
+}
+
+// Debounce state for adjustment requests.
+// Accumulates rapid clicks and sends a single request.
+const adjustmentDebounceMap = new Map<string, {
+  timeout: NodeJS.Timeout
+  accumulatedChange: number
+  resolve: (value: boolean) => void
+}>()
+
+// Updates a competitor's grandTotalPoints across all rounds.
+// Used for both optimistic updates and rollbacks.
+const updateCompetitorGrandTotal = (
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  competitorId: string,
+  delta: number,
+): void => {
+  setChamp((prevChamp) => {
+    if (!prevChamp) return prevChamp
+    const updatedRounds = prevChamp.rounds.map((round) => ({
+      ...round,
+      competitors: round.competitors.map((comp) =>
+        comp.competitor._id === competitorId
+          ? { ...comp, grandTotalPoints: comp.grandTotalPoints + delta }
+          : comp
+      ),
+    }))
+    return { ...prevChamp, rounds: updatedRounds }
+  })
+}
+
+// Adjusts a competitor's points (adjudicator or admin only).
+// Uses optimistic updates and debouncing for rapid clicks.
+export const adjustCompetitorPoints = async (
+  champId: string,
+  competitorId: string,
+  change: number,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  const debounceKey = `${champId}-${competitorId}`
+
+  // Apply optimistic update immediately.
+  updateCompetitorGrandTotal(setChamp, competitorId, change)
+
+  // Check for existing debounce.
+  const existing = adjustmentDebounceMap.get(debounceKey)
+  if (existing) {
+    clearTimeout(existing.timeout)
+    existing.accumulatedChange += change
+    return new Promise((resolve) => {
+      existing.resolve = resolve
+      existing.timeout = setTimeout(() => sendAdjustmentRequest(
+        debounceKey, champId, competitorId, existing.accumulatedChange,
+        setChamp, user, setUser, navigate, setBackendErr, existing.resolve
+      ), 300)
+    })
+  }
+
+  // Create new debounce entry.
+  return new Promise((resolve) => {
+    adjustmentDebounceMap.set(debounceKey, {
+      timeout: setTimeout(() => sendAdjustmentRequest(
+        debounceKey, champId, competitorId, change,
+        setChamp, user, setUser, navigate, setBackendErr, resolve
+      ), 300),
+      accumulatedChange: change,
+      resolve,
+    })
+  })
+}
+
+// Sends the actual adjustment request after debounce.
+const sendAdjustmentRequest = async (
+  debounceKey: string,
+  champId: string,
+  competitorId: string,
+  totalChange: number,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  resolve: (value: boolean) => void,
+): Promise<void> => {
+  adjustmentDebounceMap.delete(debounceKey)
+
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { _id: champId, competitorId, change: totalChange },
+        query: `
+          mutation AdjustCompetitorPoints($_id: ID!, $competitorId: ID!, $change: Int!) {
+            adjustCompetitorPoints(_id: $_id, competitorId: $competitorId, change: $change) {
+              competitorId
+              roundIndex
+              adjustment { adjustment type reason updated_at created_at }
+              grandTotalPoints
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      // Rollback optimistic update on error.
+      updateCompetitorGrandTotal(setChamp, competitorId, -totalChange)
+      graphQLErrors("adjustCompetitorPoints", res, setUser, navigate, setBackendErr, true)
+      resolve(false)
+    } else {
+      const result = res.data.data.adjustCompetitorPoints as AdjustmentResultType
+      // Update state with server-confirmed data.
+      setChamp((prevChamp) => {
+        if (!prevChamp) return prevChamp
+        const updatedRounds = [...prevChamp.rounds]
+        const round = updatedRounds[result.roundIndex]
+        if (round) {
+          round.competitors = round.competitors.map((comp) =>
+            comp.competitor._id === competitorId
+              ? { ...comp, adjustment: result.adjustment, grandTotalPoints: result.grandTotalPoints }
+              : comp
+          )
+        }
+        return { ...prevChamp, rounds: updatedRounds }
+      })
+      resolve(true)
+    }
+  } catch (err: unknown) {
+    updateCompetitorGrandTotal(setChamp, competitorId, -totalChange)
+    graphQLErrors("adjustCompetitorPoints", err, setUser, navigate, setBackendErr, true)
+    resolve(false)
+  }
 }

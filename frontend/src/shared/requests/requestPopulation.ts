@@ -321,6 +321,14 @@ export const populateChamp = `
       }
       points
       totalPoints
+      grandTotalPoints
+      adjustment {
+        adjustment
+        type
+        reason
+        updated_at
+        created_at
+      }
       position
       updated_at
       created_at
@@ -334,6 +342,14 @@ export const populateChamp = `
       }
       points
       totalPoints
+      grandTotalPoints
+      adjustment {
+        adjustment
+        type
+        reason
+        updated_at
+        created_at
+      }
       position
       positionDrivers
       positionActual
@@ -347,6 +363,14 @@ export const populateChamp = `
       }
       points
       totalPoints
+      grandTotalPoints
+      adjustment {
+        adjustment
+        type
+        reason
+        updated_at
+        created_at
+      }
       position
       positionDrivers
       positionActual
@@ -367,6 +391,14 @@ export const populateChamp = `
       }
       points
       totalPoints
+      grandTotalPoints
+      adjustment {
+        adjustment
+        type
+        reason
+        updated_at
+        created_at
+      }
       position
       positionConstructors
     }
@@ -612,6 +644,13 @@ export const populateChamp = `
         }
         points
         totalPoints
+        adjustment {
+          adjustment
+          type
+          reason
+          updated_at
+          created_at
+        }
         position
         updated_at
         created_at
@@ -625,6 +664,13 @@ export const populateChamp = `
         }
         points
         totalPoints
+        adjustment {
+          adjustment
+          type
+          reason
+          updated_at
+          created_at
+        }
         position
         positionDrivers
         positionActual
@@ -638,6 +684,13 @@ export const populateChamp = `
         }
         points
         totalPoints
+        adjustment {
+          adjustment
+          type
+          reason
+          updated_at
+          created_at
+        }
         position
         positionDrivers
         positionActual
@@ -658,6 +711,13 @@ export const populateChamp = `
         }
         points
         totalPoints
+        adjustment {
+          adjustment
+          type
+          reason
+          updated_at
+          created_at
+        }
         position
         positionConstructors
       }

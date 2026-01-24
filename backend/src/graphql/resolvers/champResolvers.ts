@@ -8,6 +8,7 @@ import Champ, {
   Round,
   RoundStatus,
   SeasonHistory,
+  PointsAdjustment,
 } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
@@ -25,7 +26,7 @@ import {
   scheduleResultsTransition,
   cancelTimer,
 } from "../../socket/autoTransitions"
-import { resultsHandler, checkRoundExpiry } from "./resolverUtility"
+import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -66,6 +67,7 @@ const createCompetitorEntry = (
   bet: null,
   points: 0,
   totalPoints,
+  grandTotalPoints: totalPoints, // Initialize to totalPoints (no adjustments yet).
   position,
   updated_at: null,
   created_at: null,
@@ -96,7 +98,8 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
 })
 
 // Populates round data (competitors, drivers, teams) when transitioning from "waiting".
-// Uses championship-level competitors as the roster, carries over totalPoints from previous round.
+// Uses championship-level competitors as the roster, carries over grandTotalPoints from previous round.
+// For returning competitors (not in previous round), looks back through all rounds.
 const populateRoundData = async (
   champ: ChampType,
   roundIndex: number,
@@ -104,11 +107,11 @@ const populateRoundData = async (
   const previousRoundIndex = roundIndex - 1
   const previousRound = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex] : null
 
-  // Build map of totalPoints and positions from previous round for carry-over.
-  const prevCompetitorData = new Map<string, { totalPoints: number; position: number }>(
+  // Build map of grandTotalPoints and positions from previous round for carry-over.
+  const prevCompetitorData = new Map<string, { grandTotalPoints: number; position: number }>(
     previousRound?.competitors.map((c) => [
       c.competitor.toString(),
-      { totalPoints: c.totalPoints, position: c.position },
+      { grandTotalPoints: c.grandTotalPoints, position: c.position },
     ]) || [],
   )
 
@@ -120,12 +123,33 @@ const populateRoundData = async (
     const userIdStr = userId.toString()
     const prevData = prevCompetitorData.get(userIdStr)
 
+    // For returning competitors (not in previous round), look back through all rounds.
+    let startingPoints: number
+    let startingPosition: number
+
+    if (prevData) {
+      // Competitor was in previous round - grandTotalPoints becomes new totalPoints.
+      startingPoints = prevData.grandTotalPoints
+      startingPosition = prevData.position
+    } else if (previousRoundIndex >= 0) {
+      // Returning competitor - find their last known grandTotalPoints.
+      const lastKnown = findLastKnownPoints(champ.rounds, userIdStr, previousRoundIndex)
+      startingPoints = lastKnown.grandTotalPoints
+      startingPosition = lastKnown.position || roster.length
+    } else {
+      // First round - everyone starts at 0.
+      startingPoints = 0
+      startingPosition = roster.length
+    }
+
     return {
       competitor: userId,
       bet: null,
       points: 0,
-      totalPoints: prevData?.totalPoints || 0, // New joiners get 0.
-      position: prevData?.position || roster.length, // New joiners start last.
+      totalPoints: startingPoints, // grandTotalPoints becomes the new totalPoints.
+      grandTotalPoints: startingPoints, // Same at round start (no adjustments yet).
+      adjustment: [], // Fresh adjustment array for new round.
+      position: startingPosition,
       updated_at: null,
       created_at: null,
     }
@@ -137,40 +161,50 @@ const populateRoundData = async (
     throw new Error("Series not found for championship")
   }
 
-  // Build map of previous driver totalPoints for carry-over.
+  // Build map of previous driver grandTotalPoints for carry-over.
   const previousDrivers = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex].drivers : []
   const driverTotalsMap = new Map<string, number>(
-    previousDrivers.map((d) => [d.driver.toString(), d.totalPoints]),
+    previousDrivers.map((d) => [d.driver.toString(), d.grandTotalPoints]),
   )
 
   // Populate drivers from series.drivers.
-  const drivers: DriverEntry[] = series.drivers.map((driverId) => ({
-    driver: driverId,
-    points: 0,
-    totalPoints: driverTotalsMap.get(driverId.toString()) || 0,
-    position: 0,
-    positionDrivers: 0,
-    positionActual: 0,
-  }))
+  // grandTotalPoints becomes the new totalPoints (bakes in any adjustments).
+  const drivers: DriverEntry[] = series.drivers.map((driverId) => {
+    const prevGrandTotal = driverTotalsMap.get(driverId.toString()) || 0
+    return {
+      driver: driverId,
+      points: 0,
+      totalPoints: prevGrandTotal, // grandTotalPoints becomes the new totalPoints.
+      grandTotalPoints: prevGrandTotal, // Same at round start.
+      position: 0,
+      positionDrivers: 0,
+      positionActual: 0,
+    }
+  })
 
   // Find all teams that compete in this series.
   const seriesTeams = await Team.find({ series: champ.series })
 
-  // Build map of previous team totalPoints for carry-over.
+  // Build map of previous team grandTotalPoints for carry-over.
   const previousTeams = previousRoundIndex >= 0 ? champ.rounds[previousRoundIndex].teams : []
   const teamTotalsMap = new Map<string, number>(
-    previousTeams.map((t) => [t.team.toString(), t.totalPoints]),
+    previousTeams.map((t) => [t.team.toString(), t.grandTotalPoints]),
   )
 
   // Populate teams from teams in this series.
-  const teams: TeamEntry[] = seriesTeams.map((team) => ({
-    team: team._id,
-    drivers: team.drivers,
-    points: 0,
-    totalPoints: teamTotalsMap.get(team._id.toString()) || 0,
-    position: 0,
-    positionConstructors: 0,
-  }))
+  // grandTotalPoints becomes the new totalPoints (bakes in any adjustments).
+  const teams: TeamEntry[] = seriesTeams.map((team) => {
+    const prevGrandTotal = teamTotalsMap.get(team._id.toString()) || 0
+    return {
+      team: team._id,
+      drivers: team.drivers,
+      points: 0,
+      totalPoints: prevGrandTotal, // grandTotalPoints becomes the new totalPoints.
+      grandTotalPoints: prevGrandTotal, // Same at round start.
+      position: 0,
+      positionConstructors: 0,
+    }
+  })
 
   // Create randomised driver order for betting_open display.
   const randomisedDrivers = shuffleArray(drivers)
@@ -893,6 +927,128 @@ const champResolvers = {
         ...populatedChamp._doc,
         tokens: req.tokens,
       }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Adjusts a competitor's points (adjudicator or admin only).
+  // Adds a points adjustment to the competitor's adjustment array.
+  // Returns minimal data for fast response.
+  adjustCompetitorPoints: async (
+    { _id, competitorId, change }: { _id: string; competitorId: string; change: number },
+    req: AuthRequest,
+  ): Promise<{ competitorId: string; roundIndex: number; adjustment: PointsAdjustment[]; grandTotalPoints: number }> => {
+    if (!req.isAuth) {
+      throwError("adjustCompetitorPoints", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("adjustCompetitorPoints", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "adjustCompetitorPoints",
+          req._id,
+          "Only adjudicator or admin can adjust points!",
+          403,
+        )
+      }
+
+      // Find the LAST COMPLETED (or active) round where this competitor exists.
+      // Skip "waiting" rounds - adjustments go on rounds that have results.
+      // Using indices instead of references ensures Mongoose properly tracks nested changes.
+      let roundIndex = -1
+      let competitorIndex = -1
+
+      for (let i = champ.rounds.length - 1; i >= 0; i--) {
+        const round = champ.rounds[i]
+
+        // Skip "waiting" rounds - we want to adjust completed/active rounds.
+        if (round.status === "waiting") {
+          continue
+        }
+
+        const idx = round.competitors.findIndex(
+          (c) => c.competitor.toString() === competitorId,
+        )
+        if (idx !== -1) {
+          roundIndex = i
+          competitorIndex = idx
+          break
+        }
+      }
+
+      if (roundIndex === -1 || competitorIndex === -1) {
+        return throwError(
+          "adjustCompetitorPoints",
+          competitorId,
+          "Competitor not found in any completed round!",
+          404,
+        )
+      }
+
+      // Reference the competitor entry via direct path for modifications.
+      const competitorEntry = champ.rounds[roundIndex].competitors[competitorIndex]
+
+      // Add the new adjustment to the competitor's adjustment array.
+      // Modify via direct path to ensure Mongoose tracks the change.
+      const now = moment().format()
+      if (!competitorEntry.adjustment) {
+        champ.rounds[roundIndex].competitors[competitorIndex].adjustment = []
+      }
+
+      // Get a typed reference to the adjustment array (now guaranteed to exist).
+      const adjustmentArray = champ.rounds[roundIndex].competitors[competitorIndex].adjustment!
+
+      // Find existing manual adjustment (consolidate manual adjustments into one).
+      const existingManualIndex = adjustmentArray.findIndex((adj) => adj.type === "manual")
+
+      if (existingManualIndex !== -1) {
+        // Update existing manual adjustment - add to total and update timestamp.
+        adjustmentArray[existingManualIndex].adjustment += change
+        adjustmentArray[existingManualIndex].updated_at = now
+      } else {
+        // Create new manual adjustment entry.
+        adjustmentArray.push({
+          adjustment: change,
+          type: "manual",
+          reason: null,
+          updated_at: null,
+          created_at: now,
+        })
+      }
+
+      // Calculate grandTotalPoints (single source of truth for display).
+      const adjustmentSum = adjustmentArray.reduce(
+        (sum, adj) => sum + adj.adjustment,
+        0
+      )
+      const grandTotalPoints = competitorEntry.totalPoints + adjustmentSum
+
+      // Update grandTotalPoints on the competitor entry.
+      champ.rounds[roundIndex].competitors[competitorIndex].grandTotalPoints = grandTotalPoints
+
+      // Use specific markModified path for nested subdocument.
+      champ.markModified(`rounds.${roundIndex}.competitors.${competitorIndex}`)
+      champ.updated_at = now
+      await champ.save()
+
+      // Return minimal data for fast response.
+      return {
+        competitorId,
+        roundIndex,
+        adjustment: adjustmentArray,
+        grandTotalPoints,
+      }
     } catch (err) {
       throw err
     }

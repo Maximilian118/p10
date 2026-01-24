@@ -167,12 +167,31 @@ export interface seriesType {
 export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 export type ProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
 
+// Points adjustment by adjudicator - manual adjustment or official penalty.
+export interface PointsAdjustmentType {
+  adjustment: number // The amount of points adjusted (+/-)
+  type: "manual" | "penalty" // Manual click adjustment or official penalty
+  reason?: string | null // If penalty, why was it given?
+  updated_at: string | null
+  created_at: string | null
+}
+
+// Minimal response from adjustCompetitorPoints mutation.
+export interface AdjustmentResultType {
+  competitorId: string
+  roundIndex: number
+  adjustment: PointsAdjustmentType[]
+  grandTotalPoints: number
+}
+
 // Competitor entry within a round - all data for that competitor in that round.
 export interface CompetitorEntryType {
   competitor: userType
   bet: driverType | null
   points: number // Points earned THIS round.
   totalPoints: number // Cumulative points AFTER this round.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + adjustments.
+  adjustment?: PointsAdjustmentType[] // Manual adjustments by adjudicator.
   position: number // Position in standings AFTER this round.
   updated_at: string | null // When they last changed their bet.
   created_at: string | null // When they first placed their bet.
@@ -183,6 +202,8 @@ export interface DriverEntryType {
   driver: driverType
   points: number // Points earned THIS round.
   totalPoints: number // Cumulative points the driver has earned this season.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + adjustments.
+  adjustment?: PointsAdjustmentType[] // Manual adjustments by adjudicator.
   position: number // P10 game position this round.
   positionDrivers: number // Driver championship standing (hypothetical).
   positionActual: number // Real-life qualifying position.
@@ -194,6 +215,8 @@ export interface TeamEntryType {
   drivers: driverType[] // Drivers racing for this team this round.
   points: number // Combined driver points THIS round.
   totalPoints: number // Cumulative points the team has earned this season.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + adjustments.
+  adjustment?: PointsAdjustmentType[] // Manual adjustments by adjudicator.
   position: number // P10 game position this round.
   positionConstructors: number // Constructor championship standing (hypothetical).
 }

@@ -23,7 +23,7 @@ import Badges from "./Views/Badges/Badges"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, adjustCompetitorPoints } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -970,19 +970,19 @@ const Championship: React.FC = () => {
                 // Filter out inactive competitors with 0 points (banned/kicked/left with no contribution).
                 const competitors = adjudicatorView
                   ? aggregateAllCompetitors(champ.rounds, champ.competitors, champ.banned || [], champ.kicked || [])
-                    .filter(c => !(c.isInactive && c.totalPoints === 0))
+                    .filter(c => !(c.isInactive && c.grandTotalPoints === 0))
                   : getCompetitorsFromRound(viewedRound).map(c => ({
                       ...c,
                       isInactive: isCompetitorInactive(c.competitor._id, champ.competitors, champ.banned || [], champ.kicked || []),
                       isBanned: champ.banned?.some(b => b._id === c.competitor._id) ?? false,
                       isKicked: champ.kicked?.some(k => k._id === c.competitor._id) ?? false,
-                    })).filter(c => !(c.isInactive && c.totalPoints === 0))
+                    })).filter(c => !(c.isInactive && c.grandTotalPoints === 0))
 
                 return competitors.map((c, i) => (
                   <CompetitorListCard
                     key={c.competitor._id || i}
                     highlight={justJoined && c.competitor._id === user._id}
-                    entry={c}
+                    entry={{ ...c, position: i + 1 }}
                     adjudicatorView={adjudicatorView}
                     isInactive={c.isInactive}
                     isBanned={c.isBanned}
@@ -999,6 +999,18 @@ const Championship: React.FC = () => {
                       unbanCompetitor(
                         champ._id,
                         c.competitor._id,
+                        setChamp,
+                        user,
+                        setUser,
+                        navigate,
+                        setBackendErr,
+                      )
+                    }}
+                    onPointsChange={(change) => {
+                      adjustCompetitorPoints(
+                        champ._id,
+                        c.competitor._id,
+                        change,
                         setChamp,
                         user,
                         setUser,

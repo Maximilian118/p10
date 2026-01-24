@@ -155,10 +155,10 @@ export const sortAlphabetically = <T extends { name?: string }>(arr: T[]): T[] =
 // Capatalise the first letter in a string.
 export const capitalise = (s: string) => (s && s[0].toUpperCase() + s.slice(1)) || ""
 
-// Get competitors from a specific round, sorted by position (1st place first).
+// Get competitors from a specific round, sorted by grandTotalPoints (highest first).
 export const getCompetitorsFromRound = (round: RoundType): CompetitorEntryType[] => {
   if (!round?.competitors) return []
-  return [...round.competitors].sort((a, b) => a.position - b.position)
+  return [...round.competitors].sort((a, b) => b.grandTotalPoints - a.grandTotalPoints)
 }
 
 // Get drivers from a specific round, sorted by position (1st place first).
@@ -191,6 +191,7 @@ export const getAllDriversForRound = (series: seriesType, round: RoundType): Dri
         driver,
         points: 0,
         totalPoints: 0,
+        grandTotalPoints: 0,
         position: 0,
         positionDrivers: series.drivers.length, // New drivers start at the end.
         positionActual: 0,
@@ -282,6 +283,7 @@ export const getAllTeamsForRound = (series: seriesType, round: RoundType): TeamE
         drivers: teamDriversMap.get(team._id!) || [],
         points: 0,
         totalPoints: 0,
+        grandTotalPoints: 0,
         position: 0,
         positionConstructors: totalTeams, // New teams start at the end.
       }
@@ -353,13 +355,13 @@ export const aggregateAllCompetitors = (
     }
   })
 
-  // Sort by position (active competitors first, then by position).
+  // Sort by grandTotalPoints (active competitors first, then by points highest first).
   return competitors.sort((a, b) => {
     // Active competitors come before inactive.
     if (a.isInactive !== b.isInactive) {
       return a.isInactive ? 1 : -1
     }
-    // Then sort by position.
-    return a.position - b.position
+    // Then sort by grandTotalPoints (highest first).
+    return b.grandTotalPoints - a.grandTotalPoints
   })
 }

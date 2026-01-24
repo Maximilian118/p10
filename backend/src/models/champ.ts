@@ -7,12 +7,24 @@ import { ProtestStatus, Vote } from "./protest"
 // prettier-ignore
 export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 
+// An amount of manually adjusted points by an adjudicator
+// via an official pentalty or a simple points subtraction/addition.
+export interface PointsAdjustment {
+  adjustment: number // The amount of points adjusted
+  type: "manual" | "penalty" // Was this the adjudicator simply clicking and add or subtract arrows or is this an official penalty?
+  reason?: string | null // If this is an official penalty, why was this given?
+  updated_at: string | null // In case the adjudicator had to update this ruling.
+  created_at: string | null // When the adjustment was first made.
+}
+
 // Competitor entry within a round - contains all data for that competitor for that round.
 export interface CompetitorEntry {
   competitor: ObjectId // The user _id of the competitor
   bet: ObjectId | null // Driver they've bet on this round (null if no bet placed).
   points: number // Points earned THIS round.
   totalPoints: number // Cumulative points the user has earned this season.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + sum(adjustments).
+  adjustment?: PointsAdjustment[] // An amount of manually adjusted points by an adjudicator.
   position: number // Position in standings AFTER this round.
   updated_at: string | null // In case the user has changed their mind during the betting process.
   created_at: string | null // When they first placed their bet.
@@ -23,6 +35,8 @@ export interface DriverEntry {
   driver: ObjectId // The _id of the driver
   points: number // The amount of points this driver earned this round.
   totalPoints: number // Cumulative points the driver has earned this season.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + sum(adjustments).
+  adjustment?: PointsAdjustment[] // An amount of manually adjusted points by an adjudicator.
   position: number // Which position did the driver finish in regards to the p10 game?
   positionDrivers: number // Which position is the driver in if the drivers were competing for a p10 championship this season? I.E who has the most totalPoints after this round?
   positionActual: number // The real life position this driver qualified in this round.
@@ -34,6 +48,8 @@ export interface TeamEntry {
   drivers: ObjectId[] // Which drivers were driving for this constructor this round?
   points: number // The amount of points this constructor earned this round collectively between their drivers.
   totalPoints: number // Cumulative points the constructor has earned this season.
+  grandTotalPoints: number // Single source of truth for display: totalPoints + sum(adjustments).
+  adjustment?: PointsAdjustment[] // An amount of manually adjusted points by an adjudicator.
   position: number // Which position did the constructor finish in regards to the p10 game?
   positionConstructors: number // Which position is the constructor in if the constructors were competing for a p10 championship this season? I.E which team has the most totalPoints after this round?
 }
@@ -207,6 +223,18 @@ export interface ChampType {
   _doc: ChampType
 }
 
+// Schema for points adjustment by adjudicator.
+const pointsAdjustmentSchema = new mongoose.Schema(
+  {
+    adjustment: { type: Number, required: true },
+    type: { type: String, enum: ["manual", "penalty"], default: "manual" },
+    reason: { type: String, default: null },
+    updated_at: { type: String, default: null },
+    created_at: { type: String, default: null },
+  },
+  { _id: false },
+)
+
 // Schema for competitor entry within a round.
 const competitorEntrySchema = new mongoose.Schema(
   {
@@ -214,6 +242,9 @@ const competitorEntrySchema = new mongoose.Schema(
     bet: { type: mongoose.Schema.ObjectId, ref: "Driver", default: null },
     points: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
+    // Single source of truth for display in view === "competitors": totalPoints + sum(adjustments).
+    grandTotalPoints: { type: Number, default: 0 },
+    adjustment: { type: [pointsAdjustmentSchema], default: [] },
     position: { type: Number, default: 0 },
     updated_at: { type: String, default: null },
     created_at: { type: String, default: null },
@@ -227,6 +258,9 @@ const driverEntrySchema = new mongoose.Schema(
     driver: { type: mongoose.Schema.ObjectId, required: true, ref: "Driver" },
     points: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
+    // Single source of truth for display in view === "drivers": totalPoints + sum(adjustments).
+    grandTotalPoints: { type: Number, default: 0 },
+    adjustment: { type: [pointsAdjustmentSchema], default: [] },
     position: { type: Number, default: 0 },
     positionDrivers: { type: Number, default: 0 },
     positionActual: { type: Number, default: 0 },
@@ -241,6 +275,9 @@ const teamEntrySchema = new mongoose.Schema(
     drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }],
     points: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
+    // Single source of truth for display in view === "teams": totalPoints + sum(adjustments).
+    grandTotalPoints: { type: Number, default: 0 },
+    adjustment: { type: [pointsAdjustmentSchema], default: [] },
     position: { type: Number, default: 0 },
     positionConstructors: { type: Number, default: 0 },
   },

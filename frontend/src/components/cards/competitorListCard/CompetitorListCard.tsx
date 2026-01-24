@@ -19,7 +19,9 @@ interface competitorListCardType {
   onUnbanClick?: () => void
   onKickClick?: () => void
   onInviteClick?: () => void
+  onPointsChange?: (change: number) => void
 }
+
 
 // Card component for displaying a competitor in a list.
 const CompetitorListCard: React.FC<competitorListCardType> = ({
@@ -33,7 +35,8 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   onBanClick,
   onUnbanClick,
   onKickClick,
-  onInviteClick
+  onInviteClick,
+  onPointsChange
 }) => {
   const navigate = useNavigate()
 
@@ -80,7 +83,13 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   return (
     <div className={classNames} onClick={handleClick}>
       <ImageIcon src={entry.competitor.icon} size="x-large" />
-      <Points total={entry.totalPoints} last={entry.points} position={entry.position}/>
+      <Points
+        total={entry.grandTotalPoints}
+        last={entry.grandTotalPoints - (entry.totalPoints - entry.points)}
+        position={entry.position}
+        canEdit={adjudicatorView}
+        onPointsChange={onPointsChange}
+      />
       <p className="competitor-name">{entry.competitor.name}</p>
 
       {/* Inactive badge for left/kicked/banned competitors (not banned/kicked in adjudicator view) */}

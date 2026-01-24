@@ -5,7 +5,7 @@
   width: 100%;
   height: 40px;
   @include mixins.flexbox;
-  background: black;
+  background: variables.$colour-9;
   flex-shrink: 0;
   border-bottom: 2px solid variables.$background;
   color: white;
@@ -13,5 +13,6 @@
 
   h5 {
     font-weight: 300;
+    margin-left: 10px;
   }
 }

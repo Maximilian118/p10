@@ -2,11 +2,38 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
-import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType } from "../../models/champ"
+import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType, PointsAdjustment } from "../../models/champ"
 import Badge from "../../models/badge"
 import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
 import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
+
+// Calculates the sum of all adjustments for a competitor/driver/team entry.
+export const sumAdjustments = (adjustment?: PointsAdjustment[]): number => {
+  return adjustment?.reduce((sum, adj) => sum + adj.adjustment, 0) || 0
+}
+
+// Finds a competitor's last known grandTotalPoints by looking back through all rounds.
+// Used for returning competitors who weren't in the immediately previous round.
+export const findLastKnownPoints = (
+  rounds: Round[],
+  competitorId: string,
+  upToIndex: number,
+): { grandTotalPoints: number; position: number } => {
+  for (let i = upToIndex; i >= 0; i--) {
+    const entry = rounds[i].competitors.find(
+      (c) => c.competitor.toString() === competitorId,
+    )
+    if (entry) {
+      return {
+        grandTotalPoints: entry.grandTotalPoints,
+        position: entry.position,
+      }
+    }
+  }
+  // Never competed before - start fresh.
+  return { grandTotalPoints: 0, position: 0 }
+}
 
 // Recalculate team.series based on all drivers' series.
 // A team is in a series if ANY of its drivers compete in that series.
@@ -310,6 +337,7 @@ export const calculateCompetitorPoints = (
         if (competitor) {
           competitor.points = winnerPoints
           competitor.totalPoints += winnerPoints
+          competitor.grandTotalPoints = competitor.totalPoints + sumAdjustments(competitor.adjustment)
         }
       } else if (
         result.positionActual !== null &&
@@ -323,6 +351,7 @@ export const calculateCompetitorPoints = (
         if (competitor) {
           competitor.points = runnerUpPoints
           competitor.totalPoints += runnerUpPoints
+          competitor.grandTotalPoints = competitor.totalPoints + sumAdjustments(competitor.adjustment)
         }
       }
     }
@@ -348,6 +377,7 @@ export const calculateCompetitorPoints = (
 
       competitor.points = pointsEarned
       competitor.totalPoints += pointsEarned
+      competitor.grandTotalPoints = competitor.totalPoints + sumAdjustments(competitor.adjustment)
 
       // Set winner (first competitor with points) and runnerUp (second with points).
       if (pointsEarned > 0 && !winnerSet) {
@@ -360,8 +390,8 @@ export const calculateCompetitorPoints = (
     })
   }
 
-  // Recalculate standings (position) based on totalPoints.
-  const sortedByTotal = [...round.competitors].sort((a, b) => b.totalPoints - a.totalPoints)
+  // Recalculate standings (position) based on grandTotalPoints.
+  const sortedByTotal = [...round.competitors].sort((a, b) => b.grandTotalPoints - a.grandTotalPoints)
   sortedByTotal.forEach((sortedCompetitor, idx) => {
     const original = round.competitors.find(
       (c) => c.competitor.toString() === sortedCompetitor.competitor.toString(),
@@ -428,11 +458,13 @@ export const calculateDriverPoints = (
         // Exact P10 = winner.
         original.points = winnerPoints
         original.totalPoints += winnerPoints
+        original.grandTotalPoints = original.totalPoints + sumAdjustments(original.adjustment)
         winnerAwarded = true
       } else if (!runnerUpAwarded && driverEntry.positionActual <= 10) {
         // Best in top 10 (not winner) = runner-up.
         original.points = runnerUpPoints
         original.totalPoints += runnerUpPoints
+        original.grandTotalPoints = original.totalPoints + sumAdjustments(original.adjustment)
         runnerUpAwarded = true
       }
 
@@ -447,6 +479,7 @@ export const calculateDriverPoints = (
 
       driverEntry.points = pointsEarned
       driverEntry.totalPoints += pointsEarned
+      driverEntry.grandTotalPoints = driverEntry.totalPoints + sumAdjustments(driverEntry.adjustment)
     })
   }
 
@@ -456,8 +489,8 @@ export const calculateDriverPoints = (
     if (original) original.position = idx + 1
   })
 
-  // Calculate season standing positionDrivers (rank by totalPoints, highest first).
-  const sortedByTotalPoints = [...round.drivers].sort((a, b) => b.totalPoints - a.totalPoints)
+  // Calculate season standing positionDrivers (rank by grandTotalPoints, highest first).
+  const sortedByTotalPoints = [...round.drivers].sort((a, b) => b.grandTotalPoints - a.grandTotalPoints)
   sortedByTotalPoints.forEach((sorted, idx) => {
     const original = round.drivers.find((d) => d.driver.toString() === sorted.driver.toString())
     if (original) original.positionDrivers = idx + 1
@@ -489,6 +522,7 @@ export const calculateTeamPoints = (round: Round): void => {
 
     teamEntry.points = roundPoints
     teamEntry.totalPoints += roundPoints
+    teamEntry.grandTotalPoints = teamEntry.totalPoints + sumAdjustments(teamEntry.adjustment)
   })
 
   // Calculate round position (rank by this round's points, highest first).
@@ -498,8 +532,8 @@ export const calculateTeamPoints = (round: Round): void => {
     if (original) original.position = idx + 1
   })
 
-  // Calculate season standing positionConstructors (rank by totalPoints, highest first).
-  const sortedByTotalPoints = [...round.teams].sort((a, b) => b.totalPoints - a.totalPoints)
+  // Calculate season standing positionConstructors (rank by grandTotalPoints, highest first).
+  const sortedByTotalPoints = [...round.teams].sort((a, b) => b.grandTotalPoints - a.grandTotalPoints)
   sortedByTotalPoints.forEach((sorted, idx) => {
     const original = round.teams.find((t) => t.team.toString() === sorted.team.toString())
     if (original) original.positionConstructors = idx + 1
@@ -863,19 +897,19 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
   // ============================================================================
   // Use championship-level competitors as the roster (source of truth).
-  // Preserve totalPoints from current round for existing competitors.
-  // New joiners who aren't in current round get totalPoints: 0.
+  // grandTotalPoints is the single source of truth and becomes the new totalPoints.
+  // For returning competitors (not in current round), look back through all rounds.
 
   const hasNextRound = roundIndex + 1 < champ.rounds.length
 
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
 
-    // Build map of totalPoints from current round for carry-over.
-    const currentTotals = new Map<string, { totalPoints: number; position: number }>(
+    // Build map of grandTotalPoints from current round for carry-over.
+    const currentTotals = new Map<string, { grandTotalPoints: number; position: number }>(
       currentRound.competitors.map((c) => [
         c.competitor.toString(),
-        { totalPoints: c.totalPoints, position: c.position },
+        { grandTotalPoints: c.grandTotalPoints, position: c.position },
       ]),
     )
 
@@ -887,12 +921,30 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
       const userIdStr = userId.toString()
       const prevData = currentTotals.get(userIdStr)
 
+      // If competitor was in current round, use their grandTotalPoints.
+      // Otherwise, look back through all rounds to find their last participation.
+      let startingPoints: number
+      let startingPosition: number
+
+      if (prevData) {
+        // Competitor was in this round - use grandTotalPoints as new totalPoints.
+        startingPoints = prevData.grandTotalPoints
+        startingPosition = prevData.position
+      } else {
+        // Returning competitor - find their last known grandTotalPoints.
+        const lastKnown = findLastKnownPoints(champ.rounds, userIdStr, roundIndex)
+        startingPoints = lastKnown.grandTotalPoints
+        startingPosition = lastKnown.position || roster.length
+      }
+
       return {
         competitor: userId,
-        bet: null, // Reset bet for the new round
-        points: 0, // Reset points for the new round
-        position: prevData?.position || roster.length, // New joiners start last
-        totalPoints: prevData?.totalPoints || 0, // New joiners get 0
+        bet: null, // Reset bet for the new round.
+        points: 0, // Reset points for the new round.
+        position: startingPosition,
+        totalPoints: startingPoints, // grandTotalPoints becomes the new totalPoints.
+        grandTotalPoints: startingPoints, // Same at round start (no adjustments yet).
+        adjustment: [], // Fresh adjustment array for new round.
         updated_at: null,
         created_at: null,
       }
@@ -910,9 +962,13 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // ============================================================================
   // Calculate points for each competitor based on their bet and the driver's actual position.
   // This also sets round.winner and round.runnerUp, and recalculates standings.
+  if (!champ.pointsStructure?.length) {
+    console.error(`[resultsHandler] No points structure defined for championship ${champId}`)
+    return
+  }
   calculateCompetitorPoints(currentRound, champ.pointsStructure)
 
-  // Re-sync updated totalPoints and positions to next round if it was already populated.
+  // Re-sync to next round: grandTotalPoints becomes the new totalPoints (bakes in adjustments).
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
     currentRound.competitors.forEach((c) => {
@@ -920,7 +976,9 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
         (nc) => nc.competitor.toString() === c.competitor.toString(),
       )
       if (nextCompetitor) {
-        nextCompetitor.totalPoints = c.totalPoints
+        // grandTotalPoints becomes the new totalPoints (bakes in any adjustments).
+        nextCompetitor.totalPoints = c.grandTotalPoints
+        nextCompetitor.grandTotalPoints = c.grandTotalPoints
         nextCompetitor.position = c.position
       }
     })
@@ -933,7 +991,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // Uses P10-centric hierarchy (P10 > P9 > P8 > ... > P1 > P11 > P12 > ...).
   calculateDriverPoints(currentRound, champ.pointsStructure)
 
-  // Sync driver data to next round.
+  // Sync driver data to next round: grandTotalPoints becomes the new totalPoints.
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
     currentRound.drivers.forEach((d) => {
@@ -941,7 +999,9 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
         (nd) => nd.driver.toString() === d.driver.toString(),
       )
       if (nextDriver) {
-        nextDriver.totalPoints = d.totalPoints
+        // grandTotalPoints becomes the new totalPoints (bakes in any adjustments).
+        nextDriver.totalPoints = d.grandTotalPoints
+        nextDriver.grandTotalPoints = d.grandTotalPoints
         nextDriver.positionDrivers = d.positionDrivers
         // Reset round-specific fields for next round.
         nextDriver.points = 0
@@ -958,13 +1018,15 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // Must be called after calculateDriverPoints.
   calculateTeamPoints(currentRound)
 
-  // Sync team data to next round.
+  // Sync team data to next round: grandTotalPoints becomes the new totalPoints.
   if (hasNextRound) {
     const nextRound = champ.rounds[roundIndex + 1]
     currentRound.teams.forEach((t) => {
       const nextTeam = nextRound.teams.find((nt) => nt.team.toString() === t.team.toString())
       if (nextTeam) {
-        nextTeam.totalPoints = t.totalPoints
+        // grandTotalPoints becomes the new totalPoints (bakes in any adjustments).
+        nextTeam.totalPoints = t.grandTotalPoints
+        nextTeam.grandTotalPoints = t.grandTotalPoints
         nextTeam.positionConstructors = t.positionConstructors
         // Reset round-specific fields for next round.
         nextTeam.points = 0
