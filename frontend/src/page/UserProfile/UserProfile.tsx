@@ -8,6 +8,7 @@ import { getUserById } from "../../shared/requests/userRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ProfileCard from "../../components/cards/profileCard/ProfileCard"
+import BadgeChampPicker from "../../components/utility/badgeChampPicker/BadgeChampPicker"
 
 // Displays the profile page for a specific user (read-only view).
 const UserProfile: React.FC = () => {
@@ -57,6 +58,12 @@ const UserProfile: React.FC = () => {
   return (
     <div className="content-container">
       <ProfileCard user={userProfile} readOnly/>
+      <BadgeChampPicker
+        user={userProfile}
+        selectionMode={{ active: false, type: null, targetSlot: null }}
+        onBadgeSelect={() => {}}
+        onBadgeRemove={() => {}}
+      />
     </div>
   )
 }
