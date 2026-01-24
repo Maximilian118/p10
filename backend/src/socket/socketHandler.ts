@@ -4,6 +4,9 @@ import Champ, { RoundStatus } from "../models/champ"
 import User from "../models/user"
 import { placeBetAtomic } from "./betHandler"
 
+// Verbose socket logging is opt-in via env variable.
+const verboseLogs = process.env.VERBOSE_SOCKET_LOGS === "true"
+
 // Socket event names - centralized for consistency.
 export const SOCKET_EVENTS = {
   // Client -> Server
@@ -92,14 +95,16 @@ export const initializeSocket = (io: Server): void => {
   })
 
   io.on("connection", async (socket: Socket) => {
-    // Fetch user name for readable logging.
-    try {
-      const user = await User.findById(socket.data.userId).select("name")
-      socket.data.userName = user?.name || socket.data.userId
-    } catch {
-      socket.data.userName = socket.data.userId
+    // Fetch user name for readable logging (development only).
+    if (verboseLogs) {
+      try {
+        const user = await User.findById(socket.data.userId).select("name")
+        socket.data.userName = user?.name || socket.data.userId
+      } catch {
+        socket.data.userName = socket.data.userId
+      }
+      console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName})`)
     }
-    console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName})`)
 
     // Join championship room to receive updates for that championship.
     // Emits current round state to the joining socket for immediate sync.
@@ -119,13 +124,13 @@ export const initializeSocket = (io: Server): void => {
         const isBanned = champ.banned?.some((b) => b.toString() === socket.data.userId)
         if (isBanned) {
           socket.emit(SOCKET_EVENTS.ERROR, { message: "You are banned from this championship" })
-          console.log(`${socket.data.userName} tried to join room: ${champ.name} but is banned`)
+          if (verboseLogs) console.log(`${socket.data.userName} tried to join room: ${champ.name} but is banned`)
           return
         }
 
         // Join the room.
         socket.join(roomName)
-        console.log(`${socket.data.userName} joined room: ${champ.name}`)
+        if (verboseLogs) console.log(`${socket.data.userName} joined room: ${champ.name}`)
 
         // Emit current round state to the joining socket.
         const activeRoundIndex = champ.rounds.findIndex(
@@ -140,7 +145,7 @@ export const initializeSocket = (io: Server): void => {
               timestamp: round.statusChangedAt || new Date().toISOString(),
             }
             socket.emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
-            console.log(`Sent initial state to ${socket.data.userName}: round ${activeRoundIndex + 1} status "${round.status}"`)
+            if (verboseLogs) console.log(`Sent initial state to ${socket.data.userName}: round ${activeRoundIndex + 1} status "${round.status}"`)
           }
       } catch (err) {
         console.error(`Error fetching initial state for ${champId}:`, err)
@@ -152,12 +157,14 @@ export const initializeSocket = (io: Server): void => {
       if (!champId) return
       const roomName = `championship:${champId}`
       socket.leave(roomName)
-      // Fetch champ name for readable logging.
-      try {
-        const champ = await Champ.findById(champId).select("name")
-        console.log(`${socket.data.userName} left room: ${champ?.name || champId}`)
-      } catch {
-        console.log(`${socket.data.userName} left room: ${champId}`)
+      // Fetch champ name for readable logging (development only).
+      if (verboseLogs) {
+        try {
+          const champ = await Champ.findById(champId).select("name")
+          console.log(`${socket.data.userName} left room: ${champ?.name || champId}`)
+        } catch {
+          console.log(`${socket.data.userName} left room: ${champId}`)
+        }
       }
     })
 
@@ -190,7 +197,7 @@ export const initializeSocket = (io: Server): void => {
               driverId,
               reason: "not_authorized",
             } as BetRejectedPayload)
-            console.log(`Socket bet rejected: ${socket.data.userName} not authorized to place bets for others`)
+            if (verboseLogs) console.log(`Socket bet rejected: ${socket.data.userName} not authorized to place bets for others`)
             return
           }
           targetUserId = competitorId
@@ -231,7 +238,7 @@ export const initializeSocket = (io: Server): void => {
             timestamp,
           } as BetPlacedPayload)
 
-          console.log(`Bet placed: round ${roundIndex + 1} - user ${targetUserId} bet on driver ${driverId}${competitorId ? ` (by adjudicator ${socket.data.userName})` : ""}`)
+          if (verboseLogs) console.log(`Bet placed: round ${roundIndex + 1} - user ${targetUserId} bet on driver ${driverId}${competitorId ? ` (by adjudicator ${socket.data.userName})` : ""}`)
         } else {
           socket.emit(SOCKET_EVENTS.BET_REJECTED, {
             champId,
@@ -241,7 +248,7 @@ export const initializeSocket = (io: Server): void => {
             takenBy: result.takenBy,
           } as BetRejectedPayload)
 
-          console.log(`Bet rejected: round ${roundIndex + 1} - user ${targetUserId} tried driver ${driverId}, reason: ${result.reason}`)
+          if (verboseLogs) console.log(`Bet rejected: round ${roundIndex + 1} - user ${targetUserId} tried driver ${driverId}, reason: ${result.reason}`)
         }
       } catch (err) {
         console.error(`Error placing bet via socket:`, err)
@@ -255,7 +262,7 @@ export const initializeSocket = (io: Server): void => {
     })
 
     socket.on("disconnect", () => {
-      console.log(`Socket disconnected: ${socket.id} (user: ${socket.data.userName})`)
+      if (verboseLogs) console.log(`Socket disconnected: ${socket.id} (user: ${socket.data.userName})`)
     })
   })
 }
@@ -277,7 +284,7 @@ export const broadcastRoundStatusChange = (
     ...(roundData && { round: roundData }),
   }
   io.to(`championship:${champId}`).emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
-  console.log(`Broadcasted status change: round ${roundIndex + 1} -> "${newStatus}"`)
+  if (verboseLogs) console.log(`Broadcasted status change: round ${roundIndex + 1} -> "${newStatus}"`)
 }
 
 // Broadcasts bet placed event to all users in a championship room.
@@ -298,5 +305,5 @@ export const broadcastBetPlaced = (
     timestamp: new Date().toISOString(),
   }
   io.to(`championship:${champId}`).emit(SOCKET_EVENTS.BET_PLACED, payload)
-  console.log(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
+  if (verboseLogs) console.log(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
 }
