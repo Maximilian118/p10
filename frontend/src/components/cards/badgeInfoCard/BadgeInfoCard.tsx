@@ -1,10 +1,10 @@
 import React from "react"
 import "./_badgeInfoCard.scss"
-import { badgeType } from "../../../shared/types"
+import { badgeType, userBadgeSnapshotType } from "../../../shared/types"
 import Badge from "../../utility/badge/Badge"
 
 interface BadgeInfoCardProps {
-  badge: badgeType | null
+  badge: badgeType | userBadgeSnapshotType | null
   isOpen: boolean
 }
 
@@ -14,8 +14,11 @@ const HIDDEN_BADGE_DESC = "Someone must earn this badge before you can see how t
 
 // Displays badge details with smooth height animation when a badge is selected.
 const BadgeInfoCard: React.FC<BadgeInfoCardProps> = ({ badge, isOpen }) => {
+  // Get previewUrl if it exists (only on badgeType, not userBadgeSnapshotType).
+  const previewUrl = badge && 'previewUrl' in badge ? badge.previewUrl : null
+
   // Check if badge is hidden (no URL means unearned and hidden from non-adjudicators).
-  const isHidden = badge && !badge.url && !badge.previewUrl
+  const isHidden = badge && !badge.url && !previewUrl
 
   // Determine display name - use hidden placeholder if badge is hidden.
   const displayName = isHidden

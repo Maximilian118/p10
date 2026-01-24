@@ -8,7 +8,7 @@ import { Edit } from "@mui/icons-material"
 interface badgeCompType {
   badge: badgeType | userBadgeSnapshotType
   zoom: number
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
   style?: React.CSSProperties
   showEditButton?: boolean // Controls edit button visibility, defaults to true when onClick exists.
 }
