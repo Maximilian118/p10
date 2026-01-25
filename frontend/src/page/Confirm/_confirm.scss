@@ -11,6 +11,20 @@
   box-sizing: border-box;
   gap: 24px;
 
+  // Default variant (grey background).
+  &--default {
+    background-color: variables.$colour-4;
+
+    .confirm__btn--confirm {
+      background-color: white !important;
+      color: variables.$colour-4 !important;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+      }
+    }
+  }
+
   // Danger variant (red background).
   &--danger {
     background-color: variables.$f1-red;

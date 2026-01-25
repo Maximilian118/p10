@@ -3,7 +3,7 @@ import "./_confirm.scss"
 import { Button, CircularProgress } from "@mui/material"
 
 interface ConfirmProps {
-  variant: "danger" | "success"
+  variant: "default" | "danger" | "success"
   icon: React.ReactNode
   heading: string
   paragraphs: string[]

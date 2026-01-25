@@ -8,6 +8,7 @@
   border-bottom: 2px solid variables.$background;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
 
   // Dynamic height: 140px when shrink-ratio=0, 70px when shrink-ratio=1.
   // Using simplified calc to avoid SCSS math evaluation issues.

@@ -18,6 +18,7 @@ export const SOCKET_EVENTS = {
   BET_PLACED: "bet:placed",
   BET_CONFIRMED: "bet:confirmed",
   BET_REJECTED: "bet:rejected",
+  ADJUDICATOR_CHANGED: "adjudicator:changed",
   ERROR: "error",
 } as const
 

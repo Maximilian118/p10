@@ -23,12 +23,12 @@ import Badges from "./Views/Badges/Badges"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, adjustCompetitorPoints } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, adjustCompetitorPoints, promoteAdjudicator } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
 import { useChampionshipSocket } from "../../shared/hooks/useChampionshipSocket"
-import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload } from "../../shared/socket/socketClient"
+import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload, AdjudicatorChangedPayload, SOCKET_EVENTS, getSocket } from "../../shared/socket/socketClient"
 import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
@@ -37,6 +37,7 @@ import { getAPIView } from "./Views/RoundStatus/APIViews"
 import Confirm from "../Confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import BlockIcon from "@mui/icons-material/Block"
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz"
 import {
   initSettingsForm,
   initAutomationForm,
@@ -169,6 +170,10 @@ const Championship: React.FC = () => {
   const [ showKickConfirm, setShowKickConfirm ] = useState<boolean>(false)
   const [ competitorToKick, setCompetitorToKick ] = useState<CompetitorEntryType | null>(null)
 
+  // Promote confirmation dialog state.
+  const [ showPromoteConfirm, setShowPromoteConfirm ] = useState<boolean>(false)
+  const [ competitorToPromote, setCompetitorToPromote ] = useState<CompetitorEntryType | null>(null)
+
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
@@ -293,6 +298,56 @@ const Championship: React.FC = () => {
   // Skip joining socket room if user is banned from this championship.
   const isBannedFromChamp = champ?.banned?.some(b => b._id === user._id) ?? false
   useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected, isBannedFromChamp)
+
+  // Listen for adjudicator changed events via socket.
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handler = (payload: AdjudicatorChangedPayload): void => {
+      if (payload.champId !== id) return
+
+      // Update champ state with new adjudicator.
+      // The full champ data is refetched via GraphQL mutation response,
+      // but socket gives immediate feedback to all users in the room.
+      setChamp((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          adjudicator: {
+            ...prev.adjudicator,
+            current: { ...prev.adjudicator.current, _id: payload.newAdjudicatorId },
+          },
+        }
+      })
+
+      // Handle OLD adjudicator - exit adjudicator view and update permissions if removed.
+      if (payload.oldAdjudicatorId === user._id) {
+        setAdjudicatorView(false)
+        // Only update permissions if backend confirmed they have no other championships.
+        if (payload.oldAdjudicatorPermissionRemoved) {
+          setUser((prev) => ({
+            ...prev,
+            permissions: { ...prev.permissions, adjudicator: false },
+          }))
+        }
+      }
+
+      // Handle NEW adjudicator - grant access.
+      if (payload.newAdjudicatorId === user._id) {
+        setUser((prev) => ({
+          ...prev,
+          permissions: { ...prev.permissions, adjudicator: true },
+        }))
+      }
+    }
+
+    socket.on(SOCKET_EVENTS.ADJUDICATOR_CHANGED, handler)
+
+    return () => {
+      socket.off(SOCKET_EVENTS.ADJUDICATOR_CHANGED, handler)
+    }
+  }, [id, user._id, setUser])
 
   // Navigate to a new view while tracking history.
   const navigateToView = (newView: ChampView) => {
@@ -691,7 +746,7 @@ const Championship: React.FC = () => {
     && roundStatusView !== "completed"
 
   // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm ? 1 : shrinkRatio
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm ? 1 : shrinkRatio
 
   // Compute round viewing state - based on COMPLETED rounds only.
   // Users can only navigate between completed rounds; "waiting" rounds are not viewable.
@@ -805,7 +860,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
         <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
           <div className="action-bar-inner">
             {isAdjudicator && <AdjudicatorBar/>}
@@ -932,7 +987,7 @@ const Championship: React.FC = () => {
         {/* Kick competitor confirmation dialog */}
         {showKickConfirm && competitorToKick && (
           <Confirm
-            variant="danger"
+            variant="default"
             icon={<BlockIcon />}
             heading={`Kick ${competitorToKick.competitor.name}?`}
             paragraphs={[
@@ -962,8 +1017,41 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Promote competitor confirmation dialog */}
+        {showPromoteConfirm && competitorToPromote && (
+          <Confirm
+            variant="success"
+            icon={<SwapHorizIcon />}
+            heading={`Promote ${competitorToPromote.competitor.name}?`}
+            paragraphs={[
+              `${competitorToPromote.competitor.name} will become the new adjudicator of this championship.`,
+              "There can only be one adjudicator per championship.",
+              "You will lose your adjudicator status for this championship."
+            ]}
+            cancelText="Cancel"
+            confirmText="Promote to Adjudicator"
+            onCancel={() => {
+              setShowPromoteConfirm(false)
+              setCompetitorToPromote(null)
+            }}
+            onConfirm={async () => {
+              await promoteAdjudicator(
+                champ._id,
+                competitorToPromote.competitor._id,
+                setChamp,
+                user,
+                setUser,
+                navigate,
+                setBackendErr,
+              )
+              setShowPromoteConfirm(false)
+              setCompetitorToPromote(null)
+            }}
+          />
+        )}
+
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
                 // In adjudicator view, show all competitors from all rounds with inactive status.
@@ -988,6 +1076,7 @@ const Championship: React.FC = () => {
                     isBanned={c.isBanned}
                     isKicked={c.isKicked}
                     isDeleted={c.deleted}
+                    isSelf={c.competitor._id === user._id}
                     onKickClick={() => {
                       setCompetitorToKick(c)
                       setShowKickConfirm(true)
@@ -995,6 +1084,10 @@ const Championship: React.FC = () => {
                     onBanClick={() => {
                       setCompetitorToBan(c)
                       setShowBanConfirm(true)
+                    }}
+                    onPromoteClick={() => {
+                      setCompetitorToPromote(c)
+                      setShowPromoteConfirm(true)
                     }}
                     onUnbanClick={() => {
                       unbanCompetitor(
@@ -1148,7 +1241,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && (
+        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}

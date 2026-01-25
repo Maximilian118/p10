@@ -988,6 +988,54 @@ export const kickCompetitor = async (
   return success
 }
 
+// Promotes a competitor to adjudicator (adjudicator or admin only).
+// Transfers adjudicator role and updates user permissions.
+export const promoteAdjudicator = async (
+  champId: string,
+  newAdjudicatorId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId, newAdjudicatorId },
+          query: `
+            mutation PromoteAdjudicator($_id: ID!, $newAdjudicatorId: ID!) {
+              promoteAdjudicator(_id: $_id, newAdjudicatorId: $newAdjudicatorId) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("promoteAdjudicator", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("promoteAdjudicator", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("promoteAdjudicator", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("promoteAdjudicator", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}
+
 // Debounce state for adjustment requests.
 // Accumulates rapid clicks and sends a single request.
 const adjustmentDebounceMap = new Map<string, {

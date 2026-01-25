@@ -20,7 +20,7 @@ import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resol
 import { filterChampForUser } from "../../shared/utility"
 import { champPopulation } from "../../shared/population"
 import { io } from "../../app"
-import { broadcastRoundStatusChange, broadcastBetPlaced } from "../../socket/socketHandler"
+import { broadcastRoundStatusChange, broadcastBetPlaced, SOCKET_EVENTS } from "../../socket/socketHandler"
 import {
   scheduleCountdownTransition,
   scheduleResultsTransition,
@@ -968,6 +968,135 @@ const champResolvers = {
     }
   },
 
+  // Promotes a competitor to adjudicator (adjudicator or admin only).
+  // Transfers adjudicator role and updates user permissions.
+  promoteAdjudicator: async (
+    { _id, newAdjudicatorId }: { _id: string; newAdjudicatorId: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("promoteAdjudicator", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("promoteAdjudicator", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "promoteAdjudicator",
+          req._id,
+          "Only adjudicator or admin can promote a new adjudicator!",
+          403,
+        )
+      }
+
+      // Cannot promote yourself.
+      if (newAdjudicatorId === req._id) {
+        return throwError("promoteAdjudicator", newAdjudicatorId, "Cannot promote yourself!", 400)
+      }
+
+      // Check if new adjudicator is a competitor in the championship.
+      const inCompetitors = champ.competitors.some((c) => c.toString() === newAdjudicatorId)
+      if (!inCompetitors) {
+        return throwError(
+          "promoteAdjudicator",
+          newAdjudicatorId,
+          "User must be an active competitor to become adjudicator!",
+          400,
+        )
+      }
+
+      // Cannot promote banned users.
+      const isBanned = champ.banned?.some((b) => b.toString() === newAdjudicatorId)
+      if (isBanned) {
+        return throwError("promoteAdjudicator", newAdjudicatorId, "Cannot promote a banned user!", 400)
+      }
+
+      // Cannot promote kicked users.
+      const isKicked = champ.kicked?.some((k) => k.toString() === newAdjudicatorId)
+      if (isKicked) {
+        return throwError("promoteAdjudicator", newAdjudicatorId, "Cannot promote a kicked user!", 400)
+      }
+
+      const oldAdjudicatorId = champ.adjudicator.current.toString()
+      const now = moment().format()
+
+      // Move current adjudicator to history.
+      if (!champ.adjudicator.history) {
+        champ.adjudicator.history = []
+      }
+      champ.adjudicator.history.push({
+        adjudicator: champ.adjudicator.current,
+        fromDateTime: champ.adjudicator.fromDateTime,
+        toDateTime: now,
+      })
+
+      // Set new adjudicator.
+      champ.adjudicator.current = new ObjectId(newAdjudicatorId)
+      champ.adjudicator.fromDateTime = now
+
+      champ.updated_at = now
+      champ.markModified("adjudicator")
+      await champ.save()
+
+      // Update new adjudicator's permissions.
+      const newAdjudicatorUser = await User.findById(newAdjudicatorId)
+      if (newAdjudicatorUser && !newAdjudicatorUser.permissions?.adjudicator) {
+        newAdjudicatorUser.permissions = newAdjudicatorUser.permissions || {}
+        newAdjudicatorUser.permissions.adjudicator = true
+        newAdjudicatorUser.markModified("permissions")
+        await newAdjudicatorUser.save()
+      }
+
+      // Check if old adjudicator is still adjudicator of any other championship.
+      // Track whether their global permission was removed for the socket payload.
+      let oldAdjudicatorPermissionRemoved = false
+      const oldAdjudicatorUser = await User.findById(oldAdjudicatorId)
+      if (oldAdjudicatorUser && oldAdjudicatorUser.permissions?.adjudicator) {
+        const otherChampsCount = await Champ.countDocuments({
+          "adjudicator.current": new ObjectId(oldAdjudicatorId),
+        })
+        if (otherChampsCount === 0) {
+          oldAdjudicatorUser.permissions.adjudicator = false
+          oldAdjudicatorUser.markModified("permissions")
+          await oldAdjudicatorUser.save()
+          oldAdjudicatorPermissionRemoved = true
+        }
+      }
+
+      // Broadcast adjudicator change to all users in the championship room.
+      io.to(`championship:${_id}`).emit(SOCKET_EVENTS.ADJUDICATOR_CHANGED, {
+        champId: _id,
+        newAdjudicatorId,
+        oldAdjudicatorId,
+        oldAdjudicatorPermissionRemoved,
+        timestamp: now,
+      })
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("promoteAdjudicator", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Adjusts a competitor's points (adjudicator or admin only).
   // Adds a points adjustment to the competitor's adjustment array.
   // Returns minimal data for fast response.
@@ -1073,10 +1202,47 @@ const champResolvers = {
       // Update grandTotalPoints on the competitor entry.
       champ.rounds[roundIndex].competitors[competitorIndex].grandTotalPoints = grandTotalPoints
 
-      // Use specific markModified path for nested subdocument.
-      champ.markModified(`rounds.${roundIndex}.competitors.${competitorIndex}`)
+      // Recalculate positions for ALL competitors based on grandTotalPoints.
+      const round = champ.rounds[roundIndex]
+      const sortedCompetitors = [...round.competitors].sort(
+        (a, b) => b.grandTotalPoints - a.grandTotalPoints
+      )
+      sortedCompetitors.forEach((sorted, idx) => {
+        const original = round.competitors.find(
+          (c) => c.competitor.toString() === sorted.competitor.toString()
+        )
+        if (original) {
+          original.position = idx + 1
+        }
+      })
+
+      // Use markModified for the entire competitors array (positions changed).
+      champ.markModified(`rounds.${roundIndex}.competitors`)
       champ.updated_at = now
       await champ.save()
+
+      // Update user championship snapshots for all competitors (positions may have changed).
+      const previousRound = roundIndex > 0 ? champ.rounds[roundIndex - 1] : null
+
+      for (const entry of round.competitors) {
+        const prevEntry = previousRound?.competitors?.find(
+          (c) => c.competitor.toString() === entry.competitor.toString()
+        )
+        const positionChange = prevEntry ? prevEntry.position - entry.position : null
+
+        await User.updateOne(
+          { _id: entry.competitor, "championships._id": champ._id },
+          {
+            $set: {
+              "championships.$.position": entry.position,
+              "championships.$.positionChange": positionChange,
+              "championships.$.totalPoints": entry.grandTotalPoints,
+              "championships.$.lastPoints": entry.grandTotalPoints - (entry.totalPoints - entry.points),
+              "championships.$.updated_at": now,
+            },
+          }
+        )
+      }
 
       // Return minimal data for fast response.
       return {

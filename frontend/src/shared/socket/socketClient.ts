@@ -13,6 +13,7 @@ export const SOCKET_EVENTS = {
   BET_PLACED: "bet:placed",
   BET_CONFIRMED: "bet:confirmed",
   BET_REJECTED: "bet:rejected",
+  ADJUDICATOR_CHANGED: "adjudicator:changed",
   ERROR: "error",
 } as const
 
@@ -56,6 +57,15 @@ export interface BetRejectedPayload {
   driverId: string
   reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error" | "not_authorized"
   takenBy?: string
+}
+
+// Payload when adjudicator is changed (broadcast to championship room).
+export interface AdjudicatorChangedPayload {
+  champId: string
+  newAdjudicatorId: string
+  oldAdjudicatorId: string
+  oldAdjudicatorPermissionRemoved: boolean
+  timestamp: string
 }
 
 // Socket instance (singleton).

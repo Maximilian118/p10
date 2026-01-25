@@ -7,26 +7,114 @@
   @include mixins.flexbox-start;
   background: white;
   cursor: pointer;
-  transition: variables.$trans-speed;
   padding: 5px 7.5%;
   box-sizing: border-box;
 
+  &:hover {
+    background: variables.$colour-1;
+  }
+
   .image-icon {
     margin-right: 10px;
+    flex-shrink: 0;
   }
 
-  .competitor-name {
-    color: variables.$colour-9;
-    text-transform: capitalize;
-    font-size: 15px;
-    white-space: nowrap;
+  // Sliding area - contains name/options and action buttons.
+  &__slide-area {
+    flex: 1;
     overflow: hidden;
-    text-overflow: ellipsis;
-    margin-left: 10px;
+    position: relative;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
   }
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.06);
+  // Points wrapper - stays in place on large screens, slides on small screens.
+  &__points-wrapper {
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+
+  // Name section - always slides up out of view when actions open.
+  &__name-section {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    transition: transform 0.3s ease;
+
+    .competitor-name {
+      color: variables.$colour-9;
+      text-transform: capitalize;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-left: 10px;
+    }
+
+    // Options button styling (grey, opens actions).
+    .options-button {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    // Invite button styling (green, for kicked/left competitors).
+    .invite-button {
+      margin-left: auto;
+      flex-shrink: 0;
+      background-color: variables.$mui-success !important;
+      color: white !important;
+
+      &:hover {
+        background-color: variables.$mui-success-hover !important;
+      }
+    }
+
+    // Unban button styling (blue, for banned competitors).
+    .unban-button {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    // Deleted button styling (disabled, for deleted accounts).
+    .deleted-button {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+  }
+
+  // Action buttons - slide up into view when open.
+  &__actions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    transform: translateY(150%);
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  // Actions open state - slide name up, slide actions into view.
+  &--actions-open {
+    .competitor-list-card__name-section {
+      transform: translateY(-150%);
+    }
+
+    .competitor-list-card__actions {
+      transform: translateY(0);
+    }
+
+    // Points slides up only on small screens.
+    @media (max-width: 420px) {
+      .competitor-list-card__points-wrapper {
+        transform: translateY(-150%);
+      }
+    }
   }
 
   // Highlight animation for newly added competitors.
@@ -39,47 +127,11 @@
     background: variables.$colour-1;
     cursor: default;
 
-    // Fade child elements individually (not the unban button).
     .image-icon,
-    .points,
+    .points-container,
     .competitor-name {
       opacity: 0.7;
     }
-  }
-
-  // Kick button styling (grey, to the left of ban).
-  .kick-button {
-    margin-left: auto;
-    flex-shrink: 0;
-    background-color: variables.$colour-4 !important;
-    color: white !important;
-
-    &:hover {
-      background-color: variables.$colour-9 !important;
-    }
-  }
-
-  .invite-button {
-    margin-left: auto;
-    flex-shrink: 0;
-    background-color: variables.$mui-success !important;
-    color: white !important;
-
-    &:hover {
-      background-color: variables.$mui-success-hover !important;
-    }
-  }
-
-  // Ban button styling.
-  .ban-button {
-    margin-left: 8px;
-    flex-shrink: 0;
-  }
-
-  // Unban button styling.
-  .unban-button {
-    margin-left: auto;
-    flex-shrink: 0;
   }
 }
 

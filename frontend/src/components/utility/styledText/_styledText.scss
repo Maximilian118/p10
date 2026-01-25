@@ -1,50 +1,23 @@
 @use '../../../scss/variables';
-@use '../../../scss/keyframes';
 
 .styled-text {
   position: relative;
+  text-shadow: variables.$shadow-text;
 
   // Colour variants
   &.gold {
     color: variables.$gold;
-    text-shadow: variables.$shadow-text;
-
-    // Shimmer overlay using pseudo-element (gold only)
-    &::after {
-      content: attr(data-text);
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: linear-gradient(
-        -45deg,
-        transparent 40%,
-        rgba(255, 255, 255, 0.6) 50%,
-        transparent 60%
-      );
-      background-size: 300%;
-      background-position-x: 100%;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      animation: gold-shimmer 8s infinite linear;
-      mix-blend-mode: overlay;
-      pointer-events: none;
-    }
   }
 
   &.silver {
     color: variables.$silver;
-    text-shadow: variables.$shadow-text;
   }
 
   &.bronze {
     color: variables.$bronze;
-    text-shadow: variables.$shadow-text;
   }
 
   &.default {
     color: inherit;
-    text-shadow: variables.$shadow-text;
   }
 }

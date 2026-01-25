@@ -1,4 +1,4 @@
-import React, { SyntheticEvent } from "react"
+import React, { SyntheticEvent, useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@mui/material"
 import './_competitorListCard.scss'
@@ -16,10 +16,12 @@ interface competitorListCardType {
   isKicked?: boolean
   isInactive?: boolean
   isDeleted?: boolean
+  isSelf?: boolean
   onBanClick?: () => void
   onUnbanClick?: () => void
   onKickClick?: () => void
   onInviteClick?: () => void
+  onPromoteClick?: () => void
   onPointsChange?: (change: number) => void
 }
 
@@ -34,16 +36,50 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   isKicked,
   isInactive,
   isDeleted,
+  isSelf,
   onBanClick,
   onUnbanClick,
   onKickClick,
   onInviteClick,
+  onPromoteClick,
   onPointsChange
 }) => {
   const navigate = useNavigate()
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // Handle card click - navigate to profile or use custom handler.
+  // State for adjudicator drawer visibility.
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
+  // Determine if competitor is active (not banned, kicked, inactive, or deleted).
+  const isActive = !isBanned && !isKicked && !isInactive && !isDeleted
+
+  // Handle click outside to close drawer.
+  useEffect(() => {
+    if (!isDrawerOpen) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsDrawerOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isDrawerOpen])
+
+  // Handle card click - toggle drawer in adjudicator view, otherwise navigate to profile.
   const handleClick = (e: SyntheticEvent) => {
+    // If the competitor is the adjudicator in adjudicatorView, do nothing.
+    if (adjudicatorView && isSelf) {
+      return
+    }
+
+    // In adjudicator view, active non-self competitors toggle the drawer.
+    if (adjudicatorView && isActive && !isSelf) {
+      setIsDrawerOpen(prev => !prev)
+      return
+    }
+
     if (onClick) {
       onClick(e)
     } else {
@@ -51,22 +87,16 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
     }
   }
 
-  // Handle ban button click - stop propagation to prevent card click.
-  const handleBanClick = (e: SyntheticEvent) => {
+  // Handle options button click - toggle drawer.
+  const handleOptionsClick = (e: SyntheticEvent) => {
     e.stopPropagation()
-    onBanClick?.()
+    setIsDrawerOpen(prev => !prev)
   }
 
   // Handle unban button click - stop propagation to prevent card click.
   const handleUnbanClick = (e: SyntheticEvent) => {
     e.stopPropagation()
     onUnbanClick?.()
-  }
-
-  // Handle kick button click - stop propagation to prevent card click.
-  const handleKickClick = (e: SyntheticEvent) => {
-    e.stopPropagation()
-    onKickClick?.()
   }
 
   // Handle invite button click - stop propagation to prevent card click.
@@ -88,71 +118,115 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
     "competitor-list-card",
     highlight && "competitor-list-card__highlight",
     (isInactive || isDeleted) && "competitor-list-card--inactive",
+    isDrawerOpen && adjudicatorView && isActive && !isSelf && "competitor-list-card--actions-open",
   ].filter(Boolean).join(" ")
 
   return (
-    <div className={classNames} onClick={handleClick}>
+    <div ref={wrapperRef} className={classNames} onClick={handleClick}>
+      {/* Icon stays in place */}
       <ImageIcon src={entry.competitor.icon} size="x-large" />
-      <Points
-        total={entry.grandTotalPoints}
-        last={entry.grandTotalPoints - (entry.totalPoints - entry.points)}
-        position={entry.position}
-        canEdit={adjudicatorView}
-        onPointsChange={onPointsChange}
-      />
-      <p className="competitor-name">{entry.competitor.name}</p>
 
-      {/* Inactive badge for left/kicked/banned/deleted competitors (not banned/kicked in adjudicator view) */}
-      {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked || isDeleted)) && (
-        <StatusLabel {...getInactiveStatus()} />
-      )}
+      {/* Sliding area - contains points, name/options and action buttons */}
+      <div className="competitor-list-card__slide-area">
+        {/* Points - stays in place on large screens, slides on small screens */}
+        <div className="competitor-list-card__points-wrapper">
+          <Points
+            total={entry.grandTotalPoints}
+            last={entry.grandTotalPoints - (entry.totalPoints - entry.points)}
+            position={entry.position}
+            canEdit={adjudicatorView}
+            onPointsChange={onPointsChange}
+          />
+        </div>
 
-      {/* Kick and Ban buttons in adjudicator view (only for active competitors) */}
-      {adjudicatorView && !isBanned && !isKicked && !isInactive && (
-        <>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleKickClick}
-            className="kick-button"
-          >
-            Kick
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            color="error"
-            onClick={handleBanClick}
-            className="ban-button"
-          >
-            Ban
-          </Button>
-        </>
-      )}
+        {/* Name section - always slides up out of view when actions open */}
+        <div className="competitor-list-card__name-section">
+          <p className="competitor-name">{entry.competitor.name}</p>
 
-      {adjudicatorView && isKicked && (
-        <Button
-          variant="contained"
-          size="small"
-          onClick={handleInviteClick}
-          className="invite-button"
-        >
-          Invite
-        </Button>
-      )}
+          {/* Inactive badge for left/kicked/banned/deleted competitors (not banned/kicked in adjudicator view) */}
+          {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked || isDeleted)) && (
+            <StatusLabel {...getInactiveStatus()} />
+          )}
 
-      {/* Unban button in adjudicator view (for banned competitors) */}
-      {adjudicatorView && isBanned && (
-        <Button
-          variant="contained"
-          size="small"
-          color="primary"
-          onClick={handleUnbanClick}
-          className="unban-button"
-        >
-          Unban
-        </Button>
-      )}
+          {/* Options button for active competitors in adjudicator view (not for self) */}
+          {adjudicatorView && isActive && !isSelf && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleOptionsClick}
+              className="options-button"
+            >
+              Options
+            </Button>
+          )}
+
+          {/* Invite button for kicked or left (inactive) competitors in adjudicator view */}
+          {adjudicatorView && (isKicked || isInactive) && !isBanned && !isDeleted && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleInviteClick}
+              className="invite-button"
+            >
+              Invite
+            </Button>
+          )}
+
+          {/* Unban button for banned competitors in adjudicator view */}
+          {adjudicatorView && isBanned && (
+            <Button
+              variant="contained"
+              size="small"
+              color="primary"
+              onClick={handleUnbanClick}
+              className="unban-button"
+            >
+              Unban
+            </Button>
+          )}
+
+          {/* Disabled Deleted button for deleted accounts in adjudicator view */}
+          {adjudicatorView && isDeleted && (
+            <Button
+              variant="contained"
+              size="small"
+              disabled
+              className="deleted-button"
+            >
+              Deleted
+            </Button>
+          )}
+        </div>
+
+        {/* Action buttons - slide up into view when open (adjudicator view only) */}
+        {adjudicatorView && isActive && !isSelf && (
+          <div className="competitor-list-card__actions">
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onPromoteClick?.() }}
+            >
+              Promote
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onKickClick?.() }}
+            >
+              Kick
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onBanClick?.() }}
+            >
+              Ban
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

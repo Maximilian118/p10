@@ -8,12 +8,12 @@ interface StyledTextProps {
   colour?: StyledTextColour
 }
 
-// Renders text with optional podium styling (gold includes shimmer effect)
+// Renders text with optional podium styling.
 const StyledText: React.FC<StyledTextProps> = ({ text, colour = "default" }) => {
   const displayText = String(text)
 
   return (
-    <span className={`styled-text ${colour}`} data-text={displayText}>
+    <span className={`styled-text ${colour}`}>
       {displayText}
     </span>
   )

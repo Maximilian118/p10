@@ -51,6 +51,7 @@ const Schema = buildSchema(`
     banCompetitor(_id: ID!, competitorId: ID!): Champ!
     unbanCompetitor(_id: ID!, competitorId: ID!): Champ!
     kickCompetitor(_id: ID!, competitorId: ID!): Champ!
+    promoteAdjudicator(_id: ID!, newAdjudicatorId: ID!): Champ!
     adjustCompetitorPoints(_id: ID!, competitorId: ID!, change: Int!): AdjustmentResult!
     updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     placeBet(_id: ID!, input: PlaceBetInput!): Champ!
