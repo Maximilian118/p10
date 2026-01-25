@@ -2,6 +2,7 @@ import React from "react"
 import './_points.scss'
 import { getPodiumClass } from "../../../shared/utility"
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material"
+import StyledText, { StyledTextColour } from "../styledText/StyledText"
 
 interface PointsType {
   total: number // totalPoints
@@ -31,10 +32,16 @@ const Points: React.FC<PointsType> = ({ total, last, position, canEdit, onPoints
     </span>
   )
 
+  // Map podium class to StyledText colour (empty string becomes "default")
+  const podiumClass = total > 0 ? getPodiumClass(position ?? 0) : ""
+  const colour: StyledTextColour = podiumClass ? podiumClass as StyledTextColour : "default"
+
   return (
     <div className="points-container">
       {top}
-      <p className={`total ${total > 0 ? getPodiumClass(position ?? 0) : ''}`}>{total}</p>
+      <p className="total">
+        <StyledText text={total} colour={colour} />
+      </p>
       {bottom}
     </div>
   )

@@ -54,3 +54,8 @@
     background-color: variables.$background-green;
   }
 } 
+
+@keyframes gold-shimmer {
+  0%, 95% { background-position-x: 100%; }
+  100% { background-position-x: 0%; }
+}

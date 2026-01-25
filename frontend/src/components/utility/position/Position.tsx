@@ -2,6 +2,7 @@ import React from "react"
 import './_position.scss'
 import { getPodiumClass } from "../../../shared/utility"
 import moment from "moment"
+import StyledText, { StyledTextColour } from "../styledText/StyledText"
 
 interface PositionProps {
   position: number // What's the current position of x in the championship?
@@ -10,7 +11,11 @@ interface PositionProps {
 }
 
 const Position: React.FC<PositionProps> = ({ position, season, change }) => {
+  const ordinalText = moment.localeData().ordinal(position)
+
+  // Map podium class to StyledText colour (empty string becomes "default")
   const podiumClass = getPodiumClass(position)
+  const colour: StyledTextColour = podiumClass ? podiumClass as StyledTextColour : "default"
 
   // Format change: "+2" for gains, "-2" for drops.
   const changeText = change && change > 0 ? `+${change}` : `${change}`
@@ -22,7 +27,9 @@ const Position: React.FC<PositionProps> = ({ position, season, change }) => {
       {change !== undefined && change !== null && change !== 0 && (
         <p className={`change ${lostClass}`}>{changeText}</p>
       )}
-      <p className={`position ${podiumClass}`}>{moment.localeData().ordinal(position)}</p>
+      <p className="position">
+        <StyledText text={ordinalText} colour={colour}/>
+      </p>
       <p className="season">{`S${season}`}</p>
     </div>
   )

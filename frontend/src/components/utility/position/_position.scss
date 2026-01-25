@@ -27,10 +27,4 @@
   .season {
     bottom: -5px;
   }
-
-  .position {
-    &.gold { color: variables.$gold; }
-    &.silver { color: variables.$silver; }
-    &.bronze { color: variables.$bronze; }
-  }
 }

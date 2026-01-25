@@ -65,9 +65,4 @@
     }
   }
 
-  .total {
-    &.gold { color: variables.$gold; }
-    &.silver { color: variables.$silver; }
-    &.bronze { color: variables.$bronze; }
-  }
 }
