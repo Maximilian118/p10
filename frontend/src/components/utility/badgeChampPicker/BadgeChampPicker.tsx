@@ -102,7 +102,7 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
 
         {/* Selection mode: Unified badge grid without headers */}
         {selectionMode.active && (
-          <div className="unified-badges-grid">
+          <div className="unified-badges-grid" style={{ display: allEarnedBadges.length === 0 ? "flex" : "" }}>
             {allEarnedBadges.length > 0 ? (
               allEarnedBadges.map((badge) => (
                 <div
@@ -118,7 +118,7 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
                 </div>
               ))
             ) : (
-              <p className="no-badges-message">No badges available to feature</p>
+              <p className="no-badges-message">You own no badges!</p>
             )}
           </div>
         )}
