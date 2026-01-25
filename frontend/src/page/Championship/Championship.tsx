@@ -1035,7 +1035,10 @@ const Championship: React.FC = () => {
               setCompetitorToPromote(null)
             }}
             onConfirm={async () => {
-              await promoteAdjudicator(
+              // Check if current user is the adjudicator BEFORE promotion.
+              const wasAdjudicator = champ.adjudicator?.current?._id === user._id
+
+              const success = await promoteAdjudicator(
                 champ._id,
                 competitorToPromote.competitor._id,
                 setChamp,
@@ -1044,6 +1047,13 @@ const Championship: React.FC = () => {
                 navigate,
                 setBackendErr,
               )
+
+              // Fallback: exit adjudicator view if user was the old adjudicator.
+              // This ensures view is reset even if WebSocket fails.
+              if (success && wasAdjudicator) {
+                setAdjudicatorView(false)
+              }
+
               setShowPromoteConfirm(false)
               setCompetitorToPromote(null)
             }}
