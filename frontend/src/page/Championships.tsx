@@ -86,7 +86,7 @@ const Championships: React.FC = () => {
         {renderChampsList()}
       </div>
       <ButtonBar>
-        <AddButton onClick={() => navigate("/create-championship")} />
+        <AddButton onClick={() => navigate("/create-championship")}/>
       </ButtonBar>
     </div>
   )

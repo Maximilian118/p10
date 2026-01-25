@@ -1345,10 +1345,19 @@ const champResolvers = {
         actualStatus = "betting_open"
       }
 
-      // Skip results: process results but go directly to completed.
+      // Skip results: save "results" status first so resultsHandler can process,
+      // then transition directly to "completed".
       if (status === "results" && champ.settings.skipResults) {
-        // Execute resultsHandler first (needed for next round setup).
+        // Save "results" status to database first - resultsHandler requires this.
+        champ.rounds[roundIndex].status = "results"
+        champ.rounds[roundIndex].statusChangedAt = moment().format()
+        champ.updated_at = moment().format()
+        await champ.save()
+
+        // Execute resultsHandler (needed for next round setup, points, badges).
         await resultsHandler(_id, roundIndex)
+
+        // Now transition to "completed" and save again.
         actualStatus = "completed"
       }
 
