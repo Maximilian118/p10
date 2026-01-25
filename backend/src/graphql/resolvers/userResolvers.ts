@@ -1,7 +1,12 @@
 import moment from "moment"
 import crypto from "crypto"
+import { ObjectId } from "mongodb"
 import User, { userInputType, userType, userTypeMongo } from "../../models/user"
 import EmailVerification from "../../models/emailVerification"
+import Champ from "../../models/champ"
+import Badge from "../../models/badge"
+import Protest from "../../models/protest"
+import Series from "../../models/series"
 import { comparePass, hashPass, signTokens } from "../../shared/utility"
 import generator from "generate-password"
 import { Resend } from "resend"
@@ -440,6 +445,149 @@ const userResolvers = {
         tokens: req.tokens,
         password: null,
       }
+    } catch (err) {
+      throw err
+    }
+  },
+  // Checks if the authenticated user is currently the adjudicator of any championship.
+  isAdjudicator: async (
+    _args: Record<string, never>,
+    req: AuthRequest,
+  ): Promise<{ isAdjudicator: boolean }> => {
+    if (!req.isAuth) {
+      throwError("isAdjudicator", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const userId = new ObjectId(req._id)
+      const count = await Champ.countDocuments({ "adjudicator.current": userId })
+      return { isAdjudicator: count > 0 }
+    } catch (err) {
+      throw err
+    }
+  },
+  // Deletes the authenticated user's account and cleans up all related data.
+  deleteAccount: async (
+    _args: Record<string, never>,
+    req: AuthRequest,
+  ): Promise<{ success: boolean }> => {
+    if (!req.isAuth) {
+      throwError("deleteAccount", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const userId = new ObjectId(req._id)
+      const user = await User.findById(userId)
+
+      if (!user) {
+        return throwError("deleteAccount", req._id, "User not found!", 404)
+      }
+
+      // STEP 1: Block if user is adjudicator of any championship.
+      const adjudicatorCount = await Champ.countDocuments({ "adjudicator.current": userId })
+      if (adjudicatorCount > 0) {
+        return throwError(
+          "deleteAccount",
+          req._id,
+          "You must transfer adjudicator rights before deleting your account.",
+          403,
+        )
+      }
+
+      // STEP 2: Create user snapshot for preservation in round data.
+      const userSnapshot = { _id: userId, name: user.name, icon: user.icon }
+
+      // STEP 3: Find all championships user is involved in.
+      const championships = await Champ.find({
+        $or: [
+          { competitors: userId },
+          { banned: userId },
+          { kicked: userId },
+          { waitingList: userId },
+        ],
+      })
+
+      for (const champ of championships) {
+        const isOnlyCompetitor =
+          champ.competitors.length === 1 && champ.competitors[0].toString() === req._id
+
+        if (isOnlyCompetitor) {
+          // Delete championship entirely (following existing deleteChamp pattern).
+          await Protest.deleteMany({ championship: champ._id })
+          await Series.updateOne({ _id: champ.series }, { $pull: { championships: champ._id } })
+          await User.updateMany(
+            { "championships._id": champ._id },
+            {
+              $set: {
+                "championships.$.deleted": true,
+                "championships.$.updated_at": moment().format(),
+              },
+            },
+          )
+          await Badge.updateMany({ championship: champ._id }, { $set: { championship: null } })
+          await Champ.findByIdAndDelete(champ._id)
+          continue
+        }
+
+        // Remove from array fields.
+        champ.competitors = champ.competitors.filter((c) => c.toString() !== req._id)
+        champ.banned = champ.banned.filter((b) => b.toString() !== req._id)
+        champ.kicked = champ.kicked.filter((k) => k.toString() !== req._id)
+        champ.waitingList = champ.waitingList.filter((w) => w.toString() !== req._id)
+
+        // Process current season rounds.
+        for (let i = 0; i < champ.rounds.length; i++) {
+          const round = champ.rounds[i]
+          const entryIndex = round.competitors.findIndex(
+            (c) => c.competitor.toString() === req._id,
+          )
+
+          if (entryIndex === -1) continue
+
+          const entry = round.competitors[entryIndex]
+          const hasPoints = entry.totalPoints > 0 || entry.points > 0
+
+          if (hasPoints) {
+            // Keep entry but mark as deleted with snapshot.
+            entry.deleted = true
+            entry.deletedUserSnapshot = userSnapshot
+            champ.markModified(`rounds.${i}.competitors.${entryIndex}`)
+          } else {
+            // Remove entirely if 0 points.
+            round.competitors.splice(entryIndex, 1)
+            champ.markModified(`rounds.${i}.competitors`)
+          }
+        }
+
+        // NOTE: history[] (previous seasons) is NEVER modified.
+        // NOTE: winner/runnerUp references preserved for historical accuracy.
+
+        champ.updated_at = moment().format()
+        await champ.save()
+      }
+
+      // STEP 4: Clean up related data.
+
+      // Delete pending email verifications.
+      await EmailVerification.deleteMany({ userId })
+
+      // Remove from badge awardedTo arrays.
+      await Badge.updateMany({ awardedTo: userId }, { $pull: { awardedTo: userId } })
+
+      // Remove votes from protests (keep protests they created for historical record).
+      await Protest.updateMany(
+        { "votes.competitor": userId },
+        { $pull: { votes: { competitor: userId } } },
+      )
+
+      // NOTE: S3 images NOT deleted - URLs are preserved in snapshots.
+      // NOTE: rulesAndRegs created_by NOT modified - historical attribution.
+      // NOTE: Driver/Team/Series created_by NOT modified - just attribution.
+
+      // STEP 5: Delete user document.
+      await User.findByIdAndDelete(userId)
+
+      return { success: true }
     } catch (err) {
       throw err
     }

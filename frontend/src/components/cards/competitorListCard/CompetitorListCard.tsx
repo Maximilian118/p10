@@ -15,6 +15,7 @@ interface competitorListCardType {
   isBanned?: boolean
   isKicked?: boolean
   isInactive?: boolean
+  isDeleted?: boolean
   onBanClick?: () => void
   onUnbanClick?: () => void
   onKickClick?: () => void
@@ -32,6 +33,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   isBanned,
   isKicked,
   isInactive,
+  isDeleted,
   onBanClick,
   onUnbanClick,
   onKickClick,
@@ -73,11 +75,19 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
     onInviteClick?.()
   }
 
+  // Returns status label props for inactive/deleted competitors.
+  const getInactiveStatus = (): { text: string; colour: "default" | "error" } => {
+    if (isDeleted) return { text: "DELETED", colour: "error" }
+    if (isBanned) return { text: "BANNED", colour: "error" }
+    if (isKicked) return { text: "KICKED", colour: "default" }
+    return { text: "LEFT", colour: "default" }
+  }
+
   // Build class name with optional modifiers.
   const classNames = [
     "competitor-list-card",
     highlight && "competitor-list-card__highlight",
-    isInactive && "competitor-list-card--inactive",
+    (isInactive || isDeleted) && "competitor-list-card--inactive",
   ].filter(Boolean).join(" ")
 
   return (
@@ -92,12 +102,9 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
       />
       <p className="competitor-name">{entry.competitor.name}</p>
 
-      {/* Inactive badge for left/kicked/banned competitors (not banned/kicked in adjudicator view) */}
-      {isInactive && !(adjudicatorView && (isBanned || isKicked)) && (
-        <StatusLabel
-          text={isBanned ? "BANNED" : isKicked ? "KICKED" : "LEFT"}
-          colour={isBanned ? "error" : "default"}
-        />
+      {/* Inactive badge for left/kicked/banned/deleted competitors (not banned/kicked in adjudicator view) */}
+      {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked)) && (
+        <StatusLabel {...getInactiveStatus()} />
       )}
 
       {/* Kick and Ban buttons in adjudicator view (only for active competitors) */}

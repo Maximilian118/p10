@@ -184,6 +184,13 @@ export interface AdjustmentResultType {
   grandTotalPoints: number
 }
 
+// Snapshot of a deleted user for display purposes.
+export interface DeletedUserSnapshotType {
+  _id: string
+  name: string
+  icon: string
+}
+
 // Competitor entry within a round - all data for that competitor in that round.
 export interface CompetitorEntryType {
   competitor: userType
@@ -193,6 +200,8 @@ export interface CompetitorEntryType {
   grandTotalPoints: number // Single source of truth for display: totalPoints + adjustments.
   adjustment?: PointsAdjustmentType[] // Manual adjustments by adjudicator.
   position: number // Position in standings AFTER this round.
+  deleted?: boolean // Is this competitor a deleted user?
+  deletedUserSnapshot?: DeletedUserSnapshotType // Preserved display data for deleted users.
   updated_at: string | null // When they last changed their bet.
   created_at: string | null // When they first placed their bet.
 }

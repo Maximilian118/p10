@@ -1,5 +1,6 @@
 @use '../../scss/mixins';
 @use '../../scss/variables';
+@use 'sass:color';
 
 .settings-content {
   padding: 20px 7.5% 80px !important;
@@ -10,5 +11,14 @@
   .settings-action-btn {
     width: 100%;
     margin-bottom: 20px !important;
+
+    // Danger variant for destructive actions like account deletion.
+    &--danger {
+      background-color: variables.$f1-red !important;
+
+      &:hover {
+        background-color: color.adjust(variables.$f1-red, $lightness: -10%) !important;
+      }
+    }
   }
 }

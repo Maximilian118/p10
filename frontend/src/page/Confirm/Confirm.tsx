@@ -1,16 +1,18 @@
 import React from "react"
 import "./_confirm.scss"
-import { Button } from "@mui/material"
+import { Button, CircularProgress } from "@mui/material"
 
 interface ConfirmProps {
   variant: "danger" | "success"
   icon: React.ReactNode
   heading: string
   paragraphs: string[]
-  cancelText: string
+  cancelText?: string
   confirmText: string
-  onCancel: () => void
+  onCancel?: () => void
   onConfirm: () => void
+  loading?: boolean
+  singleButton?: boolean
 }
 
 // Reusable confirmation view for actions requiring user confirmation.
@@ -22,7 +24,9 @@ const Confirm: React.FC<ConfirmProps> = ({
   cancelText,
   confirmText,
   onCancel,
-  onConfirm
+  onConfirm,
+  loading,
+  singleButton
 }) => {
   return (
     <div className={`confirm confirm--${variant}`}>
@@ -36,17 +40,21 @@ const Confirm: React.FC<ConfirmProps> = ({
         ))}
       </div>
       <div className="confirm__actions">
-        <Button
-          variant="outlined"
-          onClick={onCancel}
-          className="confirm__btn confirm__btn--cancel"
-        >
-          {cancelText}
-        </Button>
+        {!singleButton && (
+          <Button
+            variant="outlined"
+            onClick={onCancel}
+            className="confirm__btn confirm__btn--cancel"
+          >
+            {cancelText}
+          </Button>
+        )}
         <Button
           variant="contained"
           onClick={onConfirm}
           className="confirm__btn confirm__btn--confirm"
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
         >
           {confirmText}
         </Button>

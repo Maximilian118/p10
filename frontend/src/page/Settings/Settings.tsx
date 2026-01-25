@@ -1,6 +1,6 @@
 import React, { useContext, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email } from "@mui/icons-material"
+import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email, Delete } from "@mui/icons-material"
 import { Button } from "@mui/material"
 import "./_settings.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
@@ -11,7 +11,7 @@ import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import MUITextField from "../../components/utility/muiTextField/MUITextField"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import ProfileCard from "../../components/cards/profileCard/ProfileCard"
-import { updateUser } from "../../shared/requests/userRequests"
+import { updateUser, checkIsAdjudicator, deleteAccount } from "../../shared/requests/userRequests"
 import Confirm from "../Confirm/Confirm"
 
 const Settings: React.FC = () => {
@@ -37,6 +37,9 @@ const Settings: React.FC = () => {
   })
   const [featuredBadgeLoading] = useState(false)
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isAdjudicatorOfChamp, setIsAdjudicatorOfChamp] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // Check if form has changes compared to current user data.
   const hasChanges =
@@ -70,6 +73,18 @@ const Settings: React.FC = () => {
     }
   }
 
+  // Check if user is adjudicator before showing delete confirmation.
+  const handleDeleteClick = async () => {
+    const result = await checkIsAdjudicator(user, setBackendErr)
+    setIsAdjudicatorOfChamp(result)
+    setShowDeleteConfirm(true)
+  }
+
+  // Handle account deletion.
+  const handleDeleteAccount = async () => {
+    await deleteAccount(user, setUser, navigate, setDeleteLoading, setBackendErr)
+  }
+
   // Show email changed confirmation view.
   if (showEmailChanged) {
     return (
@@ -86,6 +101,47 @@ const Settings: React.FC = () => {
         confirmText="Got it"
         onCancel={() => setShowEmailChanged(false)}
         onConfirm={() => setShowEmailChanged(false)}
+      />
+    )
+  }
+
+  // Show delete account confirmation view.
+  if (showDeleteConfirm) {
+    if (isAdjudicatorOfChamp) {
+      // User is adjudicator - show blocking notice with single button.
+      return (
+        <Confirm
+          variant="danger"
+          icon={<Delete />}
+          heading="Cannot Delete Account"
+          paragraphs={[
+            "You are currently the adjudicator of one or more championships.",
+            "You must transfer adjudicator rights to another competitor before you can delete your account.",
+            "Go to your championship settings and assign a new adjudicator first."
+          ]}
+          confirmText="Back to Settings"
+          onConfirm={() => setShowDeleteConfirm(false)}
+          singleButton
+        />
+      )
+    }
+
+    // Normal delete confirmation.
+    return (
+      <Confirm
+        variant="danger"
+        icon={<Delete />}
+        heading="Delete Your Account?"
+        paragraphs={[
+          "This action is permanent and cannot be undone.",
+          "Your profile, badges, and all personal data will be deleted.",
+          "Your points will remain in championship history."
+        ]}
+        cancelText="Keep My Account"
+        confirmText="Delete Forever"
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccount}
+        loading={deleteLoading}
       />
     )
   }
@@ -142,6 +198,15 @@ const Settings: React.FC = () => {
           fullWidth
         >
           Change Password
+        </Button>
+        <Button
+          variant="contained"
+          className="settings-action-btn settings-action-btn--danger"
+          onClick={handleDeleteClick}
+          startIcon={<Delete />}
+          fullWidth
+        >
+          Delete Account
         </Button>
       </div>
       <ButtonBar buttons={[

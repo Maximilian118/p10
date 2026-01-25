@@ -17,6 +17,13 @@ const champSchema = `
     passed
   }
 
+  # Snapshot of a deleted user for display purposes.
+  type DeletedUserSnapshot {
+    _id: ID!
+    name: String!
+    icon: String!
+  }
+
   # Points adjustment by adjudicator - manual or penalty.
   type PointsAdjustment {
     adjustment: Int!
@@ -43,6 +50,8 @@ const champSchema = `
     grandTotalPoints: Int!
     adjustment: [PointsAdjustment]
     position: Int!
+    deleted: Boolean
+    deletedUserSnapshot: DeletedUserSnapshot
     updated_at: String
     created_at: String
   }

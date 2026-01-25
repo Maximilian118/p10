@@ -330,6 +330,7 @@ export const populateChamp = `
         created_at
       }
       position
+      deleted
       updated_at
       created_at
     }

@@ -84,5 +84,15 @@ const userSchema = `
     user: User!
     emailChanged: Boolean!
   }
+
+  # Result from isAdjudicator query.
+  type IsAdjudicatorResult {
+    isAdjudicator: Boolean!
+  }
+
+  # Result from deleteAccount mutation.
+  type DeleteAccountResult {
+    success: Boolean!
+  }
 `
 export default userSchema

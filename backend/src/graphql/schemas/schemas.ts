@@ -30,6 +30,7 @@ const Schema = buildSchema(`
     getChamps: Champs
     getChampById(_id: ID!): Champ!
     getMyTopChampionship: FloatingChamp
+    isAdjudicator: IsAdjudicatorResult!
   }
 
   type rootMutation {
@@ -41,6 +42,7 @@ const Schema = buildSchema(`
     confirmEmailChange(token: String!): User!
     updatePassword(currentPass: String!, password: String!, passConfirm: String!): User!
     setFeaturedBadge(badgeId: ID!, position: Int): User!
+    deleteAccount: DeleteAccountResult!
     createChamp(champInput: ChampInput): Champ!
     updateChampPP(_id: ID!, icon: String!, profile_picture: String!): Champ!
     updateChampSettings(_id: ID!, settings: ChampSettingsInput!): Champ!

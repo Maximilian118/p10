@@ -987,6 +987,7 @@ const Championship: React.FC = () => {
                     isInactive={c.isInactive}
                     isBanned={c.isBanned}
                     isKicked={c.isKicked}
+                    isDeleted={c.deleted}
                     onKickClick={() => {
                       setCompetitorToKick(c)
                       setShowKickConfirm(true)

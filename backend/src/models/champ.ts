@@ -7,6 +7,13 @@ import { ProtestStatus, Vote } from "./protest"
 // prettier-ignore
 export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 
+// Snapshot of a deleted user for display purposes.
+export interface DeletedUserSnapshot {
+  _id: ObjectId
+  name: string
+  icon: string
+}
+
 // An amount of manually adjusted points by an adjudicator
 // via an official pentalty or a simple points subtraction/addition.
 export interface PointsAdjustment {
@@ -26,6 +33,8 @@ export interface CompetitorEntry {
   grandTotalPoints: number // Single source of truth for display: totalPoints + sum(adjustments).
   adjustment?: PointsAdjustment[] // An amount of manually adjusted points by an adjudicator.
   position: number // Position in standings AFTER this round.
+  deleted?: boolean // Is this competitor a deleted user?
+  deletedUserSnapshot?: DeletedUserSnapshot // Preserved display data for deleted users.
   updated_at: string | null // In case the user has changed their mind during the betting process.
   created_at: string | null // When they first placed their bet.
 }
@@ -235,6 +244,16 @@ const pointsAdjustmentSchema = new mongoose.Schema(
   { _id: false },
 )
 
+// Schema for deleted user snapshot - preserved display data for deleted users.
+const deletedUserSnapshotSchema = new mongoose.Schema(
+  {
+    _id: { type: mongoose.Schema.ObjectId, required: true },
+    name: { type: String, required: true },
+    icon: { type: String, required: true },
+  },
+  { _id: false },
+)
+
 // Schema for competitor entry within a round.
 const competitorEntrySchema = new mongoose.Schema(
   {
@@ -246,6 +265,8 @@ const competitorEntrySchema = new mongoose.Schema(
     grandTotalPoints: { type: Number, default: 0 },
     adjustment: { type: [pointsAdjustmentSchema], default: [] },
     position: { type: Number, default: 0 },
+    deleted: { type: Boolean, default: false },
+    deletedUserSnapshot: { type: deletedUserSnapshotSchema, default: null },
     updated_at: { type: String, default: null },
     created_at: { type: String, default: null },
   },

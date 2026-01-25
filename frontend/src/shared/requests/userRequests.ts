@@ -595,3 +595,76 @@ export const getUserById = async (
 
   setLoading(false)
 }
+
+// Checks if the current user is an adjudicator of any championship.
+export const checkIsAdjudicator = async (
+  user: userType,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  try {
+    const res = await axios.post(
+      "",
+      {
+        query: `
+          query IsAdjudicator {
+            isAdjudicator {
+              isAdjudicator
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      setBackendErr((prev) => ({
+        ...prev,
+        type: "isAdjudicator",
+        message: res.data.errors[0]?.message || "Failed to check adjudicator status",
+      }))
+      return false
+    }
+
+    return res.data.data.isAdjudicator.isAdjudicator
+  } catch {
+    return false
+  }
+}
+
+// Deletes the current user's account.
+export const deleteAccount = async (
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    const res = await axios.post(
+      "",
+      {
+        query: `
+          mutation DeleteAccount {
+            deleteAccount {
+              success
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("deleteAccount", res, setUser, navigate, setBackendErr, true)
+    } else {
+      // Account deleted - log out and redirect to home.
+      logout(setUser, navigate)
+    }
+  } catch (err: unknown) {
+    graphQLErrors("deleteAccount", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
