@@ -103,7 +103,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
       <p className="competitor-name">{entry.competitor.name}</p>
 
       {/* Inactive badge for left/kicked/banned/deleted competitors (not banned/kicked in adjudicator view) */}
-      {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked)) && (
+      {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked || isDeleted)) && (
         <StatusLabel {...getInactiveStatus()} />
       )}
 
