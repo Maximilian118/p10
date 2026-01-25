@@ -998,9 +998,9 @@ const champResolvers = {
         )
       }
 
-      // Cannot promote yourself.
-      if (newAdjudicatorId === req._id) {
-        return throwError("promoteAdjudicator", newAdjudicatorId, "Cannot promote yourself!", 400)
+      // Cannot promote yourself if you're already the adjudicator.
+      if (newAdjudicatorId === req._id && isAdjudicator) {
+        return throwError("promoteAdjudicator", newAdjudicatorId, "You are already the adjudicator!", 400)
       }
 
       // Check if new adjudicator is a competitor in the championship.
