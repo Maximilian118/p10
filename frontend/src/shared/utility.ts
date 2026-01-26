@@ -344,9 +344,10 @@ export const aggregateAllCompetitors = (
 
   // Convert to array and add inactive/banned/kicked status.
   const competitors = Array.from(competitorMap.values()).map((entry) => {
-    const isBanned = banned?.some((b) => b._id === entry.competitor._id) ?? false
-    const isKicked = kicked?.some((k) => k._id === entry.competitor._id) ?? false
-    const inCompetitors = champCompetitors.some((c) => c._id === entry.competitor._id)
+    const competitorId = entry.competitor?._id ?? entry.deletedUserSnapshot?._id
+    const isBanned = competitorId ? banned?.some((b) => b._id === competitorId) ?? false : false
+    const isKicked = competitorId ? kicked?.some((k) => k._id === competitorId) ?? false : false
+    const inCompetitors = competitorId ? champCompetitors.some((c) => c._id === competitorId) : false
     return {
       ...entry,
       isInactive: !inCompetitors || isBanned || isKicked,

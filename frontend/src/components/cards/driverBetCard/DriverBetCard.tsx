@@ -53,7 +53,9 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
   // Determine display values based on mode.
   const isCompetitorMode = displayMode === 'competitor' && competitor
   const showCompetitorIcon = takenBy || isCompetitorMode
-  const competitorIcon = isCompetitorMode ? competitor.competitor.icon : takenBy?.icon
+  const competitorIcon = isCompetitorMode
+    ? (competitor.competitor?.icon ?? competitor.deletedUserSnapshot?.icon)
+    : takenBy?.icon
 
   // Position badge styling class based on position.
   const getPositionBadgeClass = (position: number): string => {
@@ -78,7 +80,7 @@ const DriverBetCard: React.FC<DriverBetCardProps> = ({
       )}
       <div className="driver-card-header">
         {isPending && <CircularProgress size="18px"/>}
-        <p>{isCompetitorMode ? competitor.competitor.name : driver.driverID}</p>
+        <p>{isCompetitorMode ? (competitor.competitor?.name ?? competitor.deletedUserSnapshot?.name ?? "Deleted User") : driver.driverID}</p>
       </div>
       {!isCompetitorMode && <img className="driver-icon" alt="driver" src={driver.icon}/>}
       {showCompetitorIcon && competitorIcon && !isPositionInputMode && <ImageIcon src={competitorIcon} size="large"/>}

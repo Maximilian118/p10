@@ -339,6 +339,11 @@ export const populateChamp = `
       }
       position
       deleted
+      deletedUserSnapshot {
+        _id
+        name
+        icon
+      }
       updated_at
       created_at
     }
@@ -661,6 +666,12 @@ export const populateChamp = `
           created_at
         }
         position
+        deleted
+        deletedUserSnapshot {
+          _id
+          name
+          icon
+        }
         updated_at
         created_at
       }

@@ -193,7 +193,7 @@ export interface DeletedUserSnapshotType {
 
 // Competitor entry within a round - all data for that competitor in that round.
 export interface CompetitorEntryType {
-  competitor: userType
+  competitor: userType | null // Null for deleted users - use deletedUserSnapshot for display.
   bet: driverType | null
   points: number // Points earned THIS round.
   totalPoints: number // Cumulative points AFTER this round.

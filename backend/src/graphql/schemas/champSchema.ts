@@ -43,7 +43,7 @@ const champSchema = `
 
   # Competitor entry within a round - all data for that competitor in that round.
   type CompetitorEntry {
-    competitor: User!
+    competitor: User
     bet: Driver
     points: Int!
     totalPoints: Int!

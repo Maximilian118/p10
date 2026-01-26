@@ -1056,7 +1056,7 @@ const updateCompetitorGrandTotal = (
     const updatedRounds = prevChamp.rounds.map((round) => ({
       ...round,
       competitors: round.competitors.map((comp) =>
-        comp.competitor._id === competitorId
+        comp.competitor?._id === competitorId
           ? { ...comp, grandTotalPoints: comp.grandTotalPoints + delta }
           : comp
       ),
@@ -1157,7 +1157,7 @@ const sendAdjustmentRequest = async (
         const round = updatedRounds[result.roundIndex]
         if (round) {
           round.competitors = round.competitors.map((comp) =>
-            comp.competitor._id === competitorId
+            comp.competitor?._id === competitorId
               ? { ...comp, adjustment: result.adjustment, grandTotalPoints: result.grandTotalPoints }
               : comp
           )

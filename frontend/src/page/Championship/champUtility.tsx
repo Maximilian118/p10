@@ -572,6 +572,11 @@ export type CompetitorWithStatus = CompetitorEntryType & {
   isDeleted: boolean
 }
 
+// Helper to get competitor ID from entry (uses snapshot for deleted users).
+const getCompetitorId = (entry: CompetitorEntryType): string | undefined => {
+  return entry.competitor?._id ?? entry.deletedUserSnapshot?._id
+}
+
 // Single source of truth for all competitors to render in both normal and adjudicator view.
 // Combines round competitors with new joiners from champ.competitors and adds status flags.
 export const getCompetitors = (
@@ -584,7 +589,7 @@ export const getCompetitors = (
 
   // Get competitors from current round data.
   const roundCompetitors = getCompetitorsFromRound(viewedRound)
-  const roundCompetitorIds = new Set(roundCompetitors.map(c => c.competitor._id))
+  const roundCompetitorIds = new Set(roundCompetitors.map(c => getCompetitorId(c)).filter(Boolean))
 
   // Add competitors from champ.competitors who aren't in round data (new joiners).
   const newJoiners = champCompetitors
@@ -601,11 +606,14 @@ export const getCompetitors = (
     }))
 
   // Combine and add status flags.
-  return [...roundCompetitors, ...newJoiners].map(c => ({
-    ...c,
-    isInactive: isCompetitorInactive(c.competitor._id, champCompetitors, banned, kicked),
-    isBanned: banned.some(b => b._id === c.competitor._id),
-    isKicked: kicked.some(k => k._id === c.competitor._id),
-    isDeleted: c.deleted ?? false,
-  }))
+  return [...roundCompetitors, ...newJoiners].map(c => {
+    const competitorId = getCompetitorId(c)
+    return {
+      ...c,
+      isInactive: competitorId ? isCompetitorInactive(competitorId, champCompetitors, banned, kicked) : true,
+      isBanned: competitorId ? banned.some(b => b._id === competitorId) : false,
+      isKicked: competitorId ? kicked.some(k => k._id === competitorId) : false,
+      isDeleted: c.deleted ?? false,
+    }
+  })
 }

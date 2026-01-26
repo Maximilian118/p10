@@ -28,35 +28,6 @@ import {
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
 
-// Transforms null competitor references (from deleted users) to use stored snapshot data.
-// This ensures the frontend receives valid user-like objects for display.
-const transformDeletedCompetitors = (champ: ChampType): ChampType => {
-  for (const round of champ.rounds) {
-    for (const entry of round.competitors) {
-      // Handle null competitor references (from deleted users or pre-existing data).
-      if (!entry.competitor) {
-        // Use snapshot if available, otherwise create placeholder.
-        const snapshot = entry.deletedUserSnapshot || {
-          _id: new ObjectId(),
-          name: "Deleted User",
-          icon: "",
-        }
-
-        entry.deleted = true
-        entry.competitor = {
-          _id: snapshot._id,
-          name: snapshot.name,
-          icon: snapshot.icon,
-          profile_picture: snapshot.icon,
-          permissions: { admin: false, adjudicator: false, guest: false },
-          created_at: "",
-        } as unknown as ObjectId
-      }
-    }
-  }
-  return champ
-}
-
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
   position: number
@@ -364,11 +335,8 @@ const champResolvers = {
       const user = await User.findById(req._id)
       const isAdmin = user?.permissions?.admin === true
 
-      // Transform deleted competitor references to use stored snapshots.
-      const transformedChamp = transformDeletedCompetitors(champ._doc)
-
       return filterChampForUser({
-        ...transformedChamp,
+        ...champ._doc,
         tokens: req.tokens,
       }, isAdmin)
     } catch (err) {
@@ -400,8 +368,7 @@ const champResolvers = {
       return {
         array: champs.map(champ => {
           const champData = champ._doc || champ
-          const transformedChamp = transformDeletedCompetitors(champData)
-          return filterChampForUser(transformedChamp, isAdmin)
+          return filterChampForUser(champData, isAdmin)
         }),
         tokens: req.tokens,
       }

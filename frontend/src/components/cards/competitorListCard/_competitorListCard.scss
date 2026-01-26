@@ -10,6 +10,26 @@
   padding: 5px 7.5%;
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
+
+  // Role banner for adjudicators/admins.
+  &__role-banner {
+    position: absolute;
+    width: 88px;
+    top: 44px;
+    left: -42px;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: center;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    white-space: nowrap;
+    text-align: center;
+    background: variables.$mui-blue;
+    color: white;
+  }
 
   &:hover {
     background: variables.$colour-1;

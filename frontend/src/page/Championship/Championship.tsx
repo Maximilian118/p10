@@ -239,7 +239,7 @@ const Championship: React.FC = () => {
 
         // Find the competitor who placed the bet and update their bet.
         const competitorIdx = newCompetitors.findIndex(
-          c => c.competitor._id === payload.competitorId
+          c => c.competitor?._id === payload.competitorId
         )
         if (competitorIdx !== -1) {
           // Find the full driver object from the round's drivers array.
@@ -271,7 +271,7 @@ const Championship: React.FC = () => {
 
         // Find the competitor entry and update their bet.
         const competitorIdx = newCompetitors.findIndex(
-          c => c.competitor._id === payload.competitorId
+          c => c.competitor?._id === payload.competitorId
         )
         if (competitorIdx !== -1) {
           // Find the full driver object from the round's drivers array.
@@ -958,7 +958,7 @@ const Championship: React.FC = () => {
           <Confirm
             variant="danger"
             icon={<BlockIcon />}
-            heading={`Ban ${competitorToBan.competitor.name}?`}
+            heading={`Ban ${competitorToBan.competitor?.name ?? competitorToBan.deletedUserSnapshot?.name ?? "Competitor"}?`}
             paragraphs={[
               "This competitor will be banned from the championship.",
               "They will not be able to rejoin.",
@@ -971,9 +971,11 @@ const Championship: React.FC = () => {
               setCompetitorToBan(null)
             }}
             onConfirm={async () => {
+              const competitorId = competitorToBan.competitor?._id
+              if (!competitorId) return
               await banCompetitor(
                 champ._id,
-                competitorToBan.competitor._id,
+                competitorId,
                 setChamp,
                 user,
                 setUser,
@@ -991,7 +993,7 @@ const Championship: React.FC = () => {
           <Confirm
             variant="default"
             icon={<BlockIcon />}
-            heading={`Kick ${competitorToKick.competitor.name}?`}
+            heading={`Kick ${competitorToKick.competitor?.name ?? "Competitor"}?`}
             paragraphs={[
               "This competitor will be removed from the championship.",
               "They can rejoin later if they wish.",
@@ -1004,9 +1006,11 @@ const Championship: React.FC = () => {
               setCompetitorToKick(null)
             }}
             onConfirm={async () => {
+              const competitorId = competitorToKick.competitor?._id
+              if (!competitorId) return
               await kickCompetitor(
                 champ._id,
-                competitorToKick.competitor._id,
+                competitorId,
                 setChamp,
                 user,
                 setUser,
@@ -1024,9 +1028,9 @@ const Championship: React.FC = () => {
           <Confirm
             variant="success"
             icon={<SwapHorizIcon />}
-            heading={`Promote ${competitorToPromote.competitor.name}?`}
+            heading={`Promote ${competitorToPromote.competitor?.name ?? "Competitor"}?`}
             paragraphs={[
-              `${competitorToPromote.competitor.name} will become the new adjudicator of this championship.`,
+              `${competitorToPromote.competitor?.name ?? "This competitor"} will become the new adjudicator of this championship.`,
               "There can only be one adjudicator per championship.",
               "You will lose your adjudicator status for this championship."
             ]}
@@ -1037,12 +1041,15 @@ const Championship: React.FC = () => {
               setCompetitorToPromote(null)
             }}
             onConfirm={async () => {
+              const competitorId = competitorToPromote.competitor?._id
+              if (!competitorId) return
+
               // Check if current user is the adjudicator BEFORE promotion.
               const wasAdjudicator = champ.adjudicator?.current?._id === user._id
 
               const success = await promoteAdjudicator(
                 champ._id,
-                competitorToPromote.competitor._id,
+                competitorId,
                 setChamp,
                 user,
                 setUser,
@@ -1072,17 +1079,22 @@ const Championship: React.FC = () => {
                   ? competitors
                   : competitors.filter(c => !(c.isInactive && c.grandTotalPoints === 0))
 
-                return filteredCompetitors.map((c, i) => (
+                return filteredCompetitors.map((c, i) => {
+                  // Get competitor ID - use snapshot for deleted users.
+                  const competitorId = c.competitor?._id ?? c.deletedUserSnapshot?._id
+                  return (
                   <CompetitorListCard
-                    key={c.competitor._id || i}
-                    highlight={justJoined && c.competitor._id === user._id}
+                    key={competitorId || i}
+                    highlight={justJoined && competitorId === user._id}
                     entry={{ ...c, position: i + 1 }}
                     adjudicatorView={adjudicatorView}
                     isInactive={c.isInactive}
                     isBanned={c.isBanned}
                     isKicked={c.isKicked}
                     isDeleted={c.isDeleted}
-                    isSelf={c.competitor._id === user._id}
+                    isSelf={competitorId === user._id}
+                    isAdjudicator={competitorId === champ.adjudicator?.current?._id}
+                    isAdmin={c.competitor?.permissions?.admin === true}
                     onKickClick={() => {
                       setCompetitorToKick(c)
                       setShowKickConfirm(true)
@@ -1096,9 +1108,10 @@ const Championship: React.FC = () => {
                       setShowPromoteConfirm(true)
                     }}
                     onUnbanClick={() => {
+                      if (!competitorId) return
                       unbanCompetitor(
                         champ._id,
-                        c.competitor._id,
+                        competitorId,
                         setChamp,
                         user,
                         setUser,
@@ -1107,9 +1120,10 @@ const Championship: React.FC = () => {
                       )
                     }}
                     onPointsChange={(change) => {
+                      if (!competitorId) return
                       adjustCompetitorPoints(
                         champ._id,
-                        c.competitor._id,
+                        competitorId,
                         change,
                         setChamp,
                         user,
@@ -1119,7 +1133,7 @@ const Championship: React.FC = () => {
                       )
                     }}
                   />
-                ))
+                )})
               })()}
               {standingsView === "drivers" && viewedRound &&
                 getAllDriversForRound(champ.series, viewedRound).map((d, i) => (

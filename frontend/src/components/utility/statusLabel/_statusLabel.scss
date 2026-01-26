@@ -7,7 +7,7 @@
   letter-spacing: 0.5px;
   color: white;
   border-radius: 4px;
-  text-transform: capitalize;
+  text-transform: uppercase;
 
   // Colour variants.
   &--default {
@@ -20,5 +20,9 @@
 
   &--success {
     background: variables.$mui-success;
+  }
+
+  &--highlight {
+    background: variables.$mui-blue;
   }
 }

@@ -18,6 +18,8 @@ interface competitorListCardType {
   isInactive?: boolean
   isDeleted?: boolean
   isSelf?: boolean
+  isAdjudicator?: boolean
+  isAdmin?: boolean
   onBanClick?: () => void
   onUnbanClick?: () => void
   onKickClick?: () => void
@@ -38,6 +40,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   isInactive,
   isDeleted,
   isSelf,
+  isAdjudicator,
   onBanClick,
   onUnbanClick,
   onKickClick,
@@ -50,6 +53,12 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
 
   // State for adjudicator drawer visibility.
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
+  // Extract display data - use snapshot for deleted users.
+  const competitorId = entry.competitor?._id ?? entry.deletedUserSnapshot?._id
+  const competitorName = entry.competitor?.name ?? entry.deletedUserSnapshot?.name ?? "Deleted User"
+  const competitorIcon = entry.competitor?.icon ?? entry.deletedUserSnapshot?.icon ?? ""
+  const competitorBadges = entry.competitor?.badges
 
   // Determine if competitor is active (not banned, kicked, inactive, or deleted).
   const isActive = !isBanned && !isKicked && !isInactive && !isDeleted
@@ -80,11 +89,11 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
       return
     }
 
-    // Normal view: navigate to profile.
+    // Normal view: navigate to profile (only if competitor exists).
     if (onClick) {
       onClick(e)
-    } else {
-      navigate(`/profile/${entry.competitor._id}`)
+    } else if (competitorId) {
+      navigate(`/profile/${competitorId}`)
     }
   }
 
@@ -124,8 +133,14 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
 
   return (
     <div ref={wrapperRef} className={classNames} onClick={handleClick}>
-      {/* Icon stays in place */}
-      <ImageIcon src={entry.competitor.icon} size="x-large" />
+      {/* Role banner for adjudicators/admins */}
+      {isAdjudicator && (
+        <div className="competitor-list-card__role-banner">
+          Adjudicator
+        </div>
+      )}
+
+      <ImageIcon src={competitorIcon} size="x-large" />
 
       {/* Sliding area - contains points, name/options and action buttons */}
       <div className="competitor-list-card__slide-area">
@@ -144,7 +159,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
         <div className="competitor-list-card__info-section">
           {/* Name row - contains name and action button on same line */}
           <div className="competitor-list-card__name-row">
-            <p className="competitor-name">{entry.competitor.name}</p>
+            <p className="competitor-name">{competitorName}</p>
 
             {/* Options button for active competitors in adjudicator view (not for self) */}
             {adjudicatorView && isActive && !isSelf && (
@@ -197,9 +212,9 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
           </div>
 
           {/* Featured badges below name row */}
-          {isActive && !adjudicatorView && entry.competitor.badges && entry.competitor.badges.length > 0 && (
+          {isActive && !adjudicatorView && competitorBadges && competitorBadges.length > 0 && (
             <FeaturedBadges
-              badges={entry.competitor.badges}
+              badges={competitorBadges}
               badgeSize={32}
               readOnly
             />

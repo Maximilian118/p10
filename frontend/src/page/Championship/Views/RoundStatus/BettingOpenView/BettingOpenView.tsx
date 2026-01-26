@@ -99,7 +99,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
 
   // Find the current user's competitor entry.
   const currentUserCompetitor = round.competitors.find(
-    c => c.competitor._id === user._id
+    c => c.competitor?._id === user._id
   )
   const currentUserBetId = currentUserCompetitor?.bet?._id || null
 
@@ -192,7 +192,7 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
 
     // Check if driver is already taken by another competitor.
     const takenBy = findCompetitorWithBet(round.competitors, driver._id)
-    if (takenBy && takenBy.competitor._id !== user._id) {
+    if (takenBy && takenBy.competitor?._id !== user._id) {
       return
     }
 
@@ -206,14 +206,15 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
 
   // Handles clicking on a competitor to place bet for them (adjudicator only).
   const handleCompetitorClick = (competitorEntry: CompetitorEntryType): void => {
-    if (!selectedDriverId || !competitorEntry.competitor._id) return
+    const competitorId = competitorEntry.competitor?._id
+    if (!selectedDriverId || !competitorId) return
 
     // Don't allow click if already waiting for a bet response.
     if (pendingDriverId) return
 
     // Place bet for this competitor on the selected driver.
     setPendingDriverId(selectedDriverId)
-    placeBetViaSocket(champId, roundIndex, selectedDriverId, competitorEntry.competitor._id)
+    placeBetViaSocket(champId, roundIndex, selectedDriverId, competitorId)
 
     // Reset to driver view after placing bet.
     setSelectedDriverId(null)
@@ -281,14 +282,15 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
         {isSelectingCompetitor ? (
           // Competitor selection mode - show competitors sorted by totalPoints.
           sortedCompetitors.map(competitorEntry => {
-            if (!competitorEntry.competitor._id) return null
+            const competitorId = competitorEntry.competitor?._id ?? competitorEntry.deletedUserSnapshot?._id
+            if (!competitorId) return null
 
             // Use initDriver utility to create placeholder (required prop).
             const placeholderDriver = initDriver(user)
 
             return (
               <DriverBetCard
-                key={competitorEntry.competitor._id}
+                key={competitorId}
                 driver={placeholderDriver}
                 displayMode="competitor"
                 competitor={competitorEntry}

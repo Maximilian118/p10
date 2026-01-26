@@ -42,7 +42,7 @@ const BettingClosedView: React.FC<BettingClosedViewProps> = ({
 
   // Find the current user's bet to highlight it (non-adjudicator mode).
   const currentUserCompetitor = round.competitors.find(
-    c => c.competitor._id === user._id
+    c => c.competitor?._id === user._id
   )
   const currentUserBetId = currentUserCompetitor?.bet?._id || null
 
