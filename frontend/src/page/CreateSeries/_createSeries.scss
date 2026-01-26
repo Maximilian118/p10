@@ -18,25 +18,4 @@ body #root .main-logged-in .content-container.create-series {
     width: 60%;
     margin-bottom: 60px !important;
   }
-
-  .driver-picker {
-    width: 100%;
-    min-height: 240px;
-    border-radius: 4px;
-    @include mixins.flexbox-start-column;
-    flex-shrink: 0;
-    margin-bottom: 20px;
-    overflow: hidden;
-    position: relative;
-
-    .driver-picker-list {
-      width: 100%;
-      background: rgba(0, 0, 0, 0.06);
-      flex-grow: 1;
-      @include mixins.flexbox-start-column;
-      overflow-y: scroll;
-      padding: 8px 0 50px;
-      box-sizing: border-box;
-    }
-  }
 }

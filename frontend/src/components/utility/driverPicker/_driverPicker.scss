@@ -16,8 +16,7 @@
     flex-grow: 1;
     @include mixins.flexbox-start-column;
     overflow-y: scroll;
-    padding: 8px 0 50px;
-    box-sizing: border-box;
+    gap: 2px;
 
     .driver-picker-empty {
       width: 100%;

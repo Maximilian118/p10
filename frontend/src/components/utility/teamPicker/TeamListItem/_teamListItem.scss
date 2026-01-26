@@ -9,7 +9,6 @@
   padding: 5px 10px;
   box-sizing: border-box;
   position: relative;
-  transition: variables.$trans-speed;
 
   &.clickable {
     cursor: pointer;
@@ -28,10 +27,5 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  // Adds spacing between consecutive list items.
-  & + .team-list-item {
-    margin-top: 2px;
   }
 }

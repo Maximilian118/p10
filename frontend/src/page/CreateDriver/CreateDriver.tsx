@@ -103,6 +103,9 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
   const [ isTeamEdit, setIsTeamEdit ] = useState<boolean>(false)
   const [ teamToEdit, setTeamToEdit ] = useState<teamType>(initTeam(user))
 
+  // Track if teams have been manually modified to prevent sync from overwriting user changes.
+  const [ teamsManuallyModified, setTeamsManuallyModified ] = useState<boolean>(false)
+
   // Track if user has manually edited the driverID field.
   // If editing an existing driver, assume the driverID is intentional.
   const [ userEditedDriverID, setUserEditedDriverID ] = useState<boolean>(isEditing)
@@ -174,6 +177,8 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
   // Update form with complete driver data from fetched list (handles incomplete data from navigation).
   useEffect(() => {
+    // Skip if user has manually modified teams to prevent overwriting their changes.
+    if (teamsManuallyModified) return
     if (drivers.length > 0 && editingDriver?._id) {
       const completeDriver = drivers.find(d => d._id === editingDriver._id)
       if (completeDriver && completeDriver.teams.length > 0) {
@@ -184,7 +189,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
         }
       }
     }
-  }, [drivers, editingDriver, form.teams])
+  }, [drivers, editingDriver, form.teams, teamsManuallyModified])
 
 
   // Handle name field changes - uses updateForm for validation, then auto-generates driverID.
@@ -261,6 +266,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
   // Add a team to the form.
   const addTeamHandler = (team: teamType) => {
+    setTeamsManuallyModified(true)
     setForm(prev => ({ ...prev, teams: [team, ...prev.teams] }))
     setTeamValue(null)
     setFormErr(prev => ({ ...prev, teams: "" }))
@@ -268,6 +274,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
   // Remove a team from the form.
   const removeTeamHandler = (team: teamType) => {
+    setTeamsManuallyModified(true)
     setForm(prev => ({ ...prev, teams: prev.teams.filter(t => t._id !== team._id) }))
   }
 
@@ -387,6 +394,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
   // Handle team created/updated from embedded CreateTeam.
   const handleTeamSuccess = (team: teamType) => {
+    setTeamsManuallyModified(true)
     // Check if updating existing team in form or adding new one.
     const existingIndex = form.teams.findIndex(t => t._id === team._id)
     if (existingIndex >= 0) {

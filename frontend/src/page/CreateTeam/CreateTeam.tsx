@@ -75,6 +75,9 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
   const [ teams, setTeams ] = useState<teamType[]>([])
   const [ teamsReqSent, setTeamsReqSent ] = useState<boolean>(false)
 
+  // Track if drivers have been manually modified to prevent sync from overwriting user changes.
+  const [ driversManuallyModified, setDriversManuallyModified ] = useState<boolean>(false)
+
   // Initialize form state based on whether we're editing or creating.
   const getInitialFormState = (): createTeamFormType => {
     if (editingTeam) {
@@ -119,6 +122,8 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
 
   // Update form with complete team data from fetched list (handles incomplete data from navigation).
   useEffect(() => {
+    // Skip if user has manually modified drivers to prevent overwriting their changes.
+    if (driversManuallyModified) return
     if (teams.length > 0 && editingTeam?._id) {
       const completeTeam = teams.find(t => t._id === editingTeam._id)
       if (completeTeam && completeTeam.drivers.length > 0) {
@@ -129,7 +134,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
         }
       }
     }
-  }, [teams, editingTeam, form.drivers])
+  }, [teams, editingTeam, form.drivers, driversManuallyModified])
 
   // Determine user's edit permissions.
   const canEdit = (): "delete" | "edit" | "" => {
@@ -160,6 +165,12 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
       !moment(editingTeam.stats.inceptionDate).isSame(form.inceptionDate, "day") ||
       !driversMatch
     )
+  }
+
+  // Remove a driver from the form.
+  const removeDriverHandler = (driver: driverType) => {
+    setDriversManuallyModified(true)
+    setForm(prev => ({ ...prev, drivers: prev.drivers.filter(d => d._id !== driver._id) }))
   }
 
   // Validate form fields.
@@ -373,7 +384,8 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
           value={null}
           setValue={() => {}}
           label="Drivers"
-          readOnly
+          disabled={!permissions}
+          onRemove={removeDriverHandler}
           emptyMessage="No Drivers!"
         />
       )}
