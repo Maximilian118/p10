@@ -70,17 +70,17 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
 
   // Handle card click - toggle drawer in adjudicator view, otherwise navigate to profile.
   const handleClick = (e: SyntheticEvent) => {
-    // If the competitor is the adjudicator in adjudicatorView, do nothing.
-    if (adjudicatorView && isSelf) {
+    // In adjudicator view, never navigate to profile.
+    if (adjudicatorView) {
+      // Active non-self competitors toggle the drawer.
+      if (isActive && !isSelf) {
+        setIsDrawerOpen(prev => !prev)
+      }
+      // All other cases (self, inactive) do nothing.
       return
     }
 
-    // In adjudicator view, active non-self competitors toggle the drawer.
-    if (adjudicatorView && isActive && !isSelf) {
-      setIsDrawerOpen(prev => !prev)
-      return
-    }
-
+    // Normal view: navigate to profile.
     if (onClick) {
       onClick(e)
     } else {
@@ -197,7 +197,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
           </div>
 
           {/* Featured badges below name row */}
-          {!adjudicatorView && entry.competitor.badges && entry.competitor.badges.length > 0 && (
+          {isActive && !adjudicatorView && entry.competitor.badges && entry.competitor.badges.length > 0 && (
             <FeaturedBadges
               badges={entry.competitor.badges}
               badgeSize={32}

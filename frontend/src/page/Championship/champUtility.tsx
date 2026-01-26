@@ -606,6 +606,6 @@ export const getCompetitors = (
     isInactive: isCompetitorInactive(c.competitor._id, champCompetitors, banned, kicked),
     isBanned: banned.some(b => b._id === c.competitor._id),
     isKicked: kicked.some(k => k._id === c.competitor._id),
-    isDeleted: c.competitor.deleted ?? false,
+    isDeleted: c.deleted ?? false,
   }))
 }
