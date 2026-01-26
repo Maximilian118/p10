@@ -1,7 +1,7 @@
 import { userType, userBadgeSnapshotType, userChampSnapshotType } from "./localStorage"
 
 // Re-export for convenience.
-export type { userBadgeSnapshotType, userChampSnapshotType }
+export type { userType, userType as fullUserType, userBadgeSnapshotType, userChampSnapshotType }
 
 // State for badge selection mode on profile page.
 export interface SelectionModeState {

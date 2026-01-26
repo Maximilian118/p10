@@ -2,13 +2,13 @@ import React, { forwardRef, useEffect, useMemo, useState } from "react"
 import './_badgeChampPicker.scss'
 import ChampSection from "./champSection/ChampSection"
 import { userBadgeSnapshotType, userType } from "../../../shared/localStorage"
-import { SelectionModeState } from "../../../shared/types"
+import { SelectionModeState, userProfileType } from "../../../shared/types"
 import Badge from "../badge/Badge"
 import { WorkspacePremium } from "@mui/icons-material"
 import { Button } from "@mui/material"
 
 interface BadgeChampPickerProps {
-  user: userType
+  user: userType | userProfileType
   selectionMode: SelectionModeState
   onBadgeSelect: (badgeId: string) => void
   onBadgeRemove: () => void

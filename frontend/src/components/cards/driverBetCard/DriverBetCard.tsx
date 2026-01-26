@@ -13,7 +13,7 @@ interface DriverBetCardProps {
   isPlacedForOther?: boolean
   isNewlyTaken?: boolean
   onClick: () => void
-  takenBy?: userType
+  takenBy?: userType | null
   disabled?: boolean
   displayMode?: 'driver' | 'competitor'
   competitor?: CompetitorEntryType

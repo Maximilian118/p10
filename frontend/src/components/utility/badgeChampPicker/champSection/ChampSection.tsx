@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../icon/imageIcon/ImageIcon"
-import { userChampSnapshotType } from "../../../../shared/types"
+import { userChampSnapshotType, userProfileType } from "../../../../shared/types"
 import { userBadgeSnapshotType, userType } from "../../../../shared/localStorage"
 import './_champSection.scss'
 import ChampQuickStats from "../champQuickStats/ChampQuickStats"
@@ -11,7 +11,7 @@ import Badge from "../../badge/Badge"
 import BadgeInfoCard from "../../../cards/badgeInfoCard/BadgeInfoCard"
 
 interface ChampSectionProps {
-  user: userType
+  user: userType | userProfileType
   champ: userChampSnapshotType
   onBadgeClick?: (badge: userBadgeSnapshotType, champId: string) => void
   activeBadge?: userBadgeSnapshotType | null

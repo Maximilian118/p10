@@ -387,6 +387,7 @@ export const applySettingsOptimistically = (
           round: i,
           status: "waiting" as const,
           statusChangedAt: null,
+          resultsProcessed: false,
           winner: null,
           runnerUp: null,
           competitors: [],
@@ -603,6 +604,7 @@ export const getCompetitors = (
       position: roundCompetitors.length + 1,
       updated_at: null,
       created_at: null,
+      deleted: false,
     }))
 
   // Combine and add status flags.

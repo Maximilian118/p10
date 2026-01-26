@@ -60,7 +60,7 @@ const UserProfile: React.FC = () => {
       <ProfileCard user={userProfile} readOnly/>
       <BadgeChampPicker
         user={userProfile}
-        selectionMode={{ active: false, type: null, targetSlot: null }}
+        selectionMode={{ active: false, targetSlot: null }}
         onBadgeSelect={() => {}}
         onBadgeRemove={() => {}}
       />
