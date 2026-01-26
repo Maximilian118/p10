@@ -3,6 +3,7 @@ import './_badgePlaceholder.scss'
 
 interface BadgePlaceholderProps {
   position: number // 1-6 position for the featured badge slot
+  size?: number // Size in px, defaults to 32
   isActive?: boolean // Highlight when drag target is over
   isSelected?: boolean // Highlight when this slot is selected for badge assignment
   onClick?: () => void // Handler for click to enter selection mode
@@ -16,6 +17,7 @@ interface BadgePlaceholderProps {
 // Supports drag-and-drop from badge items and click-to-select mode.
 const BadgePlaceholder: React.FC<BadgePlaceholderProps> = ({
   position,
+  size,
   isActive = false,
   isSelected = false,
   onClick,
@@ -33,6 +35,7 @@ const BadgePlaceholder: React.FC<BadgePlaceholderProps> = ({
   return (
     <div
       className={classNames}
+      style={size ? { '--placeholder-size': `${size}px` } as React.CSSProperties : undefined}
       data-position={position}
       data-droppable="true"
       onClick={onClick}

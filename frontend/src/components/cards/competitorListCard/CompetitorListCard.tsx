@@ -6,6 +6,7 @@ import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import { CompetitorEntryType } from "../../../shared/types"
 import Points from "../../utility/points/Points"
 import StatusLabel from "../../utility/statusLabel/StatusLabel"
+import FeaturedBadges from "../../utility/featuredBadges/FeaturedBadges"
 
 interface competitorListCardType {
   entry: CompetitorEntryType
@@ -140,61 +141,73 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
         </div>
 
         {/* Name section - always slides up out of view when actions open */}
-        <div className="competitor-list-card__name-section">
-          <p className="competitor-name">{entry.competitor.name}</p>
+        <div className="competitor-list-card__info-section">
+          {/* Name row - contains name and action button on same line */}
+          <div className="competitor-list-card__name-row">
+            <p className="competitor-name">{entry.competitor.name}</p>
+
+            {/* Options button for active competitors in adjudicator view (not for self) */}
+            {adjudicatorView && isActive && !isSelf && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleOptionsClick}
+                className="options-button"
+              >
+                Options
+              </Button>
+            )}
+
+            {/* Invite button for kicked or left (inactive) competitors in adjudicator view */}
+            {adjudicatorView && (isKicked || isInactive) && !isBanned && !isDeleted && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleInviteClick}
+                className="invite-button"
+              >
+                Invite
+              </Button>
+            )}
+
+            {/* Unban button for banned competitors in adjudicator view */}
+            {adjudicatorView && isBanned && (
+              <Button
+                variant="contained"
+                size="small"
+                color="primary"
+                onClick={handleUnbanClick}
+                className="unban-button"
+              >
+                Unban
+              </Button>
+            )}
+
+            {/* Disabled Deleted button for deleted accounts in adjudicator view */}
+            {adjudicatorView && isDeleted && (
+              <Button
+                variant="contained"
+                size="small"
+                disabled
+                className="deleted-button"
+              >
+                Deleted
+              </Button>
+            )}
+          </div>
+
+          {/* Featured badges below name row */}
+          {!adjudicatorView && entry.competitor.badges && entry.competitor.badges.length > 0 && (
+            <FeaturedBadges
+              badges={entry.competitor.badges}
+              badgeSize={32}
+              readOnly
+            />
+          )}
 
           {/* Inactive badge for left/kicked/banned/deleted competitors (not banned/kicked in adjudicator view) */}
           {(isInactive || isDeleted) && !(adjudicatorView && (isBanned || isKicked || isDeleted)) && (
             <StatusLabel {...getInactiveStatus()} />
-          )}
-
-          {/* Options button for active competitors in adjudicator view (not for self) */}
-          {adjudicatorView && isActive && !isSelf && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleOptionsClick}
-              className="options-button"
-            >
-              Options
-            </Button>
-          )}
-
-          {/* Invite button for kicked or left (inactive) competitors in adjudicator view */}
-          {adjudicatorView && (isKicked || isInactive) && !isBanned && !isDeleted && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleInviteClick}
-              className="invite-button"
-            >
-              Invite
-            </Button>
-          )}
-
-          {/* Unban button for banned competitors in adjudicator view */}
-          {adjudicatorView && isBanned && (
-            <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              onClick={handleUnbanClick}
-              className="unban-button"
-            >
-              Unban
-            </Button>
-          )}
-
-          {/* Disabled Deleted button for deleted accounts in adjudicator view */}
-          {adjudicatorView && isDeleted && (
-            <Button
-              variant="contained"
-              size="small"
-              disabled
-              className="deleted-button"
-            >
-              Deleted
-            </Button>
           )}
         </div>
 

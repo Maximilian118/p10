@@ -1,5 +1,6 @@
 import React from "react"
-import { ChampType, pointsStructureType, userChampSnapshotType } from "../../shared/types"
+import { ChampType, pointsStructureType, userChampSnapshotType, RoundType, fullUserType, CompetitorEntryType } from "../../shared/types"
+import { getCompetitorsFromRound, isCompetitorInactive } from "../../shared/utility"
 import { ChampSettingsFormType } from "./Views/ChampSettings/ChampSettings"
 import { AutomationFormType } from "./Views/Automation/Automation"
 import { AdminFormType } from "./Views/Admin/Admin"
@@ -557,4 +558,54 @@ export const buildChampBannerStatsFromSnapshot = (champ: userChampSnapshotType):
     { icon: <PersonIcon />, value: `${champ.competitorCount}/${champ.maxCompetitors}` },
     { icon: <WorkspacePremiumIcon />, value: `${champ.discoveredBadges}/${champ.totalBadges}` },
   ]
+}
+
+// ============================================
+// Competitor Data Functions
+// ============================================
+
+// Return type for getCompetitors function.
+export type CompetitorWithStatus = CompetitorEntryType & {
+  isInactive: boolean
+  isBanned: boolean
+  isKicked: boolean
+  isDeleted: boolean
+}
+
+// Single source of truth for all competitors to render in both normal and adjudicator view.
+// Combines round competitors with new joiners from champ.competitors and adds status flags.
+export const getCompetitors = (
+  viewedRound: RoundType | undefined,
+  champCompetitors: fullUserType[],
+  banned: fullUserType[] = [],
+  kicked: fullUserType[] = [],
+): CompetitorWithStatus[] => {
+  if (!viewedRound) return []
+
+  // Get competitors from current round data.
+  const roundCompetitors = getCompetitorsFromRound(viewedRound)
+  const roundCompetitorIds = new Set(roundCompetitors.map(c => c.competitor._id))
+
+  // Add competitors from champ.competitors who aren't in round data (new joiners).
+  const newJoiners = champCompetitors
+    .filter(c => !roundCompetitorIds.has(c._id))
+    .map(c => ({
+      competitor: c,
+      bet: null,
+      points: 0,
+      totalPoints: 0,
+      grandTotalPoints: 0,
+      position: roundCompetitors.length + 1,
+      updated_at: null,
+      created_at: null,
+    }))
+
+  // Combine and add status flags.
+  return [...roundCompetitors, ...newJoiners].map(c => ({
+    ...c,
+    isInactive: isCompetitorInactive(c.competitor._id, champCompetitors, banned, kicked),
+    isBanned: banned.some(b => b._id === c.competitor._id),
+    isKicked: kicked.some(k => k._id === c.competitor._id),
+    isDeleted: c.competitor.deleted ?? false,
+  }))
 }

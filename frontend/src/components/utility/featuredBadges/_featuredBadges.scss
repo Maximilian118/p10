@@ -1,0 +1,39 @@
+.featured-badges {
+  display: flex;
+  gap: 5px;
+
+  // Wrapper for badges in featured slots - makes them clickable.
+  .featured-slot {
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+
+    &--selected {
+      transform: scale(1.05);
+    }
+  }
+
+  // Badge and spinner sizing controlled by CSS variable.
+  .badge, .MuiCircularProgress-root {
+    width: var(--badge-size, 32px) !important;
+    height: var(--badge-size, 32px) !important;
+  }
+
+  // Disabled state - slots not clickable.
+  &--disabled {
+    cursor: not-allowed;
+
+    .badge, .badge-placeholder {
+      pointer-events: none;
+    }
+  }
+
+  // Read-only state for viewing other users' profiles.
+  &--readonly {
+    pointer-events: none;
+  }
+}

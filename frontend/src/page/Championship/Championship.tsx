@@ -1,9 +1,9 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react"
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
 import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType, CompetitorEntryType } from "../../shared/types"
-import { getCompetitorsFromRound, getAllDriversForRound, getAllTeamsForRound, aggregateAllCompetitors, isCompetitorInactive } from "../../shared/utility"
+import { getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "./components/ChampBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
@@ -58,6 +58,7 @@ import {
   applyProtestsOptimistically,
   applyRuleChangesOptimistically,
   applyAdminOptimistically,
+  getCompetitors,
 } from "./champUtility"
 import AdjudicatorBar from "./components/AdjudicatorBar/AdjudicatorBar"
 
@@ -708,6 +709,20 @@ const Championship: React.FC = () => {
     }
   }
 
+  // Compute round viewing state (before early returns for hooks consistency).
+  const completedRoundsCount = champ?.rounds?.filter(r => r.status === "completed").length ?? 0
+  const lastCompletedIndex = completedRoundsCount - 1
+  const viewedIndex = viewedRoundIndex !== null
+    ? Math.min(viewedRoundIndex, Math.max(0, lastCompletedIndex))
+    : Math.max(0, lastCompletedIndex)
+  const viewedRound = champ?.rounds?.[viewedIndex]
+
+  // Single source of truth for all competitors to render in both normal and adjudicator view.
+  const competitors = useMemo(
+    () => getCompetitors(viewedRound, champ?.competitors || [], champ?.banned || [], champ?.kicked || []),
+    [viewedRound, champ?.competitors, champ?.banned, champ?.kicked]
+  )
+
   // Render loading state.
   if (loading) {
     return (
@@ -747,19 +762,6 @@ const Championship: React.FC = () => {
 
   // Force banner to be fully shrunk when in round status views or confirmation.
   const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm ? 1 : shrinkRatio
-
-  // Compute round viewing state - based on COMPLETED rounds only.
-  // Users can only navigate between completed rounds; "waiting" rounds are not viewable.
-  const completedRoundsCount = champ.rounds.filter(r => r.status === "completed").length
-  const lastCompletedIndex = completedRoundsCount - 1 // -1 if none completed
-
-  // viewedIndex can only be a completed round (or show pre-season from round 0).
-  const viewedIndex = viewedRoundIndex !== null
-    ? Math.min(viewedRoundIndex, Math.max(0, lastCompletedIndex))
-    : Math.max(0, lastCompletedIndex)
-
-  // When no rounds completed, show "pre-season" standings from round 0.
-  const viewedRound = champ.rounds[viewedIndex]
 
   // Active round index and data - the round currently in progress (for status views/API calls).
   const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
@@ -1064,19 +1066,13 @@ const Championship: React.FC = () => {
         {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
-                // In adjudicator view, show all competitors from all rounds with inactive status.
-                // Filter out inactive competitors with 0 points (banned/kicked/left with no contribution).
-                const competitors = adjudicatorView
-                  ? aggregateAllCompetitors(champ.rounds, champ.competitors, champ.banned || [], champ.kicked || [])
-                    .filter(c => !(c.isInactive && c.grandTotalPoints === 0))
-                  : getCompetitorsFromRound(viewedRound).map(c => ({
-                      ...c,
-                      isInactive: isCompetitorInactive(c.competitor._id, champ.competitors, champ.banned || [], champ.kicked || []),
-                      isBanned: champ.banned?.some(b => b._id === c.competitor._id) ?? false,
-                      isKicked: champ.kicked?.some(k => k._id === c.competitor._id) ?? false,
-                    })).filter(c => !(c.isInactive && c.grandTotalPoints === 0))
+                // Filter out inactive competitors with 0 points in normal view only.
+                // Adjudicator view shows all competitors.
+                const filteredCompetitors = adjudicatorView
+                  ? competitors
+                  : competitors.filter(c => !(c.isInactive && c.grandTotalPoints === 0))
 
-                return competitors.map((c, i) => (
+                return filteredCompetitors.map((c, i) => (
                   <CompetitorListCard
                     key={c.competitor._id || i}
                     highlight={justJoined && c.competitor._id === user._id}
@@ -1085,7 +1081,7 @@ const Championship: React.FC = () => {
                     isInactive={c.isInactive}
                     isBanned={c.isBanned}
                     isKicked={c.isKicked}
-                    isDeleted={c.deleted}
+                    isDeleted={c.isDeleted}
                     isSelf={c.competitor._id === user._id}
                     onKickClick={() => {
                       setCompetitorToKick(c)

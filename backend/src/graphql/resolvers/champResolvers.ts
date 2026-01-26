@@ -668,11 +668,10 @@ const champResolvers = {
       // Add user to championship-level competitors (the roster).
       champ.competitors.push(user._id)
 
-      // Calculate position for the new competitor (last place in current round).
-      const newPosition = currentRound.competitors.length + 1
-
-      // Add user to the current round's competitors for immediate participation.
-      currentRound.competitors.push(createCompetitorEntry(user._id, 0, newPosition))
+      // Position for new competitor is last place (based on roster size after adding).
+      // Note: We don't add to currentRound.competitors here - populateRoundData() handles
+      // that when the round starts by pulling from champ.competitors.
+      const newPosition = champ.competitors.length
 
       champ.updated_at = moment().format()
       await champ.save()

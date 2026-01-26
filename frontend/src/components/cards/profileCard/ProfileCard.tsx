@@ -10,9 +10,8 @@ import { Button, CircularProgress } from "@mui/material"
 import { updatePP } from "../../../shared/requests/userRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
-import BadgePlaceholder from "../../utility/badge/badgePlaceholder/BadgePlaceholder"
-import Badge from "../../utility/badge/Badge"
 import AuraRingWrapper from "../../utility/auraRing/AuraRingWrapper"
+import FeaturedBadges from "../../utility/featuredBadges/FeaturedBadges"
 import { getBadgeColour } from "../../utility/badge/badgeOverlay/badgeOverlayUtility"
 
 // Props for editable profile (own profile).
@@ -56,15 +55,6 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   if (props.readOnly) {
     const { user } = props
 
-    // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
-    const renderReadOnlySlot = (position: number) => {
-      const featuredBadge = user.badges.find(b => b.featured === position)
-      if (featuredBadge) {
-        return <Badge key={position} badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
-      }
-      return <BadgePlaceholder key={position} position={position} />
-    }
-
     return (
       <div className="profile-card">
         <AuraRingWrapper colors={featuredBadgeColors} className="profile-icon-container">
@@ -75,9 +65,7 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
           <h5 style={{ textTransform: "capitalize" }}>
             {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
           </h5>
-          <div className="featured-badges featured-badges--readonly">
-            {[1, 2, 3, 4, 5, 6].map(renderReadOnlySlot)}
-          </div>
+          <FeaturedBadges badges={user.badges} badgeSize={32} blankSlots placeholders readOnly/>
         </div>
       </div>
     )
@@ -93,47 +81,6 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
   // Enters selection mode for a specific slot position.
   const handleSlotClick = (position: number) => {
     setSelectionMode({ active: true, targetSlot: position })
-  }
-
-  // Renders a featured badge slot showing actual badge if featured, placeholder if empty.
-  // Both are clickable to enter selection mode (unless disableBadgeSlots is true).
-  const renderFeaturedSlot = (position: number) => {
-    const featuredBadge = user.badges.find(b => b.featured === position)
-    const isSelected = selectionMode.active && selectionMode.targetSlot === position
-
-    // If badge slots are disabled, render non-clickable versions.
-    if (disableBadgeSlots) {
-      if (featuredBadge) {
-        return <Badge key={position} badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
-      }
-      return <BadgePlaceholder key={position} position={position} />
-    }
-
-    // Show spinner on the target slot while featured badge mutation is in progress.
-    if (featuredBadgeLoading && selectionMode.targetSlot === position) {
-      return <CircularProgress key={position} size="small"/>
-    }
-
-    if (featuredBadge) {
-      return (
-        <div
-          key={position}
-          className={`featured-slot ${isSelected ? 'featured-slot--selected' : ''}`}
-          onClick={() => handleSlotClick(position)}
-        >
-          <Badge badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
-        </div>
-      )
-    }
-
-    return (
-      <BadgePlaceholder
-        key={position}
-        position={position}
-        isSelected={isSelected}
-        onClick={() => handleSlotClick(position)}
-      />
-    )
   }
 
   // Renders user info or confirmation prompt based on form state.
@@ -186,9 +133,16 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
       </AuraRingWrapper>
       <div className="profile-info">
         {renderProfileInfo()}
-        <div className={`featured-badges${disableBadgeSlots ? ' featured-badges--disabled' : ''}`}>
-          {[1, 2, 3, 4, 5, 6].map(renderFeaturedSlot)}
-        </div>
+        <FeaturedBadges
+          badges={user.badges}
+          badgeSize={32}
+          blankSlots
+          placeholders
+          disabled={disableBadgeSlots}
+          selectedSlot={selectionMode.active ? selectionMode.targetSlot : null}
+          loadingSlot={featuredBadgeLoading ? selectionMode.targetSlot : null}
+          onSlotClick={handleSlotClick}
+        />
       </div>
     </div>
   )

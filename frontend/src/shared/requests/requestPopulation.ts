@@ -312,6 +312,14 @@ export const populateChamp = `
           guest
         }
         created_at
+        badges {
+          _id
+          url
+          name
+          rarity
+          zoom
+          featured
+        }
       }
       bet {
         _id

@@ -33,38 +33,6 @@
 
     .featured-badges {
       margin-top: 10px;
-      display: flex;
-      gap: 5px;
-
-      // Wrapper for badges in featured slots - makes them clickable.
-      .featured-slot {
-        cursor: pointer;
-        border-radius: 50%;
-        transition: all 0.2s ease;
-
-        &:hover {
-          transform: scale(1.05);
-        }
-      }
-
-      .badge, .MuiCircularProgress-root {
-        width: 32px !important;
-        height: 32px !important;
-      }
-
-      // Disabled state for settings page - slots not clickable.
-      &--disabled {
-        cursor: not-allowed;
-
-        .badge, .badge-placeholder {
-          pointer-events: none;
-        }
-      }
-
-      // Read-only state for viewing other users' profiles.
-      &--readonly {
-        pointer-events: none;
-      }
     }
   }
 }

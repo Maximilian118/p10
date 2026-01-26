@@ -9,8 +9,8 @@
   --arc-opacity: 0.7;
   --rotation-duration: 20s;
 
-  width: 32px;
-  height: 32px;
+  width: var(--placeholder-size, 32px);
+  height: var(--placeholder-size, 32px);
   border-radius: 50%;
   position: relative;
   cursor: pointer;
@@ -21,8 +21,8 @@
   // Corner arc elements hugging the circle edges.
   &__corner {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: var(--placeholder-size, 32px);
+    height: var(--placeholder-size, 32px);
     border: 2px solid var(--arc-color);
     border-radius: 50%;
     box-sizing: border-box;
@@ -65,8 +65,8 @@
   // Plus icon in the center using pseudo-elements.
   &__plus {
     position: relative;
-    width: 18px;
-    height: 18px;
+    width: calc(var(--placeholder-size, 32px) * 0.5625);
+    height: calc(var(--placeholder-size, 32px) * 0.5625);
     z-index: 1;
 
     &::before,

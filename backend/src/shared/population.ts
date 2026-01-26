@@ -61,7 +61,7 @@ export const seriesPopulation = [
 export const champPopulation = [
   {
     path: "rounds.competitors.competitor",
-    select: "_id name icon profile_picture permissions created_at",
+    select: "_id name icon profile_picture permissions created_at badges",
   },
   { path: "rounds.competitors.bet" },
   { path: "rounds.drivers.driver", select: "_id name icon driverID" },

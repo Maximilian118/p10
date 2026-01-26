@@ -9,6 +9,7 @@
   cursor: pointer;
   padding: 5px 7.5%;
   box-sizing: border-box;
+  overflow: hidden;
 
   &:hover {
     background: variables.$colour-1;
@@ -21,12 +22,11 @@
 
   // Sliding area - contains name/options and action buttons.
   &__slide-area {
-    flex: 1;
-    overflow: hidden;
+    @include mixins.flexbox-start;
     position: relative;
     min-height: 40px;
-    display: flex;
-    align-items: center;
+    flex-grow: 1;
+    min-width: 0;
   }
 
   // Points wrapper - stays in place on large screens, slides on small screens.
@@ -36,32 +36,49 @@
   }
 
   // Name section - always slides up out of view when actions open.
-  &__name-section {
-    display: flex;
-    align-items: center;
-    flex: 1;
+  &__info-section {
+    height: 100%;
+    flex-grow: 1;
     min-width: 0;
+    @include mixins.flexbox-column;
+    align-items: start;
+    padding: 10px 0;
+    box-sizing: border-box;
+    margin-left: 10px;
     transition: transform 0.3s ease;
 
+    // Only apply gap when there are multiple children.
+    &:has(:nth-child(2)) {
+      gap: 8px;
+    }
+  }
+
+  // Name row - contains name and action button on same line.
+  &__name-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+
     .competitor-name {
+      flex-grow: 1;
+      min-width: 0;
       color: variables.$colour-9;
       text-transform: capitalize;
       font-size: 15px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-left: 10px;
     }
 
     // Options button styling (grey, opens actions).
     .options-button {
-      margin-left: auto;
       flex-shrink: 0;
     }
 
     // Invite button styling (green, for kicked/left competitors).
     .invite-button {
-      margin-left: auto;
       flex-shrink: 0;
       background-color: variables.$mui-success !important;
       color: white !important;
@@ -73,13 +90,11 @@
 
     // Unban button styling (blue, for banned competitors).
     .unban-button {
-      margin-left: auto;
       flex-shrink: 0;
     }
 
     // Deleted button styling (disabled, for deleted accounts).
     .deleted-button {
-      margin-left: auto;
       flex-shrink: 0;
     }
   }
@@ -101,7 +116,7 @@
 
   // Actions open state - slide name up, slide actions into view.
   &--actions-open {
-    .competitor-list-card__name-section {
+    .competitor-list-card__info-section {
       transform: translateY(-150%);
     }
 
