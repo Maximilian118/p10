@@ -8,6 +8,7 @@ import {
   teamNameErrors,
   throwError,
   falsyValErrors,
+  officialEntityErrors,
 } from "./resolverErrors"
 import { teamPopulation } from "../../shared/population"
 import { syncTeamDrivers, updateDrivers, recalculateTeamSeries } from "./resolverUtility"
@@ -100,6 +101,9 @@ const teamResolvers = {
         throw throwError("teamName", team, "This team doesn't exist... Hmm...")
       }
 
+      // Check if official entity - only admins can delete.
+      await officialEntityErrors(team.official, req._id, "teams")
+
       if (team.drivers.length > 0) {
         throw throwError("teamName", team, "This team still has drivers.")
       }
@@ -146,6 +150,9 @@ const teamResolvers = {
       if (!team) {
         throw throwError("teamName", team, "No team by that _id could be found.")
       }
+
+      // Check if official entity - only admins can modify.
+      await officialEntityErrors(team.official, req._id, "teams")
 
       // Update image fields if changed.
       if (icon !== team._doc.icon) {

@@ -1,0 +1,38 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+.banner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  @include mixins.flexbox;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  padding: 2px;
+  background: variables.$mui-blue;
+  color: white;
+
+  // Colour variants.
+  &--default {
+    background: variables.$colour-4;
+  }
+  
+  &--error {
+    background: variables.$error;
+  }
+
+  &--success {
+    background: variables.$mui-success;
+  }
+
+  &--highlight {
+    background: variables.$mui-blue;
+  }
+}

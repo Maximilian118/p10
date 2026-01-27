@@ -570,6 +570,20 @@ export const champNameErrors = async (name: string): Promise<void> => {
   }
 }
 
+// Check if entity is official and user is not admin - throws error if non-admin tries to modify official entity.
+export const officialEntityErrors = async (
+  official: boolean | undefined,
+  req_id: string | undefined,
+  entityType: string,
+): Promise<void> => {
+  if (!official) return
+
+  const user = await User.findById(req_id)
+  if (!user?.permissions?.admin) {
+    throwError("name", null, `Official ${entityType} can only be modified by admins.`)
+  }
+}
+
 // Check if a driver is part of any championship (via series or bets).
 export const driverInChampErrors = async (driver: driverType): Promise<void> => {
   const type = "driverName"

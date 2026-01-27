@@ -455,7 +455,10 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
   return (
   <>
     <div className="content-container create-driver">
-      <h4>{isEditing ? "Edit" : "New"} Driver</h4>
+      <div className="create-driver-top-bar">
+        <h4>{isEditing ? "Edit" : "New"} Driver</h4>
+        {editingDriver?.official && <h4 className="official">Official</h4>}
+      </div>
       <div className="create-driver-dropzones">
         <div className="create-driver-dropzone-container">
           <DropZone<createDriverFormType, createDriverFormErrType>
@@ -524,6 +527,8 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
         onEdit={openEditTeam}
         onNew={openNewTeamEdit}
         onChange={() => setFormErr(prev => ({ ...prev, teams: "" }))}
+        isAdmin={user.permissions.admin}
+        parentIsOfficial={editingDriver?.official}
       />
       <div className="create-driver-stats">
         <MUIAutocomplete

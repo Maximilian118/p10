@@ -9,6 +9,7 @@ import {
   driverInChampErrors,
   driverNameErrors,
   falsyValErrors,
+  officialEntityErrors,
   throwError,
 } from "./resolverErrors"
 import Series from "../../models/series"
@@ -127,6 +128,9 @@ const driverResolvers = {
         throw throwError("driverName", driver, "This driver doesn't exist... Hmm...")
       }
 
+      // Check if official entity - only admins can delete.
+      await officialEntityErrors(driver.official, req._id, "drivers")
+
       if (driver.teams.length > 0) {
         throw throwError("driverName", driver, "This driver still has teams.")
       }
@@ -215,6 +219,9 @@ const driverResolvers = {
       if (!driver) {
         throw throwError("driverName", driver, "No driver by that _id could be found.")
       }
+
+      // Check if official entity - only admins can modify.
+      await officialEntityErrors(driver.official, req._id, "drivers")
 
       if (driver.icon !== icon) {
         driver.icon = icon

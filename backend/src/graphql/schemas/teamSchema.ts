@@ -13,6 +13,7 @@ const teamSchema = `
     series: [Series!]
     drivers: [Driver]
     stats: TeamStats!
+    official: Boolean
     created_by: User!
     created_at: String!
     updated_at: String!

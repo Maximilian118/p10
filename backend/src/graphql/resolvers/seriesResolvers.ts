@@ -12,6 +12,7 @@ import {
   hasChampErrors,
   imageErrors,
   nameCanNumbersErrors,
+  officialEntityErrors,
   throwError,
 } from "./resolverErrors"
 import {
@@ -111,6 +112,9 @@ const seriesResolvers = {
         throw throwError("seriesName", series, "No series by that _id could be found.")
       }
 
+      // Check if official entity - only admins can modify.
+      await officialEntityErrors(series.official, req._id, "series")
+
       if (url !== series._doc.url) {
         series.url = url
       }
@@ -165,6 +169,9 @@ const seriesResolvers = {
       if (!series) {
         throw throwError("seriesName", series, "This series doesn't exist... Hmm...")
       }
+
+      // Check if official entity - only admins can delete.
+      await officialEntityErrors(series.official, req._id, "series")
 
       // Check for errors
       hasChampErrors("series", series.championships)

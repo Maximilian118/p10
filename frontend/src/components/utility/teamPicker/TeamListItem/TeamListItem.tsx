@@ -9,10 +9,11 @@ interface TeamListItemProps {
   onRemove?: () => void
   canRemove: boolean
   onClick?: () => void
+  readOnly?: boolean                // View-only mode (no click-to-edit)
 }
 
 // List item component for displaying a team in picker/selection contexts.
-const TeamListItem: React.FC<TeamListItemProps> = ({ team, onRemove, canRemove, onClick }) => {
+const TeamListItem: React.FC<TeamListItemProps> = ({ team, onRemove, canRemove, onClick, readOnly }) => {
   // Handler for remove button click, prevents propagation to parent onClick.
   const handleRemove = (e: React.SyntheticEvent) => {
     e.stopPropagation()
@@ -21,8 +22,8 @@ const TeamListItem: React.FC<TeamListItemProps> = ({ team, onRemove, canRemove, 
 
   return (
     <div
-      className={`team-list-item${onClick ? " clickable" : ""}`}
-      onClick={onClick}
+      className={`team-list-item${onClick && !readOnly ? " clickable" : ""}`}
+      onClick={readOnly ? undefined : onClick}
     >
       <ImageIcon src={team.icon} size="medium" />
       <p className="team-list-item-name">{team.name}</p>

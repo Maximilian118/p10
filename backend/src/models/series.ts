@@ -10,6 +10,7 @@ export interface seriesType {
   championships: ObjectId[] // All the championships this series is used in
   drivers: ObjectId[] // All the drivers in this series
   created_by: ObjectId // The user that created the Series
+  official?: boolean // True = Only admins can modify/delete this series
   hasAPI: boolean // Determines if this Series has an API for live data and automation features
   created_at: string
   updated_at: string
@@ -32,6 +33,7 @@ const seriesSchema = new mongoose.Schema<seriesType>({
   championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Championships that this series is being used for.
   drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }], // Drivers that belong in this series.
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the series.
+  official: { type: Boolean, default: false }, // Only admins can modify/delete if true.
   hasAPI: { type: Boolean, default: false }, // Whether this series has an API for live data.
   created_at: { type: String, default: moment().format() }, // When the series was created.
   updated_at: { type: String, default: moment().format() }, // When the series was updated.

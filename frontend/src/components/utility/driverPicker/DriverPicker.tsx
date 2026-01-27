@@ -22,6 +22,8 @@ interface DriverPickerProps {
   onEdit?: (driver: driverType) => void              // Called when driver card clicked
   onNew?: () => void                                 // Called when "New Driver" clicked
   onChange?: () => void                              // Called on value change (for clearing errors)
+  isAdmin?: boolean                                  // User is admin (can edit official drivers)
+  parentIsOfficial?: boolean                         // Parent entity (team/series) is official
 }
 
 // Reusable driver picker component for forms.
@@ -41,6 +43,8 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
   onEdit,
   onNew,
   onChange,
+  isAdmin = false,
+  parentIsOfficial = false,
 }) => {
   // Filter out already-selected drivers from the autocomplete options.
   const availableDrivers = drivers.filter(
@@ -66,16 +70,22 @@ const DriverPicker: React.FC<DriverPickerProps> = ({
         {selectedDrivers.length === 0 && emptyMessage ? (
           <p className="driver-picker-empty">{emptyMessage}</p>
         ) : (
-          sortAlphabetically(selectedDrivers).map((driver: driverType, i: number) => (
-            <DriverListItem
-              key={i}
-              driver={driver}
-              onRemove={readOnly ? undefined : (d) => onRemove?.(d)}
-              canRemove={!disabled && !readOnly}
-              onClick={readOnly ? undefined : () => onEdit?.(driver)}
-              readOnly={readOnly}
-            />
-          ))
+          sortAlphabetically(selectedDrivers).map((driver: driverType, i: number) => {
+            // Official drivers are read-only for non-admins (in addition to picker-level readOnly).
+            const driverIsReadOnly = readOnly || (driver.official && !isAdmin)
+            // Official drivers can only be removed from non-official parent entities.
+            const canRemoveDriver = !disabled && !readOnly && !(parentIsOfficial && driver.official)
+            return (
+              <DriverListItem
+                key={i}
+                driver={driver}
+                onRemove={driverIsReadOnly ? undefined : (d) => onRemove?.(d)}
+                canRemove={canRemoveDriver}
+                onClick={driverIsReadOnly ? undefined : () => onEdit?.(driver)}
+                readOnly={driverIsReadOnly}
+              />
+            )
+          })
         )}
       </div>
       {!readOnly && (

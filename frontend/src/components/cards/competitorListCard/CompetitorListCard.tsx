@@ -7,6 +7,7 @@ import { CompetitorEntryType } from "../../../shared/types"
 import Points from "../../utility/points/Points"
 import StatusLabel from "../../utility/statusLabel/StatusLabel"
 import FeaturedBadges from "../../utility/featuredBadges/FeaturedBadges"
+import Banner from "../../utility/banner/Banner"
 
 interface competitorListCardType {
   entry: CompetitorEntryType
@@ -133,13 +134,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
 
   return (
     <div ref={wrapperRef} className={classNames} onClick={handleClick}>
-      {/* Role banner for adjudicators/admins */}
-      {isAdjudicator && (
-        <div className="competitor-list-card__role-banner">
-          Adjudicator
-        </div>
-      )}
-
+      {isAdjudicator && <Banner text="Adjudicator"/>}
       <ImageIcon src={competitorIcon} size="x-large" />
 
       {/* Sliding area - contains points, name/options and action buttons */}

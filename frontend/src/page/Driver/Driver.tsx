@@ -92,9 +92,9 @@ const Driver: React.FC = () => {
   const hasPositionData = chartData.length > 0 && chartData.some(line => line.data.length > 0)
 
   // Check if user has permission to edit this driver.
+  // Admins can always edit. Non-admins can only edit non-official drivers if they are adjudicator or creator.
   const canEdit = user.permissions.admin
-    || user.permissions.adjudicator
-    || createdByID(driver?.created_by) === user._id
+    || (!driver?.official && (user.permissions.adjudicator || createdByID(driver?.created_by) === user._id))
 
   // Render loading state.
   if (loading) {

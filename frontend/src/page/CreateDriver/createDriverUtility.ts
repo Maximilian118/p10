@@ -22,11 +22,14 @@ export const generateDriverID = (name: string): string => {
 
 // Determine user's edit permissions for a driver.
 // Returns "delete" if user can delete, "edit" if user can only edit, "" if no permissions.
+// Official drivers can only be modified by admins.
 export const canEditDriver = (
   editingDriver: driverType | null | undefined,
   user: userType
 ): "delete" | "edit" | "" => {
   if (!editingDriver) return "edit"
+  // Official check - only admins can modify.
+  if (editingDriver.official && !user.permissions.admin) return ""
   const noTeams = editingDriver.teams.length === 0
   const creator = createdByID(editingDriver.created_by) === user._id
   const authority = user.permissions.adjudicator || creator

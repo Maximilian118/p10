@@ -5,6 +5,7 @@ import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
 import Points from "../../utility/points/Points"
+import Banner from "../../utility/banner/Banner"
 
 interface teamListCardType {
   team: teamType
@@ -20,6 +21,7 @@ interface teamListCardType {
 const TeamListCard: React.FC<teamListCardType> = ({ team, entry, onClick, canEdit, onEditClicked, onDriverClick, highlight }) => {
   return (
     <div className={`team-list-card${highlight ? ' team-list-card__highlight' : ''}${entry ? ' team-list-card__entry' : ''}`} onClick={onClick}>
+      {team.official && <Banner text="Official"/>}
       <div className="main-icon-container">
         <ImageIcon src={team.icon} size="contained"/>
         {canEdit && <EditButton

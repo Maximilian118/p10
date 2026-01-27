@@ -137,8 +137,11 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
   }, [teams, editingTeam, form.drivers, driversManuallyModified])
 
   // Determine user's edit permissions.
+  // Official teams can only be modified by admins.
   const canEdit = (): "delete" | "edit" | "" => {
     if (!editingTeam) return "edit"
+    // Official check - only admins can modify.
+    if (editingTeam.official && !user.permissions.admin) return ""
     const noDrivers = editingTeam.drivers.length === 0
     const creator = createdByID(editingTeam.created_by) === user._id
     const authority = user.permissions.adjudicator || creator
@@ -331,7 +334,10 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
   return (
   <>
     <div className="content-container create-team">
-      <h4>{isEditing ? "Edit" : "New"} Team</h4>
+      <div className="create-team-top-bar">
+        <h4>{isEditing ? "Edit" : "New"} Team</h4>
+        {editingTeam?.official && <h4 className="official">Official</h4>}
+      </div>
       <DropZone<createTeamFormType, createTeamFormErrType>
         form={form}
         setForm={setForm}
@@ -387,6 +393,8 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
           disabled={!permissions}
           onRemove={removeDriverHandler}
           emptyMessage="No Drivers!"
+          isAdmin={user.permissions.admin}
+          parentIsOfficial={editingTeam?.official}
         />
       )}
     </div>

@@ -110,8 +110,11 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
   }, [drivers, reqSent, user, setUser, navigate])
 
   // Determine user's edit permissions.
+  // Official series can only be modified by admins.
   const canEdit = (): "delete" | "edit" | "" => {
     if (!editingSeries) return "edit"
+    // Official check - only admins can modify.
+    if (editingSeries.official && !user.permissions.admin) return ""
     const noChampionships = (editingSeries.championships?.length || 0) === 0
     const creator = createdByID(editingSeries.created_by) === user._id
     const authority = user.permissions.adjudicator || creator
@@ -368,7 +371,10 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
   return (
   <>
     <div className="content-container create-series">
-      <h4>{isEditing ? "Edit" : "New"} Series</h4>
+      <div className="create-series-top-bar">
+        <h4>{isEditing ? "Edit" : "New"} Series</h4>
+        {editingSeries?.official && <h4 className="official">Official</h4>}
+      </div>
       <DropZone<createSeriesFormType, createSeriesFormErrType>
         form={form}
         setForm={setForm}
@@ -405,6 +411,8 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
         onEdit={openEditDriver}
         onNew={openNewDriverEdit}
         onChange={() => setFormErr(prev => ({ ...prev, drivers: "" }))}
+        isAdmin={user.permissions.admin}
+        parentIsOfficial={editingSeries?.official}
       />
     </div>
     {showButtonBar && (

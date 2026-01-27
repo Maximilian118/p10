@@ -7,11 +7,15 @@ body #root .main-logged-in .content-container.create-series {
   box-sizing: border-box;
   background: white;
 
-  h4 {
+  .create-series-top-bar {
     width: 100%;
-    color: variables.$colour-6;
+    @include mixins.flexbox-space-between;
     margin-bottom: 40px;
-    text-align: left;
+    color: variables.$colour-6;
+
+    .official {
+      color: variables.$mui-blue;
+    }
   }
 
   .dropzone {

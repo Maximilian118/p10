@@ -5,6 +5,7 @@ import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
 import Points from "../../utility/points/Points"
+import Banner from "../../utility/banner/Banner"
 
 interface driverListCardType {
   driver: driverType
@@ -20,6 +21,7 @@ interface driverListCardType {
 const DriverListCard: React.FC<driverListCardType> = ({ driver, entry, onClick, canEdit, onEditClicked, onTeamClick, highlight }) => {
   return (
     <div className={`driver-list-card${highlight ? ' driver-list-card__highlight' : ''}${entry ? ' driver-list-card__entry' : ''}`} onClick={onClick}>
+      {driver.official && <Banner text="Official"/>}
       <div className="main-icon-container">
         <ImageIcon src={driver.icon} size="contained"/>
         {canEdit && <EditButton

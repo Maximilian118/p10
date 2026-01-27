@@ -79,9 +79,9 @@ const Team: React.FC = () => {
     : 'white'
 
   // Check if user has permission to edit this team.
+  // Admins can always edit. Non-admins can only edit non-official teams if they are adjudicator or creator.
   const canEdit = user.permissions.admin
-    || user.permissions.adjudicator
-    || createdByID(team.created_by) === user._id
+    || (!team.official && (user.permissions.adjudicator || createdByID(team.created_by) === user._id))
 
   return (
     <div

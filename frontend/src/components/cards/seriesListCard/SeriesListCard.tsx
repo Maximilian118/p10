@@ -4,6 +4,7 @@ import { seriesType, driverType } from "../../../shared/types"
 import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
+import Banner from "../../utility/banner/Banner"
 
 interface seriesListCardType {
   series: seriesType
@@ -30,6 +31,7 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, selecte
 
   return (
     <div className={classNames} style={style} onClick={disabled ? undefined : onClick}>
+      {series.official && <Banner text="Official"/>}
       <div className="main-icon-container">
         <ImageIcon src={series.url} size="contained" background/>
         {!disabled && canEdit && <EditButton

@@ -109,6 +109,7 @@ export const populateTeam = `
     inceptionDate
     nationality
   }
+  official
   created_at
   updated_at
 `
@@ -159,6 +160,7 @@ export const populateTeamFull = `
   created_by {
     ${populateUser}
   }
+  official
   created_at
   updated_at
 `
@@ -205,6 +207,7 @@ export const populateTeamList = `
   created_by {
     _id
   }
+  official
   created_at
   updated_at
 `
@@ -254,6 +257,7 @@ export const populateDriver = `
   created_by {
     _id
   }
+  official
   created_at
   updated_at
 `
@@ -274,6 +278,7 @@ export const populateSeries = `
   created_by {
     _id
   }
+  official
   created_at
   updated_at
 `

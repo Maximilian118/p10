@@ -11,6 +11,7 @@ export interface driverType {
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
   teams: ObjectId[]
   series: ObjectId[]
+  official?: boolean // True = Only admins can modify/delete this driver
   stats: {
     nationality: string
     heightCM: number
@@ -72,6 +73,7 @@ const driverSchema = new mongoose.Schema<driverType>({
     positionHistory: { type: Map, of: Number, default: {} }, // Map of position -> finish count (key "1" = P1 finishes)
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the driver.
+  official: { type: Boolean, default: false }, // Only admins can modify/delete if true.
   created_at: { type: String, default: moment().format() }, // When the driver was created.
   updated_at: { type: String, default: moment().format() }, // When the driver was updated.
 })

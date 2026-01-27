@@ -10,6 +10,7 @@ export interface teamType {
   name: string
   series: ObjectId[]
   drivers: ObjectId[]
+  official?: boolean // True = Only admins can modify/delete this team
   stats: {
     inceptionDate: string
     nationality: string
@@ -44,6 +45,7 @@ const teamSchema = new mongoose.Schema<teamType>({
     nationality: { type: String, required: true }, // What is teams nationality?
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the team.
+  official: { type: Boolean, default: false }, // Only admins can modify/delete if true.
   created_at: { type: String, default: moment().format() }, // When the team group was created.
   updated_at: { type: String, default: moment().format() }, // When the team group was updated.
 })

@@ -21,6 +21,8 @@ interface TeamPickerProps {
   onEdit?: (team: teamType) => void              // Called when team card clicked
   onNew?: () => void                             // Called when "New Team" clicked
   onChange?: () => void                          // Called on value change (for clearing errors)
+  isAdmin?: boolean                              // User is admin (can edit official teams)
+  parentIsOfficial?: boolean                     // Parent entity (driver) is official
 }
 
 // Reusable team picker component for forms.
@@ -39,6 +41,8 @@ const TeamPicker: React.FC<TeamPickerProps> = ({
   onEdit,
   onNew,
   onChange,
+  isAdmin = false,
+  parentIsOfficial = false,
 }) => {
   // Filter out already-selected teams from the autocomplete options.
   const availableTeams = teams.filter(
@@ -64,15 +68,22 @@ const TeamPicker: React.FC<TeamPickerProps> = ({
         {selectedTeams.length === 0 && emptyMessage ? (
           <p className="team-picker-empty">{emptyMessage}</p>
         ) : (
-          sortAlphabetically(selectedTeams).map((team: teamType, i: number) => (
-            <TeamListItem
-              key={i}
-              team={team}
-              onRemove={() => onRemove?.(team)}
-              canRemove={!disabled}
-              onClick={() => onEdit?.(team)}
-            />
-          ))
+          sortAlphabetically(selectedTeams).map((team: teamType, i: number) => {
+            // Official teams are read-only for non-admins.
+            const teamIsReadOnly = team.official && !isAdmin
+            // Official teams can only be removed from non-official parent entities.
+            const canRemoveTeam = !disabled && !(parentIsOfficial && team.official)
+            return (
+              <TeamListItem
+                key={i}
+                team={team}
+                onRemove={() => onRemove?.(team)}
+                canRemove={canRemoveTeam}
+                onClick={() => onEdit?.(team)}
+                readOnly={teamIsReadOnly}
+              />
+            )
+          })
         )}
       </div>
       <AddButton

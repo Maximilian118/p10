@@ -19,6 +19,7 @@ const driverSchema = `
     teams: [Team]
     series: [Series!]
     stats: Stats!
+    official: Boolean
     created_by: User!
     created_at: String!
     updated_at: String!

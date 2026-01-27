@@ -115,6 +115,7 @@ export interface teamType {
   name: string
   series: seriesType[]
   drivers: driverType[]
+  official?: boolean
   stats: {
     inceptionDate: string
     nationality: string
@@ -135,6 +136,7 @@ export interface driverType {
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
   teams: teamType[]
   series: seriesType[]
+  official?: boolean
   stats: {
     nationality: string | null
     heightCM: number | null
@@ -155,6 +157,7 @@ export interface seriesType {
   name: string
   shortName?: string
   hasAPI?: boolean
+  official?: boolean
   championships: ChampType[]
   drivers: driverType[]
   created_by?: userType | string
