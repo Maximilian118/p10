@@ -9,6 +9,7 @@ import BarChartIcon from "@mui/icons-material/BarChart"
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings"
 import VisibilityIcon from "@mui/icons-material/Visibility"
+import ExitToAppIcon from "@mui/icons-material/ExitToApp"
 import "./_viewsDrawer.scss"
 
 interface ViewsDrawerProps {
@@ -19,8 +20,11 @@ interface ViewsDrawerProps {
   onBackToDefault: () => void
   canAccessSettings: boolean
   isAdmin: boolean
+  isCompetitor: boolean
+  isAdjudicator: boolean
   adjudicatorViewActive?: boolean
   onToggleAdjudicatorView?: () => void
+  onLeaveChampionship?: () => void
 }
 
 // View item configuration.
@@ -43,8 +47,11 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
   onBackToDefault,
   canAccessSettings,
   isAdmin,
+  isCompetitor,
+  isAdjudicator,
   adjudicatorViewActive,
   onToggleAdjudicatorView,
+  onLeaveChampionship,
 }) => {
   // Close drawer when clicking outside.
   const handleClickAway = () => {
@@ -117,6 +124,15 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
       icon: <BarChartIcon />,
       label: "Statistics",
       onClick: handleClose,
+    },
+    {
+      icon: <ExitToAppIcon />,
+      label: "Leave Championship",
+      onClick: () => {
+        setOpen(false)
+        onLeaveChampionship?.()
+      },
+      visible: isCompetitor && !isAdjudicator,
     },
     {
       icon: <ArrowBackIcon />,

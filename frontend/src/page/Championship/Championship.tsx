@@ -24,7 +24,7 @@ import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import Invite from "./Views/Invite/Invite"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, adjustCompetitorPoints, promoteAdjudicator } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, leaveChampionship, adjustCompetitorPoints, promoteAdjudicator } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -38,6 +38,7 @@ import { getAPIView } from "./Views/RoundStatus/APIViews"
 import Confirm from "../Confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import BlockIcon from "@mui/icons-material/Block"
+import ExitToAppIcon from "@mui/icons-material/ExitToApp"
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz"
 import {
   initSettingsForm,
@@ -181,6 +182,10 @@ const Championship: React.FC = () => {
 
   // Accept invite full confirmation dialog state (invited user trying to join when champ is full).
   const [ showAcceptInviteFullConfirm, setShowAcceptInviteFullConfirm ] = useState<boolean>(false)
+
+  // Leave championship confirmation dialog state.
+  const [ showLeaveConfirm, setShowLeaveConfirm ] = useState<boolean>(false)
+  const [ leavingChamp, setLeavingChamp ] = useState<boolean>(false)
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -394,6 +399,17 @@ const Championship: React.FC = () => {
   const handleBannerClick = () => {
     navigateToDefault()
     setStandingsView("competitors")
+  }
+
+  // Handle leaving the championship.
+  const handleLeaveChampionship = async () => {
+    if (!champ) return
+    setLeavingChamp(true)
+    const success = await leaveChampionship(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+    setLeavingChamp(false)
+    if (success) {
+      setShowLeaveConfirm(false)
+    }
   }
 
   // Fetch championship data when ID changes.
@@ -761,6 +777,7 @@ const Championship: React.FC = () => {
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
   const isAdmin = user.permissions?.admin === true
   const canAccessSettings = isAdjudicator || isAdmin
+  const isCompetitor = champ.competitors.some(c => c._id === user._id)
 
   // Determine if we're in an active round status view (hides RoundsBar/ChampToolbar).
   const isInRoundStatusView = roundStatusView !== null
@@ -768,7 +785,7 @@ const Championship: React.FC = () => {
     && roundStatusView !== "completed"
 
   // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm ? 1 : shrinkRatio
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm || showLeaveConfirm ? 1 : shrinkRatio
 
   // Active round index and data - the round currently in progress (for status views/API calls).
   const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
@@ -869,7 +886,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
         <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
           <div className="action-bar-inner">
             {isAdjudicator && <AdjudicatorBar/>}
@@ -1077,7 +1094,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
                 // Filter out inactive competitors with 0 points in normal view only.
@@ -1312,8 +1329,26 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {showLeaveConfirm && (
+          <Confirm
+            variant="default"
+            icon={<ExitToAppIcon />}
+            heading="Leave Championship?"
+            paragraphs={[
+              "You are about to leave this championship.",
+              "Your current points will remain but you will be marked as inactive.",
+              "You can rejoin later if you wish."
+            ]}
+            cancelText="Cancel"
+            confirmText="Leave Championship"
+            onCancel={() => setShowLeaveConfirm(false)}
+            onConfirm={handleLeaveChampionship}
+            loading={leavingChamp}
+          />
+        )}
+
         {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
+        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}
@@ -1346,8 +1381,11 @@ const Championship: React.FC = () => {
         onBackToDefault={navigateToDefault}
         canAccessSettings={canAccessSettings}
         isAdmin={isAdmin}
+        isCompetitor={isCompetitor}
+        isAdjudicator={isAdjudicator}
         adjudicatorViewActive={adjudicatorView}
         onToggleAdjudicatorView={() => setAdjudicatorView(prev => !prev)}
+        onLeaveChampionship={() => setShowLeaveConfirm(true)}
       />
     </>
   )

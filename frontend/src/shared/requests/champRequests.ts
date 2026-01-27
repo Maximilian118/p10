@@ -1038,6 +1038,52 @@ export const kickCompetitor = async (
   return success
 }
 
+// Allows a competitor to leave a championship voluntarily.
+export const leaveChampionship = async (
+  champId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId },
+          query: `
+            mutation LeaveChampionship($_id: ID!) {
+              leaveChampionship(_id: $_id) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("leaveChampionship", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("leaveChampionship", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("leaveChampionship", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("leaveChampionship", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}
+
 // Promotes a competitor to adjudicator (adjudicator or admin only).
 // Transfers adjudicator role and updates user permissions.
 export const promoteAdjudicator = async (

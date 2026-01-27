@@ -1026,6 +1026,80 @@ const champResolvers = {
     }
   },
 
+  // Allows a competitor to leave a championship voluntarily.
+  // Similar to kick, but user initiates it on themselves.
+  leaveChampionship: async (
+    { _id }: { _id: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("leaveChampionship", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("leaveChampionship", _id, "Championship not found!", 404)
+      }
+
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      // Cannot leave if you are the adjudicator.
+      if (champ.adjudicator.current.toString() === req._id) {
+        return throwError(
+          "leaveChampionship",
+          req._id,
+          "Adjudicator cannot leave the championship. Promote someone else first.",
+          400,
+        )
+      }
+
+      // Check if user is an active competitor.
+      const inCompetitors = champ.competitors.some((c) => c.toString() === req._id)
+      if (!inCompetitors) {
+        return throwError(
+          "leaveChampionship",
+          req._id,
+          "You are not an active competitor in this championship!",
+          400,
+        )
+      }
+
+      // Check if already kicked (shouldn't happen, but check anyway).
+      const alreadyKicked = champ.kicked?.some((k) => k.toString() === req._id)
+      if (alreadyKicked) {
+        return throwError("leaveChampionship", req._id, "You have already left this championship!", 400)
+      }
+
+      // Add to kicked array and remove from competitors array.
+      if (!champ.kicked) {
+        champ.kicked = []
+      }
+      champ.kicked.push(new ObjectId(req._id as string))
+
+      // Remove from championship-level competitors.
+      champ.competitors = champ.competitors.filter((c) => c.toString() !== req._id)
+
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("leaveChampionship", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
   // Promotes a competitor to adjudicator (adjudicator or admin only).
   // Transfers adjudicator role and updates user permissions.
   promoteAdjudicator: async (
