@@ -1,7 +1,7 @@
 @use '../../../scss/variables';
 @use '../../../scss/mixins';
 
-.icon, .icon-small, .icon-medium, .icon-large, .icon-x-large, .icon-contained {
+.icon, .icon-small, .icon-medium, .icon-medium-large, .icon-large, .icon-x-large, .icon-contained {
   box-shadow: variables.$shadow-close;
   @include mixins.flexbox;
   overflow: hidden;
@@ -17,6 +17,11 @@
 .icon-medium {
   width: 32px;
   height: 32px;
+}
+
+.icon-medium-large {
+  width: 40px;
+  height: 40px;
 }
 
 .icon-large {

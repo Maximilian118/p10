@@ -94,5 +94,11 @@ const userSchema = `
   type DeleteAccountResult {
     success: Boolean!
   }
+
+  # Result from getUsers query - returns array of users with tokens for auth refresh.
+  type Users {
+    array: [User!]!
+    tokens: [String!]
+  }
 `
 export default userSchema

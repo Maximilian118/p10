@@ -6,15 +6,17 @@ import { userType } from "../../../shared/localStorage"
 import EditButton from "../../utility/button/editButton/EditButton"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import IconList from "../../utility/iconList/IconList"
+import Banner from "../../utility/banner/Banner"
 
 interface champCardType {
   champ: ChampType
   onClick?: (e: SyntheticEvent) => void
   canEdit?: boolean
   onEditClicked?: (e: SyntheticEvent) => void
+  isInvited?: boolean
 }
 
-const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditClicked }) => {
+const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditClicked, isInvited }) => {
   const navigate = useNavigate()
 
   // Championship-level competitors for the icon list.
@@ -27,6 +29,7 @@ const ChampCard: React.FC<champCardType> = ({ champ, onClick, canEdit, onEditCli
 
   return (
     <div className="champ-card" onClick={onClick}>
+      {isInvited && <Banner text="Invited" colour="success"/>}
       <div className="main-icon-container">
         <ImageIcon src={champ.icon} size="contained"/>
         {canEdit && <EditButton

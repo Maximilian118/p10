@@ -134,6 +134,37 @@ const userResolvers = {
       throw err
     }
   },
+  // Fetches all users with minimal data (for invite functionality).
+  // Returns only _id, name, icon to minimize data transfer.
+  getUsers: async (
+    { limit }: { limit?: number },
+    req: AuthRequest,
+  ): Promise<{ array: userType[]; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("getUsers", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Build query with optional limit.
+      let query = User.find({}).select("_id name icon")
+
+      if (limit && limit > 0) {
+        query = query.limit(limit)
+      }
+
+      const users = await query.exec()
+
+      return {
+        array: users.map((u) => ({
+          ...u._doc,
+          password: null,
+        })),
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
   forgot: async ({ email }: { email: string }): Promise<string> => {
     try {
       const user = (await User.findOne({ email })) as userTypeMongo

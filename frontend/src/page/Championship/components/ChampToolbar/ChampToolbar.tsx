@@ -1,7 +1,7 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
-import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle } from "@mui/icons-material"
 import { ChampType, badgeType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
@@ -40,6 +40,9 @@ interface champToolbarType {
   onDrawerClick?: () => void
   adjudicatorView?: boolean
   onExitAdjudicatorView?: () => void
+  navigateToView?: (view: ChampView) => void
+  setShowInviteFullConfirm?: React.Dispatch<React.SetStateAction<boolean>>
+  setShowAcceptInviteFullConfirm?: React.Dispatch<React.SetStateAction<boolean>>
   settingsProps?: FormToolbarProps
   automationProps?: FormToolbarProps
   protestsProps?: FormToolbarProps
@@ -61,6 +64,9 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   onDrawerClick,
   adjudicatorView,
   onExitAdjudicatorView,
+  navigateToView,
+  setShowInviteFullConfirm,
+  setShowAcceptInviteFullConfirm,
   settingsProps,
   automationProps,
   protestsProps,
@@ -105,6 +111,9 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   // Check if user is banned from this championship.
   const isBanned = champ.banned?.some(b => b._id === user._id)
 
+  // Check if user is invited to this championship.
+  const isInvited = champ.invited?.some(i => i._id === user._id)
+
   // Get join/invite button config based on championship state.
   const getJoinButtonConfig = (): ButtonConfig | undefined => {
     // Show "You are banned" button if user is banned.
@@ -135,13 +144,33 @@ const ChampToolbar: React.FC<champToolbarType> = ({
 
     // Invite only championship.
     if (isAdjudicator) {
-      if (isFull) {
-        return { label: "Championship Full", endIcon: <Block />, disabled: true }
-      }
       return {
         label: "Invite Competitors",
-        onClick: () => {},
+        onClick: () => {
+          if (isFull && setShowInviteFullConfirm) {
+            setShowInviteFullConfirm(true)
+          } else if (navigateToView) {
+            navigateToView("invite")
+          }
+        },
         endIcon: <GroupAdd />,
+        color: "success",
+      }
+    }
+
+    // Show "Accept Invite" button for invited users.
+    if (isInvited) {
+      return {
+        label: "Accept Invite",
+        onClick: async () => {
+          if (isFull && setShowAcceptInviteFullConfirm) {
+            setShowAcceptInviteFullConfirm(true)
+          } else {
+            const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+            if (success && onJoinSuccess) onJoinSuccess()
+          }
+        },
+        endIcon: <CheckCircle />,
         color: "success",
       }
     }

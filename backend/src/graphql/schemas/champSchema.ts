@@ -244,6 +244,7 @@ const champSchema = `
     waitingList: [User!]!
     banned: [User!]!
     kicked: [User!]!
+    invited: [User!]!
     history: [ChampHistory!]
     created_by: User
     created_at: String!

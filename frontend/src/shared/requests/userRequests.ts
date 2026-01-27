@@ -668,3 +668,61 @@ export const deleteAccount = async (
 
   setLoading(false)
 }
+
+// Basic user type for invite functionality (minimal data).
+export interface UserBasicType {
+  _id: string
+  name: string
+  icon: string
+}
+
+// Fetches all users with minimal data for invite functionality.
+export const getUsers = async (
+  setUsers: React.Dispatch<React.SetStateAction<UserBasicType[]>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  limit?: number,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { limit },
+          query: `
+            query GetUsers($limit: Int) {
+              getUsers(limit: $limit) {
+                array {
+                  _id
+                  name
+                  icon
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getUsers", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const usersData = graphQLResponse("getUsers", res, user, setUser) as { array: UserBasicType[] }
+          setUsers(usersData.array)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getUsers", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getUsers", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}

@@ -610,6 +610,11 @@ export const populateChamp = `
     name
     icon
   }
+  invited {
+    _id
+    name
+    icon
+  }
   history {
     season
     adjudicator {

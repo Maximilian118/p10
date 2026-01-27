@@ -370,6 +370,9 @@ export interface ChampType {
   // Kicked users - can rejoin the championship later.
   kicked: userType[]
 
+  // Invited users - can accept to join the championship.
+  invited: userType[]
+
   // History of each season.
   history: ChampHistoryType[]
 

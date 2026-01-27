@@ -22,6 +22,7 @@ const Schema = buildSchema(`
     signS3(filename: String!): S3Payload!
     login(email: String!, password: String): User!
     getUserById(_id: ID!): User!
+    getUsers(limit: Int): Users
     getBadgesByChamp(championship: String): Badges
     getSeries: SeriesList
     getDrivers: Drivers
@@ -48,6 +49,7 @@ const Schema = buildSchema(`
     updateChampSettings(_id: ID!, settings: ChampSettingsInput!): Champ!
     updateAdminSettings(_id: ID!, settings: AdminSettingsInput!): Champ!
     joinChamp(_id: ID!): Champ!
+    inviteUser(_id: ID!, userId: ID!): Champ!
     banCompetitor(_id: ID!, competitorId: ID!): Champ!
     unbanCompetitor(_id: ID!, competitorId: ID!): Champ!
     kickCompetitor(_id: ID!, competitorId: ID!): Champ!

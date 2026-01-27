@@ -1,0 +1,31 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.invite-view {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  flex-grow: 1;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  .invite-list {
+    width: 100%;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .invite-empty {
+    width: 100%;
+    flex-grow: 1;
+    @include mixins.flexbox;
+
+    p {
+      color: variables.$colour-4;
+      font-size: 14px;
+    }
+  }
+}

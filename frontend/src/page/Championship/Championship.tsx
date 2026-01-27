@@ -21,6 +21,7 @@ import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import Badges from "./Views/Badges/Badges"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
+import Invite from "./Views/Invite/Invite"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
 import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, adjustCompetitorPoints, promoteAdjudicator } from "../../shared/requests/champRequests"
@@ -174,6 +175,12 @@ const Championship: React.FC = () => {
   // Promote confirmation dialog state.
   const [ showPromoteConfirm, setShowPromoteConfirm ] = useState<boolean>(false)
   const [ competitorToPromote, setCompetitorToPromote ] = useState<CompetitorEntryType | null>(null)
+
+  // Invite full confirmation dialog state (adjudicator trying to invite when champ is full).
+  const [ showInviteFullConfirm, setShowInviteFullConfirm ] = useState<boolean>(false)
+
+  // Accept invite full confirmation dialog state (invited user trying to join when champ is full).
+  const [ showAcceptInviteFullConfirm, setShowAcceptInviteFullConfirm ] = useState<boolean>(false)
 
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
@@ -761,7 +768,7 @@ const Championship: React.FC = () => {
     && roundStatusView !== "completed"
 
   // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm ? 1 : shrinkRatio
+  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm ? 1 : shrinkRatio
 
   // Active round index and data - the round currently in progress (for status views/API calls).
   const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
@@ -862,7 +869,7 @@ const Championship: React.FC = () => {
         <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
       )}
 
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
+      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
         <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
           <div className="action-bar-inner">
             {isAdjudicator && <AdjudicatorBar/>}
@@ -1070,7 +1077,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
                 // Filter out inactive competitors with 0 points in normal view only.
@@ -1260,8 +1267,53 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Invite view for adjudicators to invite users */}
+        {view === "invite" && (
+          <Invite
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            navigate={navigate}
+            setBackendErr={setBackendErr}
+          />
+        )}
+
+        {/* Invite full confirmation - adjudicator trying to invite when championship is full */}
+        {showInviteFullConfirm && (
+          <Confirm
+            variant="default"
+            icon={<BlockIcon />}
+            heading="Championship Full"
+            paragraphs={[
+              "This championship has reached its maximum number of competitors.",
+              "You can increase the maximum in Settings, but this is not recommended."
+            ]}
+            confirmText="Go Back"
+            onConfirm={() => setShowInviteFullConfirm(false)}
+            singleButton={true}
+          />
+        )}
+
+        {/* Accept invite full confirmation - invited user trying to join when championship is full */}
+        {showAcceptInviteFullConfirm && (
+          <Confirm
+            variant="default"
+            icon={<BlockIcon />}
+            heading="Cannot Join Championship"
+            paragraphs={[
+              "This championship has reached its maximum number of competitors.",
+              "You were invited but the championship filled up before you could accept.",
+              "Contact the adjudicator if you believe this is an error."
+            ]}
+            confirmText="Go Back"
+            onConfirm={() => setShowAcceptInviteFullConfirm(false)}
+            singleButton={true}
+          />
+        )}
+
         {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && (
+        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}
@@ -1274,6 +1326,9 @@ const Championship: React.FC = () => {
             onDrawerClick={() => setDrawerOpen(true)}
             adjudicatorView={adjudicatorView}
             onExitAdjudicatorView={() => setAdjudicatorView(false)}
+            navigateToView={navigateToView}
+            setShowInviteFullConfirm={setShowInviteFullConfirm}
+            setShowAcceptInviteFullConfirm={setShowAcceptInviteFullConfirm}
             settingsProps={settingsToolbarProps}
             automationProps={automationToolbarProps}
             protestsProps={protestsToolbarProps}

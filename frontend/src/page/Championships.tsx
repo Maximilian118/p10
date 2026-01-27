@@ -69,6 +69,7 @@ const Championships: React.FC = () => {
           key={i}
           champ={c}
           onClick={() => navigate(`/championship/${c._id}`)}
+          isInvited={c.invited?.some(inv => inv._id === user._id)}
         />
       ))
     )

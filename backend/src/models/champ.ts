@@ -221,6 +221,9 @@ export interface ChampType {
   // Users kicked from this championship - can rejoin later.
   kicked: ObjectId[]
 
+  // Users invited to this championship - can accept to join.
+  invited: ObjectId[]
+
   // History of each round of each season of this championship
   history: SeasonHistory[]
 
@@ -505,6 +508,9 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Kicked users - can rejoin later.
   kicked: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+
+  // Invited users - can accept to join.
+  invited: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
   // History of each season.
   history: [SeasonHistorySchema],

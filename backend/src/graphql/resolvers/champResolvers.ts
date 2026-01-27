@@ -612,9 +612,14 @@ const champResolvers = {
         champ.kicked = champ.kicked.filter((k) => k.toString() !== req._id)
       }
 
-      // Check if championship is invite only.
+      // Check if championship is invite only - allow invited users to join.
       if (champ.settings.inviteOnly) {
-        return throwError("joinChamp", req._id, "This championship is invite only!", 403)
+        const isInvited = champ.invited?.some((i) => i.toString() === req._id)
+        if (!isInvited) {
+          return throwError("joinChamp", req._id, "This championship is invite only!", 403)
+        }
+        // Remove from invited array when they accept the invite.
+        champ.invited = champ.invited.filter((i) => i.toString() !== req._id)
       }
 
       // Check if championship is full (based on championship-level competitors).
@@ -692,6 +697,93 @@ const champResolvers = {
 
       // Filter admin settings for non-admin users.
       const isAdmin = user?.permissions?.admin === true
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Invites a user to join an invite-only championship (adjudicator or admin only).
+  inviteUser: async (
+    { _id, userId }: { _id: string; userId: string },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("inviteUser", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+      if (!champ) {
+        return throwError("inviteUser", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is adjudicator or admin.
+      const requestingUser = await User.findById(req._id)
+      const isAdmin = requestingUser?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "inviteUser",
+          req._id,
+          "Only adjudicator or admin can invite users!",
+          403,
+        )
+      }
+
+      // Verify target user exists.
+      const targetUser = await User.findById(userId)
+      if (!targetUser) {
+        return throwError("inviteUser", userId, "User not found!", 404)
+      }
+
+      // Check if user is already a competitor.
+      const isAlreadyCompetitor = champ.competitors.some((c) => c.toString() === userId)
+      if (isAlreadyCompetitor) {
+        return throwError(
+          "inviteUser",
+          userId,
+          "User is already a competitor in this championship!",
+          400,
+        )
+      }
+
+      // Check if user is already invited.
+      if (!champ.invited) {
+        champ.invited = []
+      }
+      const isAlreadyInvited = champ.invited.some((i) => i.toString() === userId)
+      if (isAlreadyInvited) {
+        return throwError("inviteUser", userId, "User is already invited!", 400)
+      }
+
+      // Check if user is banned.
+      const isBanned = champ.banned?.some((b) => b.toString() === userId)
+      if (isBanned) {
+        return throwError("inviteUser", userId, "User is banned from this championship!", 400)
+      }
+
+      // Check if championship is full.
+      if (champ.competitors.length >= champ.settings.maxCompetitors) {
+        return throwError("inviteUser", userId, "Championship is full!", 400)
+      }
+
+      // Add user to invited array.
+      champ.invited.push(new ObjectId(userId))
+      champ.updated_at = moment().format()
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("inviteUser", _id, "Championship not found after update!", 404)
+      }
 
       return filterChampForUser({
         ...populatedChamp._doc,

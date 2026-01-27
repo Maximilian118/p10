@@ -1,0 +1,37 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.user-card {
+  width: 100%;
+  @include mixins.flexbox-start;
+  background: white;
+  padding: 10px 7.5%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+
+  .image-icon {
+    margin-right: 20px;
+    flex-shrink: 0;
+  }
+
+  .competitor-name {
+    flex-grow: 1;
+    min-width: 0;
+    color: variables.$colour-9;
+    text-transform: capitalize;
+    font-size: 15px;
+    overflow: hidden;
+  }
+
+  .invite-button {
+    background: variables.$mui-success;
+
+    &:hover {
+      background: variables.$mui-success-hover;
+    }
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+}

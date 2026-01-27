@@ -60,6 +60,9 @@ export const getChamps = async (
                     inviteOnly
                     maxCompetitors
                   }
+                  invited {
+                    _id
+                  }
                 }
                 tokens
               }
@@ -513,6 +516,53 @@ export const joinChamp = async (
       })
   } catch (err: unknown) {
     graphQLErrors("joinChamp", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return success
+}
+
+// Invites a user to an invite-only championship (adjudicator or admin only).
+export const inviteUser = async (
+  champId: string,
+  userId: string,
+  setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  let success = false
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id: champId, userId },
+          query: `
+            mutation InviteUser($_id: ID!, $userId: ID!) {
+              inviteUser(_id: $_id, userId: $userId) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("inviteUser", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const updatedChamp = graphQLResponse("inviteUser", res, user, setUser) as ChampType
+          setChamp(updatedChamp)
+          success = true
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("inviteUser", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("inviteUser", err, setUser, navigate, setBackendErr, true)
   }
 
   return success
