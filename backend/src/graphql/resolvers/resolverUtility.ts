@@ -1092,6 +1092,18 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
     )
   }
 
+  // Sync discoveredBadges to ALL users with this championship (not just current round participants).
+  // This ensures users who missed a round still see the correct badge discovery count.
+  await User.updateMany(
+    { "championships._id": champ._id },
+    {
+      $set: {
+        "championships.$.discoveredBadges": discoveredBadges,
+        "championships.$.totalBadges": totalBadges,
+      },
+    }
+  )
+
   // ============================================================================
   // STEP 8: SEND NOTIFICATIONS (FUTURE)
   // ============================================================================
