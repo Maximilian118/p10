@@ -55,6 +55,9 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
   // State for adjudicator drawer visibility.
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
+  // State for responsive badge sizing.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(window.innerWidth < 420)
+
   // Extract display data - use snapshot for deleted users.
   const competitorId = entry.competitor?._id ?? entry.deletedUserSnapshot?._id
   const competitorName = entry.competitor?.name ?? entry.deletedUserSnapshot?.name ?? "Deleted User"
@@ -77,6 +80,13 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isDrawerOpen])
+
+  // Update viewport state on resize for responsive badge sizing.
+  useEffect(() => {
+    const handleResize = () => setIsNarrowViewport(window.innerWidth < 420)
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   // Handle card click - toggle drawer in adjudicator view, otherwise navigate to profile.
   const handleClick = (e: SyntheticEvent) => {
@@ -210,7 +220,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
           {isActive && !adjudicatorView && competitorBadges && competitorBadges.length > 0 && (
             <FeaturedBadges
               badges={competitorBadges}
-              badgeSize={32}
+              badgeSize={isNarrowViewport ? 30 : 32}
               readOnly
             />
           )}
