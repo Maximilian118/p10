@@ -191,6 +191,14 @@ const Championship: React.FC = () => {
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
 
+  // Reset justJoined after animation completes (1.5s) to prevent replay on navigation.
+  useEffect(() => {
+    if (justJoined) {
+      const timer = setTimeout(() => setJustJoined(false), 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [justJoined])
+
   // Scroll-based shrinking for banner.
   const { shrinkRatio, handleScroll } = useScrollShrink({ threshold: 70 })
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
