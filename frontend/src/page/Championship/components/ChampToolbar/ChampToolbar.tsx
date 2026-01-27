@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
 import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle } from "@mui/icons-material"
@@ -8,6 +8,7 @@ import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { joinChamp } from "../../../../shared/requests/champRequests"
 import { ChampView } from "../../Views/ChampSettings/ChampSettings"
 import ButtonBar, { ButtonConfig } from "../../../../components/utility/buttonBar/ButtonBar"
+import { CircularProgress } from "@mui/material"
 
 // Grouped props for form views (settings, automation, protests, ruleChanges, admin).
 export interface FormToolbarProps {
@@ -76,6 +77,9 @@ const ChampToolbar: React.FC<champToolbarType> = ({
 }) => {
   const navigate = useNavigate()
 
+  // Loading state for join/accept invite requests.
+  const [joiningChamp, setJoiningChamp] = useState<boolean>(false)
+
   // Check if user is already a competitor in the championship.
   const competitors = champ.competitors
   const isCompetitor = competitors.some(c => c._id === user._id)
@@ -134,10 +138,12 @@ const ChampToolbar: React.FC<champToolbarType> = ({
       return {
         label: "Join Championship",
         onClick: async () => {
+          setJoiningChamp(true)
           const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+          setJoiningChamp(false)
           if (success && onJoinSuccess) onJoinSuccess()
         },
-        endIcon: <GroupAdd />,
+        endIcon: joiningChamp ? <CircularProgress size={16} color="inherit"/> : <GroupAdd />,
         color: "success",
       }
     }
@@ -166,11 +172,13 @@ const ChampToolbar: React.FC<champToolbarType> = ({
           if (isFull && setShowAcceptInviteFullConfirm) {
             setShowAcceptInviteFullConfirm(true)
           } else {
+            setJoiningChamp(true)
             const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
+            setJoiningChamp(false)
             if (success && onJoinSuccess) onJoinSuccess()
           }
         },
-        endIcon: <CheckCircle />,
+        endIcon: joiningChamp ? <CircularProgress size={16} color="inherit"/> : <CheckCircle />,
         color: "success",
       }
     }
