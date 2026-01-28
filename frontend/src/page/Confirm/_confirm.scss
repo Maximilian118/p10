@@ -25,6 +25,20 @@
     }
   }
 
+  // Default variant (dark background).
+  &--dark {
+    background-color: variables.$colour-9;
+
+    .confirm__btn--confirm {
+      background-color: white !important;
+      color: variables.$colour-9 !important;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+      }
+    }
+  }
+
   // Danger variant (red background).
   &--danger {
     background-color: variables.$f1-red;

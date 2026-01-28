@@ -6,6 +6,7 @@ import badgeSchema from "./badgeSchema"
 import driverSchema from "./driverSchema"
 import seriesSchema from "./seriesSchema"
 import teamSchema from "./teamSchema"
+import notificationSchema from "./notificationSchema"
 
 const Schema = buildSchema(`
   scalar JSON
@@ -17,6 +18,7 @@ const Schema = buildSchema(`
   ${seriesSchema}
   ${driverSchema}
   ${teamSchema}
+  ${notificationSchema}
 
   type rootQuery {
     signS3(filename: String!): S3Payload!
@@ -73,6 +75,10 @@ const Schema = buildSchema(`
     updateTeam(teamInput: teamInput): Team!
     deleteTeam(_id: ID!): Team!
     deleteS3(url: String!, depth: Int): S3Deleted!
+    markNotificationRead(_id: ID!): User!
+    clearNotification(_id: ID!): User!
+    clearAllNotifications: User!
+    updateNotificationSettings(settings: NotificationSettingsInput!): User!
   }
 
   schema {

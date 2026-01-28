@@ -27,6 +27,7 @@ import {
   cancelTimer,
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
+import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -688,6 +689,20 @@ const champResolvers = {
       }
       await user.save()
 
+      // Notify the adjudicator that a new user joined their championship.
+      const adjudicatorId = champ.adjudicator.current.toString()
+      if (adjudicatorId !== req._id) {
+        await sendNotification({
+          userId: adjudicatorId,
+          type: "user_joined",
+          title: "New Competitor Joined",
+          description: `${user.name} has joined ${champ.name}`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+        })
+      }
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -778,6 +793,17 @@ const champResolvers = {
       champ.updated_at = moment().format()
       await champ.save()
 
+      // Send notification to invited user.
+      await sendNotification({
+        userId: targetUser._id,
+        type: "champ_invite",
+        title: "Championship Invite",
+        description: `You've been invited to join ${champ.name}`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+      })
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -866,6 +892,17 @@ const champResolvers = {
 
       champ.updated_at = moment().format()
       await champ.save()
+
+      // Send notification to banned user.
+      await sendNotification({
+        userId: competitorId,
+        type: "banned",
+        title: "Banned from Championship",
+        description: `You have been banned from ${champ.name}`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+      })
 
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
@@ -1009,6 +1046,17 @@ const champResolvers = {
 
       champ.updated_at = moment().format()
       await champ.save()
+
+      // Send notification to kicked user.
+      await sendNotification({
+        userId: competitorId,
+        type: "kicked",
+        title: "Removed from Championship",
+        description: `You have been removed from ${champ.name}`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+      })
 
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
@@ -1211,6 +1259,17 @@ const champResolvers = {
         oldAdjudicatorId,
         oldAdjudicatorPermissionRemoved,
         timestamp: now,
+      })
+
+      // Send notification to promoted user.
+      await sendNotification({
+        userId: newAdjudicatorId,
+        type: "promoted",
+        title: "Promoted to Adjudicator",
+        description: `You are now the adjudicator of ${champ.name}`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
       })
 
       // Return populated championship.
@@ -1526,6 +1585,33 @@ const champResolvers = {
         })
       } else {
         broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
+      }
+
+      // Send notifications to all competitors.
+      const competitorIds = champ.competitors.map((c) => c.toString())
+
+      // Notify when round starts (countDown or betting_open).
+      if (actualStatus === "countDown" || (actualStatus === "betting_open" && currentStatus === "waiting")) {
+        await sendNotificationToMany(competitorIds, {
+          type: "round_started",
+          title: "Round Started",
+          description: `Round ${roundIndex + 1} has started in ${champ.name}`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+        })
+      }
+
+      // Notify when results are posted.
+      if (actualStatus === "results" || (actualStatus === "completed" && status === "results")) {
+        await sendNotificationToMany(competitorIds, {
+          type: "results_posted",
+          title: "Results Posted",
+          description: `Round ${roundIndex + 1} results are in for ${champ.name}`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+        })
       }
 
       return filterChampForUser({

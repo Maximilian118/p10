@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client"
-import { RoundStatus, DriverEntryType, CompetitorEntryType, TeamEntryType } from "../types"
+import { RoundStatus, DriverEntryType, CompetitorEntryType, TeamEntryType, NotificationType } from "../types"
 import { getApiUrl } from "../utility"
 
 // Socket event names - must match backend.
@@ -14,6 +14,7 @@ export const SOCKET_EVENTS = {
   BET_CONFIRMED: "bet:confirmed",
   BET_REJECTED: "bet:rejected",
   ADJUDICATOR_CHANGED: "adjudicator:changed",
+  NOTIFICATION_RECEIVED: "notification:received",
   ERROR: "error",
 } as const
 
@@ -126,4 +127,16 @@ export const placeBetViaSocket = (
   if (socket?.connected) {
     socket.emit(SOCKET_EVENTS.PLACE_BET, { champId, roundIndex, driverId, competitorId })
   }
+}
+
+// Subscribes to notification events.
+// Users are auto-joined to their user room on connection.
+export const onNotificationReceived = (
+  callback: (notification: NotificationType) => void
+): (() => void) => {
+  if (socket) {
+    socket.on(SOCKET_EVENTS.NOTIFICATION_RECEIVED, callback)
+    return () => socket?.off(SOCKET_EVENTS.NOTIFICATION_RECEIVED, callback)
+  }
+  return () => {}
 }

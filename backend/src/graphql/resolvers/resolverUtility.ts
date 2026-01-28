@@ -7,6 +7,7 @@ import Badge from "../../models/badge"
 import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
 import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
+import { sendNotification } from "../../shared/notifications"
 
 // Calculates the sum of all adjustments for a competitor/driver/team entry.
 export const sumAdjustments = (adjustment?: PointsAdjustment[]): number => {
@@ -855,6 +856,22 @@ const awardBadges = async (
       },
     }))
     await User.bulkWrite(userBulkOps)
+
+    // Send notifications for each badge earned (parallel execution).
+    await Promise.all(
+      userBadgeSnapshots.map(({ userId, snapshot }) =>
+        sendNotification({
+          userId,
+          type: "badge_earned",
+          title: "Badge Earned!",
+          description: `You earned the "${snapshot.customName || snapshot.name}" badge`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          badgeSnapshot: snapshot,
+        })
+      )
+    )
 
     console.log(`[awardBadges] Batch saved ${badgeAwards.length} badge awards`)
   }

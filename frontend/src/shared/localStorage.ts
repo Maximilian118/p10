@@ -37,6 +37,43 @@ export interface userBadgeSnapshotType {
   featured?: number | null
 }
 
+// Notification types for different events.
+export type NotificationTypeEnum =
+  | "champ_invite"
+  | "badge_earned"
+  | "round_started"
+  | "results_posted"
+  | "kicked"
+  | "banned"
+  | "promoted"
+
+// Notification object stored in user's notifications array.
+export interface NotificationType {
+  _id: string
+  type: NotificationTypeEnum
+  title: string
+  description: string
+  read: boolean
+  // Optional championship reference for deep linking.
+  champId?: string
+  champName?: string
+  champIcon?: string
+  // Optional badge snapshot for badge earned notifications.
+  badgeSnapshot?: userBadgeSnapshotType
+  createdAt: string
+}
+
+// User's email notification preferences.
+export interface NotificationSettingsType {
+  emailChampInvite: boolean
+  emailBadgeEarned: boolean
+  emailRoundStarted: boolean
+  emailResultsPosted: boolean
+  emailKicked: boolean
+  emailBanned: boolean
+  emailPromoted: boolean
+}
+
 export interface userType {
   _id: string
   token: string
@@ -46,6 +83,8 @@ export interface userType {
   profile_picture: string
   championships: userChampSnapshotType[]
   badges: userBadgeSnapshotType[]
+  notifications: NotificationType[]
+  notificationSettings: NotificationSettingsType
   created_at: string
   permissions: {
     admin: boolean
@@ -55,6 +94,17 @@ export interface userType {
   }
   localStorage: boolean
   tokens?: string[]
+}
+
+// Default notification settings (all enabled).
+const defaultNotificationSettings: NotificationSettingsType = {
+  emailChampInvite: true,
+  emailBadgeEarned: true,
+  emailRoundStarted: true,
+  emailResultsPosted: true,
+  emailKicked: true,
+  emailBanned: true,
+  emailPromoted: true,
 }
 
 // A user object template with falsy values.
@@ -67,6 +117,8 @@ const blankUser = {
   profile_picture: "",
   championships: [],
   badges: [],
+  notifications: [],
+  notificationSettings: defaultNotificationSettings,
   created_at: "",
   permissions: {
     admin: false,
@@ -92,6 +144,8 @@ export const checkUserLS = (): userType => {
     const profile_picture = localStorage.getItem("profile_picture")
     const championships = localStorage.getItem("championships")
     const badges = localStorage.getItem("badges")
+    const notifications = localStorage.getItem("notifications")
+    const notificationSettings = localStorage.getItem("notificationSettings")
     const created_at = localStorage.getItem("created_at")
     const permissions = localStorage.getItem("permissions")
 
@@ -104,6 +158,8 @@ export const checkUserLS = (): userType => {
       profile_picture: profile_picture ? profile_picture : "",
       championships: championships ? JSON.parse(championships) : blankUser.championships,
       badges: badges ? JSON.parse(badges) : blankUser.badges,
+      notifications: notifications ? JSON.parse(notifications) : blankUser.notifications,
+      notificationSettings: notificationSettings ? JSON.parse(notificationSettings) : blankUser.notificationSettings,
       created_at: created_at ? created_at : blankUser.created_at,
       permissions: permissions ? JSON.parse(permissions) : blankUser.permissions,
       localStorage: true,
@@ -128,6 +184,8 @@ export const logout = (
   localStorage.removeItem("profile_picture")
   localStorage.removeItem("championships")
   localStorage.removeItem("badges")
+  localStorage.removeItem("notifications")
+  localStorage.removeItem("notificationSettings")
   localStorage.removeItem("created_at")
   localStorage.removeItem("permissions")
 
@@ -172,6 +230,8 @@ export const logInSuccess = (
     localStorage.setItem("profile_picture", user.profile_picture)
     localStorage.setItem("championships", JSON.stringify(user.championships))
     localStorage.setItem("badges", JSON.stringify(user.badges))
+    localStorage.setItem("notifications", JSON.stringify(user.notifications || []))
+    localStorage.setItem("notificationSettings", JSON.stringify(user.notificationSettings || defaultNotificationSettings))
     localStorage.setItem("created_at", user.created_at)
     localStorage.setItem("permissions", JSON.stringify(user.permissions))
   }

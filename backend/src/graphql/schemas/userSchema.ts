@@ -52,6 +52,8 @@ const userSchema = `
     profile_picture: String
     championships: [UserChampSnapshot!]!
     badges: [UserBadgeSnapshot!]!
+    notifications: [Notification!]!
+    notificationSettings: NotificationSettings!
     permissions: Permissions!
     logged_in_at: String!
     created_at: String!

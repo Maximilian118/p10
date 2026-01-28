@@ -60,12 +60,13 @@ const Nav: React.FC<navType> = ({ user }) => {
     setDrawerOpen(false)
   }
 
-  // Open notifications drawer.
+  // Navigate to notifications page.
   const handleNotificationsClicked = () => {
-    
+    navigate("/notifications")
   }
 
-  const notificationsCount = 0
+  // Count unread notifications.
+  const notificationsCount = user.notifications?.filter(n => !n.read).length || 0
 
   return (
     <div className="nav-container" ref={navContainerRef}>

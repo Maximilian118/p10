@@ -39,6 +39,39 @@ export const populateUser = `
     awarded_at
     featured
   }
+  notifications {
+    _id
+    type
+    title
+    description
+    read
+    champId
+    champName
+    champIcon
+    badgeSnapshot {
+      _id
+      championship
+      url
+      name
+      customName
+      rarity
+      awardedHow
+      awardedDesc
+      zoom
+      awarded_at
+      featured
+    }
+    createdAt
+  }
+  notificationSettings {
+    emailChampInvite
+    emailBadgeEarned
+    emailRoundStarted
+    emailResultsPosted
+    emailKicked
+    emailBanned
+    emailPromoted
+  }
   permissions {
     admin
     adjudicator

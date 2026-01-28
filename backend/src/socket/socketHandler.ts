@@ -3,6 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken"
 import Champ, { RoundStatus } from "../models/champ"
 import User from "../models/user"
 import { placeBetAtomic } from "./betHandler"
+import { NotificationType } from "../models/notification"
 
 // Verbose socket logging is opt-in via env variable.
 const verboseLogs = process.env.VERBOSE_SOCKET_LOGS === "true"
@@ -19,6 +20,7 @@ export const SOCKET_EVENTS = {
   BET_CONFIRMED: "bet:confirmed",
   BET_REJECTED: "bet:rejected",
   ADJUDICATOR_CHANGED: "adjudicator:changed",
+  NOTIFICATION_RECEIVED: "notification:received",
   ERROR: "error",
 } as const
 
@@ -96,6 +98,10 @@ export const initializeSocket = (io: Server): void => {
   })
 
   io.on("connection", async (socket: Socket) => {
+    // Auto-join user to their personal room for notifications.
+    const userRoom = `user:${socket.data.userId}`
+    socket.join(userRoom)
+
     // Fetch user name for readable logging (development only).
     if (verboseLogs) {
       try {
@@ -104,7 +110,7 @@ export const initializeSocket = (io: Server): void => {
       } catch {
         socket.data.userName = socket.data.userId
       }
-      console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName})`)
+      console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName}) - joined ${userRoom}`)
     }
 
     // Join championship room to receive updates for that championship.
@@ -307,4 +313,27 @@ export const broadcastBetPlaced = (
   }
   io.to(`championship:${champId}`).emit(SOCKET_EVENTS.BET_PLACED, payload)
   if (verboseLogs) console.log(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
+}
+
+// Pushes a notification to a specific user via WebSocket.
+// User must be connected and auto-joined to their user:${userId} room.
+export const pushNotification = (
+  io: Server,
+  userId: string,
+  notification: NotificationType
+): void => {
+  io.to(`user:${userId}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, notification)
+  if (verboseLogs) console.log(`Pushed notification to user ${userId}: ${notification.title}`)
+}
+
+// Pushes a notification to multiple users via WebSocket.
+export const pushNotificationToMany = (
+  io: Server,
+  userIds: string[],
+  notification: Omit<NotificationType, "_id">
+): void => {
+  userIds.forEach((userId) => {
+    io.to(`user:${userId}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, notification)
+  })
+  if (verboseLogs) console.log(`Pushed notification to ${userIds.length} users: ${notification.title}`)
 }

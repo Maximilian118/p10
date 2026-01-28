@@ -25,6 +25,7 @@ import Teams from "./page/Teams"
 import Team from "./page/Team/Team"
 import CreateTeam from "./page/CreateTeam/CreateTeam"
 import VerifyEmail from "./page/VerifyEmail/VerifyEmail"
+import Notifications from "./page/Notifications/Notifications"
 
 interface routerType {
   user: userType,
@@ -36,6 +37,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/" Component={Home}/>
     <Route path="/profile" Component={Profile}/>
     <Route path="/settings" Component={Settings}/>
+    <Route path="/notifications" Component={Notifications}/>
     <Route path="/profile/:id" Component={UserProfile}/>
     <Route path="/verify-email" Component={VerifyEmail}/>
     <Route path="/password" Component={Password}/>
