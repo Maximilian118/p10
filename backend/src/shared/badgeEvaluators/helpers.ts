@@ -68,7 +68,7 @@ export const isInTopN = (round: Round, competitorId: ObjectId, n: number): boole
 // Check if competitor is last.
 export const isLast = (round: Round, competitorId: ObjectId): boolean => {
   const entry = getCompetitorEntry(round, competitorId)
-  if (!entry) return false
+  if (!entry || round.competitors.length === 0) return false
   const maxPosition = Math.max(...round.competitors.map((c) => c.position))
   return entry.position === maxPosition
 }

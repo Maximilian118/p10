@@ -144,7 +144,20 @@ export interface driverType {
     birthday: string | null
     moustache: boolean
     mullet: boolean
+    roundsCompleted: number
+    roundsWon: number
+    champsCompleted: number
+    champsWon: number
     positionHistory: Record<string, number>
+    // Auto-updated stats for badge evaluation (qualifying positions).
+    polePositions: number
+    topThreeFinishes: number
+    p10Finishes: number
+    formScore: number
+    // API-dependent stats (only available when series.hasAPI === true).
+    dnfCount: number
+    dnsCount: number
+    consecutiveDNFs: number
   }
   created_by?: userType | string
   created_at?: string

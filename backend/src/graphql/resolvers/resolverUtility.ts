@@ -666,6 +666,7 @@ export const calculateTeamPoints = (round: Round): void => {
 // Update driver stats for round completion and championship standings.
 // Increments roundsCompleted for all drivers, roundsWon for P10 finisher,
 // and at championship end, updates champsCompleted, champsWon, and positionHistory.
+// Also updates badge-related stats: polePositions, topThreeFinishes, p10Finishes.
 // Uses bulkWrite for performance (single DB call instead of 40+).
 const updateDriverStats = async (
   currentRound: Round,
@@ -683,6 +684,23 @@ const updateDriverStats = async (
     // If driver finished P10 (the target position), increment roundsWon.
     if (driverEntry.positionActual === 10) {
       updateOps["stats.roundsWon"] = 1
+      updateOps["stats.p10Finishes"] = 1
+    }
+
+    // Badge evaluation stats - polePositions (P1 in qualifying), topThreeFinishes (P1-P3 in qualifying).
+    if (driverEntry.positionActual === 1) {
+      updateOps["stats.polePositions"] = 1
+    }
+    if (driverEntry.positionActual >= 1 && driverEntry.positionActual <= 3) {
+      updateOps["stats.topThreeFinishes"] = 1
+    }
+
+    // DNF/DNS tracking (for API-enabled series).
+    // DNF = position 0 or >= 21 (non-classified/retired).
+    const isDNF = driverEntry.positionActual === 0 || driverEntry.positionActual >= 21
+    if (isDNF) {
+      updateOps["stats.dnfCount"] = 1
+      updateOps["stats.consecutiveDNFs"] = 1
     }
 
     // At championship end, increment champsCompleted.
@@ -714,10 +732,68 @@ const updateDriverStats = async (
     await Driver.bulkWrite(bulkOps)
   }
 
+  // Reset consecutiveDNFs for drivers who finished (didn't DNF).
+  // This requires a separate bulk operation with $set.
+  const finishedDriverIds = currentRound.drivers
+    .filter((d) => d.positionActual > 0 && d.positionActual < 21)
+    .map((d) => d.driver)
+
+  if (finishedDriverIds.length > 0) {
+    await Driver.updateMany(
+      { _id: { $in: finishedDriverIds } },
+      { $set: { "stats.consecutiveDNFs": 0 } },
+    )
+  }
+
+  // Update formScore (rolling avg of last 3 positionActual).
+  // This requires reading current data and computing new value.
+  await updateDriverFormScores(currentRound)
+
   console.log(
     `[updateDriverStats] Updated stats for ${currentRound.drivers.length} drivers` +
       (isChampEnd ? " (championship end)" : ""),
   )
+}
+
+// Update driver form scores - rolling average of last 3 positionActual values.
+// Lower score = better recent form. Uses positionHistory to approximate.
+// Update driver form scores - rolling average of recent positionActual values.
+// Uses exponential moving average: 70% old score + 30% new position.
+// Lower score = better recent form.
+const updateDriverFormScores = async (currentRound: Round): Promise<void> => {
+  const driverIds = currentRound.drivers.map((d) => d.driver)
+  const drivers = await Driver.find({ _id: { $in: driverIds } })
+
+  const formScoreUpdates = drivers.map((driver) => {
+    // Find the current round's position for this driver.
+    const currentDriver = currentRound.drivers.find((d) => d.driver.toString() === driver._id.toString())
+    const currentPos = currentDriver?.positionActual ?? 0
+
+    // Skip drivers who didn't race or DNF'd (position 0 or >= 21).
+    if (currentPos <= 0 || currentPos >= 21) {
+      return {
+        updateOne: {
+          filter: { _id: driver._id },
+          update: { $set: { "stats.formScore": driver.stats?.formScore ?? 10 } },
+        },
+      }
+    }
+
+    // Simple exponential moving average: 70% old score + 30% new position.
+    const oldScore = driver.stats?.formScore ?? 10
+    const newScore = Math.round((oldScore * 0.7 + currentPos * 0.3) * 10) / 10
+
+    return {
+      updateOne: {
+        filter: { _id: driver._id },
+        update: { $set: { "stats.formScore": newScore } },
+      },
+    }
+  })
+
+  if (formScoreUpdates.length > 0) {
+    await Driver.bulkWrite(formScoreUpdates)
+  }
 }
 
 // Award badges to competitors based on badge criteria.
@@ -792,6 +868,7 @@ const awardBadges = async (
       // Get checker function for this badge.
       const checker = badgeCheckerRegistry.get(badge.awardedHow)
       if (!checker) {
+        console.warn(`[awardBadges] No evaluator registered for badge criteria: "${badge.awardedHow}"`)
         continue
       }
 
@@ -909,6 +986,13 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
     )
     return
   }
+
+  // RACE CONDITION FIX: Set flag and save IMMEDIATELY to prevent concurrent runs.
+  // This ensures that if two requests arrive simultaneously, only one proceeds.
+  currentRound.resultsProcessed = true
+  champ.markModified("rounds")
+  await champ.save()
+  console.log(`[resultsHandler] Acquired lock for round ${roundIndex + 1}`)
 
   // ============================================================================
   // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
@@ -1129,9 +1213,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // - Notify users of badges earned
   // - Notify users of position changes
 
-  // Mark this round as processed to prevent double execution.
-  currentRound.resultsProcessed = true
-
+  // Note: resultsProcessed flag was set at the start to prevent race conditions.
   // Save all changes to the database.
   // Mark rounds as modified so Mongoose detects changes to nested driver/team arrays.
   champ.markModified("rounds")

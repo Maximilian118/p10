@@ -86,17 +86,22 @@ export const participationEvaluators: [string, BadgeChecker][] = [
       return { earned: streak >= 5 }
     },
   ],
+  // NOTE: Promoted/Demoted badges are awarded EXTERNALLY via admin actions,
+  // not through badge evaluation in resultsHandler. These evaluators always
+  // return false - the actual award happens in user role management code.
   [
     "Promoted",
     () => {
-      // This is awarded outside resultsHandler when promotion happens.
+      // Awarded externally when adjudicator promotes a guest to competitor.
+      // See: userResolvers.ts or champResolvers.ts promotion logic.
       return { earned: false }
     },
   ],
   [
     "Demoted",
     () => {
-      // This is awarded outside resultsHandler when demotion happens.
+      // Awarded externally when adjudicator demotes a competitor to guest.
+      // See: userResolvers.ts or champResolvers.ts demotion logic.
       return { earned: false }
     },
   ],
@@ -175,6 +180,45 @@ export const participationEvaluators: [string, BadgeChecker][] = [
         }
       }
       return { earned: true }
+    },
+  ],
+  [
+    "Points Penalty",
+    (ctx) => {
+      // Receive a negative points adjustment from the adjudicator.
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry) return { earned: false }
+      // Check if any adjustment in the array is negative.
+      const adjustments = entry.adjustment
+      if (!adjustments || !Array.isArray(adjustments)) return { earned: false }
+      return { earned: adjustments.some((adj) => adj.adjustment < 0) }
+    },
+  ],
+  [
+    "Consistency King",
+    (ctx) => {
+      // Finish in the same position for 3 rounds in a row.
+      if (ctx.currentRoundIndex < 2) return { earned: false }
+
+      let position: number | null = null
+      let streak = 0
+
+      for (let i = ctx.currentRoundIndex; i >= 0 && streak < 3; i--) {
+        const round = ctx.allRounds[i]
+        if (!isRoundCompleted(round)) continue
+        const entry = getCompetitorEntry(round, ctx.competitorId)
+        if (!entry) break
+
+        if (position === null) {
+          position = entry.position
+          streak = 1
+        } else if (entry.position === position) {
+          streak++
+        } else {
+          break
+        }
+      }
+      return { earned: streak >= 3 }
     },
   ],
 ]

@@ -60,10 +60,10 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (entry?.position !== 1) return { earned: false }
 
-      // Find halfway point.
+      // Find halfway point (true midpoint of completed rounds).
       const completedRounds = ctx.allRounds.filter(isRoundCompleted)
-      const halfwayIndex = Math.floor(completedRounds.length / 2) - 1
-      if (halfwayIndex < 0) return { earned: false }
+      if (completedRounds.length < 2) return { earned: false }
+      const halfwayIndex = Math.floor((completedRounds.length - 1) / 2)
 
       const halfwayRound = ctx.allRounds[halfwayIndex]
       return { earned: isLast(halfwayRound, ctx.competitorId) }

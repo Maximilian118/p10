@@ -183,4 +183,49 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
       return { earned: winner.totalPoints === runnerUp.totalPoints }
     },
   ],
+  [
+    "Grid Penalty",
+    (ctx) => {
+      // Drop from position 1 to 5th or lower in one round.
+      if (ctx.currentRoundIndex === 0) return { earned: false }
+      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
+      if (prevRound.status !== "completed" && prevRound.status !== "results") return { earned: false }
+
+      const prevEntry = getCompetitorEntry(prevRound, ctx.competitorId)
+      const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!prevEntry || !currentEntry) return { earned: false }
+
+      return { earned: prevEntry.position === 1 && currentEntry.position >= 5 }
+    },
+  ],
+  [
+    "Undercut",
+    (ctx) => {
+      // Pass 3+ competitors in standings in one round.
+      if (ctx.currentRoundIndex === 0) return { earned: false }
+      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
+      if (prevRound.status !== "completed" && prevRound.status !== "results") return { earned: false }
+
+      const prevEntry = getCompetitorEntry(prevRound, ctx.competitorId)
+      const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!prevEntry || !currentEntry) return { earned: false }
+
+      const positionGain = prevEntry.position - currentEntry.position
+      return { earned: positionGain >= 3 }
+    },
+  ],
+  [
+    "DRS Enabled",
+    (ctx) => {
+      // Win immediately after finishing P2.
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (ctx.currentRoundIndex === 0) return { earned: false }
+
+      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
+      if (prevRound.status !== "completed" && prevRound.status !== "results") return { earned: false }
+
+      const prevEntry = getCompetitorEntry(prevRound, ctx.competitorId)
+      return { earned: prevEntry?.position === 2 }
+    },
+  ],
 ]

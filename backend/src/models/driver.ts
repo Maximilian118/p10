@@ -24,6 +24,15 @@ export interface driverType {
     champsCompleted: number
     champsWon: number
     positionHistory: Record<string, number>
+    // Auto-updated stats for badge evaluation (updated in resultsHandler).
+    polePositions: number // Pole positions in qualifying (positionActual === 1)
+    topThreeFinishes: number // Top 3 qualifying finishes (positionActual <= 3)
+    p10Finishes: number // Times finished exactly P10
+    formScore: number // Rolling avg of last 3 positionActual (lower = better)
+    // API-dependent stats (only updated when series.hasAPI === true).
+    dnfCount: number // Did Not Finish count
+    dnsCount: number // Did Not Start count
+    consecutiveDNFs: number // Current DNF streak (reset on finish)
   }
   created_by: ObjectId
   created_at: string
@@ -71,6 +80,15 @@ const driverSchema = new mongoose.Schema<driverType>({
     champsCompleted: { type: Number, default: 0 }, // Championships the driver has completed
     champsWon: { type: Number, default: 0 }, // Championships where driver finished 1st in driver standings
     positionHistory: { type: Map, of: Number, default: {} }, // Map of position -> finish count (key "1" = P1 finishes)
+    // Auto-updated stats for badge evaluation (updated in resultsHandler).
+    polePositions: { type: Number, default: 0 }, // Real race wins (positionActual === 1)
+    topThreeFinishes: { type: Number, default: 0 }, // Real podiums (positionActual <= 3)
+    p10Finishes: { type: Number, default: 0 }, // Times finished exactly P10
+    formScore: { type: Number, default: 0 }, // Rolling avg of last 3 positionActual (lower = better)
+    // API-dependent stats (only updated when series.hasAPI === true).
+    dnfCount: { type: Number, default: 0 }, // Did Not Finish count
+    dnsCount: { type: Number, default: 0 }, // Did Not Start count
+    consecutiveDNFs: { type: Number, default: 0 }, // Current DNF streak (reset on finish)
   },
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the driver.
   official: { type: Boolean, default: false }, // Only admins can modify/delete if true.

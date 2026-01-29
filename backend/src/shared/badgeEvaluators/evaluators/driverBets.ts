@@ -311,16 +311,119 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
     },
   ],
   [
-    "Last Race Bet",
+    "Pole Picker",
     (ctx, populatedDrivers) => {
-      // Bet on a driver in their final race.
+      // Win by betting on driver who took pole (positionActual === 1 in qualifying).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (!populatedDrivers) return { earned: false }
+      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
+      return { earned: betDriver?.positionActual === 1 }
+    },
+  ],
+  [
+    "Front Row Bet",
+    (ctx, populatedDrivers) => {
+      // Win by betting on driver who qualified in top 3 (positionActual <= 3).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (!populatedDrivers) return { earned: false }
+      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
+      return { earned: betDriver ? betDriver.positionActual <= 3 : false }
+    },
+  ],
+  [
+    "P10 Magnet",
+    (ctx, populatedDrivers) => {
+      // Bet on a driver who has 5+ P10 finishes this season.
       if (!populatedDrivers) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry?.bet) return { earned: false }
       const driver = populatedDrivers.get(entry.bet.toString())
-      // Check if driver is marked as retiring/final race (isRetiring may not exist yet).
-      const stats = driver?.stats as Record<string, unknown> | undefined
-      return { earned: stats?.isRetiring === true }
+      return { earned: driver?.stats?.p10Finishes ? driver.stats.p10Finishes >= 5 : false }
+    },
+  ],
+  [
+    "Hot Streak Pick",
+    (ctx, populatedDrivers) => {
+      // Win with driver whose formScore is in top 3 (lower = better form).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (!populatedDrivers) return { earned: false }
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+
+      // Get all drivers with valid formScore and sort by form (lower = better).
+      const driversWithForm = Array.from(populatedDrivers.values())
+        .filter((d) => d.stats?.formScore !== undefined && d.stats.formScore > 0)
+        .sort((a, b) => (a.stats?.formScore ?? 99) - (b.stats?.formScore ?? 99))
+
+      // Check if bet driver is in top 3 best form.
+      const top3DriverIds = driversWithForm.slice(0, 3).map((d) => d._id?.toString())
+      return { earned: top3DriverIds.includes(entry.bet.toString()) }
+    },
+  ],
+  [
+    "Cold Pick",
+    (ctx, populatedDrivers) => {
+      // Win with driver whose formScore is in bottom 3 (higher = worse form).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (!populatedDrivers) return { earned: false }
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+
+      // Get all drivers with valid formScore and sort by form (higher = worse).
+      const driversWithForm = Array.from(populatedDrivers.values())
+        .filter((d) => d.stats?.formScore !== undefined && d.stats.formScore > 0)
+        .sort((a, b) => (b.stats?.formScore ?? 0) - (a.stats?.formScore ?? 0))
+
+      // Check if bet driver is in bottom 3 worst form.
+      const bottom3DriverIds = driversWithForm.slice(0, 3).map((d) => d._id?.toString())
+      return { earned: bottom3DriverIds.includes(entry.bet.toString()) }
+    },
+  ],
+  [
+    "Curse Breaker",
+    (ctx, populatedDrivers) => {
+      // Win with driver ending a 2+ DNF streak (API-dependent).
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      if (!populatedDrivers) return { earned: false }
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+      const driver = populatedDrivers.get(entry.bet.toString())
+      // Driver must have had a 2+ consecutive DNF streak (now broken).
+      // Check betDriver's positionActual to see if they finished (not DNF).
+      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
+      const didFinish = betDriver ? betDriver.positionActual > 0 && betDriver.positionActual < 21 : false
+      return { earned: didFinish && (driver?.stats?.consecutiveDNFs ?? 0) >= 2 }
+    },
+  ],
+  [
+    "Disaster Magnet",
+    (ctx, populatedDrivers) => {
+      // Bet on a driver who has DNFed 3 rounds in a row (API-dependent).
+      if (!populatedDrivers) return { earned: false }
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+      const driver = populatedDrivers.get(entry.bet.toString())
+      return { earned: (driver?.stats?.consecutiveDNFs ?? 0) >= 3 }
+    },
+  ],
+  [
+    "Switcheroo",
+    (ctx) => {
+      // Change your bet driver 3+ times in one betting window.
+      // Check if the competitor's entry has betHistory with 3+ unique changes.
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry) return { earned: false }
+      // betHistory is an array of bet ObjectIds tracked during betting window.
+      const betHistory = (entry as unknown as { betHistory?: unknown[] }).betHistory
+      if (!betHistory || !Array.isArray(betHistory)) return { earned: false }
+      // Count unique changes (transitions between different drivers).
+      let changes = 0
+      for (let i = 1; i < betHistory.length; i++) {
+        if (betHistory[i]?.toString() !== betHistory[i - 1]?.toString()) {
+          changes++
+        }
+      }
+      return { earned: changes >= 3 }
     },
   ],
 ]

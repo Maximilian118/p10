@@ -30,7 +30,18 @@ export const initDriver = (user: userType): driverType => {
       birthday: null,
       moustache: false,
       mullet: false,
+      roundsCompleted: 0,
+      roundsWon: 0,
+      champsCompleted: 0,
+      champsWon: 0,
       positionHistory: {},
+      polePositions: 0,
+      topThreeFinishes: 0,
+      p10Finishes: 0,
+      formScore: 0,
+      dnfCount: 0,
+      dnsCount: 0,
+      consecutiveDNFs: 0,
     },
   }
 }

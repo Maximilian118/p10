@@ -7,6 +7,17 @@ const driverSchema = `
     moustache: Boolean!
     mullet: Boolean!
     positionHistory: JSON!
+    roundsCompleted: Int!
+    roundsWon: Int!
+    champsCompleted: Int!
+    champsWon: Int!
+    polePositions: Int!
+    topThreeFinishes: Int!
+    p10Finishes: Int!
+    formScore: Float!
+    dnfCount: Int!
+    dnsCount: Int!
+    consecutiveDNFs: Int!
   }
 
   type Driver {

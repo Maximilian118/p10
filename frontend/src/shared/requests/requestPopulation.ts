@@ -286,6 +286,17 @@ export const populateDriver = `
     moustache
     mullet
     positionHistory
+    roundsCompleted
+    roundsWon
+    champsCompleted
+    champsWon
+    polePositions
+    topThreeFinishes
+    p10Finishes
+    formScore
+    dnfCount
+    dnsCount
+    consecutiveDNFs
   }
   created_by {
     _id

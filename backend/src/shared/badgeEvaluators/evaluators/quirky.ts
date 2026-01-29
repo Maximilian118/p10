@@ -425,4 +425,94 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
       return { earned: gain >= 5 }
     },
   ],
+  [
+    "Lucky Number",
+    (ctx) => {
+      // Have exactly 7, 13, or 21 total points.
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      const luckyNumbers = [7, 13, 21]
+      return { earned: entry ? luckyNumbers.includes(entry.totalPoints) : false }
+    },
+  ],
+  [
+    "Trendsetter",
+    (ctx) => {
+      // 3+ other competitors also bet on the same driver as you.
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+
+      const betDriverId = entry.bet.toString()
+      const othersWithSameBet = ctx.currentRound.competitors.filter(
+        (c) => c.competitor.toString() !== ctx.competitorId.toString() && c.bet?.toString() === betDriverId,
+      ).length
+
+      return { earned: othersWithSameBet >= 3 }
+    },
+  ],
+  [
+    "Overcut",
+    (ctx) => {
+      // Get passed by 3+ competitors in standings in one round.
+      if (ctx.currentRoundIndex === 0) return { earned: false }
+      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
+      if (!isRoundCompleted(prevRound)) return { earned: false }
+
+      const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      const prevEntry = getCompetitorEntry(prevRound, ctx.competitorId)
+      if (!currentEntry || !prevEntry) return { earned: false }
+
+      const positionDrop = currentEntry.position - prevEntry.position
+      return { earned: positionDrop >= 3 }
+    },
+  ],
+  [
+    "Contrarian",
+    (ctx) => {
+      // Win when you're the only one who bet on your driver.
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (!entry?.bet) return { earned: false }
+
+      const betDriverId = entry.bet.toString()
+      const othersWithSameBet = ctx.currentRound.competitors.filter(
+        (c) => c.competitor.toString() !== ctx.competitorId.toString() && c.bet?.toString() === betDriverId,
+      ).length
+
+      return { earned: othersWithSameBet === 0 }
+    },
+  ],
+  [
+    "Safety Car",
+    (ctx) => {
+      // Score exactly 3 points in 3 consecutive rounds.
+      if (ctx.currentRoundIndex < 2) return { earned: false }
+
+      let streak = 0
+      for (let i = ctx.currentRoundIndex; i >= 0 && streak < 3; i--) {
+        const round = ctx.allRounds[i]
+        if (!isRoundCompleted(round)) continue
+        const entry = getCompetitorEntry(round, ctx.competitorId)
+        if (entry?.points === 3) {
+          streak++
+        } else {
+          break
+        }
+      }
+      return { earned: streak >= 3 }
+    },
+  ],
+  [
+    "Track Limits",
+    (ctx) => {
+      // Finish exactly P4 (just off podium) 3 times in a season.
+      let p4Count = 0
+      for (let i = 0; i <= ctx.currentRoundIndex; i++) {
+        const round = ctx.allRounds[i]
+        if (!isRoundCompleted(round)) continue
+        const entry = getCompetitorEntry(round, ctx.competitorId)
+        if (entry?.position === 4) p4Count++
+      }
+      return { earned: p4Count >= 3 }
+    },
+  ],
 ]
