@@ -6,7 +6,6 @@ const badgeSchema = `
     name: String
     customName: String
     rarity: Int!
-    awardedTo: [String!]!
     awardedHow: String
     awardedDesc: String
     zoom: Int!

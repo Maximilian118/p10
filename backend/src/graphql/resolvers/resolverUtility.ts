@@ -800,14 +800,16 @@ const updateDriverFormScores = async (currentRound: Round): Promise<void> => {
 // Evaluates all championship badges against each competitor.
 // Uses batch operations for performance.
 //
-// BADGE SNAPSHOT SYSTEM:
+// BADGE AWARD SYSTEM:
 // When a badge is awarded, it is saved in TWO places:
-// 1. Badge.awardedTo[] - User ID added to track who has earned this badge.
-// 2. User.badges[] - Full badge snapshot embedded on user for PERMANENT storage.
+// 1. User.badges[] - Full badge snapshot embedded on user for PERMANENT storage (source of truth).
+// 2. Champ.discoveredBadges[] - Tracks which badges have been discovered (earned at least once)
+//    in this championship, storing only {badge, discoveredBy, discoveredAt}.
 //
 // The snapshot on User.badges[] preserves how the badge looked at the time of earning.
 // This ensures users keep their badge even if the original Badge document is later
 // deleted or modified. Snapshots are IMMUTABLE - they should never be updated.
+// The discoveredBadges array is O(badges) not O(badges × users), much more efficient.
 const awardBadges = async (
   champ: ChampType,
   currentRound: Round,
@@ -827,6 +829,12 @@ const awardBadges = async (
   const driverIds = currentRound.drivers.map((d) => d.driver)
   const drivers = await Driver.find({ _id: { $in: driverIds } })
   const populatedDrivers = new Map<string, driverType>(drivers.map((d) => [d._id.toString(), d]))
+
+  // Load all competitors' badges once for "already awarded" check.
+  // User.badges[] is the source of truth for who earned what.
+  const competitorIds = currentRound.competitors.map((c) => c.competitor)
+  const users = await User.find({ _id: { $in: competitorIds } })
+  const userBadgesMap = new Map(users.map((u) => [u._id.toString(), u.badges || []]))
 
   // Track awards to batch save at end.
   const badgeAwards: { badgeId: ObjectId; competitorId: ObjectId; awardedHow: string }[] = []
@@ -857,10 +865,15 @@ const awardBadges = async (
     for (const badge of champBadges) {
       const awardKey = `${badge._id}-${competitorEntry.competitor}`
 
-      // Skip if already awarded to this competitor (from DB or this evaluation).
+      // Skip if already awarded to this competitor (check User.badges[] or this evaluation).
+      // User.badges[] is the source of truth for who earned what badge in which championship.
+      const userBadges = userBadgesMap.get(competitorEntry.competitor.toString()) || []
       const alreadyAwarded =
-        badge.awardedTo?.some((u) => u.toString() === competitorEntry.competitor.toString()) ||
-        newlyAwarded.has(awardKey)
+        userBadges.some(
+          (b) =>
+            b._id.toString() === badge._id.toString() &&
+            b.championship?.toString() === champ._id.toString()
+        ) || newlyAwarded.has(awardKey)
       if (alreadyAwarded) {
         continue
       }
@@ -883,6 +896,7 @@ const awardBadges = async (
           awardedHow: badge.awardedHow,
         })
         // Create full badge snapshot for permanent storage on user.
+        // Always use champ._id for championship (default badges have badge.championship: null).
         userBadgeSnapshots.push({
           userId: competitorEntry.competitor,
           snapshot: {
@@ -894,7 +908,7 @@ const awardBadges = async (
             awardedHow: badge.awardedHow,
             awardedDesc: badge.awardedDesc,
             zoom: badge.zoom || 100,
-            championship: badge.championship,
+            championship: champ._id,
             awarded_at,
             featured: null,
           },
@@ -908,18 +922,33 @@ const awardBadges = async (
     }
   }
 
-  // Batch save badge awards.
+  // Batch save badge awards to Championship.discoveredBadges (first discovery only).
   if (badgeAwards.length > 0) {
-    const badgeBulkOps = badgeAwards.map((award) => ({
-      updateOne: {
-        filter: { _id: award.badgeId },
-        update: {
-          $addToSet: { awardedTo: award.competitorId },
-          $set: { updated_at: awarded_at },
-        },
-      },
-    }))
-    await Badge.bulkWrite(badgeBulkOps)
+    // Build discoveredBadges entries for badges that are being discovered for the first time.
+    const existingDiscovered = new Set(
+      champ.discoveredBadges?.map((d) => d.badge.toString()) || []
+    )
+    const newDiscoveries: { badge: ObjectId; discoveredBy: ObjectId; discoveredAt: string }[] = []
+
+    for (const award of badgeAwards) {
+      // Only add to discoveredBadges if this is the first time this badge is earned in this championship.
+      if (!existingDiscovered.has(award.badgeId.toString())) {
+        newDiscoveries.push({
+          badge: award.badgeId,
+          discoveredBy: award.competitorId,
+          discoveredAt: awarded_at,
+        })
+        existingDiscovered.add(award.badgeId.toString()) // Prevent duplicates in same batch.
+      }
+    }
+
+    // Update championship with new badge discoveries.
+    if (newDiscoveries.length > 0) {
+      await Champ.findByIdAndUpdate(champ._id, {
+        $push: { discoveredBadges: { $each: newDiscoveries } },
+        $set: { updated_at: awarded_at },
+      })
+    }
 
     // Batch save user badge snapshots (full badge data embedded on user).
     const userBulkOps = userBadgeSnapshots.map((update) => ({
@@ -1161,11 +1190,11 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   const previousRound = roundIndex > 0 ? champ.rounds[roundIndex - 1] : null
 
   // Calculate badge counts for snapshots.
-  const totalBadges = await Badge.countDocuments({ championship: champ._id })
-  const discoveredBadges = await Badge.countDocuments({
-    championship: champ._id,
-    awardedTo: { $exists: true, $ne: [] },
-  })
+  // Re-fetch champ to get updated discoveredBadges after awardBadges() call.
+  const updatedChamp = await Champ.findById(champ._id)
+  const totalBadges = updatedChamp?.champBadges?.length || 0
+  // Count badges that have been discovered (earned at least once) in this championship.
+  const discoveredBadges = updatedChamp?.discoveredBadges?.length || 0
 
   // Update each competitor's snapshot.
   for (const entry of currentRound.competitors) {

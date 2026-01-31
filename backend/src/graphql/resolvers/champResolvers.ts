@@ -338,6 +338,7 @@ const champResolvers = {
 
       return filterChampForUser({
         ...champ._doc,
+        discoveredBadgesCount: champ.discoveredBadges?.length || 0,
         tokens: req.tokens,
       }, isAdmin)
     } catch (err) {
@@ -369,7 +370,10 @@ const champResolvers = {
       return {
         array: champs.map(champ => {
           const champData = champ._doc || champ
-          return filterChampForUser(champData, isAdmin)
+          return filterChampForUser({
+            ...champData,
+            discoveredBadgesCount: champ.discoveredBadges?.length || 0,
+          }, isAdmin)
         }),
         tokens: req.tokens,
       }
@@ -650,11 +654,10 @@ const champResolvers = {
       await champ.save()
 
       // Calculate badge stats for the snapshot.
-      const totalBadges = await Badge.countDocuments({ championship: champ._id })
-      const discoveredBadges = await Badge.countDocuments({
-        championship: champ._id,
-        awardedTo: { $exists: true, $ne: [] },
-      })
+      // totalBadges = badges in champBadges array (both default and custom).
+      // discoveredBadges = badges that have been earned at least once in this championship.
+      const totalBadges = champ.champBadges?.length || 0
+      const discoveredBadges = champ.discoveredBadges?.length || 0
 
       // Create championship snapshot for the user's profile.
       const champSnapshot = {

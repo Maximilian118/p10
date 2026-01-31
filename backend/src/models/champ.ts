@@ -24,6 +24,14 @@ export interface PointsAdjustment {
   created_at: string | null // When the adjustment was first made.
 }
 
+// Tracks which badges have been discovered (earned at least once) in this championship.
+// Bounded at O(badges) - much smaller than tracking all user awards.
+export interface DiscoveredBadgeEntry {
+  badge: ObjectId // The badge that was discovered
+  discoveredBy: ObjectId // First user to earn this badge
+  discoveredAt: string // When it was first discovered
+}
+
 // Competitor entry within a round - contains all data for that competitor for that round.
 export interface CompetitorEntry {
   competitor: ObjectId // The user _id of the competitor
@@ -208,6 +216,10 @@ export interface ChampType {
 
   // Badges that can be awarded.
   champBadges: ObjectId[]
+
+  // Tracks which badges have been discovered (earned at least once) in this championship.
+  // Bounded at O(badges) - much smaller than tracking all user awards.
+  discoveredBadges: DiscoveredBadgeEntry[]
 
   // Championship-level competitors array - THE source of truth for who is competing.
   competitors: ObjectId[]
@@ -496,6 +508,13 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Badges
   champBadges: [{ type: mongoose.Schema.ObjectId, ref: "Badge" }],
+
+  // Tracks which badges have been discovered (earned at least once) in this championship.
+  discoveredBadges: [{
+    badge: { type: mongoose.Schema.ObjectId, ref: "Badge" },
+    discoveredBy: { type: mongoose.Schema.ObjectId, ref: "User" },
+    discoveredAt: { type: String },
+  }],
 
   // Championship-level competitors - source of truth for who is competing.
   competitors: [{ type: mongoose.Schema.ObjectId, ref: "User" }],

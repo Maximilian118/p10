@@ -602,8 +602,8 @@ const userResolvers = {
       // Delete pending email verifications.
       await EmailVerification.deleteMany({ userId })
 
-      // Remove from badge awardedTo arrays.
-      await Badge.updateMany({ awardedTo: userId }, { $pull: { awardedTo: userId } })
+      // Note: User.badges[] snapshots are permanent and NOT deleted on account deletion.
+      // This preserves the historical record of what badges the user earned.
 
       // Remove votes from protests (keep protests they created for historical record).
       await Protest.updateMany(

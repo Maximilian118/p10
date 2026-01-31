@@ -96,7 +96,6 @@ export interface badgeType {
   name: string | null
   customName?: string | null
   rarity: number
-  awardedTo?: userType[]
   awardedHow: string | null
   awardedDesc: string | null
   zoom: number
@@ -373,6 +372,9 @@ export interface ChampType {
 
   // Badges that can be awarded.
   champBadges: badgeType[]
+
+  // Count of discovered badges (badges earned at least once in this championship).
+  discoveredBadgesCount: number
 
   // Waiting list (position is array index).
   waitingList: userType[]

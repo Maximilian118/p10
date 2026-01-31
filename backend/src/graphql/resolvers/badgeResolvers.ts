@@ -74,12 +74,14 @@ const badgeResolvers = {
 
       // If badge has a championship, add badge ID to championship's champBadges array.
       if (championship) {
-        await Champ.findByIdAndUpdate(championship, {
-          $push: { champBadges: badge._id }
-        })
+        const updatedChamp = await Champ.findByIdAndUpdate(
+          championship,
+          { $push: { champBadges: badge._id } },
+          { new: true }
+        )
 
         // Update user championship snapshots with new badge count.
-        const totalBadges = await Badge.countDocuments({ championship })
+        const totalBadges = updatedChamp?.champBadges?.length || 0
 
         await User.updateMany(
           { "championships._id": championship },
@@ -119,7 +121,7 @@ const badgeResolvers = {
       userErrors(user)
 
       // Find badges - if no championship provided, return default badges.
-      let badges
+      let badges: badgeType[] = []
       let isAdmin = false
       let isAdjudicator = false
       let champ = null
@@ -129,10 +131,16 @@ const badgeResolvers = {
         badges = await Badge.find({ isDefault: true }).exec()
         isAdjudicator = true
       } else {
-        badges = await Badge.find({ championship }).exec()
+        // Find the championship and get badges by IDs in champBadges array.
+        // This includes both default badges (referenced) and custom badges (created for this champ).
+        champ = await Champ.findById(championship)
+        if (champ && champ.champBadges && champ.champBadges.length > 0) {
+          badges = await Badge.find({ _id: { $in: champ.champBadges } }).exec()
+        } else {
+          badges = []
+        }
 
         // Check if user is admin or the current adjudicator of this championship.
-        champ = await Champ.findById(championship)
         if (champ) {
           isAdmin = user?.permissions?.admin === true
           isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
@@ -143,13 +151,19 @@ const badgeResolvers = {
       const adjCanSeeBadges = champ?.settings?.admin?.adjCanSeeBadges ?? true
 
       // Filter sensitive fields for unearned badges.
+      // Discovery tracking is per-championship via champ.discoveredBadges array.
       const filteredBadges = badges.map((badge) => {
         const badgeDoc = badge._doc
-        const hasBeenEarned = badgeDoc.awardedTo && badgeDoc.awardedTo.length > 0
+        // Check if badge has been discovered in this championship.
+        const hasBeenEarned = champ?.discoveredBadges?.some(
+          (d) => d.badge.toString() === badgeDoc._id.toString()
+        ) || false
 
         // If badge has been earned OR user is admin OR (user is adjudicator AND setting allows), return full badge.
         if (hasBeenEarned || isAdmin || (isAdjudicator && adjCanSeeBadges)) {
-          return badgeDoc
+          return {
+            ...badgeDoc,
+          }
         }
 
         // Otherwise, hide sensitive fields.
@@ -224,7 +238,9 @@ const badgeResolvers = {
 
           // Check if adjudicator is trying to edit a hidden badge when not allowed.
           const adjCanSeeBadges = champ.settings?.admin?.adjCanSeeBadges ?? true
-          const hasBeenEarned = badge.awardedTo && badge.awardedTo.length > 0
+          const hasBeenEarned = champ.discoveredBadges?.some(
+            (d) => d.badge.toString() === badge._id.toString()
+          ) || false
 
           if (!hasBeenEarned && isAdjudicator && !isAdmin && !adjCanSeeBadges) {
             return throwError("updateBadge", badge._id, "Cannot edit hidden badges!", 403)
@@ -284,11 +300,13 @@ const badgeResolvers = {
       }
 
       // Check authorization for championship badges.
+      // For default badges (no championship), we need to find which champs use this badge.
+      let authChamp = null
       if (badge.championship) {
-        const champ = await Champ.findById(badge.championship)
-        if (champ) {
+        authChamp = await Champ.findById(badge.championship)
+        if (authChamp) {
           const isAdmin = user?.permissions?.admin === true
-          const isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+          const isAdjudicator = authChamp.adjudicator.current.toString() === req._id?.toString()
 
           // Only adjudicator or admin can delete badges.
           if (!isAdmin && !isAdjudicator) {
@@ -296,8 +314,10 @@ const badgeResolvers = {
           }
 
           // Check if adjudicator is trying to delete a hidden badge when not allowed.
-          const adjCanSeeBadges = champ.settings?.admin?.adjCanSeeBadges ?? true
-          const hasBeenEarned = badge.awardedTo && badge.awardedTo.length > 0
+          const adjCanSeeBadges = authChamp.settings?.admin?.adjCanSeeBadges ?? true
+          const hasBeenEarned = authChamp.discoveredBadges?.some(
+            (d) => d.badge.toString() === badge._id.toString()
+          ) || false
 
           if (!hasBeenEarned && isAdjudicator && !isAdmin && !adjCanSeeBadges) {
             return throwError("deleteBadge", badge._id, "Cannot delete hidden badges!", 403)
@@ -311,23 +331,25 @@ const badgeResolvers = {
         throwError("deleteBadge", deleteErr, deleteErr)
       }
 
-      // If badge has a championship, remove badge ID from championship's champBadges array.
-      if (badge.championship) {
-        await Champ.findByIdAndUpdate(badge.championship, {
-          $pull: { champBadges: badge._id }
+      // Remove badge from all championships that reference it (handles both custom and default badges).
+      // Also remove from discoveredBadges array.
+      const champsWithBadge = await Champ.find({ champBadges: badge._id })
+      for (const champ of champsWithBadge) {
+        // Remove from champBadges array and discoveredBadges array.
+        await Champ.findByIdAndUpdate(champ._id, {
+          $pull: {
+            champBadges: badge._id,
+            discoveredBadges: { badge: badge._id },
+          },
         })
 
-        // Update user championship snapshots with new badge counts.
-        const champId = badge.championship
-        const totalBadges = await Badge.countDocuments({ championship: champId }) - 1 // -1 because badge isn't deleted yet
-        const discoveredBadges = await Badge.countDocuments({
-          championship: champId,
-          awardedTo: { $exists: true, $ne: [] },
-          _id: { $ne: badge._id }, // Exclude the badge being deleted
-        })
+        // Calculate new badge counts from updated championship.
+        const updatedChamp = await Champ.findById(champ._id)
+        const totalBadges = updatedChamp?.champBadges?.length || 0
+        const discoveredBadges = updatedChamp?.discoveredBadges?.length || 0
 
         await User.updateMany(
-          { "championships._id": champId },
+          { "championships._id": champ._id },
           {
             $set: {
               "championships.$.totalBadges": totalBadges,

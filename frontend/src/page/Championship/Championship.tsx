@@ -776,7 +776,7 @@ const Championship: React.FC = () => {
   if (!champ) {
     return (
       <div className="content-container">
-        <p>Championship not found</p>
+        <p className="champ-not-found">Championship not found</p>
       </div>
     )
   }

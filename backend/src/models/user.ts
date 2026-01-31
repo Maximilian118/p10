@@ -60,7 +60,7 @@ export interface userChampSnapshotType {
   totalRounds: number // Total rounds in championship
   competitorCount: number // Number of competitors
   maxCompetitors: number // Max competitors setting
-  discoveredBadges: number // Badges discovered (awardedTo.length > 0)
+  discoveredBadges: number // Badges discovered in championship (earned at least once)
   totalBadges: number // Total badges in champ
 
   deleted: boolean // True if champ no longer exists in DB

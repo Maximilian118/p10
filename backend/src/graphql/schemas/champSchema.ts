@@ -240,6 +240,7 @@ const champSchema = `
     rulesAndRegs: [Rule!]!
     settings: ChampSettings!
     champBadges: [Badge!]!
+    discoveredBadgesCount: Int!
     competitors: [User!]!
     waitingList: [User!]!
     banned: [User!]!

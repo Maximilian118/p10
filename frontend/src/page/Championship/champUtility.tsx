@@ -532,11 +532,9 @@ export const buildChampBannerStats = (
   const displayedRound = viewedRoundNumber ?? 0
   const autoNextRound = champ.settings?.automation?.enabled && champ.settings?.automation?.round?.autoNextRound
 
-  // Calculate discovered vs total badges.
+  // Get badge counts from championship data.
   const totalBadges = champ.champBadges?.length || 0
-  const discoveredBadges = champ.champBadges?.filter(
-    badge => badge.awardedTo && badge.awardedTo.length > 0
-  ).length || 0
+  const discoveredBadges = champ.discoveredBadgesCount ?? 0
 
   const stats: StatItem[] = [
     { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds?.length || 0}` },

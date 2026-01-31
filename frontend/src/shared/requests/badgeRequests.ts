@@ -92,7 +92,6 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
                   name
                   customName
                   rarity
-                  awardedTo
                   awardedHow
                   awardedDesc
                   zoom

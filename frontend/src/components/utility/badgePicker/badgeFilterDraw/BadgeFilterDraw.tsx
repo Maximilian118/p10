@@ -37,13 +37,18 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
     })
   }
 
+  // Add defaults, skipping any that conflict with existing badges by _id or awardedHow.
   const addDefaultsHandler = (defaults: badgeType[], setForm: React.Dispatch<React.SetStateAction<T>> ) => {
     setForm(prevForm => {
       return {
         ...prevForm,
         champBadges: [
           ...prevForm.champBadges,
-          ...defaults.filter((badge: badgeType) => !prevForm.champBadges.some(prevBadge => prevBadge._id === badge._id))
+          ...defaults.filter((badge: badgeType) =>
+            !prevForm.champBadges.some(prevBadge =>
+              prevBadge._id === badge._id || prevBadge.awardedHow === badge.awardedHow
+            )
+          )
         ]
       }
     })

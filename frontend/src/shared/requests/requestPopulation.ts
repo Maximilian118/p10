@@ -803,8 +803,9 @@ export const populateChamp = `
   }
   champBadges {
     _id
-    awardedTo
+    url
   }
+  discoveredBadgesCount
   created_by {
     _id
     name

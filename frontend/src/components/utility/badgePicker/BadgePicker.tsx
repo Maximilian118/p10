@@ -87,7 +87,10 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
     }
   }, [hasFullBadgeData, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges, championship])
 
-  const badgesFiltered = form.champBadges.filter((badge) => filtered.includes(badge.rarity))
+  // Filter by selected rarities and sort from most rare (5=Mythic) to least rare (0=Common).
+  const badgesFiltered = form.champBadges
+    .filter((badge) => filtered.includes(badge.rarity))
+    .sort((a, b) => b.rarity - a.rarity)
 
   return isEdit ?
     <BadgePickerEdit
