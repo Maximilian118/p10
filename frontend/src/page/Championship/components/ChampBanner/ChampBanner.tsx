@@ -11,6 +11,12 @@ import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import ChampBannerStats from "../ChampBannerStats/ChampBannerStats"
 import { buildChampBannerStats } from "../../champUtility"
 
+// Shrink state from useScrollShrink hook.
+interface ShrinkState {
+  isShrunk: boolean  // True when ratio > 0.5 (for text truncation)
+  isActive: boolean  // True when ratio > 0 (for disabled states)
+}
+
 // Props for editable championship banner (when user is adjudicator).
 interface champBannerEditableType<T, U> {
   champ: ChampType
@@ -27,7 +33,8 @@ interface champBannerEditableType<T, U> {
   readOnly?: false
   settingsMode?: boolean // When true, hide confirmation UI (Save Changes button handles submission).
   openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose DropZone's open function.
-  shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
+  bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
+  shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
 }
 
@@ -36,7 +43,8 @@ interface champBannerReadOnlyType {
   champ: ChampType
   onBannerClick?: () => void
   readOnly: true
-  shrinkRatio?: number // 0-1 ratio for scroll-based shrinking animation.
+  bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
+  shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
 }
 
@@ -50,14 +58,14 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ, onBannerClick, shrinkRatio, viewedRoundNumber } = props
+    const { champ, onBannerClick, bannerRef, shrinkState, viewedRoundNumber } = props
     return (
-      <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
+      <div className="champ-banner" ref={bannerRef}>
         <div className="champ-banner-icon-container" onClick={onBannerClick}>
           <ImageIcon src={champ.icon} size="contained" />
         </div>
         <div className="champ-banner-info" onClick={onBannerClick}>
-          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
           <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
@@ -67,7 +75,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, shrinkRatio, viewedRoundNumber } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, bannerRef, shrinkState, viewedRoundNumber } = props
 
   // Is the "Are you sure" check dispalying or not?
   const isNormalView = !form.icon && !form.profile_picture
@@ -83,7 +91,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (settingsMode) {
       return (
         <>
-          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
           <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
@@ -95,7 +103,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (isNormalView) {
       return (
         <>
-          <div className={`champ-name-container ${(shrinkRatio ?? 0) > 0.5 ? 'shrunk' : ''}`}>
+          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
           <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
@@ -117,9 +125,8 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     }
   }
 
-  const isShrunk = (shrinkRatio ?? 0) > 0
   return (
-    <div className="champ-banner" style={{ '--shrink-ratio': shrinkRatio ?? 0 } as React.CSSProperties}>
+    <div className="champ-banner" ref={bannerRef}>
       <DropZone<T, U>
         form={form}
         setForm={setForm}
@@ -130,7 +137,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         purposeText="Championship"
         thumbImg={champ.icon}
         openRef={openRef}
-        disabled={isShrunk}
+        disabled={shrinkState?.isActive}
       />
       <div className="champ-banner-info" style={{ justifyContent: isNormalView ? "space-between" : "center" }} onClick={onBannerClick}>
         {filesInForm()}

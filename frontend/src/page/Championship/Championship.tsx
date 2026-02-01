@@ -199,8 +199,20 @@ const Championship: React.FC = () => {
     }
   }, [justJoined])
 
-  // Scroll-based shrinking for banner.
-  const { shrinkRatio, handleScroll } = useScrollShrink({ threshold: 70 })
+  // Scroll-based shrinking for banner - uses ref for CSS updates to avoid oscillation.
+  const { shrinkState, handleScroll, bannerRef, setForceShrunk } = useScrollShrink({ threshold: 70 })
+
+  // Determine if we're in an active round status view (hides RoundsBar/ChampToolbar).
+  const isInRoundStatusView = roundStatusView !== null
+    && roundStatusView !== "waiting"
+    && roundStatusView !== "completed"
+
+  // Force banner to be fully shrunk when in round status views or confirmation.
+  const shouldForceShrink = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm || showLeaveConfirm
+  useEffect(() => {
+    setForceShrunk(shouldForceShrink)
+  }, [shouldForceShrink, setForceShrunk])
+
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
@@ -787,14 +799,6 @@ const Championship: React.FC = () => {
   const canAccessSettings = isAdjudicator || isAdmin
   const isCompetitor = champ.competitors.some(c => c._id === user._id)
 
-  // Determine if we're in an active round status view (hides RoundsBar/ChampToolbar).
-  const isInRoundStatusView = roundStatusView !== null
-    && roundStatusView !== "waiting"
-    && roundStatusView !== "completed"
-
-  // Force banner to be fully shrunk when in round status views or confirmation.
-  const effectiveShrinkRatio = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm || showLeaveConfirm ? 1 : shrinkRatio
-
   // Active round index and data - the round currently in progress (for status views/API calls).
   const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
   const activeRound = activeRoundIndex >= 0 ? champ.rounds[activeRoundIndex] : null
@@ -870,7 +874,8 @@ const Championship: React.FC = () => {
             onBannerClick={handleBannerClick}
             settingsMode={true}
             openRef={dropzoneOpenRef}
-            shrinkRatio={effectiveShrinkRatio}
+            bannerRef={bannerRef}
+            shrinkState={shrinkState}
             viewedRoundNumber={viewedRoundNumber}
           />
         ) : (
@@ -886,12 +891,13 @@ const Championship: React.FC = () => {
             backendErr={backendErr}
             setBackendErr={setBackendErr}
             onBannerClick={handleBannerClick}
-            shrinkRatio={effectiveShrinkRatio}
+            bannerRef={bannerRef}
+            shrinkState={shrinkState}
             viewedRoundNumber={viewedRoundNumber}
           />
         )
       ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} shrinkRatio={effectiveShrinkRatio} viewedRoundNumber={viewedRoundNumber} />
+        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} bannerRef={bannerRef} shrinkState={shrinkState} viewedRoundNumber={viewedRoundNumber} />
       )}
 
       {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
