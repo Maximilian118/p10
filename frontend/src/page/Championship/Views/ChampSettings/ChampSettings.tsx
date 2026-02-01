@@ -205,36 +205,38 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       >
         Rule Changes
       </Button>
-      <MUISwitch
-        text="Competitors Can Bet"
-        fullWidth
-        checked={settingsForm.competitorsCanBet}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, competitorsCanBet: checked }))}
-      />
-      <MUISwitch
-        text="Skip Countdown"
-        fullWidth
-        checked={settingsForm.skipCountDown}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipCountDown: checked }))}
-      />
-      <MUISwitch
-        text="Skip Results"
-        fullWidth
-        checked={settingsForm.skipResults}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipResults: checked }))}
-      />
-      <MUISwitch
-        text="Invite Only"
-        fullWidth
-        checked={settingsForm.inviteOnly}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, inviteOnly: checked }))}
-      />
-      <MUISwitch
-        text="Championship Active"
-        fullWidth
-        checked={settingsForm.active}
-        onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
-      />
+      <div className="switches">
+        <MUISwitch
+          text="Competitors Can Bet"
+          fullWidth
+          checked={settingsForm.competitorsCanBet}
+          onChange={(checked) => setSettingsForm(prev => ({ ...prev, competitorsCanBet: checked }))}
+        />
+        <MUISwitch
+          text="Skip Countdown"
+          fullWidth
+          checked={settingsForm.skipCountDown}
+          onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipCountDown: checked }))}
+        />
+        <MUISwitch
+          text="Skip Results"
+          fullWidth
+          checked={settingsForm.skipResults}
+          onChange={(checked) => setSettingsForm(prev => ({ ...prev, skipResults: checked }))}
+        />
+        <MUISwitch
+          text="Invite Only"
+          fullWidth
+          checked={settingsForm.inviteOnly}
+          onChange={(checked) => setSettingsForm(prev => ({ ...prev, inviteOnly: checked }))}
+        />
+        <MUISwitch
+          text="Championship Active"
+          fullWidth
+          checked={settingsForm.active}
+          onChange={(checked) => setSettingsForm(prev => ({ ...prev, active: checked }))}
+        />
+      </div>
       {canDelete && (
         <Button
           variant="contained"

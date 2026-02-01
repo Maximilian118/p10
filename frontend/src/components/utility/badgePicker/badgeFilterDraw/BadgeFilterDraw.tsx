@@ -2,7 +2,7 @@ import React, { MouseEvent } from "react"
 import './_badgeFilterDraw.scss'
 import { Button, ClickAwayListener } from "@mui/material"
 import { badgeType } from "../../../../shared/types"
-import { badgeRarities, badgeRarityType } from "../../../../shared/badges"
+import { badgeRarities, badgeRarityType } from "../../../../shared/badgeOutcomes"
 import MUICheckbox from "../../muiCheckbox/MUICheckbox"
 
 interface badgeFilterDrawType<T> {

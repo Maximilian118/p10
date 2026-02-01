@@ -1,9 +1,19 @@
+// SYNC REQUIRED: This file must stay in sync with the frontend version.
+// Frontend location: frontend/src/shared/badgeOutcomes.ts
+// If you modify badge outcomes here, update the frontend file too.
+
 // A list of badge reward outcomes with pre-determined rarity.
 // Rarity Scale: 0=Common, 1=Uncommon, 2=Rare, 3=Epic, 4=Legendary, 5=Mythic
 // SORTED BY RARITY: Common first, Mythic last
 // name: Catchy display name | awardedHow: Evaluation key | awardedDesc: Long description
-export type badgeOutcomeType = { name: string; awardedHow: string; awardedDesc: string; rarity: number }
+export type badgeOutcomeType = {
+  name: string
+  awardedHow: string
+  awardedDesc: string
+  rarity: number
+}
 
+// prettier-ignore
 const badgeRewardOutcomes: badgeOutcomeType[] = [
   // ============================================================================
   // COMMON (Rarity 0) - Easy to earn

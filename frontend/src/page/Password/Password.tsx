@@ -40,11 +40,13 @@ const Password: React.FC = () => {
 
   return (
     <div className="content-container password-content">
+      <div className="form-title-logged-in">
+        <h2>Change Password</h2>
+      </div>
       <TextField
         required={!formErr.currentPass}
         type="password"
         className="mui-form-el"
-        style={{ marginTop: 40 }}
         name="currentPass"
         label={inputLabel("currentPass", formErr, backendErr)}
         variant="filled"

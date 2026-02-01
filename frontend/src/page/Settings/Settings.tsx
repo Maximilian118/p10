@@ -1,38 +1,18 @@
 import React, { useContext, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email, Delete } from "@mui/icons-material"
+import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email, Delete, Mail } from "@mui/icons-material"
 import { Button } from "@mui/material"
 import "./_settings.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import AppContext from "../../context"
 import { logout } from "../../shared/localStorage"
-import { formErrType, formType, SelectionModeState, NotificationSettingsType } from "../../shared/types"
+import { formErrType, formType, SelectionModeState } from "../../shared/types"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import MUITextField from "../../components/utility/muiTextField/MUITextField"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import ProfileCard from "../../components/cards/profileCard/ProfileCard"
 import { updateUser, checkIsAdjudicator, deleteAccount } from "../../shared/requests/userRequests"
-import { updateNotificationSettings } from "../../shared/requests/notificationRequests"
 import Confirm from "../Confirm/Confirm"
-
-// Toggle switch component for notification settings.
-interface NotificationToggleProps {
-  label: string
-  active: boolean
-  onChange: (value: boolean) => void
-}
-
-const NotificationToggle: React.FC<NotificationToggleProps> = ({ label, active, onChange }) => (
-  <div className="settings-toggle-row">
-    <p className="settings-toggle-row__label">{label}</p>
-    <div
-      className={`settings-toggle ${active ? "settings-toggle--active" : ""}`}
-      onClick={() => onChange(!active)}
-      role="switch"
-      aria-checked={active}
-    />
-  </div>
-)
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()
@@ -103,11 +83,6 @@ const Settings: React.FC = () => {
   // Handle account deletion.
   const handleDeleteAccount = async () => {
     await deleteAccount(user, setUser, navigate, setDeleteLoading, setBackendErr)
-  }
-
-  // Handle notification setting toggle.
-  const handleNotificationToggle = async (key: keyof NotificationSettingsType, value: boolean) => {
-    await updateNotificationSettings({ [key]: value }, user, setUser, navigate, setBackendErr)
   }
 
   // Show email changed confirmation view.
@@ -218,6 +193,15 @@ const Settings: React.FC = () => {
         <Button
           variant="contained"
           className="settings-action-btn"
+          onClick={() => navigate("/email")}
+          startIcon={<Mail/>}
+          fullWidth
+        >
+          Email Preferences
+        </Button>
+        <Button
+          variant="contained"
+          className="settings-action-btn"
           onClick={() => navigate("/password")}
           startIcon={<LockIcon />}
           fullWidth
@@ -233,47 +217,6 @@ const Settings: React.FC = () => {
         >
           Delete Account
         </Button>
-
-        {/* Email Notification Settings */}
-        <div className="settings-notifications">
-          <h3 className="settings-notifications__title">Email Notifications</h3>
-
-          <NotificationToggle
-            label="Championship invites"
-            active={user.notificationSettings?.emailChampInvite ?? true}
-            onChange={(value) => handleNotificationToggle("emailChampInvite", value)}
-          />
-          <NotificationToggle
-            label="Badge earned"
-            active={user.notificationSettings?.emailBadgeEarned ?? true}
-            onChange={(value) => handleNotificationToggle("emailBadgeEarned", value)}
-          />
-          <NotificationToggle
-            label="Round started"
-            active={user.notificationSettings?.emailRoundStarted ?? true}
-            onChange={(value) => handleNotificationToggle("emailRoundStarted", value)}
-          />
-          <NotificationToggle
-            label="Results posted"
-            active={user.notificationSettings?.emailResultsPosted ?? true}
-            onChange={(value) => handleNotificationToggle("emailResultsPosted", value)}
-          />
-          <NotificationToggle
-            label="Kicked from championship"
-            active={user.notificationSettings?.emailKicked ?? true}
-            onChange={(value) => handleNotificationToggle("emailKicked", value)}
-          />
-          <NotificationToggle
-            label="Banned from championship"
-            active={user.notificationSettings?.emailBanned ?? true}
-            onChange={(value) => handleNotificationToggle("emailBanned", value)}
-          />
-          <NotificationToggle
-            label="Promoted to adjudicator"
-            active={user.notificationSettings?.emailPromoted ?? true}
-            onChange={(value) => handleNotificationToggle("emailPromoted", value)}
-          />
-        </div>
       </div>
       <ButtonBar buttons={[
         { label: "Back", onClick: () => navigate("/profile"), startIcon: <ArrowBack />, color: "inherit" },

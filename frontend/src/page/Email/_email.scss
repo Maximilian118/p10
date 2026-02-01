@@ -1,0 +1,15 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+.email-settings {
+  padding: 20px 7.5% 80px !important;
+
+  .switches {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+    flex-shrink: 0;
+    padding: 0 0 20px;
+    box-sizing: border-box;
+    gap: 10px
+  }
+}

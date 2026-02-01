@@ -83,7 +83,7 @@ body {
           transition: variables.$trans-speed;
         }
 
-        .form-title {
+        .form-title, .form-title-logged-in {
           width: 85%;
           @include mixins.flexbox-start-column;
           align-items: start;
@@ -102,6 +102,11 @@ body {
               color: black;
             }
           }
+        }
+
+        .form-title-logged-in {
+          width: 100%;
+          margin-bottom: 40px;
         }
 
         > *:last-child {

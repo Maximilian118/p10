@@ -4,7 +4,7 @@ import './_muiAutocomplete.scss'
 import { Add } from "@mui/icons-material"
 import ImageIcon from "../icon/imageIcon/ImageIcon"
 import BadgeOption from "../badgePicker/badgeOption/BadgeOption"
-import { getOutcomeByHow } from "../../../shared/badges"
+import { getOutcomeByHow } from "../../../shared/badgeOutcomes"
 
 interface muiAutocompleteType<T> {
   label: string
