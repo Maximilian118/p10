@@ -1,0 +1,24 @@
+@use '../../scss/variables';
+@use '../../scss/mixins';
+
+// Context-specific styles for badge-picker within CreateChamp form.
+body #root .main-logged-in .content-container.create-champ {
+
+  .badge-picker {
+    // Override space-between to prevent button-bar floating to middle when empty.
+    justify-content: flex-start;
+
+    // Remove internal scrolling - let content-container scroll instead.
+    .badge-list-container, .badge-list-empty {
+      overflow-y: visible;
+      padding-bottom: 0;
+    }
+
+    // Push button-bar to bottom when content is small.
+    .button-bar {
+      position: sticky;
+      bottom: 0;
+      margin-top: auto;
+    }
+  }
+}

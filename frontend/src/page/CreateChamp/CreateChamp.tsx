@@ -1,4 +1,5 @@
 import React, { useContext, useState, useCallback, useMemo } from "react"
+import "./_createChamp.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { useNavigate } from "react-router-dom"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
