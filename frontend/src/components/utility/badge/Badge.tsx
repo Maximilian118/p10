@@ -75,4 +75,4 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditB
   )
 }
 
-export default Badge
+export default React.memo(Badge)

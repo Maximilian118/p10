@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import './_badgePicker.scss'
 import { badgeType } from "../../../shared/types"
 import Badge from "../badge/Badge"
@@ -92,6 +92,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
     .filter((badge) => internalFiltered.includes(badge.rarity))
     .sort((a, b) => b.rarity - a.rarity)
 
+  // Memoized badge click handler to prevent unnecessary re-renders.
+  const handleBadgeItemClick = useCallback((badge: badgeType) => {
+    const isHidden = !badge.url && !badge.previewUrl
+    if (readOnly || isHidden) {
+      onBadgeClick?.(badge)
+    } else {
+      setIsEdit(badge)
+    }
+  }, [readOnly, onBadgeClick, setIsEdit])
+
   return isEdit ?
     <BadgePickerEdit
       isEdit={isEdit}
@@ -114,18 +124,14 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         </div> : 
         badgesFiltered.length > 0 ?
         <div className="badge-list-container">
-          {badgesFiltered.map((badge: badgeType, i: number) => (
-            <div key={i} className="badge-item" onClick={(e) => e.stopPropagation()}>
-              <Badge badge={badge} zoom={badge.zoom} onClick={() => {
-                // Badge is hidden if it has no url (backend filters based on adjCanSeeBadges setting).
-                const isHidden = !badge.url && !badge.previewUrl
-                // If readOnly OR badge is hidden from this user, show info card instead of edit mode.
-                if (readOnly || isHidden) {
-                  onBadgeClick?.(badge)
-                } else {
-                  setIsEdit(badge)
-                }
-              }} showEditButton={!readOnly && (!!badge.url || !!badge.previewUrl)}/>
+          {badgesFiltered.map((badge: badgeType) => (
+            <div key={badge._id} className="badge-item" onClick={(e) => e.stopPropagation()}>
+              <Badge
+                badge={badge}
+                zoom={badge.zoom}
+                onClick={() => handleBadgeItemClick(badge)}
+                showEditButton={!readOnly && (!!badge.url || !!badge.previewUrl)}
+              />
             </div>
           ))}
         </div> :

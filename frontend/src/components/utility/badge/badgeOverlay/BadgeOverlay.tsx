@@ -25,4 +25,4 @@ const BadgeOverlay: React.FC<badgeOverlayType> = ({ rarity, thickness, error, st
   )
 }
 
-export default BadgeOverlay
+export default React.memo(BadgeOverlay)

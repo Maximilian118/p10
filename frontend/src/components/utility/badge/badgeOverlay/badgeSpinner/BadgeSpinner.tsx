@@ -35,4 +35,4 @@ const BadgeSpinner: React.FC<badgeSpinnerType> = ({ thickness, rarity, style }) 
   )
 }
 
-export default BadgeSpinner
+export default React.memo(BadgeSpinner)
