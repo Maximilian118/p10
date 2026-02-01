@@ -12,7 +12,7 @@ import MUITextField from "../../components/utility/muiTextField/MUITextField"
 import { inputLabel, updateForm } from "../../shared/formValidation"
 import ProfileCard from "../../components/cards/profileCard/ProfileCard"
 import { updateUser, checkIsAdjudicator, deleteAccount } from "../../shared/requests/userRequests"
-import Confirm from "../Confirm/Confirm"
+import Confirm from "../../components/utility/confirm/Confirm"
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()

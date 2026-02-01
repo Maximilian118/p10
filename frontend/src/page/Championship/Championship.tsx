@@ -35,7 +35,7 @@ import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import { getAPIView } from "./Views/RoundStatus/APIViews"
-import Confirm from "../Confirm/Confirm"
+import Confirm from "../../components/utility/confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import BlockIcon from "@mui/icons-material/Block"
 import ExitToAppIcon from "@mui/icons-material/ExitToApp"

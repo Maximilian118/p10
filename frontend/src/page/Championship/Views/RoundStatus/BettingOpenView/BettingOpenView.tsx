@@ -7,7 +7,7 @@ import AppContext from "../../../../../context"
 import Button from "@mui/material/Button"
 import DriverBetCard from "../../../../../components/cards/driverBetCard/DriverBetCard"
 import Timer from "../../../components/Timer/Timer"
-import Confirm from "../../../../Confirm/Confirm"
+import Confirm from "../../../../../components/utility/confirm/Confirm"
 import WarningIcon from "@mui/icons-material/Warning"
 import BettingSwitcher from "../../../components/BettingSwitcher/BettingSwitcher"
 

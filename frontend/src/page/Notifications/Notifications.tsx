@@ -10,7 +10,7 @@ import { clearNotification, clearAllNotifications, markNotificationRead } from "
 import NotificationListItem from "./NotificationListItem/NotificationListItem"
 import Badge from "../../components/utility/badge/Badge"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
-import Confirm from "../Confirm/Confirm"
+import Confirm from "../../components/utility/confirm/Confirm"
 import "./_notifications.scss"
 
 // Confetti colors for celebration.
