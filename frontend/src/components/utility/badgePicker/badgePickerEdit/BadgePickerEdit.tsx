@@ -116,7 +116,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   }
 
   // Filter badge outcomes, keeping ones that aren't used by OTHER badges.
-  // Always include the current badge being edited (if applicable) to preserve sort order.
+  // Sort by rarity (highest to lowest) to match badge grid display order.
   const isAvailable = () => {
     return badgeRewardOutcomes
       .filter((outcome: badgeOutcomeType) => {
@@ -127,6 +127,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         // Otherwise, exclude if already used by another badge in champBadges.
         return !form.champBadges.some((badge: badgeType) => badge.awardedHow === outcome.awardedHow)
       })
+      .sort((a, b) => b.rarity - a.rarity)
       .map((outcome: badgeOutcomeType) => outcome.awardedHow)
   }
 
