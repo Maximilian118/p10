@@ -3,7 +3,7 @@ import './_badgeFilterDraw.scss'
 import { Button, ClickAwayListener } from "@mui/material"
 import { badgeType } from "../../../../shared/types"
 import { badgeRarities, badgeRarityType } from "../../../../shared/badgeOutcomes"
-import MUICheckbox from "../../muiCheckbox/MUICheckbox"
+import RarityFilterBadge from "./rarityFilterBadge/RarityFilterBadge"
 
 interface badgeFilterDrawType<T> {
   draw: boolean
@@ -94,13 +94,12 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
           {/* Inner content wrapper handles animation separately from positioning. */}
           <div className={`badge-filter-draw-content ${draw ? "badge-draw-open" : ""}`}>
             <div className="badge-filter-options">
-              {badgeRarities().map((rarity: badgeRarityType, i: number) => (
-                <MUICheckbox
-                  key={i}
-                  text={rarity.rarityName}
-                  checked={filtered.includes(rarity.rarity)}
+              {badgeRarities().reverse().map((rarity: badgeRarityType) => (
+                <RarityFilterBadge
+                  key={rarity.rarity}
+                  rarity={rarity}
+                  active={filtered.includes(rarity.rarity)}
                   onClick={(e: MouseEvent) => filterBadgesHandler(e, rarity)}
-                  checkedColour={rarity.colour}
                 />
               ))}
             </div>

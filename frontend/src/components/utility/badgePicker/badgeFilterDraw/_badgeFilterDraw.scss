@@ -22,7 +22,7 @@
 // Inner content wrapper handles animation and visual styles.
 .badge-filter-draw-content {
   background: white;
-  padding: 18px 12px;
+  padding: 18px 7.5%;
   box-sizing: border-box;
   @include mixins.flexbox-space-between-column;
   border-top: 2px solid variables.$background;
@@ -48,7 +48,7 @@
 
   .badge-filter-options {
     @include mixins.flexbox;
-    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .badge-filter-buttons {

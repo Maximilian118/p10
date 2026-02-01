@@ -1,0 +1,77 @@
+@use '../../../../../scss/variables';
+@use '../../../../../scss/mixins';
+
+.rarity-filter-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  flex-shrink: 0;
+  transition: all variables.$trans-speed;
+
+  &:hover {
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  // Outer colored ring.
+  &__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid;
+    box-sizing: border-box;
+    transition: all variables.$trans-speed;
+  }
+
+  // Inner circle with darker background.
+  &__inner {
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    @include mixins.flexbox;
+    transition: all variables.$trans-speed;
+  }
+
+  // Checkmark icon.
+  &__tick {
+    color: white;
+    font-size: 20px;
+    transition: all variables.$trans-speed;
+  }
+
+  // Active state - full rarity colors.
+  &--active {
+    .rarity-filter-badge__ring {
+      box-shadow: variables.$shadow-close;
+    }
+  }
+
+  // Inactive state - greyed out.
+  &--inactive {
+    opacity: 0.5;
+
+    .rarity-filter-badge__ring {
+      border-color: variables.$colour-3;
+    }
+
+    .rarity-filter-badge__inner {
+      background-color: variables.$colour-2;
+    }
+
+    .rarity-filter-badge__tick {
+      color: variables.$colour-3;
+    }
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+}
