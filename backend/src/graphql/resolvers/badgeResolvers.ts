@@ -1,7 +1,7 @@
 import { AuthRequest } from "../../middleware/auth"
 import Badge, { badgeResponseType, badgeType } from "../../models/badge"
 import Champ from "../../models/champ"
-import User, { userTypeMongo } from "../../models/user"
+import User, { userTypeMongo, userBadgeSnapshotType } from "../../models/user"
 import { ObjectId } from "mongodb"
 import {
   badgeAwardedDescErrors,
@@ -19,6 +19,7 @@ import {
 import moment from "moment"
 import badgeRewardOutcomes, { findDesc } from "../../shared/badgeOutcomes"
 import { clientS3, deleteS3 } from "../../shared/utility"
+import { sendNotification } from "../../shared/notifications"
 
 const badgeResolvers = {
   newBadge: async (args: { badgeInput: badgeType }, req: AuthRequest): Promise<badgeType> => {
@@ -224,6 +225,11 @@ const badgeResolvers = {
         return args.updateBadgeInput
       }
 
+      // Prevent updating default badges - they are system-managed.
+      if (badge.isDefault) {
+        return throwError("updateBadge", badge._id, "Cannot modify default badges!", 403)
+      }
+
       // Check authorization for championship badges.
       if (badge.championship) {
         const champ = await Champ.findById(badge.championship)
@@ -299,6 +305,11 @@ const badgeResolvers = {
         return { _id } as badgeType
       }
 
+      // Prevent deleting default badges - they are system-managed.
+      if (badge.isDefault) {
+        return throwError("deleteBadge", badge._id, "Cannot delete default badges!", 403)
+      }
+
       // Check authorization for championship badges.
       // For default badges (no championship), we need to find which champs use this badge.
       let authChamp = null
@@ -368,6 +379,156 @@ const badgeResolvers = {
         ...badge._doc,
         tokens: req.tokens,
       }
+    } catch (err) {
+      throw err
+    }
+  },
+  // Award a badge to a user.
+  // This is used for ACTION-BASED badges that cannot be detected in resultsHandler.
+  // Examples: Joined Championship, Became Adjudicator, Banned Competitor, etc.
+  //
+  // NO AUTH CHECK: The calling action handles its own authorization.
+  // (e.g., banCompetitor already requires adjudicator auth before calling this)
+  awardBadge: async (
+    { userId, champId, awardedHow }: { userId: string; champId: string; awardedHow: string },
+    req: AuthRequest,
+  ): Promise<{ success: boolean; message?: string; badge?: userBadgeSnapshotType; tokens: string[] }> => {
+    try {
+      // Find the championship.
+      const champ = await Champ.findById(champId).populate("champBadges")
+      if (!champ) {
+        return { success: false, message: "Championship not found", tokens: req.tokens }
+      }
+
+      // Find the badge by awardedHow in champBadges.
+      const badgeDoc = (champ.champBadges as unknown as badgeType[])?.find(
+        (b) => b.awardedHow === awardedHow
+      )
+      if (!badgeDoc) {
+        return { success: false, message: `No badge found with awardedHow: "${awardedHow}"`, tokens: req.tokens }
+      }
+
+      // Find the user.
+      const user = await User.findById(userId)
+      if (!user) {
+        return { success: false, message: "User not found", tokens: req.tokens }
+      }
+
+      // Check if user already has this badge for this championship (prevent duplicates).
+      const alreadyHasBadge = user.badges?.some(
+        (b) =>
+          b.awardedHow === awardedHow &&
+          b.championship?.toString() === champId.toString()
+      )
+      if (alreadyHasBadge) {
+        return { success: false, message: "User already has this badge", tokens: req.tokens }
+      }
+
+      // Create badge snapshot.
+      const awarded_at = moment().format()
+      const snapshot: userBadgeSnapshotType = {
+        _id: badgeDoc._id,
+        url: badgeDoc.url,
+        name: badgeDoc.name,
+        customName: badgeDoc.customName,
+        rarity: badgeDoc.rarity,
+        awardedHow: badgeDoc.awardedHow,
+        awardedDesc: badgeDoc.awardedDesc,
+        zoom: badgeDoc.zoom || 100,
+        championship: new ObjectId(champId),
+        awarded_at,
+        featured: null,
+      }
+
+      // Add badge snapshot to user's badges array.
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { badges: snapshot },
+      })
+
+      // Update Champ.discoveredBadges if this is the first discovery of this badge.
+      const isFirstDiscovery = !champ.discoveredBadges?.some(
+        (d) => d.badge.toString() === badgeDoc._id.toString()
+      )
+      if (isFirstDiscovery) {
+        await Champ.findByIdAndUpdate(champId, {
+          $push: {
+            discoveredBadges: {
+              badge: badgeDoc._id,
+              discoveredBy: new ObjectId(userId),
+              discoveredAt: awarded_at,
+            },
+          },
+          $set: { updated_at: awarded_at },
+        })
+      }
+
+      // Send notification via socket.io + email.
+      await sendNotification({
+        userId: new ObjectId(userId),
+        type: "badge_earned",
+        title: "Badge Earned!",
+        description: `You earned the "${badgeDoc.customName || badgeDoc.name}" badge`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+        badgeSnapshot: snapshot,
+      })
+
+      console.log(`[awardBadge] Awarded "${awardedHow}" to user ${userId} in championship ${champId}`)
+
+      return { success: true, badge: snapshot, tokens: req.tokens }
+    } catch (err) {
+      console.error("[awardBadge] Error:", err)
+      throw err
+    }
+  },
+  // Removes a badge from a championship's champBadges array.
+  // This does NOT delete the badge from the database - it only removes the reference.
+  // Used for removing default badges from a championship.
+  removeChampBadge: async (
+    { champId, badgeId }: { champId: string; badgeId: string },
+    req: AuthRequest,
+  ): Promise<{ success: boolean; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("removeChampBadge", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      const champ = await Champ.findById(champId)
+      if (!champ) {
+        return throwError("removeChampBadge", champId, "Championship not found!", 404)
+      }
+
+      // Authorization: only adjudicator or admin can remove badges.
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id?.toString()
+      if (!isAdmin && !isAdjudicator) {
+        return throwError("removeChampBadge", req._id, "Only adjudicator or admin can remove badges!", 403)
+      }
+
+      // Remove badge from champBadges array.
+      await Champ.findByIdAndUpdate(champId, {
+        $pull: { champBadges: new ObjectId(badgeId) },
+      })
+
+      // Update user championship snapshots with new badge count.
+      const updatedChamp = await Champ.findById(champId)
+      const totalBadges = updatedChamp?.champBadges?.length || 0
+
+      await User.updateMany(
+        { "championships._id": champId },
+        {
+          $set: {
+            "championships.$.totalBadges": totalBadges,
+            "championships.$.updated_at": moment().format(),
+          },
+        },
+      )
+
+      return { success: true, tokens: req.tokens }
     } catch (err) {
       throw err
     }

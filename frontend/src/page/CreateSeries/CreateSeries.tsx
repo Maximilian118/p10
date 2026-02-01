@@ -349,7 +349,9 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     loading,
     delLoading,
     canDelete: permissions === "delete",
+    canRemove: false,
     onDelete: onDeleteHandler,
+    canSubmit: true,
   }), [submitHandler, handleBack, isEditing, loading, delLoading, permissions, onDeleteHandler])
 
   // Register handlers with ChampFlowContext when embedded.

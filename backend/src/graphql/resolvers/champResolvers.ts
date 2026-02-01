@@ -28,6 +28,7 @@ import {
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
 import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
+import badgeResolvers from "./badgeResolvers"
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -706,6 +707,12 @@ const champResolvers = {
         })
       }
 
+      // Award "Joined Championship" badge to the joining user.
+      await badgeResolvers.awardBadge(
+        { userId: req._id!, champId: _id, awardedHow: "Joined Championship" },
+        req,
+      )
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -907,6 +914,12 @@ const champResolvers = {
         champIcon: champ.icon,
       })
 
+      // Award "Banned Competitor" badge to the adjudicator who performed the ban.
+      await badgeResolvers.awardBadge(
+        { userId: req._id!, champId: _id, awardedHow: "Banned Competitor" },
+        req,
+      )
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -1060,6 +1073,12 @@ const champResolvers = {
         champName: champ.name,
         champIcon: champ.icon,
       })
+
+      // Award "Kicked Competitor" badge to the adjudicator who performed the kick.
+      await badgeResolvers.awardBadge(
+        { userId: req._id!, champId: _id, awardedHow: "Kicked Competitor" },
+        req,
+      )
 
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
@@ -1275,6 +1294,18 @@ const champResolvers = {
         champIcon: champ.icon,
       })
 
+      // Award "Became Adjudicator" badge to the new adjudicator.
+      await badgeResolvers.awardBadge(
+        { userId: newAdjudicatorId, champId: _id, awardedHow: "Became Adjudicator" },
+        req,
+      )
+
+      // Award "Passed Adjudicator" badge to the old adjudicator (who passed on the role).
+      await badgeResolvers.awardBadge(
+        { userId: oldAdjudicatorId, champId: _id, awardedHow: "Passed Adjudicator" },
+        req,
+      )
+
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -1435,6 +1466,29 @@ const champResolvers = {
               "championships.$.updated_at": now,
             },
           }
+        )
+      }
+
+      // Award points adjustment badges based on whether it's a bonus or penalty.
+      if (change > 0) {
+        // Positive adjustment: bonus.
+        await badgeResolvers.awardBadge(
+          { userId: req._id!, champId: _id, awardedHow: "Gave Points Bonus" },
+          req,
+        )
+        await badgeResolvers.awardBadge(
+          { userId: competitorId, champId: _id, awardedHow: "Received Points Bonus" },
+          req,
+        )
+      } else if (change < 0) {
+        // Negative adjustment: penalty.
+        await badgeResolvers.awardBadge(
+          { userId: req._id!, champId: _id, awardedHow: "Gave Points Penalty" },
+          req,
+        )
+        await badgeResolvers.awardBadge(
+          { userId: competitorId, champId: _id, awardedHow: "Received Points Penalty" },
+          req,
         )
       }
 

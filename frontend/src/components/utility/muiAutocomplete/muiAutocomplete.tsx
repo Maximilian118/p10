@@ -22,6 +22,7 @@ interface muiAutocompleteType<T> {
   onNewMouseDown?: React.MouseEventHandler<HTMLDivElement> // When user clicks on createNew, do something.
   onLiClick?: (value: T) => void // Custom onClick functionality for options. NOTE: Stops textArea from retaining clicked option. Useful for adding option to a list.
   disabled?: boolean
+  readOnly?: boolean // Can open dropdown to view options but can't select a different value.
   style?: React.CSSProperties
   badgeMode?: boolean // Enable badge outcome display mode with BadgeOption component.
   inputValue?: string // Controlled input text (separate from selected value).
@@ -74,6 +75,7 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
   onNewMouseDown,
   onLiClick,
   disabled,
+  readOnly,
   style,
   badgeMode,
   inputValue,
@@ -102,12 +104,25 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       inputValue={inputValue}
       onInputChange={(_, newInputValue, reason) => {
         // Allow parent to control input text separately from selected value.
-        if (onInputChange && reason !== "reset") {
-          onInputChange(newInputValue)
+        if (onInputChange) {
+          if (reason === "reset" && badgeMode && value) {
+            // On blur/reset in badge mode, restore the badge name (not awardedHow).
+            const outcome = getOutcomeByHow(value as string)
+            if (outcome) {
+              onInputChange(outcome.name)
+              return
+            }
+          }
+          if (reason !== "reset") {
+            onInputChange(newInputValue)
+          }
         }
       }}
       disabled={disabled}
       onChange={(e: SyntheticEvent<Element, Event>, value: T | string | null) => {
+        // Block selection when readOnly (can view options but not select).
+        if (readOnly) return
+
         if (setValue) setValue(findValueString(value))
 
         // In badge mode, update inputValue to badge name when selection is made.
@@ -132,18 +147,29 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
       options={options as (T | string)[]}
       isOptionEqualToValue={(option, value) => findValueString(option) === findValueString(value)}
       getOptionLabel={(option: T | string | null) => {
-        // Return raw value (awardedHow for badges). Display text handled separately via inputValue.
+        // In badge mode, return the badge name for proper filtering against inputValue.
+        if (badgeMode) {
+          const optionValue = findValueString(option)
+          if (optionValue) {
+            const outcome = getOutcomeByHow(optionValue)
+            if (outcome) {
+              return outcome.name
+            }
+          }
+        }
+        // Default: return the raw value.
         return findValueString(option) as string
       }}
       renderOption={({ key, ...props }: React.HTMLAttributes<HTMLLIElement> & { key: string }, option: T | string | null) => {
         const optionValue = findValueString(option)
 
         // Badge mode: render using BadgeOption component.
+        // Use awardedHow as key since badge names can be duplicated (e.g., "Magnificent Seven").
         if (badgeMode && optionValue) {
           const badgeOutcome = getOutcomeByHow(optionValue)
           if (badgeOutcome) {
             return (
-              <li key={key} {...props}>
+              <li key={optionValue} {...props}>
                 <BadgeOption
                   name={badgeOutcome.name}
                   awardedDesc={badgeOutcome.awardedDesc}

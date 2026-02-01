@@ -223,8 +223,12 @@ const Championship: React.FC = () => {
   const [ badgeEditHandlers, setBadgeEditHandlers ] = useState<{
     submit: () => Promise<void>
     delete: () => Promise<void>
+    remove: () => Promise<void>
     loading: boolean
+    removeLoading: boolean
     isNewBadge: boolean
+    canSubmit: boolean
+    canRemove: boolean
   } | null>(null)
 
   const navigate = useNavigate()
@@ -851,8 +855,12 @@ const Championship: React.FC = () => {
     isEdit: badgeIsEdit,
     onBack: () => setBadgeIsEdit(false),
     onDelete: badgeEditHandlers?.delete,
+    onRemove: badgeEditHandlers?.remove,
     onSubmit: badgeEditHandlers?.submit,
     loading: badgeEditHandlers?.loading,
+    removeLoading: badgeEditHandlers?.removeLoading,
+    canSubmit: badgeEditHandlers?.canSubmit,
+    canRemove: badgeEditHandlers?.canRemove,
   }
 
   return (

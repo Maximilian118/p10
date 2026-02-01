@@ -95,6 +95,7 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
                   awardedHow
                   awardedDesc
                   zoom
+                  isDefault
                   created_at
                   updated_at
                 }
@@ -119,7 +120,7 @@ export const getBadgesByChamp = async <T extends { champBadges: badgeType[] }>(
             badges.array = badges.array.map((badge: badgeType) => {
               return {
                 ...badge,
-                default: true,
+                isDefault: true,
               }
             })
           }
@@ -312,4 +313,110 @@ export const deleteBadge = async (
 
   setLoading(false)
   return result
+}
+
+// Award an action-based badge to a user.
+// Used for badges that cannot be detected in resultsHandler (e.g., Joined Championship, Became Adjudicator).
+export const awardBadge = async (
+  userId: string,
+  champId: string,
+  awardedHow: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  setLoading?: React.Dispatch<React.SetStateAction<boolean>>,
+): Promise<{ success: boolean; message?: string; badge?: badgeType } | null> => {
+  if (setLoading) setLoading(true)
+
+  let result: { success: boolean; message?: string; badge?: badgeType } | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { userId, champId, awardedHow },
+          query: `
+            mutation AwardBadge($userId: ID!, $champId: ID!, $awardedHow: String!) {
+              awardBadge(userId: $userId, champId: $champId, awardedHow: $awardedHow) {
+                success
+                message
+                badge {
+                  _id
+                  url
+                  name
+                  customName
+                  rarity
+                  awardedHow
+                  awardedDesc
+                  zoom
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("awardBadge", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("awardBadge", res, user, setUser, false) as {
+            success: boolean
+            message?: string
+            badge?: badgeType
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("awardBadge", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("awardBadge", err, setUser, navigate, setBackendErr, true)
+  }
+
+  if (setLoading) setLoading(false)
+  return result
+}
+
+// Remove a badge from a championship's champBadges array (does not delete the badge).
+// Used for removing default badges from a championship.
+export const removeChampBadge = async (
+  champId: string,
+  badgeId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { champId, badgeId },
+        query: `
+          mutation RemoveChampBadge($champId: ID!, $badgeId: ID!) {
+            removeChampBadge(champId: $champId, badgeId: $badgeId) {
+              success
+              tokens
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("removeChampBadge", res, setUser, navigate, setBackendErr, true)
+      return false
+    }
+
+    const result = graphQLResponse("removeChampBadge", res, user, setUser) as { success: boolean }
+    return result.success
+  } catch (err) {
+    graphQLErrors("removeChampBadge", err, setUser, navigate, setBackendErr, true)
+    return false
+  }
 }

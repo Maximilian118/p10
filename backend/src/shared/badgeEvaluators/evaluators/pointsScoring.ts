@@ -149,6 +149,7 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
   ],
   ["25 Points", createPointsMilestoneChecker(25)],
   ["75 Points", createPointsMilestoneChecker(75)],
+  ["125 Points", createPointsMilestoneChecker(125)],
   ["150 Points", createPointsMilestoneChecker(150)],
   ["200 Points", createPointsMilestoneChecker(200)],
   ["18 Point Lead", createPointLeadChecker(18)],

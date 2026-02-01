@@ -5,6 +5,7 @@ import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import BadgePicker from "../../../../components/utility/badgePicker/BadgePicker"
 import BadgeInfoCard from "../../../../components/cards/badgeInfoCard/BadgeInfoCard"
+import { BadgePickerEditRef } from "../../../../components/utility/badgePicker/badgePickerEdit/BadgePickerEdit"
 
 interface BadgesProps {
   champ: ChampType
@@ -18,7 +19,7 @@ interface BadgesProps {
   setIsEdit: React.Dispatch<React.SetStateAction<boolean | badgeType>>
   draw: boolean
   setDraw: React.Dispatch<React.SetStateAction<boolean>>
-  onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void
+  onEditHandlersReady?: (handlers: BadgePickerEditRef) => void
 }
 
 // Badges view component - displays championship badges with earned status overlay.

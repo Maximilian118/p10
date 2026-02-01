@@ -221,6 +221,12 @@ const CreateChamp: React.FC = () => {
           color: "error" as const,
           loading: activeFormHandlers?.delLoading
         }] : []),
+        ...(activeFormHandlers?.canRemove && activeFormHandlers?.isEditing ? [{
+          label: "Remove",
+          onClick: activeFormHandlers.onRemove,
+          startIcon: <Delete />,
+          color: "error" as const,
+        }] : []),
         {
           label: activeFormHandlers
             ? (activeFormHandlers.isEditing ? "Update" : "Submit")
@@ -231,7 +237,8 @@ const CreateChamp: React.FC = () => {
               ? document.querySelector<HTMLFormElement>('form.create-champ')?.requestSubmit()
               : setActiveStep(prevStep => prevStep + 1),
           endIcon: (!activeFormHandlers && !lastStep && <Arrows />),
-          loading: activeFormHandlers?.loading || loading
+          loading: activeFormHandlers?.loading || loading,
+          disabled: activeFormHandlers ? !activeFormHandlers.canSubmit : false
         }
       ]}
     />

@@ -65,6 +65,8 @@ const Schema = buildSchema(`
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!
     deleteBadge(_id: ID!): Badge!
+    awardBadge(userId: ID!, champId: ID!, awardedHow: String!): AwardBadgeResult!
+    removeChampBadge(champId: ID!, badgeId: ID!): RemoveBadgeResult!
     newSeries(seriesInput: seriesInput): Series!
     updateSeries(seriesInput: seriesInput): Series!
     deleteSeries(_id: ID!): Series!

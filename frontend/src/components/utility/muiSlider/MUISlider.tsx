@@ -15,21 +15,23 @@ interface MUISliderType {
   max?: number
   colour?: string
   style?: React.CSSProperties
+  disabled?: boolean
 }
 
-const MUISlider: React.FC<MUISliderType> = ({ 
-  ariaLabel, 
-  value, 
-  setValue, 
-  label, 
+const MUISlider: React.FC<MUISliderType> = ({
+  ariaLabel,
+  value,
+  setValue,
+  label,
   valueLabelDisplay,
   steps,
-  iconLeft, 
+  iconLeft,
   iconRight,
   min,
   max,
   colour,
-  style 
+  style,
+  disabled,
 }): JSX.Element => {
   const handleChange = (event: Event, newValue: number | number[]) => {
     setValue(newValue as number)
@@ -40,58 +42,60 @@ const MUISlider: React.FC<MUISliderType> = ({
       return (
         <Stack spacing={2} direction="row" alignItems="center">
           {iconLeft}
-          <Slider 
-            aria-label={ariaLabel} 
-            value={value} 
-            onChange={handleChange} 
+          <Slider
+            aria-label={ariaLabel}
+            value={value}
+            onChange={handleChange}
             valueLabelDisplay={valueLabelDisplay ? valueLabelDisplay : "off"}
             marks={steps ? true : false}
             step={steps}
             min={min}
             max={max}
-            sx={ colour ? {
+            disabled={disabled}
+            sx={colour ? {
               '& .MuiSlider-thumb': {
-                  color: colour
+                color: colour
               },
               '& .MuiSlider-track': {
-                  color: colour
+                color: colour
               },
               '& .MuiSlider-rail': {
-                  color: colour
+                color: colour
               },
               '& .MuiSlider-active': {
-                  color: colour
+                color: colour
               }
-            } : {}} 
+            } : {}}
           />
           {iconRight}
         </Stack>
       )
     } else {
       return (
-        <Slider 
-          aria-label={ariaLabel} 
-          value={value} 
-          onChange={handleChange} 
+        <Slider
+          aria-label={ariaLabel}
+          value={value}
+          onChange={handleChange}
           valueLabelDisplay={valueLabelDisplay ? valueLabelDisplay : "off"}
           marks={steps ? true : false}
           step={steps}
           min={min}
           max={max}
-          sx={ colour ? {
+          disabled={disabled}
+          sx={colour ? {
             '& .MuiSlider-thumb': {
-                color: colour
+              color: colour
             },
             '& .MuiSlider-track': {
-                color: colour
+              color: colour
             },
             '& .MuiSlider-rail': {
-                color: colour
+              color: colour
             },
             '& .MuiSlider-active': {
-                color: colour
+              color: colour
             }
-          } : {}} 
+          } : {}}
         />
       )
     }

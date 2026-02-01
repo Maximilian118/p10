@@ -35,7 +35,7 @@
   background: white;
   border-radius: 8px;
   @include mixins.flexbox-start-column;
-  border: 1px solid variables.$border;
+  box-shadow: 0 0 0 1px variables.$border;
 
   .badge-info-header {
     width: 100%;

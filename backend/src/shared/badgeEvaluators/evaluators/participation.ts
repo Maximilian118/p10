@@ -14,10 +14,10 @@ import { createNoBetStreakChecker, createRoundsPlayedChecker } from "../factorie
 export const participationEvaluators: [string, BadgeChecker][] = [
   [
     "Joined Championship",
-    (ctx) => {
-      // Join a championship - awarded on first participation.
-      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
-      return { earned: entry !== undefined }
+    () => {
+      // ACTION-BASED: Awarded via awardBadge() in joinChamp().
+      // Not evaluated in resultsHandler.
+      return { earned: false }
     },
   ],
   // Rounds played milestones - using factory for DRY code.
@@ -105,6 +105,18 @@ export const participationEvaluators: [string, BadgeChecker][] = [
       return { earned: false }
     },
   ],
+  // ============================================================================
+  // ACTION-BASED BADGES: Awarded via awardBadge() mutation, not resultsHandler.
+  // These evaluators always return false - they exist as safety nets.
+  // ============================================================================
+  ["Became Adjudicator", () => ({ earned: false })],
+  ["Passed Adjudicator", () => ({ earned: false })],
+  ["Kicked Competitor", () => ({ earned: false })],
+  ["Banned Competitor", () => ({ earned: false })],
+  ["Gave Points Penalty", () => ({ earned: false })],
+  ["Gave Points Bonus", () => ({ earned: false })],
+  ["Received Points Bonus", () => ({ earned: false })],
+  ["Received Points Penalty", () => ({ earned: false })],
   [
     "Veteran",
     (ctx) => {

@@ -42,6 +42,18 @@ const badgeSchema = `
     awardedDesc: String
     zoom: Int
   }
+
+  type AwardBadgeResult {
+    success: Boolean!
+    message: String
+    badge: Badge
+    tokens: [String!]
+  }
+
+  type RemoveBadgeResult {
+    success: Boolean!
+    tokens: [String!]
+  }
 `
 
 export default badgeSchema

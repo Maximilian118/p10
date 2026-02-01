@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
-import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle, Delete } from "@mui/icons-material"
 import { ChampType, badgeType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
@@ -25,8 +25,12 @@ export interface BadgeToolbarProps {
   isEdit?: boolean | badgeType
   onBack?: () => void
   onDelete?: () => void
+  onRemove?: () => void
   onSubmit?: () => void
   loading?: boolean
+  removeLoading?: boolean
+  canSubmit?: boolean
+  canRemove?: boolean
 }
 
 interface champToolbarType {
@@ -263,19 +267,32 @@ const ChampToolbar: React.FC<champToolbarType> = ({
       })
     }
 
-    // Badges edit mode - Delete and Submit/Update buttons.
+    // Badges edit mode - Delete/Remove and Submit/Update buttons.
     if (view === "badges" && badgeProps?.isEdit) {
       if (typeof badgeProps.isEdit !== "boolean") {
-        buttons.push({
-          label: "Delete",
-          onClick: badgeProps?.onDelete,
-          color: "error",
-        })
+        // Existing badge - show Remove for defaults, Delete for custom.
+        if (badgeProps.canRemove) {
+          buttons.push({
+            label: "Remove",
+            onClick: badgeProps?.onRemove,
+            startIcon: <Delete/>,
+            loading: badgeProps?.removeLoading,
+            color: "error",
+          })
+        } else {
+          buttons.push({
+            label: "Delete",
+            startIcon: <Delete/>,
+            onClick: badgeProps?.onDelete,
+            color: "error",
+          })
+        }
       }
       buttons.push({
         label: typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit",
         onClick: badgeProps?.onSubmit,
         loading: badgeProps?.loading,
+        disabled: badgeProps?.canSubmit === false,
       })
     }
 

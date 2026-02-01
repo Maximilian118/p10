@@ -379,6 +379,11 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
       return { earned: bottom3DriverIds.includes(entry.bet.toString()) }
     },
   ],
+  // ============================================================================
+  // API-DEPENDENT BADGES (only work when series.hasAPI === true)
+  // These require driver stats that are only updated via external API integration.
+  // Without API, consecutiveDNFs is always 0 and these badges will never trigger.
+  // ============================================================================
   [
     "Curse Breaker",
     (ctx, populatedDrivers) => {

@@ -32,7 +32,7 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
     setForm(prevForm => {
       return {
         ...prevForm,
-        champBadges: champBadges.filter((badge: badgeType) => !badge.default)
+        champBadges: champBadges.filter((badge: badgeType) => !badge.isDefault)
       }
     })
   }

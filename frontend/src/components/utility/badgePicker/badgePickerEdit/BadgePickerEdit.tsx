@@ -14,7 +14,7 @@ import { badgePickerErrors } from "../badgePickerUtility"
 import { userType } from "../../../../shared/localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { useChampFlowForm } from "../../../../context/ChampFlowContext"
-import { newBadge, updateBadge, deleteBadge } from "../../../../shared/requests/badgeRequests"
+import { newBadge, updateBadge, deleteBadge, removeChampBadge } from "../../../../shared/requests/badgeRequests"
 import { uplaodS3 } from "../../../../shared/requests/bucketRequests"
 
 interface badgePickerEditType<T> {
@@ -49,8 +49,12 @@ export interface editFormErrType {
 export interface BadgePickerEditRef {
   submit: () => Promise<void>
   delete: () => Promise<void>
+  remove: () => Promise<void>
   loading: boolean
+  removeLoading: boolean
   isNewBadge: boolean
+  canSubmit: boolean
+  canRemove: boolean
 }
 
 // If badge has a populated file key, init editForm.icon with that file.
@@ -64,8 +68,10 @@ const initIcon = (isEdit: boolean | badgeType): File | null => {
 
 const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIsEdit, form, setForm, user, setUser, navigate, backendErr, setBackendErr, championship, embedded = true, onHandlersReady }: badgePickerEditType<T>) => {
   const isNewBadge = typeof isEdit === "boolean"
+  const isDefault = !isNewBadge && isEdit.isDefault === true
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
+  const [ removeLoading, setRemoveLoading ] = useState<boolean>(false)
   const [ editForm, setEditForm ] = useState<editFormType>({
     customName: isNewBadge ? "" : (isEdit.customName || ""),
     icon: initIcon(isEdit),
@@ -90,6 +96,17 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   // Rarity is determined by the selected awardedHow outcome.
   const rarity = how ? getRarityByHow(how) : 0
 
+  // Check if any form values have changed from the original badge.
+  const hasChanges = isNewBadge ? true : (
+    editForm.customName !== (isEdit.customName || "") ||
+    editForm.icon !== null ||
+    zoom !== isEdit.zoom ||
+    how !== isEdit.awardedHow
+  )
+
+  // Can only submit if: (new badge) OR (has changes AND not a default badge).
+  const canSubmit = isNewBadge || (hasChanges && !isDefault)
+
   const displayOverlay = !isNewBadge || editForm.icon
 
   // Find the object that contains the awardedHow currently in how state and return the relevant awardedDesc string.
@@ -97,18 +114,19 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     return badgeRewardOutcomes.filter((outcome: badgeOutcomeType) => outcome.awardedHow === how)[0].awardedDesc
   }
 
-  // Remove all of the reward outcomes that currently exist in form.champBadges.
-  // Also, ensure to include the current awardedHow for this badge.
+  // Filter badge outcomes, keeping ones that aren't used by OTHER badges.
+  // Always include the current badge being edited (if applicable) to preserve sort order.
   const isAvailable = () => {
-    const getHows = badgeRewardOutcomes.filter((outcome: badgeOutcomeType) => 
-      !form.champBadges.some((badge: badgeType) => badge.awardedHow === outcome.awardedHow)
-    ).map((outcome: badgeOutcomeType) => outcome.awardedHow)
-
-    if (!isNewBadge && isEdit.awardedHow) {
-      getHows.push(isEdit.awardedHow)
-    }
-
-    return getHows
+    return badgeRewardOutcomes
+      .filter((outcome: badgeOutcomeType) => {
+        // If editing and this is the current badge's awardedHow, always include it.
+        if (!isNewBadge && outcome.awardedHow === isEdit.awardedHow) {
+          return true
+        }
+        // Otherwise, exclude if already used by another badge in champBadges.
+        return !form.champBadges.some((badge: badgeType) => badge.awardedHow === outcome.awardedHow)
+      })
+      .map((outcome: badgeOutcomeType) => outcome.awardedHow)
   }
 
   // Submit handler - makes direct API calls for badge operations.
@@ -117,6 +135,9 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
   const onSubmitHandler = useCallback(async () => {
     // Prevent double-clicks while loading.
     if (loading) return
+
+    // Prevent editing default badges.
+    if (!isNewBadge && isDefault) return
 
     // Check for errors.
     const hasErr = badgePickerErrors(isNewBadge, {
@@ -216,7 +237,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     }
 
     setLoading(false)
-  }, [loading, isNewBadge, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
+  }, [loading, isNewBadge, isDefault, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
 
   // Delete a badge from database and S3 via API call.
   const deleteBadgeHandler = useCallback(async () => {
@@ -239,6 +260,40 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     }
   }, [isNewBadge, isEdit, setForm, setIsEdit, user, setUser, navigate, setBackendErr])
 
+  // Remove a default badge from the championship (doesn't delete from DB).
+  // If championship exists, calls API to persist removal. Otherwise just updates local state.
+  const removeBadgeHandler = useCallback(async () => {
+    if (!isNewBadge && isEdit._id && isDefault) {
+      // If championship exists, call API to persist removal.
+      if (championship) {
+        setRemoveLoading(true)
+
+        const success = await removeChampBadge(
+          championship,
+          isEdit._id,
+          user,
+          setUser,
+          navigate,
+          setBackendErr
+        )
+
+        if (!success) {
+          setRemoveLoading(false)
+          return
+        }
+
+        setRemoveLoading(false)
+      }
+
+      // Update local state (works for both CreateChamp and Championship contexts).
+      setForm(prevForm => ({
+        ...prevForm,
+        champBadges: prevForm.champBadges.filter((badge: badgeType) => badge._id !== isEdit._id)
+      }))
+      setIsEdit(false)
+    }
+  }, [isNewBadge, isEdit, isDefault, championship, user, setUser, navigate, setBackendErr, setForm, setIsEdit])
+
   // Back handler for context.
   const handleBack = useCallback(() => setIsEdit(false), [setIsEdit])
 
@@ -249,31 +304,44 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     isEditing: !isNewBadge,
     loading,
     delLoading,
-    canDelete: !isNewBadge && !!isEdit._id,
+    canDelete: !isNewBadge && !!isEdit._id && !isDefault,
+    canRemove: !isNewBadge && !!isEdit._id && isDefault,
     onDelete: deleteBadgeHandler,
+    onRemove: removeBadgeHandler,
+    canSubmit,
   }, embedded)
 
   // Store current handlers in a ref to avoid stale closures when parent calls them.
-  const handlersRef = useRef({ submit: onSubmitHandler, delete: deleteBadgeHandler })
+  const handlersRef = useRef({ submit: onSubmitHandler, delete: deleteBadgeHandler, remove: removeBadgeHandler })
   useEffect(() => {
-    handlersRef.current = { submit: onSubmitHandler, delete: deleteBadgeHandler }
-  }, [onSubmitHandler, deleteBadgeHandler])
+    handlersRef.current = { submit: onSubmitHandler, delete: deleteBadgeHandler, remove: removeBadgeHandler }
+  }, [onSubmitHandler, deleteBadgeHandler, removeBadgeHandler])
 
-  // Expose stable wrapper functions to parent component (only called once on mount).
+  // Calculated values for exposing to parent.
+  const canRemove = !isNewBadge && !!isEdit._id && isDefault
+
+  // Expose stable wrapper functions to parent component.
   useEffect(() => {
     if (onHandlersReady) {
       onHandlersReady({
         submit: () => handlersRef.current.submit(),
         delete: () => handlersRef.current.delete(),
+        remove: () => handlersRef.current.remove(),
         loading,
+        removeLoading,
         isNewBadge,
+        canSubmit,
+        canRemove,
       })
     }
-  }, [onHandlersReady, loading, isNewBadge])
+  }, [onHandlersReady, loading, removeLoading, isNewBadge, canSubmit, canRemove])
 
   return (
     <div className="badge-picker-edit">
-      <h4>{`${isNewBadge ? `New` : `Edit`} Badge`}</h4>
+      <div className="badge-picker-top-bar">
+        <h4>{`${isNewBadge ? `New` : `Edit`} Badge`}</h4>
+        {isDefault && <h4 className="default">Default</h4>}
+      </div>
       <div className="badge-wrapper">
         <BadgeOverlay 
           rarity={rarity} 
@@ -291,6 +359,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           purposeText="Badge Image"
           zoom={zoom}
           thumbImg={isNewBadge ? false : (isEdit.url || isEdit.previewUrl)}
+          disabled={isDefault}
           style={{ marginBottom: 0, width: "100%" }}
         />
       </div>
@@ -303,6 +372,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         iconRight={<ZoomOutMap/>}
         min={25}
         max={175}
+        disabled={isDefault}
         style={{ padding: "0 20px", marginBottom: 30 }}
       />
       <TextField
@@ -315,6 +385,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         value={editForm.customName}
         error={editFormErr.customName || backendErr.type === "customName" ? true : false}
         placeholder="Optional custom name"
+        disabled={isDefault}
       />
       <MUIAutocomplete
         label={inputLabel("awardedHow", editFormErr, backendErr)}
@@ -332,6 +403,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
           }
         })}
         badgeMode={true}
+        readOnly={isDefault}
       />
     </div>
   )

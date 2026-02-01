@@ -349,4 +349,22 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
       return { earned: true }
     },
   ],
+  [
+    "200 Career Points",
+    (ctx) => {
+      // Accumulate 200+ points across all seasons.
+      let totalPoints = 0
+      const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+      if (currentEntry) totalPoints += currentEntry.totalPoints
+
+      for (const season of ctx.champ.history || []) {
+        const lastRound = season.rounds?.[season.rounds.length - 1]
+        const entry = lastRound?.competitors?.find(
+          (c) => c.competitor.toString() === ctx.competitorId.toString(),
+        )
+        if (entry) totalPoints += entry.totalPoints
+      }
+      return { earned: totalPoints >= 200 }
+    },
+  ],
 ]

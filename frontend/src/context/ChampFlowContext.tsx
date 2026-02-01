@@ -10,7 +10,10 @@ export interface FormHandlers {
   loading: boolean
   delLoading: boolean
   canDelete: boolean
+  canRemove: boolean
+  canSubmit: boolean
   onDelete?: () => Promise<void>
+  onRemove?: () => void
 }
 
 // Context type for the championship creation flow.
@@ -62,10 +65,13 @@ export const useChampFlowForm = (
     submit: async () => { await handlersRef.current.submit() },
     back: () => { handlersRef.current.back() },
     onDelete: async () => { await handlersRef.current.onDelete?.() },
+    onRemove: () => { handlersRef.current.onRemove?.() },
     isEditing: false,
     loading: false,
     delLoading: false,
     canDelete: false,
+    canRemove: false,
+    canSubmit: true,
   }).current
 
   // Update static values on each render (read when ButtonBar renders).
@@ -73,6 +79,8 @@ export const useChampFlowForm = (
   stableHandlers.loading = handlers.loading
   stableHandlers.delLoading = handlers.delLoading
   stableHandlers.canDelete = handlers.canDelete
+  stableHandlers.canRemove = handlers.canRemove
+  stableHandlers.canSubmit = handlers.canSubmit
 
   // Push on mount, pop on unmount (only when embedded in ChampFlow context).
   useEffect(() => {

@@ -103,7 +103,7 @@ export interface badgeType {
   updated_at?: string
   file?: File | null
   previewUrl?: string // Object URL for displaying image before S3 upload.
-  default?: boolean
+  isDefault?: boolean
 }
 
 export interface teamType {

@@ -515,4 +515,29 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
       return { earned: p4Count >= 3 }
     },
   ],
+  [
+    "Lone Wolf",
+    (ctx) => {
+      // Win when you were the last person to place your bet.
+      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
+
+      // Find all bet timestamps for this round.
+      // updated_at tracks when the bet was last placed/changed.
+      const betsWithTimestamps = ctx.currentRound.competitors
+        .filter((c) => c.bet && c.updated_at)
+        .map((c) => ({
+          id: c.competitor.toString(),
+          time: new Date(c.updated_at!).getTime(),
+        }))
+
+      if (betsWithTimestamps.length < 2) return { earned: false }
+
+      // Check if this competitor was the last to bet.
+      const myBet = betsWithTimestamps.find((b) => b.id === ctx.competitorId.toString())
+      if (!myBet) return { earned: false }
+
+      const isLastToBet = betsWithTimestamps.every((b) => b.time <= myBet.time)
+      return { earned: isLastToBet }
+    },
+  ],
 ]

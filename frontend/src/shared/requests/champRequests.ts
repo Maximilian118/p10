@@ -185,7 +185,7 @@ export const createChamp = async (
   // Process badges - upload images for custom badges and create in database.
   const champBadgeIds: string[] = []
   for (const badge of form.champBadges) {
-    if (badge.default && badge._id) {
+    if (badge.isDefault && badge._id) {
       // Default badge - just use existing ID.
       champBadgeIds.push(badge._id)
     } else {

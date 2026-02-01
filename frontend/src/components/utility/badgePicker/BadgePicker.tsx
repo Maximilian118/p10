@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import './_badgePicker.scss'
 import { badgeType } from "../../../shared/types"
 import Badge from "../badge/Badge"
-import BadgePickerEdit from "./badgePickerEdit/BadgePickerEdit"
+import BadgePickerEdit, { BadgePickerEditRef } from "./badgePickerEdit/BadgePickerEdit"
 import { getBadgesByChamp } from "../../../shared/requests/badgeRequests"
 import { userType } from "../../../shared/localStorage"
 import { graphQLErrorType } from "../../../shared/requests/requestsUtility"
@@ -31,7 +31,7 @@ interface badgePickerType<T> {
   setIsEdit?: React.Dispatch<React.SetStateAction<boolean | badgeType>> // Controlled edit setter from parent.
   draw?: boolean // Controlled filter drawer state from parent.
   setDraw?: React.Dispatch<React.SetStateAction<boolean>> // Controlled filter drawer setter from parent.
-  onEditHandlersReady?: (handlers: { submit: () => Promise<void>, delete: () => Promise<void>, loading: boolean, isNewBadge: boolean }) => void // Callback to expose edit handlers.
+  onEditHandlersReady?: (handlers: BadgePickerEditRef) => void // Callback to expose edit handlers.
   championship?: string // Championship ID for badge association.
   onBadgeClick?: (badge: badgeType) => void // Callback when a badge is clicked in read-only mode.
   defaultsButton?: boolean // Show "Add/Remove defaults" button in filter drawer.

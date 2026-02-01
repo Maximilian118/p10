@@ -4,6 +4,13 @@ import { getBadgeColour } from "../components/utility/badge/badgeOverlay/badgeOv
 // Backend location: backend/src/shared/badgeOutcomes.ts
 // If you modify badge outcomes here, update the backend file too.
 
+// API-DEPENDENT BADGES:
+// Some badges require external API data (series.hasAPI === true).
+// Without API, these badges will NEVER be awarded:
+// - Curse Breaker (requires consecutiveDNFs)
+// - Disaster Magnet (requires consecutiveDNFs)
+// See driverBets.ts evaluator for implementation details.
+
 // A list of badge reward outcomes with pre-determined rarity.
 // Rarity Scale: 0=Common, 1=Uncommon, 2=Rare, 3=Epic, 4=Legendary, 5=Mythic
 // SORTED BY RARITY: Common first, Mythic last
@@ -29,7 +36,7 @@ export const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Top Tenner", awardedHow: "Round Top 10", awardedDesc: "Finish in the top 10 of a round.", rarity: 0 },
   { name: "Back Marker", awardedHow: "Round Last", awardedDesc: "Finish last in a round.", rarity: 0 },
   { name: "Blanked", awardedHow: "No Points", awardedDesc: "Score no points in a round.", rarity: 0 },
-  { name: "Lone Wolf", awardedHow: "Single Point", awardedDesc: "Score exactly 1 point in a round.", rarity: 0 },
+  { name: "Solo Point", awardedHow: "Single Point", awardedDesc: "Score exactly 1 point in a round.", rarity: 0 },
   { name: "Deuce", awardedHow: "Two Points", awardedDesc: "Score exactly 2 points in a round.", rarity: 0 },
   { name: "Double Digits", awardedHow: "Double Digits", awardedDesc: "Reach 10+ total points in a championship.", rarity: 0 },
   { name: "Upper Half", awardedHow: "Top Half Finish", awardedDesc: "Finish in the top half of standings.", rarity: 0 },
@@ -94,6 +101,11 @@ export const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Consistency King", awardedHow: "Consistency King", awardedDesc: "Finish in the same position for 3 rounds in a row.", rarity: 1 },
   { name: "Front Row Bet", awardedHow: "Front Row Bet", awardedDesc: "Win by betting on a driver who qualified in the top 3.", rarity: 1 },
   { name: "P10 Magnet", awardedHow: "P10 Magnet", awardedDesc: "Bet on a driver who has 5+ P10 finishes this season.", rarity: 1 },
+  // Adjudicator action badges.
+  { name: "Rule Enforcer", awardedHow: "Gave Points Penalty", awardedDesc: "Give a points penalty to a competitor as adjudicator.", rarity: 1 },
+  { name: "Generous Judge", awardedHow: "Gave Points Bonus", awardedDesc: "Give a points bonus to a competitor as adjudicator.", rarity: 1 },
+  { name: "Teacher's Pet", awardedHow: "Received Points Bonus", awardedDesc: "Receive a points bonus from the adjudicator.", rarity: 1 },
+  { name: "Penalized", awardedHow: "Received Points Penalty", awardedDesc: "Receive a points penalty from the adjudicator.", rarity: 1 },
 
   // ============================================================================
   // RARE (Rarity 2) - Harder to achieve
@@ -170,8 +182,11 @@ export const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "DRS Enabled", awardedHow: "DRS Enabled", awardedDesc: "Win immediately after finishing P2.", rarity: 2 },
   { name: "Pole Picker", awardedHow: "Pole Picker", awardedDesc: "Win by betting on the driver who took pole (P1 in qualifying).", rarity: 2 },
   { name: "Hot Streak Pick", awardedHow: "Hot Streak Pick", awardedDesc: "Win with a driver whose recent form is in the top 3.", rarity: 2 },
-  { name: "Curse Breaker", awardedHow: "Curse Breaker", awardedDesc: "Win with a driver ending a 2+ no-time streak in qualifying.", rarity: 2 },
-  { name: "Disaster Magnet", awardedHow: "Disaster Magnet", awardedDesc: "Bet on a driver who failed to set a time 3 rounds in a row.", rarity: 1 },
+  // Betting and action-based badges.
+  { name: "Lone Wolf", awardedHow: "Lone Wolf", awardedDesc: "Win when you were the last person to place your bet.", rarity: 2 },
+  { name: "In Charge", awardedHow: "Became Adjudicator", awardedDesc: "Become the adjudicator of a championship.", rarity: 2 },
+  { name: "Passing the Torch", awardedHow: "Passed Adjudicator", awardedDesc: "Pass your adjudicator role to another competitor.", rarity: 2 },
+  { name: "Bouncer", awardedHow: "Kicked Competitor", awardedDesc: "Kick a competitor from the championship.", rarity: 2 },
 
   // ============================================================================
   // EPIC (Rarity 3) - Significant achievement
@@ -217,6 +232,11 @@ export const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Double DNF", awardedHow: "DNF Twice in a Row", awardedDesc: "Bet on a driver who didn't complete qualifying in two consecutive rounds.", rarity: 3 },
   { name: "Variety is Spice", awardedHow: "Never Same Driver Twice", awardedDesc: "Never bet same driver consecutively for 10+ rounds.", rarity: 3 },
   { name: "Cold Pick", awardedHow: "Cold Pick", awardedDesc: "Win with a driver whose recent form is in the bottom 3.", rarity: 3 },
+  // Action-based badge.
+  { name: "Ban Hammer", awardedHow: "Banned Competitor", awardedDesc: "Ban a competitor from the championship.", rarity: 3 },
+  // API-dependent badges (only awarded when series.hasAPI === true).
+  { name: "Curse Breaker", awardedHow: "Curse Breaker", awardedDesc: "Win with a driver ending a 2+ no-time streak in qualifying.", rarity: 2 },
+  { name: "Disaster Magnet", awardedHow: "Disaster Magnet", awardedDesc: "Bet on a driver who failed to set a time 3 rounds in a row.", rarity: 1 },
 
   // ============================================================================
   // LEGENDARY (Rarity 4) - Exceptional
