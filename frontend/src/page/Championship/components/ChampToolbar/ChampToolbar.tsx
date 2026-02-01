@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import './_champToolbar.scss'
-import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle, Delete } from "@mui/icons-material"
+import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle, Delete, Update, ArrowUpward } from "@mui/icons-material"
 import { ChampType, badgeType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
@@ -28,6 +28,7 @@ export interface BadgeToolbarProps {
   onRemove?: () => void
   onSubmit?: () => void
   loading?: boolean
+  deleteLoading?: boolean
   removeLoading?: boolean
   canSubmit?: boolean
   canRemove?: boolean
@@ -284,12 +285,14 @@ const ChampToolbar: React.FC<champToolbarType> = ({
             label: "Delete",
             startIcon: <Delete/>,
             onClick: badgeProps?.onDelete,
+            loading: badgeProps?.deleteLoading,
             color: "error",
           })
         }
       }
       buttons.push({
         label: typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit",
+        startIcon: typeof badgeProps.isEdit !== "boolean" ? <Update/> : <ArrowUpward/>,
         onClick: badgeProps?.onSubmit,
         loading: badgeProps?.loading,
         disabled: badgeProps?.canSubmit === false,

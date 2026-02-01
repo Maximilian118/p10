@@ -225,6 +225,7 @@ const Championship: React.FC = () => {
     delete: () => Promise<void>
     remove: () => Promise<void>
     loading: boolean
+    deleteLoading: boolean
     removeLoading: boolean
     isNewBadge: boolean
     canSubmit: boolean
@@ -858,6 +859,7 @@ const Championship: React.FC = () => {
     onRemove: badgeEditHandlers?.remove,
     onSubmit: badgeEditHandlers?.submit,
     loading: badgeEditHandlers?.loading,
+    deleteLoading: badgeEditHandlers?.deleteLoading,
     removeLoading: badgeEditHandlers?.removeLoading,
     canSubmit: badgeEditHandlers?.canSubmit,
     canRemove: badgeEditHandlers?.canRemove,

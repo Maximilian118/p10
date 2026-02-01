@@ -51,6 +51,7 @@ export interface BadgePickerEditRef {
   delete: () => Promise<void>
   remove: () => Promise<void>
   loading: boolean
+  deleteLoading: boolean
   removeLoading: boolean
   isNewBadge: boolean
   canSubmit: boolean
@@ -328,13 +329,14 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         delete: () => handlersRef.current.delete(),
         remove: () => handlersRef.current.remove(),
         loading,
+        deleteLoading: delLoading,
         removeLoading,
         isNewBadge,
         canSubmit,
         canRemove,
       })
     }
-  }, [onHandlersReady, loading, removeLoading, isNewBadge, canSubmit, canRemove])
+  }, [onHandlersReady, loading, delLoading, removeLoading, isNewBadge, canSubmit, canRemove])
 
   return (
     <div className="badge-picker-edit">
