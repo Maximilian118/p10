@@ -88,27 +88,33 @@ const BadgeFilterDraw = <T extends { champBadges: badgeType[] }>({
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
-      <div className={`badge-filter-draw ${draw ? "badge-draw-open" : ""}`}>
-          <div className="badge-filter-options">
-            {badgeRarities().map((rarity: badgeRarityType, i: number) => (
-              <MUICheckbox
-                key={i}
-                text={rarity.rarityName}
-                checked={filtered.includes(rarity.rarity)}
-                onClick={(e: MouseEvent) => filterBadgesHandler(e, rarity)}
-                checkedColour={rarity.colour}
-              />
-            ))}
-          </div>
-          {defaultsButton && (
-            <div className="badge-filter-buttons">
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
-              >{`${!hasDefbadges(form) ? "Add" : "Remove"} defaults`}</Button>
+      {/* Zero-height sticky wrapper keeps draw at bottom of scroll area without taking space. */}
+      <div className="badge-filter-draw-wrapper">
+        <div className="badge-filter-draw">
+          {/* Inner content wrapper handles animation separately from positioning. */}
+          <div className={`badge-filter-draw-content ${draw ? "badge-draw-open" : ""}`}>
+            <div className="badge-filter-options">
+              {badgeRarities().map((rarity: badgeRarityType, i: number) => (
+                <MUICheckbox
+                  key={i}
+                  text={rarity.rarityName}
+                  checked={filtered.includes(rarity.rarity)}
+                  onClick={(e: MouseEvent) => filterBadgesHandler(e, rarity)}
+                  checkedColour={rarity.colour}
+                />
+              ))}
             </div>
-          )}
+            {defaultsButton && (
+              <div className="badge-filter-buttons">
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => onDefaultClickHandler(form.champBadges, defaults, setForm, hasDefbadges(form))}
+                >{`${!hasDefbadges(form) ? "Add" : "Remove"} defaults`}</Button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </ClickAwayListener>
   )

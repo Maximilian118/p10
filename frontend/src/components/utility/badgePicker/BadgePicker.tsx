@@ -35,10 +35,6 @@ interface badgePickerType<T> {
   championship?: string // Championship ID for badge association.
   onBadgeClick?: (badge: badgeType) => void // Callback when a badge is clicked in read-only mode.
   defaultsButton?: boolean // Show "Add/Remove defaults" button in filter drawer.
-  hideFilterDraw?: boolean // Hides the internal filter drawer (when parent renders it at a higher level).
-  filtered?: number[] // Controlled filter state from parent.
-  setFiltered?: React.Dispatch<React.SetStateAction<number[]>> // Controlled filter setter from parent.
-  onDefaultsReady?: (defaults: badgeType[]) => void // Callback to expose defaults to parent.
 }
 
 const BadgePicker = <T extends { champBadges: badgeType[] }>({
@@ -62,10 +58,6 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   championship,
   onBadgeClick,
   defaultsButton,
-  hideFilterDraw = false,
-  filtered: controlledFiltered,
-  setFiltered: controlledSetFiltered,
-  onDefaultsReady,
 }: badgePickerType<T>) => {
   // Support both controlled and uncontrolled state patterns.
   const [ internalIsEdit, setInternalIsEdit ] = useState<boolean | badgeType>(false)
@@ -80,8 +72,6 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
   const setIsEdit = controlledSetIsEdit !== undefined ? controlledSetIsEdit : setInternalIsEdit
   const draw = controlledDraw !== undefined ? controlledDraw : internalDraw
   const setDraw = controlledSetDraw !== undefined ? controlledSetDraw : setInternalDraw
-  const filtered = controlledFiltered !== undefined ? controlledFiltered : internalFiltered
-  const setFiltered = controlledSetFiltered !== undefined ? controlledSetFiltered : setInternalFiltered
 
   const navigate = useNavigate()
 
@@ -97,16 +87,9 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
     }
   }, [hasFullBadgeData, user, setUser, navigate, setBackendErr, setForm, reqSent, badgesReqSent, setBadgesReqSent, defaults, setDefaultBadges, championship])
 
-  // Notify parent when defaults are loaded so parent can pass them to BadgeFilterDraw.
-  useEffect(() => {
-    if (defaults.length > 0 && onDefaultsReady) {
-      onDefaultsReady(defaults)
-    }
-  }, [defaults, onDefaultsReady])
-
   // Filter by selected rarities and sort from most rare (5=Mythic) to least rare (0=Common).
   const badgesFiltered = form.champBadges
-    .filter((badge) => filtered.includes(badge.rarity))
+    .filter((badge) => internalFiltered.includes(badge.rarity))
     .sort((a, b) => b.rarity - a.rarity)
 
   return isEdit ?
@@ -163,18 +146,16 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
           </div>
         </ButtonBar>
       )}
-      {!hideFilterDraw && (
-        <BadgeFilterDraw
-          draw={draw}
-          setDraw={setDraw}
-          form={form}
-          setForm={setForm}
-          defaults={defaults}
-          filtered={filtered}
-          setFiltered={setFiltered}
-          defaultsButton={defaultsButton}
-        />
-      )}
+      <BadgeFilterDraw
+        draw={draw}
+        setDraw={setDraw}
+        form={form}
+        setForm={setForm}
+        defaults={defaults}
+        filtered={internalFiltered}
+        setFiltered={setInternalFiltered}
+        defaultsButton={defaultsButton}
+      />
     </div>
   )
 }

@@ -20,9 +20,6 @@ interface BadgesProps {
   draw: boolean
   setDraw: React.Dispatch<React.SetStateAction<boolean>>
   onEditHandlersReady?: (handlers: BadgePickerEditRef) => void
-  filtered: number[]
-  setFiltered: React.Dispatch<React.SetStateAction<number[]>>
-  onDefaultsReady: (defaults: badgeType[]) => void
 }
 
 // Badges view component - displays championship badges with earned status overlay.
@@ -39,9 +36,6 @@ const Badges: React.FC<BadgesProps> = ({
   draw,
   setDraw,
   onEditHandlersReady,
-  filtered,
-  setFiltered,
-  onDefaultsReady,
 }) => {
   // State for the currently selected badge to display in BadgeInfoCard.
   const [ selectedBadge, setSelectedBadge ] = useState<badgeType | null>(null)
@@ -104,10 +98,6 @@ const Badges: React.FC<BadgesProps> = ({
         onEditHandlersReady={onEditHandlersReady}
         championship={champ._id}
         onBadgeClick={handleBadgeClick}
-        hideFilterDraw={true}
-        filtered={filtered}
-        setFiltered={setFiltered}
-        onDefaultsReady={onDefaultsReady}
       />
     </div>
   )

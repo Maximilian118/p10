@@ -20,8 +20,6 @@ import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/A
 import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import Badges from "./Views/Badges/Badges"
-import BadgeFilterDraw from "../../components/utility/badgePicker/badgeFilterDraw/BadgeFilterDraw"
-import { badgeRarities, badgeRarityType } from "../../shared/badgeOutcomes"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import Invite from "./Views/Invite/Invite"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
@@ -233,17 +231,6 @@ const Championship: React.FC = () => {
     canSubmit: boolean
     canRemove: boolean
   } | null>(null)
-
-  // Badge filter state - managed here so BadgeFilterDraw can render at content-container level.
-  const [ badgeFiltered, setBadgeFiltered ] = useState<number[]>(badgeRarities().map((rarity: badgeRarityType) => rarity.rarity))
-  const [ badgeDefaults, setBadgeDefaults ] = useState<badgeType[]>([])
-
-  // Reset badge filter when entering badges view so all badges are visible.
-  useEffect(() => {
-    if (view === "badges") {
-      setBadgeFiltered(badgeRarities().map((rarity: badgeRarityType) => rarity.rarity))
-    }
-  }, [view])
 
   const navigate = useNavigate()
 
@@ -1311,9 +1298,6 @@ const Championship: React.FC = () => {
             draw={badgeDraw}
             setDraw={setBadgeDraw}
             onEditHandlersReady={setBadgeEditHandlers}
-            filtered={badgeFiltered}
-            setFiltered={setBadgeFiltered}
-            onDefaultsReady={setBadgeDefaults}
           />
         )}
 
@@ -1413,28 +1397,6 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {/* BadgeFilterDraw - rendered at content-container level for correct positioning */}
-        {view === "badges" && !badgeIsEdit && (
-          <BadgeFilterDraw
-            draw={badgeDraw}
-            setDraw={setBadgeDraw}
-            form={{ champBadges: champ.champBadges || [] }}
-            setForm={(updater) => {
-              if (typeof updater === "function") {
-                setChamp((prev) => {
-                  if (!prev) return prev
-                  const newForm = updater({ champBadges: prev.champBadges || [] })
-                  return { ...prev, champBadges: newForm.champBadges }
-                })
-              } else {
-                setChamp((prev) => (prev ? { ...prev, champBadges: updater.champBadges } : prev))
-              }
-            }}
-            defaults={badgeDefaults}
-            filtered={badgeFiltered}
-            setFiltered={setBadgeFiltered}
-          />
-        )}
       </div>
       <ViewsDrawer
         open={drawerOpen}

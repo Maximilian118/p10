@@ -4,7 +4,7 @@
 .badge-picker {
   width: 100%;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   @include mixins.flexbox-space-between-column;
   flex-shrink: 0;
   flex-grow: 1;
