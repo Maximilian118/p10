@@ -1,18 +1,23 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
-// Wrapper handles height animation using CSS grid trick.
+// Wrapper handles height animation using CSS grid trick with sticky positioning.
 .badge-info-card-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease-out, margin-top 0.3s ease-out;
+  transition: grid-template-rows 0.3s ease-out, padding-top 0.3s ease-out;
   width: 85%;
   margin: 0 7.5%;
+  padding-top: 0;
+  background: transparent;
 
   &--open {
     grid-template-rows: 1fr;
-    margin-top: 20px;
-    margin-bottom: 10px;
+    padding-top: 20px;
+    padding-bottom: 10px;
   }
 
   // Hide border when collapsed by using opacity on the card.
@@ -31,7 +36,7 @@
   overflow: hidden;
   min-height: 0;
   position: relative;
-  z-index: 1;
+  z-index: 6;
   background: white;
   border-radius: 8px;
   @include mixins.flexbox-start-column;
