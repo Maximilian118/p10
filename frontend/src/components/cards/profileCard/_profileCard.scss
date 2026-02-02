@@ -21,14 +21,31 @@
     flex-grow: 1;
     @include mixins.flexbox-column;
     align-items: start;
+    padding-right: 20px;
 
     p {
       color: variables.$colour-6;
-      margin-bottom: 2px;
+      margin-bottom: 5px;
     }
 
     h5 {
       font-weight: 300;
+    }
+
+    // Date shown separately on small viewports.
+    .profile-created-at {
+      display: none;
+
+      @media (max-width: 419px) {
+        display: block;
+      }
+    }
+
+    // Hide inline date on small viewports.
+    .profile-since-date {
+      @media (max-width: 419px) {
+        display: none;
+      }
     }
 
     .featured-badges {

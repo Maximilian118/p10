@@ -62,9 +62,10 @@ const ProfileCard = <T extends formType, U extends formErrType>(props: profileCa
         </AuraRingWrapper>
         <div className="profile-info">
           <p>{user.name}</p>
-          <h5 style={{ textTransform: "capitalize" }}>
-            {`${getPermLevelFromPermissions(user.permissions)} since: ${moment(user.created_at).format("Do MMM YYYY")}`}
+          <h5>{`${getPermLevelFromPermissions(user.permissions)} since: `}
+            <span className="profile-since-date">{`${moment(user.created_at).format("Do MMM YYYY")}`}</span>
           </h5>
+          <h5 className="profile-created-at">{`${moment(user.created_at).format("Do MMM YYYY")}`}</h5>
           <FeaturedBadges badges={user.badges} badgeSize={32} blankSlots placeholders readOnly/>
         </div>
       </div>
