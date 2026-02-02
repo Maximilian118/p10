@@ -1,55 +1,25 @@
-import React, { useState } from "react"
+import React from "react"
 import { useNavigate } from "react-router-dom"
-import './_champToolbar.scss'
-import { FilterList, GroupAdd, Lock, Block, ArrowBack, Save, Add, CheckCircle, Delete, Update, ArrowUpward } from "@mui/icons-material"
-import { ChampType, badgeType } from "../../../../shared/types"
+import "./_champToolbar.scss"
+import { ChampType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
-import { joinChamp } from "../../../../shared/requests/champRequests"
 import { ChampView } from "../../Views/ChampSettings/ChampSettings"
-import ButtonBar, { ButtonConfig } from "../../../../components/utility/buttonBar/ButtonBar"
-import { CircularProgress } from "@mui/material"
+import ButtonBar from "../../../../components/utility/buttonBar/ButtonBar"
+import { getStrategy } from "./configs"
+import { useJoinButton } from "./hooks/useJoinButton"
+import {
+  ToolbarContext,
+  FormToolbarProps,
+  BadgeToolbarProps,
+  RulesAndRegsToolbarProps,
+  CompetitorsToolbarProps,
+} from "./types"
 
-// Grouped props for form views (settings, automation, protests, ruleChanges, admin).
-export interface FormToolbarProps {
-  formErr?: Record<string, string>
-  onSubmit?: () => void
-  changed?: boolean
-  loading?: boolean
-}
+// Re-export types for backward compatibility.
+export type { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps }
 
-// Grouped props for badge view.
-export interface BadgeToolbarProps {
-  onAdd?: () => void
-  onFilter?: () => void
-  isEdit?: boolean | badgeType
-  onBack?: () => void
-  onDelete?: () => void
-  onRemove?: () => void
-  onSubmit?: () => void
-  loading?: boolean
-  deleteLoading?: boolean
-  removeLoading?: boolean
-  canSubmit?: boolean
-  canRemove?: boolean
-}
-
-// Grouped props for rules and regs view.
-export interface RulesAndRegsToolbarProps {
-  onAdd?: () => void
-  isEdit?: boolean
-  isNewRule?: boolean
-  onBack?: () => void
-  onDelete?: () => void
-  onSubmit?: () => void
-  loading?: boolean
-  deleteLoading?: boolean
-  canSubmit?: boolean
-  delConfirm?: boolean  // Delete confirmation state
-  onDelConfirmBack?: () => void  // Cancel delete confirmation
-}
-
-interface champToolbarType {
+interface ChampToolbarProps {
   champ: ChampType
   setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>
   user: userType
@@ -74,7 +44,7 @@ interface champToolbarType {
 }
 
 // Toolbar with action buttons for the championship page.
-const ChampToolbar: React.FC<champToolbarType> = ({
+const ChampToolbar: React.FC<ChampToolbarProps> = ({
   champ,
   setChamp,
   user,
@@ -99,311 +69,83 @@ const ChampToolbar: React.FC<champToolbarType> = ({
 }) => {
   const navigate = useNavigate()
 
-  // Loading state for join/accept invite requests.
-  const [joiningChamp, setJoiningChamp] = useState<boolean>(false)
+  // Use hook for complex join button logic.
+  const { buttonConfig: joinButtonConfig } = useJoinButton({
+    champ,
+    setChamp,
+    user,
+    setUser,
+    navigate,
+    setBackendErr,
+    navigateToView,
+    setShowInviteFullConfirm,
+    setShowAcceptInviteFullConfirm,
+    onJoinSuccess,
+  })
 
-  // Check if user is already a competitor in the championship.
-  const competitors = champ.competitors
-  const isCompetitor = competitors.some(c => c._id === user._id)
-
-  // Check if user is the adjudicator.
-  const isAdjudicator = champ.adjudicator?.current?._id === user._id
-
-  // Check if championship has reached max competitors.
-  const isFull = competitors.length >= champ.settings.maxCompetitors
-
-  // Form views that use the save button pattern.
-  const formViews: ChampView[] = ["settings", "series", "automation", "protests", "ruleChanges", "admin"]
-  const isFormView = formViews.includes(view)
-
-  // Get form props based on current view.
-  const getFormProps = (): FormToolbarProps | undefined => {
-    if (view === "settings" || view === "series") return settingsProps
-    if (view === "automation") return automationProps
-    if (view === "protests") return protestsProps
-    if (view === "ruleChanges") return ruleChangesProps
-    if (view === "admin") return adminProps
-    return undefined
+  // Build context with pre-computed permissions.
+  const context: ToolbarContext = {
+    champ,
+    user,
+    view,
+    isAdjudicator: champ.adjudicator?.current?._id === user._id,
+    isAdmin: user.permissions?.admin === true,
+    isCompetitor: champ.competitors.some((c) => c._id === user._id),
+    isBanned: champ.banned?.some((b) => b._id === user._id) ?? false,
+    isInvited: champ.invited?.some((i) => i._id === user._id) ?? false,
+    isFull: champ.competitors.length >= champ.settings.maxCompetitors,
+    navigate,
+    onBack,
+    navigateToView,
+    onDrawerClick,
+    setChamp,
+    setUser,
+    setBackendErr,
+    setShowInviteFullConfirm,
+    setShowAcceptInviteFullConfirm,
   }
 
-  const formProps = getFormProps()
+  // Get strategy for current view.
+  const strategy = getStrategy(view)
 
-  // Check if save button should be disabled (no changes or form errors).
-  const isSaveDisabled = !formProps?.loading && (
-    !formProps?.changed ||
-    Object.values(formProps?.formErr || {}).some(err => !!err)
-  )
-
-  // Check if user is banned from this championship.
-  const isBanned = champ.banned?.some(b => b._id === user._id)
-
-  // Check if user is invited to this championship.
-  const isInvited = champ.invited?.some(i => i._id === user._id)
-
-  // Get join/invite button config based on championship state.
-  const getJoinButtonConfig = (): ButtonConfig | undefined => {
-    // Show "You are banned" button if user is banned.
-    if (isBanned) {
-      return {
-        label: "You are banned",
-        endIcon: <Block />,
-        color: "error",
-        disabled: true,
-      }
-    }
-
-    if (!champ.settings.inviteOnly) {
-      if (isCompetitor) return undefined
-      if (isFull) {
-        return { label: "Championship Full", endIcon: <Block />, disabled: true }
-      }
-      return {
-        label: "Join Championship",
-        onClick: async () => {
-          setJoiningChamp(true)
-          const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
-          setJoiningChamp(false)
-          if (success && onJoinSuccess) onJoinSuccess()
-        },
-        endIcon: joiningChamp ? <CircularProgress size={16} color="inherit"/> : <GroupAdd />,
-        color: "success",
-      }
-    }
-
-    // Invite only championship.
-    if (isAdjudicator) {
-      return {
-        label: "Invite Competitors",
-        onClick: () => {
-          if (isFull && setShowInviteFullConfirm) {
-            setShowInviteFullConfirm(true)
-          } else if (navigateToView) {
-            navigateToView("invite")
-          }
-        },
-        endIcon: <GroupAdd />,
-        color: "success",
-      }
-    }
-
-    // Show "Accept Invite" button for invited users.
-    if (isInvited) {
-      return {
-        label: "Accept Invite",
-        onClick: async () => {
-          if (isFull && setShowAcceptInviteFullConfirm) {
-            setShowAcceptInviteFullConfirm(true)
-          } else {
-            setJoiningChamp(true)
-            const success = await joinChamp(champ._id, setChamp, user, setUser, navigate, setBackendErr)
-            setJoiningChamp(false)
-            if (success && onJoinSuccess) onJoinSuccess()
-          }
-        },
-        endIcon: joiningChamp ? <CircularProgress size={16} color="inherit"/> : <CheckCircle />,
-        color: "success",
-      }
-    }
-
-    if (isCompetitor) return undefined
-    return { label: "Invite Only", endIcon: <Lock />, disabled: true }
-  }
-
-  // Back button config used across multiple views.
-  const getBackButton = (): ButtonConfig => {
-    const backHandler = view === "badges" && badgeProps?.isEdit && badgeProps?.onBack
-      ? badgeProps.onBack
-      : onBack
-    return {
-      label: "Back",
-      onClick: backHandler,
-      startIcon: <ArrowBack />,
-      color: "inherit",
+  // Get view-specific props based on current view.
+  const getViewProps = (): unknown => {
+    switch (view) {
+      case "competitors":
+        return { adjudicatorView, onExitAdjudicatorView } as CompetitorsToolbarProps
+      case "badges":
+        return badgeProps
+      case "rulesAndRegs":
+        return rulesAndRegsProps
+      case "settings":
+      case "series":
+      case "automation":
+      case "protests":
+      case "ruleChanges":
+      case "admin":
+        return { settingsProps, automationProps, protestsProps, ruleChangesProps, adminProps }
+      default:
+        return undefined
     }
   }
 
-  // Adjudicator view on competitors - simplified toolbar (back + views only).
-  if (view === "competitors" && adjudicatorView) {
-    return (
-      <ButtonBar
-        leftButtons={[{
-          label: "Back",
-          onClick: onExitAdjudicatorView,
-          startIcon: <ArrowBack />,
-          color: "inherit",
-        }]}
-        rightButtons={[{ label: "Views", onClick: onDrawerClick, endIcon: <FilterList /> }]}
-      />
-    )
+  const viewProps = getViewProps()
+
+  // Compute mode from view-specific props.
+  const mode = strategy.getMode?.(viewProps) ?? "browse"
+
+  // Get button config from strategy.
+  const config =
+    view === "competitors"
+      ? strategy.getConfig(context, mode, viewProps, joinButtonConfig)
+      : strategy.getConfig(context, mode, viewProps)
+
+  // Render ButtonBar with appropriate layout.
+  if (config.leftButtons || config.rightButtons) {
+    return <ButtonBar leftButtons={config.leftButtons} rightButtons={config.rightButtons} />
   }
 
-  // Badges view (not edit mode) - uses grouped layout.
-  if (view === "badges" && !badgeProps?.isEdit) {
-    const rightButtons: ButtonConfig[] = [
-      { label: "Filter", onClick: badgeProps?.onFilter, endIcon: <FilterList /> },
-    ]
-    if (isAdjudicator) {
-      rightButtons.push({
-        onClick: badgeProps?.onAdd,
-        endIcon: <Add />,
-        className: "button-medium add-button",
-        color: "success",
-      })
-    }
-    return (
-      <ButtonBar
-        leftButtons={[getBackButton()]}
-        rightButtons={rightButtons}
-      />
-    )
-  }
-
-  // RulesAndRegs view (not edit mode) - Back + Add button (adjudicator only).
-  if (view === "rulesAndRegs" && !rulesAndRegsProps?.isEdit) {
-    const rightButtons: ButtonConfig[] = []
-    if (isAdjudicator || user.permissions?.admin) {
-      rightButtons.push({
-        onClick: rulesAndRegsProps?.onAdd,
-        endIcon: <Add />,
-        className: "button-medium add-button",
-        color: "success",
-      })
-    }
-    return (
-      <ButtonBar
-        leftButtons={[getBackButton()]}
-        rightButtons={rightButtons}
-      />
-    )
-  }
-
-  // RulesAndRegs edit mode - Back + Delete + Submit buttons.
-  if (view === "rulesAndRegs" && rulesAndRegsProps?.isEdit) {
-    // Delete confirmation mode - simplified Back + Delete.
-    if (rulesAndRegsProps.delConfirm) {
-      return (
-        <ButtonBar
-          leftButtons={[{
-            label: "Back",
-            onClick: rulesAndRegsProps.onDelConfirmBack,
-            startIcon: <ArrowBack />,
-            color: "inherit",
-          }]}
-          rightButtons={[{
-            label: "Delete",
-            onClick: rulesAndRegsProps.onDelete,
-            loading: rulesAndRegsProps.deleteLoading,
-            startIcon: <Delete />,
-            color: "error",
-          }]}
-        />
-      )
-    }
-
-    // Normal edit mode.
-    const buttons: ButtonConfig[] = [
-      {
-        label: "Back",
-        onClick: rulesAndRegsProps.onBack,
-        startIcon: <ArrowBack />,
-        color: "inherit",
-      },
-    ]
-
-    // Delete button (only for existing rules, not new).
-    if (!rulesAndRegsProps.isNewRule) {
-      buttons.push({
-        label: "Delete",
-        startIcon: <Delete />,
-        onClick: rulesAndRegsProps.onDelete,
-        loading: rulesAndRegsProps.deleteLoading,
-        color: "error",
-      })
-    }
-
-    // Submit/Update button.
-    buttons.push({
-      label: rulesAndRegsProps.isNewRule ? "Submit" : "Update",
-      startIcon: rulesAndRegsProps.isNewRule ? <ArrowUpward /> : <Update />,
-      onClick: rulesAndRegsProps.onSubmit,
-      loading: rulesAndRegsProps.loading,
-      disabled: rulesAndRegsProps.canSubmit === false,
-    })
-
-    return <ButtonBar buttons={buttons} />
-  }
-
-  // Build buttons array for other views.
-  const getButtons = (): ButtonConfig[] => {
-    const buttons: ButtonConfig[] = []
-
-    // Back button - all views except competitors.
-    if (view !== "competitors") {
-      buttons.push(getBackButton())
-    }
-
-    // Competitors view - Join/Invite button.
-    if (view === "competitors") {
-      const joinConfig = getJoinButtonConfig()
-      if (joinConfig) buttons.push(joinConfig)
-    }
-
-    // Form views - Save button.
-    if (isFormView) {
-      buttons.push({
-        label: "Save",
-        onClick: formProps?.onSubmit,
-        startIcon: <Save />,
-        disabled: isSaveDisabled,
-        loading: formProps?.loading,
-        color: "success",
-      })
-    }
-
-    // Badges edit mode - Delete/Remove and Submit/Update buttons.
-    if (view === "badges" && badgeProps?.isEdit) {
-      if (typeof badgeProps.isEdit !== "boolean") {
-        // Existing badge - show Remove for defaults, Delete for custom.
-        if (badgeProps.canRemove) {
-          buttons.push({
-            label: "Remove",
-            onClick: badgeProps?.onRemove,
-            startIcon: <Delete/>,
-            loading: badgeProps?.removeLoading,
-            color: "error",
-          })
-        } else {
-          buttons.push({
-            label: "Delete",
-            startIcon: <Delete/>,
-            onClick: badgeProps?.onDelete,
-            loading: badgeProps?.deleteLoading,
-            color: "error",
-          })
-        }
-      }
-      buttons.push({
-        label: typeof badgeProps.isEdit !== "boolean" ? "Update" : "Submit",
-        startIcon: typeof badgeProps.isEdit !== "boolean" ? <Update/> : <ArrowUpward/>,
-        onClick: badgeProps?.onSubmit,
-        loading: badgeProps?.loading,
-        disabled: badgeProps?.canSubmit === false,
-      })
-    }
-
-    // Views button - all views except badges.
-    if (view !== "badges") {
-      buttons.push({
-        label: "Views",
-        onClick: onDrawerClick,
-        endIcon: <FilterList />,
-      })
-    }
-
-    return buttons
-  }
-
-  return <ButtonBar buttons={getButtons()} />
+  return <ButtonBar buttons={config.buttons} />
 }
 
 export default ChampToolbar

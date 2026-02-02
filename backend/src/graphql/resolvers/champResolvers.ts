@@ -345,7 +345,6 @@ const champResolvers = {
 
       return filterChampForUser({
         ...champ._doc,
-        discoveredBadgesCount: champ.discoveredBadges?.length || 0,
         tokens: req.tokens,
       }, isAdmin)
     } catch (err) {
@@ -377,10 +376,7 @@ const champResolvers = {
       return {
         array: champs.map(champ => {
           const champData = champ._doc || champ
-          return filterChampForUser({
-            ...champData,
-            discoveredBadgesCount: champ.discoveredBadges?.length || 0,
-          }, isAdmin)
+          return filterChampForUser(champData, isAdmin)
         }),
         tokens: req.tokens,
       }
