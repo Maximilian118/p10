@@ -6,7 +6,7 @@ import "./_fillLoading.scss"
 const FillLoading: React.FC = () => {
   return (
     <div className="fill-loading">
-      <CircularProgress/>
+      <CircularProgress size={60}/>
     </div>
   )
 }
