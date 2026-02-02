@@ -5,10 +5,13 @@ import RuleOrReg from "./ruleOrReg/RuleOrReg"
 import { defaultRulesAndRegs, isDefaultRorR } from "../../../shared/rulesAndRegs"
 import { userType } from "../../../shared/localStorage"
 import { ruleOrRegType, rulesAndRegsType } from "../../../shared/types"
-import RulesAndRegsEdit from "./rulesAndRegsEdit/RulesAndRegsEdit"
+import RulesAndRegsEdit, { RulesAndRegsEditHandlers } from "./rulesAndRegsEdit/RulesAndRegsEdit"
 import ButtonBar from "../buttonBar/ButtonBar"
 import AddButton from "../button/addButton/AddButton"
-import { initEditState } from "./rulesAndRegsUtility"
+import { editStateType, initEditState } from "./rulesAndRegsUtility"
+
+// Re-export editStateType for consumers.
+export type { editStateType }
 
 interface rulesAndRegsFormErr {
   rulesAndRegs?: string
@@ -21,12 +24,14 @@ interface rulesAndRegsPickerType<T, U extends rulesAndRegsFormErr> {
   setForm: React.Dispatch<React.SetStateAction<T>>
   formErr?: U
   setFormErr?: React.Dispatch<React.SetStateAction<U>>
-}
-
-export interface editStateType {
-  newRuleReg: boolean
-  index: number | null
-  ruleReg: ruleOrRegType | null
+  readOnly?: boolean  // Hides all edit controls (EditButtons)
+  buttonBar?: boolean  // Shows internal ButtonBar (only for CreateChamp)
+  externalEdit?: editStateType  // External edit state (for championship view)
+  onExternalEditChange?: (updater: React.SetStateAction<editStateType>) => void
+  onRuleAdd?: (ruleReg: ruleOrRegType) => Promise<void>
+  onRuleUpdate?: (ruleIndex: number, ruleReg: ruleOrRegType) => Promise<void>
+  onRuleDelete?: (ruleIndex: number) => Promise<void>
+  onHandlersReady?: (handlers: RulesAndRegsEditHandlers) => void  // Callback to expose edit handlers
 }
 
 const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U extends rulesAndRegsFormErr>({
@@ -34,8 +39,20 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
   form,
   setForm,
   setFormErr,
+  readOnly,
+  buttonBar,
+  externalEdit,
+  onExternalEditChange,
+  onRuleAdd,
+  onRuleUpdate,
+  onRuleDelete,
+  onHandlersReady,
 }: rulesAndRegsPickerType<T, U>) => {
-  const [ edit, setEdit ] = useState<editStateType>(initEditState)
+  const [ internalEdit, setInternalEdit ] = useState<editStateType>(initEditState)
+
+  // Use external edit state if provided, otherwise use internal state.
+  const edit = externalEdit ?? internalEdit
+  const setEdit = onExternalEditChange ?? setInternalEdit
 
   const isEdit = edit.newRuleReg || edit.ruleReg
   const hasDefs = form.rulesAndRegs.some((rr: ruleOrRegType) => isDefaultRorR(user, rr))
@@ -62,6 +79,11 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
       setEdit={setEdit}
       setForm={setForm}
       setFormErr={setFormErr}
+      onRuleAdd={onRuleAdd}
+      onRuleUpdate={onRuleUpdate}
+      onRuleDelete={onRuleDelete}
+      buttonBar={buttonBar}
+      onHandlersReady={onHandlersReady}
     /> : (
     <div className="rules-and-regs-picker">
       {form.rulesAndRegs.length > 0 ?
@@ -73,6 +95,7 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
               item={item}
               setEdit={setEdit}
               isDefault={isDefaultRorR(user, item)}
+              readOnly={readOnly}
             />
           )}
         </div> :
@@ -80,14 +103,16 @@ const RulesAndRegsPicker = <T extends { rulesAndRegs: rulesAndRegsType }, U exte
           <p>You need some Rules and Regulations. This is simply illegal!</p>
         </div>
       }
-      <ButtonBar position="sticky">
-        <div className="button-group">
-          <Button variant="contained" size="small" onClick={defaultsHandler}>
-            {`${hasDefs ? "Remove" : "Add"} Defaults`}
-          </Button>
-          <AddButton onClick={() => setEdit(prev => ({ ...prev, newRuleReg: true }))} />
-        </div>
-      </ButtonBar>
+      {buttonBar && (
+        <ButtonBar position="sticky">
+          <div className="button-group">
+            <Button variant="contained" size="small" onClick={defaultsHandler}>
+              {`${hasDefs ? "Remove" : "Add"} Defaults`}
+            </Button>
+            <AddButton onClick={() => setEdit(prev => ({ ...prev, newRuleReg: true }))} />
+          </div>
+        </ButtonBar>
+      )}
     </div>
   )
 }

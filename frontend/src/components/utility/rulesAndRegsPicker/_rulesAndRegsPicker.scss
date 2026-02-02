@@ -9,8 +9,9 @@
 
   .rules-and-regs-list, .rules-and-regs-empty {
     width: 100%;
-    padding: 20px 7.5%;
+    padding: 20px 7.5% 120px;
     box-sizing: border-box;
+     flex-grow: 1;
   }
 
   // Sticky ButtonBar overlaps content (no blank space at bottom).

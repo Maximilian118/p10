@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import './_rulesAndRegsEdit.scss'
 import { editStateType} from "../RulesAndRegsPicker"
 import { Button, TextField } from "@mui/material"
@@ -8,10 +8,23 @@ import { userType } from "../../../../shared/localStorage"
 import RemoveButton from "../../button/removeButton/RemoveButton"
 import { isDefaultRorR } from "../../../../shared/rulesAndRegs"
 import { initEditState } from "../rulesAndRegsUtility"
+import ButtonBar from "../../buttonBar/ButtonBar"
+import { Rule } from "@mui/icons-material"
+import { useChampFlowForm } from "../../../../context/ChampFlowContext"
 
 interface rulesAndRegsFormErr {
   rulesAndRegs?: string
   [key: string]: string | undefined | number
+}
+
+// Handlers exposed to parent for ChampToolbar integration.
+export interface RulesAndRegsEditHandlers {
+  onSubmit: () => void
+  onDelete: () => void
+  delConfirm: boolean
+  setDelConfirm: (val: boolean) => void
+  loading: boolean
+  deleteLoading: boolean
 }
 
 interface regsAndRulesEditType<T, U extends rulesAndRegsFormErr> {
@@ -20,6 +33,11 @@ interface regsAndRulesEditType<T, U extends rulesAndRegsFormErr> {
   setEdit: React.Dispatch<React.SetStateAction<editStateType>>
   setForm: React.Dispatch<React.SetStateAction<T>>
   setFormErr?: React.Dispatch<React.SetStateAction<U>>
+  onRuleAdd?: (ruleReg: ruleOrRegType) => Promise<void>
+  onRuleUpdate?: (ruleIndex: number, ruleReg: ruleOrRegType) => Promise<void>
+  onRuleDelete?: (ruleIndex: number) => Promise<void>
+  buttonBar?: boolean  // Shows internal ButtonBar (only for CreateChamp context)
+  onHandlersReady?: (handlers: RulesAndRegsEditHandlers) => void  // Callback to expose handlers
 }
 
 // Initializes a new rule or regulation with default values.
@@ -62,13 +80,36 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
   setEdit,
   setForm,
   setFormErr,
+  onRuleAdd,
+  onRuleUpdate,
+  onRuleDelete,
+  buttonBar,
+  onHandlersReady,
 }: regsAndRulesEditType<T, U>) => {
   const [ delConfirm, SetDelConfirm ] = useState<boolean>(false)
   const [ ruleReg, setRuleReg ] = useState<ruleOrRegType>(initruleReg(user, edit.ruleReg))
   const [ error, setError ] = useState<errorType>(initError)
+  const [ loading, setLoading ] = useState<boolean>(false)
+  const [ deleteLoading, setDeleteLoading ] = useState<boolean>(false)
+
+  // Ref to always have access to the latest ruleReg value (avoids stale closure issues).
+  const ruleRegRef = useRef(ruleReg)
+  useEffect(() => {
+    ruleRegRef.current = ruleReg
+  }, [ruleReg])
 
   // Delete the entire ruleReg.
-  const deleteRRHandler = (setForm: React.Dispatch<React.SetStateAction<T>>): void => {
+  const deleteRRHandler = async (setForm: React.Dispatch<React.SetStateAction<T>>): Promise<void> => {
+    // If API handler is provided, use it for championship context.
+    if (onRuleDelete && edit.index) {
+      setDeleteLoading(true)
+      await onRuleDelete(edit.index - 1)
+      setDeleteLoading(false)
+      setEdit(initEditState)
+      return
+    }
+
+    // Otherwise update local form state (CreateChamp context).
     setForm((prevForm: T) => {
       return {
         ...prevForm,
@@ -128,14 +169,17 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
   }
 
   // Update form with the ruleReg.
-  const updateRRHandler = (
+  const updateRRHandler = async (
     setForm: React.Dispatch<React.SetStateAction<T>>,
     setEdit: React.Dispatch<React.SetStateAction<editStateType>>
-  ): void => {
-    if (ruleReg.subsections) {
+  ): Promise<void> => {
+    // Use ref to always get the latest ruleReg value (avoids stale closure issues).
+    const currentRuleReg = ruleRegRef.current
+
+    if (currentRuleReg.subsections) {
       let hasErr: boolean = false
 
-      if (ruleReg.text.trim() === "") {
+      if (currentRuleReg.text.trim() === "") {
         setError({
           msg: "Please enter text.",
           index: null
@@ -144,7 +188,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
         return
       }
 
-      ruleReg.subsections.forEach((r: ruleSubsectionType, i: number) => {
+      currentRuleReg.subsections.forEach((r: ruleSubsectionType, i: number) => {
         if (r.text.trim() === "") {
           setError({
             msg: "Please enter text.",
@@ -161,10 +205,26 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
 
     // Re-evaluate the default flag based on whether the rule still matches a predefined default.
     const updatedRuleReg = {
-      ...ruleReg,
-      default: isDefaultRorR(user, ruleReg),
+      ...currentRuleReg,
+      default: isDefaultRorR(user, currentRuleReg),
     }
 
+    // If API handlers are provided, use them for championship context.
+    if (edit.index && onRuleUpdate) {
+      setLoading(true)
+      await onRuleUpdate(edit.index - 1, updatedRuleReg)
+      setLoading(false)
+      setEdit(initEditState)
+      return
+    } else if (edit.newRuleReg && onRuleAdd) {
+      setLoading(true)
+      await onRuleAdd(updatedRuleReg)
+      setLoading(false)
+      setEdit(initEditState)
+      return
+    }
+
+    // Otherwise update local form state (CreateChamp context).
     if (edit.index) {
       setForm(prevForm => {
         return {
@@ -195,26 +255,44 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
     setEdit(initEditState)
   }
 
-  // JSX for the delete confirm button.
-  const deleteConfirmButton = (): JSX.Element => (
-    <div className="delete-confirm">
-        <p>Are you sure?</p>
-        <div className="delete-confirm-buttons">
-          <Button
-            className="mui-button-back"
-            style={{ margin: "0 10px" }}
-            variant="contained" 
-            color="inherit"
-            onClick={() => SetDelConfirm(false)}
-          >Back</Button>
-          <Button
-            variant="contained" 
-            color="error"
-            onClick={() => deleteRRHandler(setForm)}
-          >Delete</Button>
-        </div>
-    </div>
-  )
+  // Store handlers in ref to avoid stale closures when parent calls them (same pattern as BadgePickerEdit).
+  const handlersRef = useRef({
+    submit: () => updateRRHandler(setForm, setEdit),
+    delete: () => deleteRRHandler(setForm),
+  })
+  useEffect(() => {
+    handlersRef.current = {
+      submit: () => updateRRHandler(setForm, setEdit),
+      delete: () => deleteRRHandler(setForm),
+    }
+  })
+
+  // Register handlers with parent ButtonBar when in CreateChamp context.
+  const { showButtonBar } = useChampFlowForm({
+    submit: async () => { await handlersRef.current.submit() },
+    back: () => setEdit(initEditState),
+    isEditing: !edit.newRuleReg,
+    loading,
+    delLoading: deleteLoading,
+    canDelete: !edit.newRuleReg,
+    canRemove: false,
+    canSubmit: true,
+    onDelete: async () => { await handlersRef.current.delete() },
+  }, buttonBar === true)
+
+  // Expose stable wrapper functions to parent for ChampToolbar integration.
+  useEffect(() => {
+    if (onHandlersReady) {
+      onHandlersReady({
+        onSubmit: () => handlersRef.current.submit(),
+        onDelete: () => handlersRef.current.delete(),
+        delConfirm,
+        setDelConfirm: SetDelConfirm,
+        loading,
+        deleteLoading,
+      })
+    }
+  }, [onHandlersReady, delConfirm, loading, deleteLoading])
 
   // JSX for a section.
   const section = (ruleReg: ruleOrRegType, index?: number): JSX.Element => {
@@ -292,33 +370,61 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
       </div>
       {section(ruleReg)}
       {ruleReg.subsections?.map((_rr: ruleSubsectionType, i: number) => section(ruleReg, i))}
-      <div className="button-bar sub-btns">
-        <Button
-          className="sub-add-button"
-          variant="contained"
-          onClick={() => newSubsection(user, setRuleReg)}
-        >New Subsection</Button>
-      </div>
-      <div className="button-bar">
-        {delConfirm ? deleteConfirmButton() : 
-        <>
-          <Button
-            className="mui-button-back"
-            variant="contained" 
-            color="inherit"
-            onClick={() => setEdit(initEditState)}
-          >Back</Button>
-          {!edit.newRuleReg && <Button
-            variant="contained" 
-            color="error"
-            onClick={() => SetDelConfirm(true)}
-          >Delete</Button>}
-          <Button
-            variant="contained"
-            onClick={() => updateRRHandler(setForm, setEdit)}
-          >Submit</Button>
-        </>}
-      </div>
+      <Button
+        variant="contained"
+        className="full-width-btn"
+        onClick={() => newSubsection(user, setRuleReg)}
+        startIcon={<Rule/>}
+      >
+        New Subsection
+      </Button>
+      {buttonBar && showButtonBar && (
+        delConfirm ? (
+          <ButtonBar>
+            <div className="delete-confirm">
+              <p>Are you sure?</p>
+              <ButtonBar
+                buttons={[
+                  {
+                    label: "Back",
+                    onClick: () => SetDelConfirm(false),
+                    disabled: deleteLoading,
+                    color: "inherit",
+                  },
+                  {
+                    label: deleteLoading ? "Deleting..." : "Delete",
+                    onClick: () => deleteRRHandler(setForm),
+                    disabled: deleteLoading,
+                    color: "error",
+                  },
+                ]}
+              />
+            </div>
+          </ButtonBar>
+        ) : (
+          <ButtonBar
+            buttons={[
+              {
+                label: "Back",
+                onClick: () => setEdit(initEditState),
+                disabled: loading || deleteLoading,
+                color: "inherit",
+              },
+              ...(edit.newRuleReg ? [] : [{
+                label: "Delete",
+                onClick: () => SetDelConfirm(true),
+                disabled: loading || deleteLoading,
+                color: "error" as const,
+              }]),
+              {
+                label: loading ? "Saving..." : "Submit",
+                onClick: () => updateRRHandler(setForm, setEdit),
+                disabled: loading || deleteLoading,
+              },
+            ]}
+          />
+        )
+      )}
     </div>
   )
 }

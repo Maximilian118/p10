@@ -104,7 +104,11 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
     {
       icon: <GavelIcon />,
       label: "Rules and Regulations",
-      onClick: handleClose,
+      onClick: () => {
+        setOpen(false)
+        setView("rulesAndRegs")
+      },
+      viewId: "rulesAndRegs",
     },
     {
       icon: <ReportProblemIcon />,

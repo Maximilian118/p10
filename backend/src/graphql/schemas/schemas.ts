@@ -61,6 +61,12 @@ const Schema = buildSchema(`
     updateRoundStatus(_id: ID!, input: UpdateRoundStatusInput!): Champ!
     placeBet(_id: ID!, input: PlaceBetInput!): Champ!
     submitDriverPositions(_id: ID!, input: SubmitDriverPositionsInput!): Champ!
+    addRule(_id: ID!, input: AddRuleInput!): RulesAndRegsResponse!
+    updateRule(_id: ID!, input: UpdateRuleInput!): RulesAndRegsResponse!
+    deleteRule(_id: ID!, ruleIndex: Int!): RulesAndRegsResponse!
+    addSubsection(_id: ID!, input: AddSubsectionInput!): Champ!
+    updateSubsection(_id: ID!, input: UpdateSubsectionInput!): Champ!
+    deleteSubsection(_id: ID!, input: DeleteSubsectionInput!): Champ!
     deleteChamp(_id: ID!, confirmName: String!): DeletedChamp!
     newBadge(badgeInput: badgeInput): Badge!
     updateBadge(updateBadgeInput: updateBadgeInput): Badge!

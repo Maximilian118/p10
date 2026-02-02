@@ -327,6 +327,86 @@ export const populateSeries = `
   updated_at
 `
 
+// Minimal population for rules mutations (avoids full champ population).
+export const populateRulesAndRegs = `
+  rulesAndRegs {
+    default
+    text
+    created_by {
+      _id
+      name
+      icon
+    }
+    pendingChanges {
+      competitor {
+        _id
+        name
+        icon
+      }
+      status
+      title
+      description
+      votes {
+        competitor {
+          _id
+          name
+          icon
+        }
+        vote
+      }
+      expiry
+    }
+    history {
+      text
+      updatedBy {
+        _id
+        name
+        icon
+      }
+      updated_at
+    }
+    subsections {
+      text
+      pendingChanges {
+        competitor {
+          _id
+          name
+          icon
+        }
+        status
+        title
+        description
+        votes {
+          competitor {
+            _id
+            name
+            icon
+          }
+          vote
+        }
+        expiry
+      }
+      history {
+        text
+        updatedBy {
+          _id
+          name
+          icon
+        }
+        updated_at
+      }
+      created_by {
+        _id
+        name
+        icon
+      }
+      created_at
+    }
+    created_at
+  }
+  tokens
+`
+
 // Championship population template literal for single champ fetch.
 export const populateChamp = `
   _id

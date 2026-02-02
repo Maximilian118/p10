@@ -157,6 +157,12 @@ const champSchema = `
     created_at: String!
   }
 
+  # Minimal response for rules mutations (avoids full Champ population).
+  type RulesAndRegsResponse {
+    rulesAndRegs: [Rule!]!
+    tokens: [String!]
+  }
+
   # Voting settings (shared by protests and ruleChanges).
   type VotingSettings {
     alwaysVote: Boolean!
@@ -280,6 +286,38 @@ const champSchema = `
     default: Boolean
     text: String!
     subsections: [RuleSubsectionInput!]
+  }
+
+  # Input for adding a new rule to an existing championship.
+  input AddRuleInput {
+    text: String!
+    subsections: [RuleSubsectionInput!]
+  }
+
+  # Input for updating an existing rule.
+  input UpdateRuleInput {
+    ruleIndex: Int!
+    text: String!
+    subsections: [RuleSubsectionInput!]
+  }
+
+  # Input for adding a new subsection to an existing rule.
+  input AddSubsectionInput {
+    ruleIndex: Int!
+    text: String!
+  }
+
+  # Input for updating an existing subsection.
+  input UpdateSubsectionInput {
+    ruleIndex: Int!
+    subsectionIndex: Int!
+    text: String!
+  }
+
+  # Input for deleting a subsection.
+  input DeleteSubsectionInput {
+    ruleIndex: Int!
+    subsectionIndex: Int!
   }
 
   # Input for updating betting window settings.

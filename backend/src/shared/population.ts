@@ -57,6 +57,18 @@ export const seriesPopulation = [
   },
 ]
 
+// Minimal population for rules mutations (avoids full champ population).
+export const rulesAndRegsPopulation = [
+  { path: "rulesAndRegs.created_by", select: "_id name icon" },
+  { path: "rulesAndRegs.history.updatedBy", select: "_id name icon" },
+  { path: "rulesAndRegs.pendingChanges.competitor", select: "_id name icon" },
+  { path: "rulesAndRegs.pendingChanges.votes.competitor", select: "_id name icon" },
+  { path: "rulesAndRegs.subsections.created_by", select: "_id name icon" },
+  { path: "rulesAndRegs.subsections.history.updatedBy", select: "_id name icon" },
+  { path: "rulesAndRegs.subsections.pendingChanges.competitor", select: "_id name icon" },
+  { path: "rulesAndRegs.subsections.pendingChanges.votes.competitor", select: "_id name icon" },
+]
+
 // Population options for championship queries.
 export const champPopulation = [
   {

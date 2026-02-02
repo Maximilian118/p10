@@ -1,0 +1,11 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.rules-and-regs-view {
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  flex-shrink: 0;
+  flex-grow: 1;
+  box-sizing: border-box;
+  position: relative;
+}

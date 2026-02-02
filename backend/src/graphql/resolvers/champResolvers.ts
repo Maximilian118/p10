@@ -18,7 +18,7 @@ import Protest from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 import { filterChampForUser } from "../../shared/utility"
-import { champPopulation } from "../../shared/population"
+import { champPopulation, rulesAndRegsPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange, broadcastBetPlaced, SOCKET_EVENTS } from "../../socket/socketHandler"
 import {
@@ -36,7 +36,7 @@ export interface PointsStructureInput {
   points: number
 }
 
-interface RuleSubsectionInput {
+export interface RuleSubsectionInput {
   text: string
 }
 
@@ -232,6 +232,12 @@ export interface FloatingChampType {
   currentRoundStatus: RoundStatus
   currentRound: number
   totalRounds: number
+  tokens: string[]
+}
+
+// Minimal return type for rules mutations (avoids full Champ population).
+export interface RulesAndRegsResponseType {
+  rulesAndRegs: ChampType["rulesAndRegs"]
   tokens: string[]
 }
 
@@ -2564,6 +2570,486 @@ const champResolvers = {
         name: champName,
         tokens: req.tokens,
       }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Adds a new rule to an existing championship (adjudicator/admin only).
+  addRule: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        text: string
+        subsections?: RuleSubsectionInput[]
+      }
+    },
+    req: AuthRequest,
+  ): Promise<RulesAndRegsResponseType> => {
+    if (!req.isAuth) {
+      throwError("addRule", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("addRule", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!user?.permissions?.admin && !isAdjudicator) {
+        return throwError(
+          "addRule",
+          req._id,
+          "Only an admin or the adjudicator can add rules!",
+          403,
+        )
+      }
+
+      // Create new rule object.
+      const newRule = {
+        default: false,
+        text: input.text,
+        created_by: new ObjectId(req._id),
+        pendingChanges: [],
+        history: [],
+        subsections: input.subsections?.map((sub) => ({
+          text: sub.text,
+          pendingChanges: [],
+          history: [],
+          created_by: new ObjectId(req._id),
+          created_at: moment().format(),
+        })) || [],
+        created_at: moment().format(),
+      }
+
+      // Add to rulesAndRegs array.
+      champ.rulesAndRegs.push(newRule)
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated rules only (minimal response).
+      const populatedChamp = await Champ.findById(_id).populate(rulesAndRegsPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("addRule", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        rulesAndRegs: populatedChamp.rulesAndRegs,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Updates an existing rule (adjudicator/admin only).
+  updateRule: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        ruleIndex: number
+        text: string
+        subsections?: RuleSubsectionInput[]
+      }
+    },
+    req: AuthRequest,
+  ): Promise<RulesAndRegsResponseType> => {
+    if (!req.isAuth) {
+      throwError("updateRule", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("updateRule", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!user?.permissions?.admin && !isAdjudicator) {
+        return throwError(
+          "updateRule",
+          req._id,
+          "Only an admin or the adjudicator can update rules!",
+          403,
+        )
+      }
+
+      // Validate rule index.
+      if (input.ruleIndex < 0 || input.ruleIndex >= champ.rulesAndRegs.length) {
+        return throwError("updateRule", input.ruleIndex, "Invalid rule index!", 400)
+      }
+
+      const rule = champ.rulesAndRegs[input.ruleIndex]
+
+      // Add current text to history if it changed.
+      if (rule.text !== input.text) {
+        rule.history.push({
+          text: rule.text,
+          updatedBy: new ObjectId(req._id),
+          updated_at: moment().format(),
+        })
+        rule.text = input.text
+      }
+
+      // Update subsections if provided.
+      if (input.subsections) {
+        // Track history for existing subsections that changed.
+        input.subsections.forEach((newSub, i) => {
+          if (i < rule.subsections.length) {
+            const existingSub = rule.subsections[i]
+            if (existingSub.text !== newSub.text) {
+              existingSub.history.push({
+                text: existingSub.text,
+                updatedBy: new ObjectId(req._id),
+                updated_at: moment().format(),
+              })
+              existingSub.text = newSub.text
+            }
+          }
+        })
+
+        // Add new subsections.
+        for (let i = rule.subsections.length; i < input.subsections.length; i++) {
+          rule.subsections.push({
+            text: input.subsections[i].text,
+            pendingChanges: [],
+            history: [],
+            created_by: new ObjectId(req._id),
+            created_at: moment().format(),
+          })
+        }
+
+        // Remove extra subsections if fewer provided.
+        if (input.subsections.length < rule.subsections.length) {
+          rule.subsections = rule.subsections.slice(0, input.subsections.length)
+        }
+      }
+
+      // Re-evaluate default flag (will be done on frontend side).
+      rule.default = false
+
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated rules only (minimal response).
+      const populatedChamp = await Champ.findById(_id).populate(rulesAndRegsPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("updateRule", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        rulesAndRegs: populatedChamp.rulesAndRegs,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Deletes a rule (adjudicator/admin only).
+  deleteRule: async (
+    { _id, ruleIndex }: { _id: string; ruleIndex: number },
+    req: AuthRequest,
+  ): Promise<RulesAndRegsResponseType> => {
+    if (!req.isAuth) {
+      throwError("deleteRule", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("deleteRule", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!user?.permissions?.admin && !isAdjudicator) {
+        return throwError(
+          "deleteRule",
+          req._id,
+          "Only an admin or the adjudicator can delete rules!",
+          403,
+        )
+      }
+
+      // Validate rule index.
+      if (ruleIndex < 0 || ruleIndex >= champ.rulesAndRegs.length) {
+        return throwError("deleteRule", ruleIndex, "Invalid rule index!", 400)
+      }
+
+      // Remove rule at index.
+      champ.rulesAndRegs.splice(ruleIndex, 1)
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated rules only (minimal response).
+      const populatedChamp = await Champ.findById(_id).populate(rulesAndRegsPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("deleteRule", _id, "Championship not found after update!", 404)
+      }
+
+      return {
+        rulesAndRegs: populatedChamp.rulesAndRegs,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Adds a new subsection to an existing rule (adjudicator/admin only).
+  addSubsection: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        ruleIndex: number
+        text: string
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("addSubsection", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("addSubsection", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "addSubsection",
+          req._id,
+          "Only an admin or the adjudicator can add subsections!",
+          403,
+        )
+      }
+
+      // Validate rule index.
+      if (input.ruleIndex < 0 || input.ruleIndex >= champ.rulesAndRegs.length) {
+        return throwError("addSubsection", input.ruleIndex, "Invalid rule index!", 400)
+      }
+
+      // Add new subsection.
+      const newSubsection = {
+        text: input.text,
+        pendingChanges: [],
+        history: [],
+        created_by: new ObjectId(req._id),
+        created_at: moment().format(),
+      }
+
+      champ.rulesAndRegs[input.ruleIndex].subsections.push(newSubsection)
+      champ.rulesAndRegs[input.ruleIndex].default = false
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("addSubsection", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Updates an existing subsection (adjudicator/admin only).
+  updateSubsection: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        ruleIndex: number
+        subsectionIndex: number
+        text: string
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("updateSubsection", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("updateSubsection", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "updateSubsection",
+          req._id,
+          "Only an admin or the adjudicator can update subsections!",
+          403,
+        )
+      }
+
+      // Validate rule index.
+      if (input.ruleIndex < 0 || input.ruleIndex >= champ.rulesAndRegs.length) {
+        return throwError("updateSubsection", input.ruleIndex, "Invalid rule index!", 400)
+      }
+
+      const rule = champ.rulesAndRegs[input.ruleIndex]
+
+      // Validate subsection index.
+      if (input.subsectionIndex < 0 || input.subsectionIndex >= rule.subsections.length) {
+        return throwError("updateSubsection", input.subsectionIndex, "Invalid subsection index!", 400)
+      }
+
+      const subsection = rule.subsections[input.subsectionIndex]
+
+      // Add current text to history if it changed.
+      if (subsection.text !== input.text) {
+        subsection.history.push({
+          text: subsection.text,
+          updatedBy: new ObjectId(req._id),
+          updated_at: moment().format(),
+        })
+        subsection.text = input.text
+      }
+
+      rule.default = false
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("updateSubsection", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Deletes a subsection (adjudicator/admin only).
+  deleteSubsection: async (
+    {
+      _id,
+      input,
+    }: {
+      _id: string
+      input: {
+        ruleIndex: number
+        subsectionIndex: number
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ChampType> => {
+    if (!req.isAuth) {
+      throwError("deleteSubsection", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const champ = await Champ.findById(_id)
+
+      if (!champ) {
+        return throwError("deleteSubsection", _id, "Championship not found!", 404)
+      }
+
+      // Verify user is admin or adjudicator.
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+      const isAdjudicator = champ.adjudicator.current.toString() === req._id
+
+      if (!isAdmin && !isAdjudicator) {
+        return throwError(
+          "deleteSubsection",
+          req._id,
+          "Only an admin or the adjudicator can delete subsections!",
+          403,
+        )
+      }
+
+      // Validate rule index.
+      if (input.ruleIndex < 0 || input.ruleIndex >= champ.rulesAndRegs.length) {
+        return throwError("deleteSubsection", input.ruleIndex, "Invalid rule index!", 400)
+      }
+
+      const rule = champ.rulesAndRegs[input.ruleIndex]
+
+      // Validate subsection index.
+      if (input.subsectionIndex < 0 || input.subsectionIndex >= rule.subsections.length) {
+        return throwError("deleteSubsection", input.subsectionIndex, "Invalid subsection index!", 400)
+      }
+
+      // Remove subsection at index.
+      rule.subsections.splice(input.subsectionIndex, 1)
+      rule.default = false
+      champ.updated_at = moment().format()
+      champ.markModified("rulesAndRegs")
+      await champ.save()
+
+      // Return populated championship.
+      const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+
+      if (!populatedChamp) {
+        return throwError("deleteSubsection", _id, "Championship not found after update!", 404)
+      }
+
+      return filterChampForUser({
+        ...populatedChamp._doc,
+        tokens: req.tokens,
+      }, isAdmin)
     } catch (err) {
       throw err
     }

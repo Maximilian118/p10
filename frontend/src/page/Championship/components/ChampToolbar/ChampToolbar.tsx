@@ -34,6 +34,21 @@ export interface BadgeToolbarProps {
   canRemove?: boolean
 }
 
+// Grouped props for rules and regs view.
+export interface RulesAndRegsToolbarProps {
+  onAdd?: () => void
+  isEdit?: boolean
+  isNewRule?: boolean
+  onBack?: () => void
+  onDelete?: () => void
+  onSubmit?: () => void
+  loading?: boolean
+  deleteLoading?: boolean
+  canSubmit?: boolean
+  delConfirm?: boolean  // Delete confirmation state
+  onDelConfirmBack?: () => void  // Cancel delete confirmation
+}
+
 interface champToolbarType {
   champ: ChampType
   setChamp: React.Dispatch<React.SetStateAction<ChampType | null>>
@@ -55,6 +70,7 @@ interface champToolbarType {
   ruleChangesProps?: FormToolbarProps
   adminProps?: FormToolbarProps
   badgeProps?: BadgeToolbarProps
+  rulesAndRegsProps?: RulesAndRegsToolbarProps
 }
 
 // Toolbar with action buttons for the championship page.
@@ -79,6 +95,7 @@ const ChampToolbar: React.FC<champToolbarType> = ({
   ruleChangesProps,
   adminProps,
   badgeProps,
+  rulesAndRegsProps,
 }) => {
   const navigate = useNavigate()
 
@@ -239,6 +256,81 @@ const ChampToolbar: React.FC<champToolbarType> = ({
         rightButtons={rightButtons}
       />
     )
+  }
+
+  // RulesAndRegs view (not edit mode) - Back + Add button (adjudicator only).
+  if (view === "rulesAndRegs" && !rulesAndRegsProps?.isEdit) {
+    const rightButtons: ButtonConfig[] = []
+    if (isAdjudicator || user.permissions?.admin) {
+      rightButtons.push({
+        onClick: rulesAndRegsProps?.onAdd,
+        endIcon: <Add />,
+        className: "button-medium add-button",
+        color: "success",
+      })
+    }
+    return (
+      <ButtonBar
+        leftButtons={[getBackButton()]}
+        rightButtons={rightButtons}
+      />
+    )
+  }
+
+  // RulesAndRegs edit mode - Back + Delete + Submit buttons.
+  if (view === "rulesAndRegs" && rulesAndRegsProps?.isEdit) {
+    // Delete confirmation mode - simplified Back + Delete.
+    if (rulesAndRegsProps.delConfirm) {
+      return (
+        <ButtonBar
+          leftButtons={[{
+            label: "Back",
+            onClick: rulesAndRegsProps.onDelConfirmBack,
+            startIcon: <ArrowBack />,
+            color: "inherit",
+          }]}
+          rightButtons={[{
+            label: "Delete",
+            onClick: rulesAndRegsProps.onDelete,
+            loading: rulesAndRegsProps.deleteLoading,
+            startIcon: <Delete />,
+            color: "error",
+          }]}
+        />
+      )
+    }
+
+    // Normal edit mode.
+    const buttons: ButtonConfig[] = [
+      {
+        label: "Back",
+        onClick: rulesAndRegsProps.onBack,
+        startIcon: <ArrowBack />,
+        color: "inherit",
+      },
+    ]
+
+    // Delete button (only for existing rules, not new).
+    if (!rulesAndRegsProps.isNewRule) {
+      buttons.push({
+        label: "Delete",
+        startIcon: <Delete />,
+        onClick: rulesAndRegsProps.onDelete,
+        loading: rulesAndRegsProps.deleteLoading,
+        color: "error",
+      })
+    }
+
+    // Submit/Update button.
+    buttons.push({
+      label: rulesAndRegsProps.isNewRule ? "Submit" : "Update",
+      startIcon: rulesAndRegsProps.isNewRule ? <ArrowUpward /> : <Update />,
+      onClick: rulesAndRegsProps.onSubmit,
+      loading: rulesAndRegsProps.loading,
+      disabled: rulesAndRegsProps.canSubmit === false,
+    })
+
+    return <ButtonBar buttons={buttons} />
   }
 
   // Build buttons array for other views.

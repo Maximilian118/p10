@@ -8,7 +8,7 @@ import { graphQLErrorType, initGraphQLError } from "../../shared/requests/reques
 import ChampBanner from "./components/ChampBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
-import ChampToolbar, { FormToolbarProps, BadgeToolbarProps } from "./components/ChampToolbar/ChampToolbar"
+import ChampToolbar, { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps } from "./components/ChampToolbar/ChampToolbar"
 import CompetitorListCard from "../../components/cards/competitorListCard/CompetitorListCard"
 import DriverListCard from "../../components/cards/driverListCard/DriverListCard"
 import TeamListCard from "../../components/cards/teamListCard/TeamListCard"
@@ -20,6 +20,8 @@ import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/A
 import Protests from "./Views/Protests/Protests"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import Badges from "./Views/Badges/Badges"
+import RulesAndRegs, { RulesAndRegsEditHandlers } from "./Views/RulesAndRegs/RulesAndRegs"
+import { editStateType, initEditState } from "../../components/utility/rulesAndRegsPicker/rulesAndRegsUtility"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import Invite from "./Views/Invite/Invite"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
@@ -231,6 +233,10 @@ const Championship: React.FC = () => {
     canSubmit: boolean
     canRemove: boolean
   } | null>(null)
+
+  // RulesAndRegs state - managed here so ChampToolbar can show Add button.
+  const [ rulesAndRegsIsEdit, setRulesAndRegsIsEdit ] = useState<editStateType>(initEditState)
+  const [ rulesAndRegsEditHandlers, setRulesAndRegsEditHandlers ] = useState<RulesAndRegsEditHandlers | null>(null)
 
   const navigate = useNavigate()
 
@@ -865,6 +871,20 @@ const Championship: React.FC = () => {
     canRemove: badgeEditHandlers?.canRemove,
   }
 
+  // Grouped toolbar props for rules and regs view.
+  const rulesAndRegsToolbarProps: RulesAndRegsToolbarProps = {
+    onAdd: () => setRulesAndRegsIsEdit({ newRuleReg: true, index: null, ruleReg: null }),
+    isEdit: rulesAndRegsIsEdit.newRuleReg || rulesAndRegsIsEdit.ruleReg !== null,
+    isNewRule: rulesAndRegsIsEdit.newRuleReg,
+    onBack: () => setRulesAndRegsIsEdit(initEditState),
+    onDelete: rulesAndRegsEditHandlers?.onDelete,
+    onSubmit: rulesAndRegsEditHandlers?.onSubmit,
+    loading: rulesAndRegsEditHandlers?.loading,
+    deleteLoading: rulesAndRegsEditHandlers?.deleteLoading,
+    delConfirm: rulesAndRegsEditHandlers?.delConfirm,
+    onDelConfirmBack: () => rulesAndRegsEditHandlers?.setDelConfirm(false),
+  }
+
   return (
     <>
       {/* Banner outside scroll container to avoid feedback loop when shrinking */}
@@ -1301,6 +1321,23 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {view === "rulesAndRegs" && (
+          <RulesAndRegs
+            champ={champ}
+            setChamp={setChamp}
+            user={user}
+            setUser={setUser}
+            navigate={navigate}
+            backendErr={backendErr}
+            setBackendErr={setBackendErr}
+            isAdjudicator={isAdjudicator}
+            isAdmin={isAdmin}
+            isEdit={rulesAndRegsIsEdit}
+            setIsEdit={setRulesAndRegsIsEdit}
+            onEditHandlersReady={setRulesAndRegsEditHandlers}
+          />
+        )}
+
         {view === "admin" && isAdmin && (
           <Admin
             adminForm={adminForm}
@@ -1394,6 +1431,7 @@ const Championship: React.FC = () => {
             ruleChangesProps={ruleChangesToolbarProps}
             adminProps={adminToolbarProps}
             badgeProps={badgeToolbarProps}
+            rulesAndRegsProps={rulesAndRegsToolbarProps}
           />
         )}
 

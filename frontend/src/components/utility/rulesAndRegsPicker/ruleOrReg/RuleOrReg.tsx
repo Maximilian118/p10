@@ -10,9 +10,10 @@ interface rOrrType {
   item: ruleOrRegType
   setEdit: React.Dispatch<React.SetStateAction<editStateType>>
   isDefault?: boolean // if Truthy, the rule or reg matches a rule reg from the default rule reg array.
+  readOnly?: boolean // Hides edit button for non-adjudicator/admin users.
 }
 
-const RuleOrReg: React.FC<rOrrType> = ({ index, item, setEdit, isDefault }) => (
+const RuleOrReg: React.FC<rOrrType> = ({ index, item, setEdit, isDefault, readOnly }) => (
   <div className="rule-or-reg">
     <div className="main">
       <div className="title">
@@ -31,22 +32,24 @@ const RuleOrReg: React.FC<rOrrType> = ({ index, item, setEdit, isDefault }) => (
       )
     })}
     <div className="toolbar">
-      {isDefault && 
-        <TextIcon 
-          text="Default" 
+      {isDefault &&
+        <TextIcon
+          text="Default"
           size="small"
         />
       }
-      <EditButton
-        size="small"
-        onClick={() => setEdit(prevEdit => {
-          return {
-            ...prevEdit,
-            index,
-            ruleReg: item,
-          }
-        })}
-      />
+      {!readOnly && (
+        <EditButton
+          size="small"
+          onClick={() => setEdit(prevEdit => {
+            return {
+              ...prevEdit,
+              index,
+              ruleReg: item,
+            }
+          })}
+        />
+      )}
     </div>
   </div>
 )

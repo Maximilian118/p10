@@ -1,11 +1,11 @@
 import axios, { AxiosResponse } from "axios"
-import { userType } from "../localStorage"
+import { userType, tokensHandler } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { AdjustmentResultType, ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType } from "../types"
+import { AdjustmentResultType, ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType, rulesAndRegsType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp/CreateChamp"
-import { populateChamp } from "./requestPopulation"
+import { populateChamp, populateRulesAndRegs } from "./requestPopulation"
 import { newBadge } from "./badgeRequests"
 
 // Fetches all championships for the authenticated user.
@@ -1267,4 +1267,302 @@ const sendAdjustmentRequest = async (
     graphQLErrors("adjustCompetitorPoints", err, setUser, navigate, setBackendErr, true)
     resolve(false)
   }
+}
+
+// Adds a new rule to an existing championship (adjudicator/admin only).
+export const addRule = async (
+  champId: string,
+  text: string,
+  subsections: { text: string }[],
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<rulesAndRegsType | null> => {
+  let result: rulesAndRegsType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { text, subsections },
+          },
+          query: `
+            mutation AddRule($_id: ID!, $input: AddRuleInput!) {
+              addRule(_id: $_id, input: $input) {
+                ${populateRulesAndRegs}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("addRule", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const data = res.data.data.addRule
+          // Update user tokens in both state and localStorage.
+          tokensHandler(user, data.tokens, setUser)
+          result = data.rulesAndRegs
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("addRule", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("addRule", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Updates an existing rule (adjudicator/admin only).
+export const updateRule = async (
+  champId: string,
+  ruleIndex: number,
+  text: string,
+  subsections: { text: string }[],
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<rulesAndRegsType | null> => {
+  let result: rulesAndRegsType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { ruleIndex, text, subsections },
+          },
+          query: `
+            mutation UpdateRule($_id: ID!, $input: UpdateRuleInput!) {
+              updateRule(_id: $_id, input: $input) {
+                ${populateRulesAndRegs}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateRule", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const data = res.data.data.updateRule
+          // Update user tokens in both state and localStorage.
+          tokensHandler(user, data.tokens, setUser)
+          result = data.rulesAndRegs
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateRule", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateRule", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Deletes a rule (adjudicator/admin only).
+export const deleteRule = async (
+  champId: string,
+  ruleIndex: number,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<rulesAndRegsType | null> => {
+  let result: rulesAndRegsType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            ruleIndex,
+          },
+          query: `
+            mutation DeleteRule($_id: ID!, $ruleIndex: Int!) {
+              deleteRule(_id: $_id, ruleIndex: $ruleIndex) {
+                ${populateRulesAndRegs}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteRule", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const data = res.data.data.deleteRule
+          // Update user tokens in both state and localStorage.
+          tokensHandler(user, data.tokens, setUser)
+          result = data.rulesAndRegs
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteRule", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteRule", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Adds a new subsection to an existing rule (adjudicator/admin only).
+export const addSubsection = async (
+  champId: string,
+  ruleIndex: number,
+  text: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { ruleIndex, text },
+          },
+          query: `
+            mutation AddSubsection($_id: ID!, $input: AddSubsectionInput!) {
+              addSubsection(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("addSubsection", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("addSubsection", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("addSubsection", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("addSubsection", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Updates an existing subsection (adjudicator/admin only).
+export const updateSubsection = async (
+  champId: string,
+  ruleIndex: number,
+  subsectionIndex: number,
+  text: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { ruleIndex, subsectionIndex, text },
+          },
+          query: `
+            mutation UpdateSubsection($_id: ID!, $input: UpdateSubsectionInput!) {
+              updateSubsection(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("updateSubsection", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("updateSubsection", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("updateSubsection", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("updateSubsection", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Deletes a subsection (adjudicator/admin only).
+export const deleteSubsection = async (
+  champId: string,
+  ruleIndex: number,
+  subsectionIndex: number,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ChampType | null> => {
+  let result: ChampType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            _id: champId,
+            input: { ruleIndex, subsectionIndex },
+          },
+          query: `
+            mutation DeleteSubsection($_id: ID!, $input: DeleteSubsectionInput!) {
+              deleteSubsection(_id: $_id, input: $input) {
+                ${populateChamp}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("deleteSubsection", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("deleteSubsection", res, user, setUser) as ChampType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("deleteSubsection", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("deleteSubsection", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
 }
