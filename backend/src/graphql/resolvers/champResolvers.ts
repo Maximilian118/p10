@@ -362,11 +362,12 @@ const champResolvers = {
     }
 
     try {
+      // Lightweight query - exclude heavy fields not needed for card display.
       const champs = await Champ.find({})
-        .populate("adjudicator.current", "_id name icon")
-        .populate("series", "_id name")
+        .select("-rounds -history -rulesAndRegs -pointsStructure -series -waitingList -banned -kicked -champBadges")
+        .populate("adjudicator.current", "_id")
         .populate("competitors", "_id icon")
-        .populate("rounds.competitors.competitor", "_id icon")
+        .populate("invited", "_id")
         .exec()
 
       // Check if user is admin to determine if admin settings should be visible.

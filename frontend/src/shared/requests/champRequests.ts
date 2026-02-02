@@ -32,33 +32,15 @@ export const getChamps = async (
                   _id
                   name
                   icon
-                  profile_picture
-                  season
-                  active
-                  created_at
                   updated_at
                   competitors {
                     _id
                     icon
                   }
-                  rounds {
-                    round
-                    status
-                    competitors {
-                      competitor {
-                        _id
-                        icon
-                      }
-                    }
-                  }
                   adjudicator {
                     current {
                       _id
                     }
-                  }
-                  settings {
-                    inviteOnly
-                    maxCompetitors
                   }
                   invited {
                     _id
