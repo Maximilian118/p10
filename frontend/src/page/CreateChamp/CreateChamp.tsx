@@ -14,7 +14,7 @@ import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../../components/cards/champCompleteCard/ChampCompleteCard"
-import { ArrowBack, Delete, ArrowUpward, Update } from "@mui/icons-material"
+import { ArrowBack, Delete, ArrowUpward, Update, EmojiEvents } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import { createChamp } from "../../shared/requests/champRequests"
 import Toggle from "../../components/utility/toggle/Toggle"
@@ -240,7 +240,7 @@ const CreateChamp: React.FC = () => {
               : setActiveStep(prevStep => prevStep + 1),
           startIcon: activeFormHandlers
             ? (activeFormHandlers.isEditing ? <Update /> : <ArrowUpward />)
-            : undefined,
+            : (lastStep ? <EmojiEvents /> : undefined),
           endIcon: !activeFormHandlers && !lastStep ? <Arrows /> : undefined,
           loading: activeFormHandlers?.loading || loading,
           disabled: activeFormHandlers ? !activeFormHandlers.canSubmit : false
