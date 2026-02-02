@@ -15,41 +15,40 @@
 .notifications-header {
   width: 100%;
   position: relative;
-  @include mixins.flexbox;
+  @include mixins.flexbox-space-between;
+  padding: 20px 26px;
+  box-sizing: border-box;
 
-  .header-title-wrapper {
-    padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    
-    .notifications-header__title {
-      font-size: 24px;
-      font-weight: 600;
-      margin: 0;
+  // Back button styling to match champ-card color scheme.
+  .notifications-header__back-button, .notifications-header__clear-all {
+    background: none !important;
+    color: white !important;
+    padding: 0;
+    flex-shrink: 0;
+
+    // Hide icons on small viewports.
+    @media (max-width: 419px) {
+      min-width: auto;
+
+      .MuiButton-icon {
+        display: none;
+      }
     }
   }
 
-  .notifications-header__clear-all {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 20px;
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    color: rgba(255, 255, 255, 0.5);
-    transition: color variables.$trans-speed;
-    @include mixins.flexbox;
-
-    &:hover {
-      color: white;
-    }
-
-    svg {
-      font-size: 20px;
-    }
+  .notifications-header__title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
   }
 }
+
+// Decorative line under the header - width can be adjusted independently.
+  .notifications-header__line {
+    display: block;
+    width: 55%;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
 // List container.
 .notifications-list {

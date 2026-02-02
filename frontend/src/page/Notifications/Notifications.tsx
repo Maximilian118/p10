@@ -12,6 +12,8 @@ import Badge from "../../components/utility/badge/Badge"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import Confirm from "../../components/utility/confirm/Confirm"
 import "./_notifications.scss"
+import { Button } from "@mui/material"
+import { ArrowBack } from "@mui/icons-material"
 
 // Confetti colors for celebration.
 const confettiColors = ["#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8"]
@@ -117,20 +119,27 @@ const Notifications: React.FC = () => {
     <div className="notifications-page">
       <ErrorDisplay backendErr={backendErr} />
       <header className="notifications-header">
-        <div className="header-title-wrapper">
-          <h1 className="notifications-header__title">Notifications</h1>
-        </div>
+        <Button
+          className="notifications-header__back-button"
+          size="small"
+          onClick={() => navigate(-1)}
+          startIcon={<ArrowBack/>}
+        >
+          Back
+        </Button>
+        <h1 className="notifications-header__title">Notifications</h1>
         {sortedNotifications.length > 0 && (
-          <button
-            className="notifications-header__clear-all"
+          <Button
+          className="notifications-header__clear-all"
+            size="small"
             onClick={() => setShowClearAllConfirm(true)}
-            aria-label="Clear all notifications"
+            endIcon={<Close/>}
           >
-            <Close />
-          </button>
+            Clear
+          </Button>
         )}
       </header>
-
+      <span className="notifications-header__line" />
       {sortedNotifications.length === 0 ? (
         <div className="notifications-empty">
           <NotificationsNone />
