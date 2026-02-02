@@ -14,12 +14,10 @@ import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import RulesAndRegsPicker from "../../components/utility/rulesAndRegsPicker/RulesAndRegsPicker"
 import BadgePicker from "../../components/utility/badgePicker/BadgePicker"
 import ChampCompleteCard from "../../components/cards/champCompleteCard/ChampCompleteCard"
-import { ArrowBack, Delete, ArrowUpward, Update, EmojiEvents } from "@mui/icons-material"
-import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import { createChamp } from "../../shared/requests/champRequests"
 import Toggle from "../../components/utility/toggle/Toggle"
-import Arrows from "../../components/utility/arrows/Arrows"
 import { validateChampForm } from "./createChampUtility"
+import CreateChampToolbar from "./components/CreateChampToolbar/CreateChampToolbar"
 
 interface createChampFormBaseType {
   champName: string
@@ -134,9 +132,6 @@ const CreateChamp: React.FC = () => {
     }
   }
 
-  const firstStep = activeStep === 0
-  const lastStep = muiStepperSteps.createChamp.length === activeStep
-
   return (
   <ChampFlowProvider value={champFlowContextValue}>
     <form className="content-container create-champ" onSubmit={e => onSubmitHandler(e)}>
@@ -203,49 +198,13 @@ const CreateChamp: React.FC = () => {
         </>
       }
     </form>
-    <ButtonBar
-      background
-      position="relative"
-      buttons={[
-        {
-          label: "Back",
-          onClick: () => activeFormHandlers
-            ? activeFormHandlers.back()
-            : setActiveStep(prevStep => prevStep - 1),
-          startIcon: <ArrowBack />,
-          color: "inherit",
-          disabled: firstStep && !activeFormHandlers
-        },
-        ...(activeFormHandlers?.canDelete && activeFormHandlers?.isEditing ? [{
-          label: "Delete",
-          onClick: activeFormHandlers.onDelete,
-          startIcon: <Delete />,
-          color: "error" as const,
-          loading: activeFormHandlers?.delLoading
-        }] : []),
-        ...(activeFormHandlers?.canRemove && activeFormHandlers?.isEditing ? [{
-          label: "Remove",
-          onClick: activeFormHandlers.onRemove,
-          startIcon: <Delete />,
-          color: "error" as const,
-        }] : []),
-        {
-          label: activeFormHandlers
-            ? (activeFormHandlers.isEditing ? "Update" : "Submit")
-            : (lastStep ? "Create Championship" : "Next"),
-          onClick: () => activeFormHandlers
-            ? activeFormHandlers.submit()
-            : lastStep
-              ? document.querySelector<HTMLFormElement>('form.create-champ')?.requestSubmit()
-              : setActiveStep(prevStep => prevStep + 1),
-          startIcon: activeFormHandlers
-            ? (activeFormHandlers.isEditing ? <Update /> : <ArrowUpward />)
-            : (lastStep ? <EmojiEvents /> : undefined),
-          endIcon: !activeFormHandlers && !lastStep ? <Arrows /> : undefined,
-          loading: activeFormHandlers?.loading || loading,
-          disabled: activeFormHandlers ? !activeFormHandlers.canSubmit : false
-        }
-      ]}
+    <CreateChampToolbar
+      activeStep={activeStep}
+      totalSteps={muiStepperSteps.createChamp.length}
+      activeFormHandlers={activeFormHandlers}
+      loading={loading}
+      onStepChange={setActiveStep}
+      onSubmitForm={() => document.querySelector<HTMLFormElement>('form.create-champ')?.requestSubmit()}
     />
   </ChampFlowProvider>
   )
