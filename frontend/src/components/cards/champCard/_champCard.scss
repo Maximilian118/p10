@@ -7,7 +7,6 @@
   @include mixins.flexbox-start;
   background: white;
   cursor: pointer;
-  transition: variables.$trans-speed;
   position: relative;
   padding: 5px 7.5%;
   box-sizing: border-box;
