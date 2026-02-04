@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react"
-import { ProtestType } from "../../../../shared/types"
-import { formatRelativeTime } from "../../../../shared/utility"
-import StatusCard from "../../../../components/cards/statusCard/StatusCard"
+import { ProtestType } from "../../../../../../shared/types"
+import { formatRelativeTime } from "../../../../../../shared/utility"
+import StatusCard from "../../../../../../components/cards/statusCard/StatusCard"
 import "./_protestItem.scss"
 
 interface ProtestItemProps {

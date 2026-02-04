@@ -6,7 +6,7 @@ import { ChampType, ProtestType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import { markNotificationRead } from "../../../../shared/requests/notificationRequests"
-import ProtestItem from "../../components/ProtestItem/ProtestItem"
+import ProtestItem from "./components/ProtestItem/ProtestItem"
 import CreateProtest from "./CreateProtest/CreateProtest"
 import "./_protests.scss"
 
