@@ -2,10 +2,10 @@ import axios, { AxiosResponse } from "axios"
 import { userType, tokensHandler } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
-import { AdjustmentResultType, ChampType, FloatingChampType, formType, pointsStructureType, RoundStatus, ruleOrRegType, ruleSubsectionType, rulesAndRegsType } from "../types"
+import { AdjustmentResultType, ChampType, FloatingChampType, formType, pointsStructureType, ProtestStatus, ProtestType, RoundStatus, ruleOrRegType, ruleSubsectionType, rulesAndRegsType } from "../types"
 import { uplaodS3 } from "./bucketRequests"
 import { createChampFormType } from "../../page/CreateChamp/CreateChamp"
-import { populateChamp, populateRulesAndRegs } from "./requestPopulation"
+import { populateChamp, populateProtest, populateRulesAndRegs } from "./requestPopulation"
 import { newBadge } from "./badgeRequests"
 
 // Fetches all championships for the authenticated user.
@@ -1544,6 +1544,341 @@ export const deleteSubsection = async (
       })
   } catch (err: unknown) {
     graphQLErrors("deleteSubsection", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// ==================== PROTEST API FUNCTIONS ====================
+
+// Fetches a single protest by ID.
+export const getProtest = async (
+  protestId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { protestId },
+          query: `
+            query GetProtest($protestId: ID!) {
+              getProtest(protestId: $protestId) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getProtest", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("getProtest", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getProtest", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getProtest", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Fetches all protests for a championship.
+export const getProtestsForChampionship = async (
+  champId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType[]> => {
+  let result: ProtestType[] = []
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { champId },
+          query: `
+            query GetProtestsForChampionship($champId: ID!) {
+              getProtestsForChampionship(champId: $champId) {
+                array {
+                  ${populateProtest}
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getProtestsForChampionship", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const data = graphQLResponse("getProtestsForChampionship", res, user, setUser) as {
+            array: ProtestType[]
+          }
+          result = data.array
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getProtestsForChampionship", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getProtestsForChampionship", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Creates a new protest.
+export const createProtest = async (
+  champId: string,
+  title: string,
+  description: string,
+  accusedId: string | null,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            input: {
+              champId,
+              title,
+              description,
+              accusedId,
+            },
+          },
+          query: `
+            mutation CreateProtest($input: CreateProtestInput!) {
+              createProtest(input: $input) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("createProtest", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("createProtest", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("createProtest", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("createProtest", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Votes on a protest.
+export const voteOnProtest = async (
+  protestId: string,
+  vote: boolean,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { protestId, vote },
+          query: `
+            mutation VoteOnProtest($protestId: ID!, $vote: Boolean!) {
+              voteOnProtest(protestId: $protestId, vote: $vote) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("voteOnProtest", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("voteOnProtest", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("voteOnProtest", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("voteOnProtest", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Moves a protest to voting status (adjudicator only).
+export const moveProtestToVoting = async (
+  protestId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { protestId },
+          query: `
+            mutation MoveProtestToVoting($protestId: ID!) {
+              moveProtestToVoting(protestId: $protestId) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("moveProtestToVoting", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("moveProtestToVoting", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("moveProtestToVoting", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("moveProtestToVoting", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Determines a protest (pass/deny) (adjudicator only).
+export const determineProtest = async (
+  protestId: string,
+  status: ProtestStatus,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { protestId, status },
+          query: `
+            mutation DetermineProtest($protestId: ID!, $status: ProtestStatus!) {
+              determineProtest(protestId: $protestId, status: $status) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("determineProtest", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("determineProtest", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("determineProtest", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("determineProtest", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return result
+}
+
+// Allocates points after protest determination (adjudicator only).
+export const allocateProtestPoints = async (
+  protestId: string,
+  filerPoints: number,
+  accusedPoints: number | null,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<ProtestType | null> => {
+  let result: ProtestType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: {
+            input: {
+              protestId,
+              filerPoints,
+              accusedPoints,
+            },
+          },
+          query: `
+            mutation AllocateProtestPoints($input: AllocateProtestPointsInput!) {
+              allocateProtestPoints(input: $input) {
+                ${populateProtest}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("allocateProtestPoints", res, setUser, navigate, setBackendErr, true)
+        } else {
+          result = graphQLResponse("allocateProtestPoints", res, user, setUser) as ProtestType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("allocateProtestPoints", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("allocateProtestPoints", err, setUser, navigate, setBackendErr, true)
   }
 
   return result

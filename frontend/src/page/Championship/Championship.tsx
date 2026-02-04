@@ -1,14 +1,16 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import './_championship.scss'
 import AppContext from "../../context"
-import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType, CompetitorEntryType } from "../../shared/types"
+import { ChampType, formErrType, formType, RoundStatus, seriesType, badgeType, CompetitorEntryType, ProtestType } from "../../shared/types"
 import { getAllDriversForRound, getAllTeamsForRound } from "../../shared/utility"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import ChampBanner from "./components/ChampBanner/ChampBanner"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
-import ChampToolbar, { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps } from "./components/ChampToolbar/ChampToolbar"
+import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
+import { createBackButton } from "./components/ChampToolbar/configs/baseConfigs"
+import ChampToolbar, { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps, ProtestsToolbarProps } from "./components/ChampToolbar/ChampToolbar"
 import CompetitorListCard from "../../components/cards/competitorListCard/CompetitorListCard"
 import DriverListCard from "../../components/cards/driverListCard/DriverListCard"
 import TeamListCard from "../../components/cards/teamListCard/TeamListCard"
@@ -17,16 +19,18 @@ import ViewsDrawer from "./components/ViewsDrawer/ViewsDrawer"
 import ChampSettings, { ChampView, ChampSettingsFormType, ChampSettingsFormErrType } from "./Views/ChampSettings/ChampSettings"
 import DeleteChamp from "./Views/DeleteChamp/DeleteChamp"
 import Automation, { AutomationFormType, AutomationFormErrType } from "./Views/Automation/Automation"
-import Protests from "./Views/Protests/Protests"
+import ProtestSettings from "./Views/ProtestSettings/ProtestSettings"
 import RuleChanges from "./Views/RuleChanges/RuleChanges"
 import Badges from "./Views/Badges/Badges"
 import RulesAndRegs, { RulesAndRegsEditHandlers } from "./Views/RulesAndRegs/RulesAndRegs"
+import Protests from "./Views/Protests/Protests"
+import Protest from "./Views/Protests/Protest/Protest"
 import { editStateType, initEditState } from "../../components/utility/rulesAndRegsPicker/rulesAndRegsUtility"
 import Admin, { AdminFormType, AdminFormErrType } from "./Views/Admin/Admin"
 import Invite from "./Views/Invite/Invite"
 import SeriesPicker from "../../components/utility/seriesPicker/SeriesPicker"
 import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChangesFormErrType } from "../../shared/formValidation"
-import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, leaveChampionship, adjustCompetitorPoints, promoteAdjudicator } from "../../shared/requests/champRequests"
+import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, leaveChampionship, adjustCompetitorPoints, promoteAdjudicator, getProtestsForChampionship } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
@@ -68,6 +72,7 @@ import AdjudicatorBar from "./components/AdjudicatorBar/AdjudicatorBar"
 
 const Championship: React.FC = () => {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, setUser } = useContext(AppContext)
   const [ champ, setChamp ] = useState<ChampType | null>(null)
   const [ loading, setLoading ] = useState<boolean>(false)
@@ -218,6 +223,32 @@ const Championship: React.FC = () => {
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
+
+  // Selected protest ID for detail view.
+  const [ selectedProtestId, setSelectedProtestId ] = useState<string | null>(null)
+
+  // Protests data for the championship.
+  const [ protests, setProtests ] = useState<ProtestType[]>([])
+
+  // Create protest state.
+  const [ showCreateProtest, setShowCreateProtest ] = useState(false)
+  const [ createProtestLoading, setCreateProtestLoading ] = useState(false)
+  const createProtestSubmitRef = React.useRef<(() => Promise<void>) | null>(null)
+
+  // Handle URL params for notification deep links.
+  useEffect(() => {
+    const viewParam = searchParams.get("view")
+    const protestId = searchParams.get("protestId")
+
+    if (viewParam === "protest" && protestId) {
+      setSelectedProtestId(protestId)
+      // Set history so back button navigates to protests list.
+      setViewHistory(["protests"])
+      setView("protest")
+      // Clear URL params after consuming them.
+      setSearchParams({})
+    }
+  }, [searchParams, setSearchParams])
 
   // Badge picker state - managed here so ChampToolbar can show Add/Filter buttons.
   const [ badgeIsEdit, setBadgeIsEdit ] = useState<boolean | badgeType>(false)
@@ -426,6 +457,12 @@ const Championship: React.FC = () => {
     setViewHistory([])
   }
 
+  // Handle clicking on a protest to view its details.
+  const handleProtestClick = (protestId: string) => {
+    setSelectedProtestId(protestId)
+    navigateToView("protest")
+  }
+
   // Handle banner click - navigate to default and reset standings view.
   const handleBannerClick = () => {
     navigateToDefault()
@@ -485,6 +522,17 @@ const Championship: React.FC = () => {
       setAdminForm(initAdminForm(champ))
     }
   }, [champ])
+
+  // Fetch protests when navigating to protests view.
+  useEffect(() => {
+    if (view === "protests" && champ) {
+      getProtestsForChampionship(champ._id, user, setUser, navigate, setBackendErr)
+        .then((fetchedProtests) => {
+          if (fetchedProtests) setProtests(fetchedProtests)
+        })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, champ?._id])
 
   // Check current round status on load - show status view if round is active.
   // Runs when champ data is loaded (champ._id changes).
@@ -786,11 +834,12 @@ const Championship: React.FC = () => {
     )
   }
 
-  // Render error state.
+  // Render error state with back button to dismiss.
   if (backendErr.message) {
     return (
       <div className="content-container">
         <ErrorDisplay backendErr={backendErr} />
+        <ButtonBar leftButtons={[createBackButton(() => setBackendErr(initGraphQLError))]}/>
       </div>
     )
   }
@@ -834,7 +883,7 @@ const Championship: React.FC = () => {
     loading: automationLoading,
   }
 
-  const protestsToolbarProps: FormToolbarProps = {
+  const protestSettingsToolbarProps: FormToolbarProps = {
     formErr: protestsFormErr,
     onSubmit: handleProtestsSubmit,
     changed: protestsChanged,
@@ -883,6 +932,26 @@ const Championship: React.FC = () => {
     deleteLoading: rulesAndRegsEditHandlers?.deleteLoading,
     delConfirm: rulesAndRegsEditHandlers?.delConfirm,
     onDelConfirmBack: () => rulesAndRegsEditHandlers?.setDelConfirm(false),
+  }
+
+  // Grouped toolbar props for protests view.
+  const protestsToolbarProps: ProtestsToolbarProps = {
+    onCreateProtest: () => setShowCreateProtest(true),
+    canCreateProtest: isCompetitor && !showCreateProtest,
+    isCreating: showCreateProtest,
+    onCancelCreate: () => setShowCreateProtest(false),
+    onSubmitCreate: () => createProtestSubmitRef.current?.(),
+    createLoading: createProtestLoading,
+  }
+
+  // Handle create protest success.
+  const handleCreateProtestSuccess = (protest: ProtestType) => {
+    setShowCreateProtest(false)
+    // Add new protest to list.
+    setProtests(prev => [protest, ...prev])
+    // Navigate to the newly created protest.
+    setSelectedProtestId(protest._id)
+    setView("protest")
   }
 
   return (
@@ -1265,8 +1334,8 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {view === "protests" && (
-          <Protests
+        {view === "protestSettings" && (
+          <ProtestSettings
             champ={champ}
             user={user}
             setView={navigateToView}
@@ -1357,6 +1426,38 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Protests view */}
+        {view === "protests" && (
+          <Protests
+            champ={champ}
+            user={user}
+            setUser={setUser}
+            protests={protests}
+            onProtestClick={(protest) => handleProtestClick(protest._id)}
+            showCreateForm={showCreateProtest}
+            setBackendErr={setBackendErr}
+            onCreateSuccess={handleCreateProtestSuccess}
+            onCreateCancel={() => setShowCreateProtest(false)}
+            onSubmitRef={createProtestSubmitRef}
+            setCreateLoading={setCreateProtestLoading}
+          />
+        )}
+
+        {/* Protest detail view */}
+        {view === "protest" && selectedProtestId && (
+          <Protest
+            champ={champ}
+            user={user}
+            setUser={setUser}
+            protestId={selectedProtestId}
+            setBackendErr={setBackendErr}
+            onBack={() => {
+              setSelectedProtestId(null)
+              setView("protests")
+            }}
+          />
+        )}
+
         {/* Invite full confirmation - adjudicator trying to invite when championship is full */}
         {showInviteFullConfirm && (
           <Confirm
@@ -1427,11 +1528,12 @@ const Championship: React.FC = () => {
             setShowAcceptInviteFullConfirm={setShowAcceptInviteFullConfirm}
             settingsProps={settingsToolbarProps}
             automationProps={automationToolbarProps}
-            protestsProps={protestsToolbarProps}
+            protestSettingsProps={protestSettingsToolbarProps}
             ruleChangesProps={ruleChangesToolbarProps}
             adminProps={adminToolbarProps}
             badgeProps={badgeToolbarProps}
             rulesAndRegsProps={rulesAndRegsToolbarProps}
+            protestsProps={protestsToolbarProps}
           />
         )}
 

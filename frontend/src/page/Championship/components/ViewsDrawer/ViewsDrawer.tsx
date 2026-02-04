@@ -113,7 +113,11 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
     {
       icon: <ReportProblemIcon />,
       label: "Protests",
-      onClick: handleClose,
+      onClick: () => {
+        setOpen(false)
+        setView("protests")
+      },
+      viewId: "protests",
     },
     {
       icon: <WorkspacePremiumIcon />,

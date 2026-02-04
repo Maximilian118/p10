@@ -53,6 +53,7 @@ const userSchema = `
     championships: [UserChampSnapshot!]!
     badges: [UserBadgeSnapshot!]!
     notifications: [Notification!]!
+    notificationsCount: Int
     notificationSettings: NotificationSettings!
     permissions: Permissions!
     logged_in_at: String!

@@ -34,6 +34,9 @@ const Schema = buildSchema(`
     getChampById(_id: ID!): Champ!
     getMyTopChampionship: FloatingChamp
     isAdjudicator: IsAdjudicatorResult!
+    getNotifications: NotificationsResult!
+    getProtest(protestId: ID!): Protest!
+    getProtestsForChampionship(champId: ID!): Protests!
   }
 
   type rootMutation {
@@ -87,6 +90,11 @@ const Schema = buildSchema(`
     clearNotification(_id: ID!): User!
     clearAllNotifications: User!
     updateNotificationSettings(settings: NotificationSettingsInput!): User!
+    createProtest(input: CreateProtestInput!): Protest!
+    voteOnProtest(protestId: ID!, vote: Boolean!): Protest!
+    moveProtestToVoting(protestId: ID!): Protest!
+    determineProtest(protestId: ID!, status: ProtestStatus!): Protest!
+    allocateProtestPoints(input: AllocateProtestPointsInput!): Protest!
   }
 
   schema {

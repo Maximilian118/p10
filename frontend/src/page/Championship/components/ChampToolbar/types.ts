@@ -107,3 +107,13 @@ export interface CompetitorsToolbarProps {
   adjudicatorView?: boolean
   onExitAdjudicatorView?: () => void
 }
+
+// Props for protests view.
+export interface ProtestsToolbarProps {
+  onCreateProtest?: () => void
+  canCreateProtest?: boolean
+  isCreating?: boolean
+  onCancelCreate?: () => void
+  onSubmitCreate?: () => void
+  createLoading?: boolean
+}

@@ -10,7 +10,12 @@ export type NotificationTypeEnum =
   | "kicked"
   | "banned"
   | "promoted"
-  | "user_joined" // New: when a user joins your championship
+  | "user_joined"
+  | "protest_filed"
+  | "protest_vote_required"
+  | "protest_passed"
+  | "protest_denied"
+  | "protest_expired"
 
 // Array of valid notification types for runtime validation.
 export const NOTIFICATION_TYPES: NotificationTypeEnum[] = [
@@ -22,7 +27,15 @@ export const NOTIFICATION_TYPES: NotificationTypeEnum[] = [
   "banned",
   "promoted",
   "user_joined",
+  "protest_filed",
+  "protest_vote_required",
+  "protest_passed",
+  "protest_denied",
+  "protest_expired",
 ]
+
+// Protest status for notification display.
+export type ProtestStatusForNotification = "adjudicating" | "voting" | "denied" | "passed"
 
 // Notification object stored in user's notifications array.
 export interface NotificationType {
@@ -37,6 +50,16 @@ export interface NotificationType {
   champIcon?: string
   // Optional badge snapshot for badge earned notifications.
   badgeSnapshot?: userBadgeSnapshotType
+  // Optional protest data for protest notifications.
+  protestId?: ObjectId
+  protestTitle?: string
+  filerName?: string
+  filerIcon?: string
+  accusedName?: string
+  accusedIcon?: string
+  filerPoints?: number
+  accusedPoints?: number
+  protestStatus?: ProtestStatusForNotification
   createdAt: string
 }
 
@@ -50,6 +73,11 @@ export interface NotificationSettingsType {
   emailBanned: boolean
   emailPromoted: boolean
   emailUserJoined: boolean
+  emailProtestFiled: boolean
+  emailProtestVoteRequired: boolean
+  emailProtestPassed: boolean
+  emailProtestDenied: boolean
+  emailProtestExpired: boolean
 }
 
 // Default notification settings (all enabled).
@@ -62,6 +90,11 @@ export const defaultNotificationSettings: NotificationSettingsType = {
   emailBanned: true,
   emailPromoted: true,
   emailUserJoined: true,
+  emailProtestFiled: true,
+  emailProtestVoteRequired: true,
+  emailProtestPassed: true,
+  emailProtestDenied: true,
+  emailProtestExpired: true,
 }
 
 // Map notification type to settings key.
@@ -74,4 +107,9 @@ export const notificationTypeToSettingsKey: Record<NotificationTypeEnum, keyof N
   banned: "emailBanned",
   promoted: "emailPromoted",
   user_joined: "emailUserJoined",
+  protest_filed: "emailProtestFiled",
+  protest_vote_required: "emailProtestVoteRequired",
+  protest_passed: "emailProtestPassed",
+  protest_denied: "emailProtestDenied",
+  protest_expired: "emailProtestExpired",
 }

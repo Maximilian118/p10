@@ -39,30 +39,7 @@ export const populateUser = `
     awarded_at
     featured
   }
-  notifications {
-    _id
-    type
-    title
-    description
-    read
-    champId
-    champName
-    champIcon
-    badgeSnapshot {
-      _id
-      championship
-      url
-      name
-      customName
-      rarity
-      awardedHow
-      awardedDesc
-      zoom
-      awarded_at
-      featured
-    }
-    createdAt
-  }
+  notificationsCount
   notificationSettings {
     emailChampInvite
     emailBadgeEarned
@@ -71,6 +48,12 @@ export const populateUser = `
     emailKicked
     emailBanned
     emailPromoted
+    emailUserJoined
+    emailProtestFiled
+    emailProtestVoteRequired
+    emailProtestPassed
+    emailProtestDenied
+    emailProtestExpired
   }
   permissions {
     admin
@@ -894,4 +877,76 @@ export const populateChamp = `
   created_at
   updated_at
   tokens
+`
+
+// Protest population template literal.
+export const populateProtest = `
+  _id
+  championship {
+    _id
+    name
+    icon
+  }
+  competitor {
+    _id
+    name
+    icon
+  }
+  accused {
+    _id
+    name
+    icon
+  }
+  status
+  title
+  description
+  votes {
+    competitor {
+      _id
+      name
+      icon
+    }
+    vote
+  }
+  expiry
+  pointsAllocated
+  filerPoints
+  accusedPoints
+  created_at
+  updated_at
+`
+
+// Notification population template for getNotifications query.
+export const populateNotification = `
+  _id
+  type
+  title
+  description
+  read
+  champId
+  champName
+  champIcon
+  badgeSnapshot {
+    _id
+    championship
+    url
+    name
+    customName
+    rarity
+    awardedHow
+    awardedDesc
+    zoom
+    awarded_at
+    featured
+  }
+  protestId
+  protestTitle
+  filerName
+  filerIcon
+  accusedName
+  accusedIcon
+  filerPoints
+  accusedPoints
+  protestStatus
+  createdAt
 `

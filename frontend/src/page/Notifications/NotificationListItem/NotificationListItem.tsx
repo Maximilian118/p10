@@ -1,9 +1,11 @@
 import React, { useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import Close from "@mui/icons-material/Close"
-import { NotificationType, userBadgeSnapshotType } from "../../../shared/types"
+import { NotificationType, userBadgeSnapshotType, ProtestStatus } from "../../../shared/types"
+import { formatRelativeTime } from "../../../shared/utility"
 import ImageIcon from "../../../components/utility/icon/imageIcon/ImageIcon"
 import Badge from "../../../components/utility/badge/Badge"
+import StatusCard from "../../../components/cards/statusCard/StatusCard"
 import "./_notificationListItem.scss"
 
 interface NotificationListItemProps {
@@ -13,21 +15,21 @@ interface NotificationListItemProps {
   onVisible?: (id: string) => void
 }
 
-// Formats a date string to relative time (e.g., "2 hours ago").
-const formatRelativeTime = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
+// Check if notification type is a protest notification.
+const isProtestNotification = (type: string): boolean => {
+  return [
+    "protest_filed",
+    "protest_vote_required",
+    "protest_passed",
+    "protest_denied",
+    "protest_expired",
+  ].includes(type)
+}
 
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
-
-  return date.toLocaleDateString()
+// Format points display with sign.
+const formatPoints = (points: number | undefined): string => {
+  if (points === undefined) return ""
+  return points > 0 ? `+${points}` : `${points}`
 }
 
 // Notification list item component for displaying individual notifications.
@@ -92,6 +94,14 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
     }
   }
 
+  // Handle protest notification click - navigate to protest detail.
+  const handleProtestClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (notification.champId && notification.protestId) {
+      navigate(`/championship/${notification.champId}?view=protest&protestId=${notification.protestId}`)
+    }
+  }
+
   // Handle badge click - open celebration modal.
   const handleBadgeClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -103,6 +113,10 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
   // Check if notification has championship data for preview card.
   const hasChampPreview = notification.champId && notification.champName && notification.champIcon
   const isBadgeNotification = notification.type === "badge_earned" && notification.badgeSnapshot
+  const isProtest = isProtestNotification(notification.type)
+  const hasProtestPoints =
+    (notification.type === "protest_passed" || notification.type === "protest_denied") &&
+    notification.filerPoints !== undefined
 
   return (
     <div className="notification-list-item" ref={itemRef}>
@@ -119,15 +133,63 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
 
       <p className="notification-list-item__description">{notification.description}</p>
 
+      {/* Protest title if different from notification title */}
+      {isProtest && notification.protestTitle && (
+        <p className="notification-list-item__protest-title">{notification.protestTitle}</p>
+      )}
+
       <div className="notification-list-item__timestamp-row">
         {!notification.read && <span className="notification-list-item__unread-dot" />}
         <p className="notification-list-item__timestamp">
           {formatRelativeTime(notification.createdAt)}
+          {notification.filerName && ` — ${notification.filerName}`}
         </p>
       </div>
 
-      {/* Championship preview card for invite notifications */}
-      {hasChampPreview && !isBadgeNotification && (
+      {/* Protest preview with head-to-head avatars */}
+      {isProtest && (
+        <div className="notification-list-item__protest-preview" onClick={handleProtestClick}>
+          {/* Head-to-head avatars */}
+          <div className="notification-list-item__protest-avatars">
+            <div className="notification-list-item__protest-avatar">
+              <ImageIcon src={notification.filerIcon || ""} size="medium" />
+              {hasProtestPoints && (
+                <span
+                  className={`notification-list-item__protest-points ${
+                    notification.filerPoints && notification.filerPoints > 0
+                      ? "notification-list-item__protest-points--positive"
+                      : "notification-list-item__protest-points--negative"
+                  }`}
+                >
+                  {formatPoints(notification.filerPoints)}
+                </span>
+              )}
+            </div>
+
+            {notification.accusedName && notification.accusedIcon && (
+              <>
+                <span className="notification-list-item__protest-vs">VS</span>
+                <div className="notification-list-item__protest-avatar">
+                  <ImageIcon src={notification.accusedIcon} size="medium" />
+                  {hasProtestPoints && notification.accusedPoints !== undefined && (
+                    <span className="notification-list-item__protest-points notification-list-item__protest-points--negative">
+                      {formatPoints(notification.accusedPoints)}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Status card for protest status */}
+          {notification.protestStatus && (
+            <StatusCard status={notification.protestStatus as ProtestStatus} variant="notification" />
+          )}
+        </div>
+      )}
+
+      {/* Championship preview card for non-protest notifications */}
+      {hasChampPreview && !isBadgeNotification && !isProtest && (
         <div className="notification-list-item__champ-card" onClick={handleChampClick}>
           <ImageIcon src={notification.champIcon || ""} size="medium" />
           <p className="notification-list-item__champ-name">{notification.champName}</p>

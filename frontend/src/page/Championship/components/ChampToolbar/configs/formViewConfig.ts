@@ -7,20 +7,20 @@ const formViewMapping: Record<string, string> = {
   settings: "settingsProps",
   series: "settingsProps",
   automation: "automationProps",
-  protests: "protestsProps",
+  protestSettings: "protestSettingsProps",
   ruleChanges: "ruleChangesProps",
   admin: "adminProps",
 }
 
 // List of all form views.
-const formViews: ChampView[] = ["settings", "series", "automation", "protests", "ruleChanges", "admin"]
+const formViews: ChampView[] = ["settings", "series", "automation", "protestSettings", "ruleChanges", "admin"]
 
 // Checks if a view is a form view.
 export const isFormView = (view: ChampView): boolean => {
   return formViews.includes(view)
 }
 
-// Strategy for form views (settings, series, automation, protests, ruleChanges, admin).
+// Strategy for form views (settings, series, automation, protestSettings, ruleChanges, admin).
 export const formViewStrategy: ToolbarStrategy = {
   getConfig(
     context: ToolbarContext,

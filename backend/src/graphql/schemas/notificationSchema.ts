@@ -25,6 +25,16 @@ const notificationSchema = `
     champName: String
     champIcon: String
     badgeSnapshot: NotificationBadgeSnapshot
+    # Protest notification fields.
+    protestId: ID
+    protestTitle: String
+    filerName: String
+    filerIcon: String
+    accusedName: String
+    accusedIcon: String
+    filerPoints: Int
+    accusedPoints: Int
+    protestStatus: String
     createdAt: String!
   }
 
@@ -37,6 +47,18 @@ const notificationSchema = `
     emailKicked: Boolean!
     emailBanned: Boolean!
     emailPromoted: Boolean!
+    emailUserJoined: Boolean!
+    emailProtestFiled: Boolean!
+    emailProtestVoteRequired: Boolean!
+    emailProtestPassed: Boolean!
+    emailProtestDenied: Boolean!
+    emailProtestExpired: Boolean!
+  }
+
+  # Wrapper type for getNotifications query (includes tokens for refresh).
+  type NotificationsResult {
+    notifications: [Notification!]!
+    tokens: [String!]
   }
 
   # Input for updating notification settings.
@@ -48,6 +70,12 @@ const notificationSchema = `
     emailKicked: Boolean
     emailBanned: Boolean
     emailPromoted: Boolean
+    emailUserJoined: Boolean
+    emailProtestFiled: Boolean
+    emailProtestVoteRequired: Boolean
+    emailProtestPassed: Boolean
+    emailProtestDenied: Boolean
+    emailProtestExpired: Boolean
   }
 `
 

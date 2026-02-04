@@ -65,8 +65,8 @@ const Nav: React.FC<navType> = ({ user }) => {
     navigate("/notifications")
   }
 
-  // Count unread notifications.
-  const notificationsCount = user.notifications?.filter(n => !n.read).length || 0
+  // Unread notifications count from user state.
+  const notificationsCount = user.notificationsCount || 0
 
   return (
     <div className="nav-container" ref={navContainerRef}>

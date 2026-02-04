@@ -182,12 +182,12 @@ export interface ChampType {
     protests: {
       alwaysVote: boolean // Do protests go straight to the voting process when lodged?
       allowMultiple: boolean // Can a competitor lodge multiple protests at once?
-      expiry: number // Number of mins in the future protests for this champ expire
+      expiry: number // Number of mins in the future protests for this champ expire. Default 1 week.
     }
     ruleChanges: {
       alwaysVote: boolean // Do ruleChanges go straight to the voting process when lodged?
       allowMultiple: boolean // Can a competitor lodge multiple ruleChanges at once?
-      expiry: number // Number of mins in the future ruleChanges for this champ expire
+      expiry: number // Number of mins in the future ruleChanges for this champ expire. Default 1 week.
     }
     automation: {
       enabled: boolean // Can only enable with compatible driver groups
@@ -510,11 +510,13 @@ const champSchema = new mongoose.Schema<ChampType>({
   champBadges: [{ type: mongoose.Schema.ObjectId, ref: "Badge" }],
 
   // Tracks which badges have been discovered (earned at least once) in this championship.
-  discoveredBadges: [{
-    badge: { type: mongoose.Schema.ObjectId, ref: "Badge" },
-    discoveredBy: { type: mongoose.Schema.ObjectId, ref: "User" },
-    discoveredAt: { type: String },
-  }],
+  discoveredBadges: [
+    {
+      badge: { type: mongoose.Schema.ObjectId, ref: "Badge" },
+      discoveredBy: { type: mongoose.Schema.ObjectId, ref: "User" },
+      discoveredAt: { type: String },
+    },
+  ],
 
   // Championship-level competitors - source of truth for who is competing.
   competitors: [{ type: mongoose.Schema.ObjectId, ref: "User" }],

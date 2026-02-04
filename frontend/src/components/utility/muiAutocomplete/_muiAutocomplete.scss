@@ -2,6 +2,15 @@
 @use '../../../scss/variables';
 
 .MuiAutocomplete-option {
+  background: white !important;
+
+  &:hover,
+  &.Mui-focused,
+  &.Mui-focusVisible,
+  &[data-focus="true"] {
+    background: variables.$colour-1 !important;
+  }
+
   p {
     color: variables.$colour-9;
     font-size: 14px;

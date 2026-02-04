@@ -46,6 +46,15 @@ export type NotificationTypeEnum =
   | "kicked"
   | "banned"
   | "promoted"
+  | "user_joined"
+  | "protest_filed"
+  | "protest_vote_required"
+  | "protest_passed"
+  | "protest_denied"
+  | "protest_expired"
+
+// Protest status for notification display.
+export type NotificationProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
 
 // Notification object stored in user's notifications array.
 export interface NotificationType {
@@ -60,6 +69,16 @@ export interface NotificationType {
   champIcon?: string
   // Optional badge snapshot for badge earned notifications.
   badgeSnapshot?: userBadgeSnapshotType
+  // Optional protest data for protest notifications.
+  protestId?: string
+  protestTitle?: string
+  filerName?: string
+  filerIcon?: string
+  accusedName?: string
+  accusedIcon?: string
+  filerPoints?: number
+  accusedPoints?: number
+  protestStatus?: NotificationProtestStatus
   createdAt: string
 }
 
@@ -72,6 +91,12 @@ export interface NotificationSettingsType {
   emailKicked: boolean
   emailBanned: boolean
   emailPromoted: boolean
+  emailUserJoined: boolean
+  emailProtestFiled: boolean
+  emailProtestVoteRequired: boolean
+  emailProtestPassed: boolean
+  emailProtestDenied: boolean
+  emailProtestExpired: boolean
 }
 
 export interface userType {
@@ -84,6 +109,7 @@ export interface userType {
   championships: userChampSnapshotType[]
   badges: userBadgeSnapshotType[]
   notifications: NotificationType[]
+  notificationsCount: number
   notificationSettings: NotificationSettingsType
   created_at: string
   permissions: {
@@ -105,6 +131,12 @@ const defaultNotificationSettings: NotificationSettingsType = {
   emailKicked: true,
   emailBanned: true,
   emailPromoted: true,
+  emailUserJoined: true,
+  emailProtestFiled: true,
+  emailProtestVoteRequired: true,
+  emailProtestPassed: true,
+  emailProtestDenied: true,
+  emailProtestExpired: true,
 }
 
 // A user object template with falsy values.
@@ -118,6 +150,7 @@ const blankUser = {
   championships: [],
   badges: [],
   notifications: [],
+  notificationsCount: 0,
   notificationSettings: defaultNotificationSettings,
   created_at: "",
   permissions: {
@@ -145,6 +178,7 @@ export const checkUserLS = (): userType => {
     const championships = localStorage.getItem("championships")
     const badges = localStorage.getItem("badges")
     const notifications = localStorage.getItem("notifications")
+    const notificationsCount = localStorage.getItem("notificationsCount")
     const notificationSettings = localStorage.getItem("notificationSettings")
     const created_at = localStorage.getItem("created_at")
     const permissions = localStorage.getItem("permissions")
@@ -159,6 +193,7 @@ export const checkUserLS = (): userType => {
       championships: championships ? JSON.parse(championships) : blankUser.championships,
       badges: badges ? JSON.parse(badges) : blankUser.badges,
       notifications: notifications ? JSON.parse(notifications) : blankUser.notifications,
+      notificationsCount: notificationsCount ? parseInt(notificationsCount, 10) : 0,
       notificationSettings: notificationSettings ? JSON.parse(notificationSettings) : blankUser.notificationSettings,
       created_at: created_at ? created_at : blankUser.created_at,
       permissions: permissions ? JSON.parse(permissions) : blankUser.permissions,
@@ -185,6 +220,7 @@ export const logout = (
   localStorage.removeItem("championships")
   localStorage.removeItem("badges")
   localStorage.removeItem("notifications")
+  localStorage.removeItem("notificationsCount")
   localStorage.removeItem("notificationSettings")
   localStorage.removeItem("created_at")
   localStorage.removeItem("permissions")
@@ -230,7 +266,7 @@ export const logInSuccess = (
     localStorage.setItem("profile_picture", user.profile_picture)
     localStorage.setItem("championships", JSON.stringify(user.championships))
     localStorage.setItem("badges", JSON.stringify(user.badges))
-    localStorage.setItem("notifications", JSON.stringify(user.notifications || []))
+    localStorage.setItem("notificationsCount", String(user.notificationsCount || 0))
     localStorage.setItem("notificationSettings", JSON.stringify(user.notificationSettings || defaultNotificationSettings))
     localStorage.setItem("created_at", user.created_at)
     localStorage.setItem("permissions", JSON.stringify(user.permissions))

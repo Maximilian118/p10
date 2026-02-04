@@ -35,6 +35,7 @@ const Email: React.FC = () => {
       <div className="form-title-logged-in">
         <h2>Email Preferences</h2>
       </div>
+      <h3 className="section-title">General</h3>
       <div className="switches">
         <MUISwitch
           text="Championship invites"
@@ -77,6 +78,45 @@ const Email: React.FC = () => {
           fullWidth
           checked={user.notificationSettings?.emailPromoted ?? true}
           onChange={(value) => handleEmailSettingsChange("emailPromoted", value)}
+        />
+        <MUISwitch
+          text="User joined championship"
+          fullWidth
+          checked={user.notificationSettings?.emailUserJoined ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailUserJoined", value)}
+        />
+      </div>
+      <h3 className="section-title">Protests</h3>
+      <div className="switches">
+        <MUISwitch
+          text="Protest filed"
+          fullWidth
+          checked={user.notificationSettings?.emailProtestFiled ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailProtestFiled", value)}
+        />
+        <MUISwitch
+          text="Protest vote required"
+          fullWidth
+          checked={user.notificationSettings?.emailProtestVoteRequired ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailProtestVoteRequired", value)}
+        />
+        <MUISwitch
+          text="Protest passed"
+          fullWidth
+          checked={user.notificationSettings?.emailProtestPassed ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailProtestPassed", value)}
+        />
+        <MUISwitch
+          text="Protest denied"
+          fullWidth
+          checked={user.notificationSettings?.emailProtestDenied ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailProtestDenied", value)}
+        />
+        <MUISwitch
+          text="Protest expired"
+          fullWidth
+          checked={user.notificationSettings?.emailProtestExpired ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailProtestExpired", value)}
         />
       </div>
       <ButtonBar leftButtons={[

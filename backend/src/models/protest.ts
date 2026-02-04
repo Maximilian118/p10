@@ -7,8 +7,8 @@ export type ProtestStatus = "adjudicating" | "voting" | "denied" | "passed"
 
 // Vote on a protest.
 export interface Vote {
-  competitor: ObjectId
-  vote: boolean
+  competitor: ObjectId // Which competitor voted?
+  vote: boolean // Did they vote yes or no?
 }
 
 export interface ProtestType {
@@ -19,11 +19,15 @@ export interface ProtestType {
 
   // Core protest data.
   competitor: ObjectId // Who lodged the protest.
+  accused?: ObjectId // Optional: the competitor the protest is against.
   status: ProtestStatus // Current status of the protest.
   title: string // Title of the protest.
   description: string // Description of the protest.
   votes: Vote[] // Votes from competitors.
-  expiry: string // Timestamp for when the protest expires
+  expiry: string // Timestamp for when the protest expires.
+  pointsAllocated: boolean // Has the adjudicator allocated points after determination?
+  filerPoints?: number // Points awarded to filer after determination.
+  accusedPoints?: number // Points deducted from accused after determination.
 
   // DB metadata.
   created_at: string
@@ -45,18 +49,34 @@ const voteSchema = new mongoose.Schema(
 const protestSchema = new mongoose.Schema<ProtestType>({
   championship: { type: mongoose.Schema.ObjectId, required: true, ref: "Champ" },
   competitor: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },
+  accused: { type: mongoose.Schema.ObjectId, ref: "User" },
   status: {
     type: String,
     enum: ["adjudicating", "voting", "denied", "passed"],
     default: "adjudicating",
   },
-  title: { type: String, required: true },
-  description: { type: String, required: true },
+  title: { type: String, required: true, maxlength: 100 },
+  description: { type: String, required: true, maxlength: 1000 },
   votes: [voteSchema],
   expiry: { type: String, required: true },
+  pointsAllocated: { type: Boolean, default: false },
+  filerPoints: { type: Number },
+  accusedPoints: { type: Number },
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })
+
+// TTL index for auto-deletion of determined protests after 1 year.
+protestSchema.index(
+  { updated_at: 1 },
+  {
+    expireAfterSeconds: 365 * 24 * 60 * 60,
+    partialFilterExpression: {
+      status: { $in: ["passed", "denied"] },
+      pointsAllocated: true,
+    },
+  },
+)
 
 const Protest = mongoose.model<ProtestType>("Protest", protestSchema)
 

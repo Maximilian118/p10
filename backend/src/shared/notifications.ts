@@ -10,7 +10,7 @@ import {
   defaultNotificationSettings,
 } from "../models/notification"
 import { io } from "../app"
-import { pushNotification, pushNotificationToMany } from "../socket/socketHandler"
+import { SOCKET_EVENTS } from "../socket/socketHandler"
 
 // Maximum notifications per user (oldest are dropped when exceeded).
 const MAX_NOTIFICATIONS = 100
@@ -56,6 +56,16 @@ export interface SendNotificationOptions {
   champIcon?: string
   // Optional badge snapshot for badge earned notifications.
   badgeSnapshot?: userBadgeSnapshotType
+  // Optional protest data for protest notifications.
+  protestId?: ObjectId | string
+  protestTitle?: string
+  filerName?: string
+  filerIcon?: string
+  accusedName?: string
+  accusedIcon?: string
+  filerPoints?: number
+  accusedPoints?: number
+  protestStatus?: "adjudicating" | "voting" | "denied" | "passed"
 }
 
 /**
@@ -92,6 +102,15 @@ export async function sendNotification(options: SendNotificationOptions): Promis
       champName,
       champIcon,
       badgeSnapshot,
+      protestId,
+      protestTitle,
+      filerName,
+      filerIcon,
+      accusedName,
+      accusedIcon,
+      filerPoints,
+      accusedPoints,
+      protestStatus,
     } = options
 
     // Validate notification type.
@@ -124,6 +143,35 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     // Add optional badge snapshot.
     if (badgeSnapshot) {
       notification.badgeSnapshot = badgeSnapshot
+    }
+
+    // Add optional protest data.
+    if (protestId) {
+      notification.protestId = typeof protestId === "string" ? new ObjectId(protestId) : protestId
+    }
+    if (protestTitle) {
+      notification.protestTitle = protestTitle
+    }
+    if (filerName) {
+      notification.filerName = filerName
+    }
+    if (filerIcon) {
+      notification.filerIcon = filerIcon
+    }
+    if (accusedName) {
+      notification.accusedName = accusedName
+    }
+    if (accusedIcon) {
+      notification.accusedIcon = accusedIcon
+    }
+    if (filerPoints !== undefined) {
+      notification.filerPoints = filerPoints
+    }
+    if (accusedPoints !== undefined) {
+      notification.accusedPoints = accusedPoints
+    }
+    if (protestStatus) {
+      notification.protestStatus = protestStatus
     }
 
     // Build duplicate check filter - prevent same notification within DUPLICATE_WINDOW_MINUTES.
@@ -178,8 +226,10 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     console.log(`🔔 Notification sent to ${updatedUser.name}: ${title}`)
 
     // Push notification via WebSocket for real-time delivery.
+    // JSON round-trip converts ObjectIds to strings for clean frontend delivery.
     if (io) {
-      pushNotification(io, userObjectId.toString(), notification)
+      const serialized = JSON.parse(JSON.stringify(notification))
+      io.to(`user:${userObjectId.toString()}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, serialized)
     }
 
     // Check if user wants email for this notification type.
@@ -213,7 +263,24 @@ export async function sendNotificationToMany(
   userIds: (ObjectId | string)[],
   options: Omit<SendNotificationOptions, "userId">
 ): Promise<void> {
-  const { type, title, description, champId, champName, champIcon, badgeSnapshot } = options
+  const {
+    type,
+    title,
+    description,
+    champId,
+    champName,
+    champIcon,
+    badgeSnapshot,
+    protestId,
+    protestTitle,
+    filerName,
+    filerIcon,
+    accusedName,
+    accusedIcon,
+    filerPoints,
+    accusedPoints,
+    protestStatus,
+  } = options
 
   // Validate notification type.
   if (!NOTIFICATION_TYPES.includes(type)) {
@@ -233,9 +300,9 @@ export async function sendNotificationToMany(
 
   const createdAt = moment().format()
 
-  // Build bulk operations - one per user.
-  const bulkOps = userIds.map((userId) => {
-    // Each user gets their own notification with unique _id.
+  // Build notification objects per user (each with unique _id).
+  // Used for both the DB bulk write and per-user WebSocket push.
+  const userNotifications = userIds.map((userId) => {
     const notification: NotificationType = {
       _id: new ObjectId(),
       type,
@@ -245,43 +312,55 @@ export async function sendNotificationToMany(
       createdAt,
     }
 
-    if (champId) {
-      notification.champId = typeof champId === "string" ? new ObjectId(champId) : champId
-    }
+    if (champId) notification.champId = typeof champId === "string" ? new ObjectId(champId) : champId
     if (champName) notification.champName = champName
     if (champIcon) notification.champIcon = champIcon
     if (badgeSnapshot) notification.badgeSnapshot = badgeSnapshot
 
+    // Add protest data if present.
+    if (protestId) notification.protestId = typeof protestId === "string" ? new ObjectId(protestId) : protestId
+    if (protestTitle) notification.protestTitle = protestTitle
+    if (filerName) notification.filerName = filerName
+    if (filerIcon) notification.filerIcon = filerIcon
+    if (accusedName) notification.accusedName = accusedName
+    if (accusedIcon) notification.accusedIcon = accusedIcon
+    if (filerPoints !== undefined) notification.filerPoints = filerPoints
+    if (accusedPoints !== undefined) notification.accusedPoints = accusedPoints
+    if (protestStatus) notification.protestStatus = protestStatus
+
     return {
-      updateOne: {
-        filter: { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
-        update: {
-          $push: {
-            notifications: {
-              $each: [notification],
-              $position: 0,
-              $slice: MAX_NOTIFICATIONS,
-            },
+      userObjectId: typeof userId === "string" ? new ObjectId(userId) : userId,
+      notification,
+    }
+  })
+
+  // Build bulk ops from the notification objects.
+  const bulkOps = userNotifications.map(({ userObjectId, notification }) => ({
+    updateOne: {
+      filter: { _id: userObjectId },
+      update: {
+        $push: {
+          notifications: {
+            $each: [notification],
+            $position: 0,
+            $slice: MAX_NOTIFICATIONS,
           },
         },
       },
-    }
-  })
+    },
+  }))
 
   // Single bulk write operation for all users.
   const result = await User.bulkWrite(bulkOps)
   console.log(`🔔 Bulk notification sent to ${result.modifiedCount} users: ${title}`)
 
-  // Push notifications via WebSocket for real-time delivery.
+  // Push each user's full notification via WebSocket (includes _id and all fields).
+  // JSON round-trip converts ObjectIds to strings for clean frontend delivery.
   if (io) {
-    const notificationForSocket = { type, title, description, read: false, createdAt }
-    if (champId) {
-      (notificationForSocket as NotificationType).champId = typeof champId === "string" ? new ObjectId(champId) : champId
-    }
-    if (champName) (notificationForSocket as NotificationType).champName = champName
-    if (champIcon) (notificationForSocket as NotificationType).champIcon = champIcon
-    if (badgeSnapshot) (notificationForSocket as NotificationType).badgeSnapshot = badgeSnapshot
-    pushNotificationToMany(io, userObjectIds.map(id => id.toString()), notificationForSocket as Omit<NotificationType, "_id">)
+    userNotifications.forEach(({ userObjectId, notification }) => {
+      const serialized = JSON.parse(JSON.stringify(notification))
+      io.to(`user:${userObjectId.toString()}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, serialized)
+    })
   }
 
   // Fetch users who want emails for this notification type.

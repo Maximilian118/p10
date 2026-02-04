@@ -115,3 +115,11 @@ export const champPopulation = [
   // Badge population for badge stats display.
   { path: "champBadges", select: "_id" },
 ]
+
+// Population for a Protest.
+export const protestPopulation = [
+  { path: "championship", select: "_id name icon" },
+  { path: "competitor", select: "_id name icon" },
+  { path: "accused", select: "_id name icon" },
+  { path: "votes.competitor", select: "_id name icon" },
+]

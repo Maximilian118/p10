@@ -290,6 +290,15 @@ export const inputLabel = (
     case "ruleChangesExpiry":
       label = "Expiry (Days)"
       break
+    case "title":
+      label = "Title"
+      break
+    case "description":
+      label = "Description"
+      break
+    case "accused":
+      label = "Against (Optional)"
+      break
     default:
       break
   }

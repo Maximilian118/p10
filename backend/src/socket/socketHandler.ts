@@ -3,7 +3,6 @@ import jwt, { JwtPayload } from "jsonwebtoken"
 import Champ, { RoundStatus } from "../models/champ"
 import User from "../models/user"
 import { placeBetAtomic } from "./betHandler"
-import { NotificationType } from "../models/notification"
 
 // Verbose socket logging is opt-in via env variable.
 const verboseLogs = process.env.VERBOSE_SOCKET_LOGS === "true"
@@ -315,25 +314,3 @@ export const broadcastBetPlaced = (
   if (verboseLogs) console.log(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
 }
 
-// Pushes a notification to a specific user via WebSocket.
-// User must be connected and auto-joined to their user:${userId} room.
-export const pushNotification = (
-  io: Server,
-  userId: string,
-  notification: NotificationType
-): void => {
-  io.to(`user:${userId}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, notification)
-  if (verboseLogs) console.log(`Pushed notification to user ${userId}: ${notification.title}`)
-}
-
-// Pushes a notification to multiple users via WebSocket.
-export const pushNotificationToMany = (
-  io: Server,
-  userIds: string[],
-  notification: Omit<NotificationType, "_id">
-): void => {
-  userIds.forEach((userId) => {
-    io.to(`user:${userId}`).emit(SOCKET_EVENTS.NOTIFICATION_RECEIVED, notification)
-  })
-  if (verboseLogs) console.log(`Pushed notification to ${userIds.length} users: ${notification.title}`)
-}

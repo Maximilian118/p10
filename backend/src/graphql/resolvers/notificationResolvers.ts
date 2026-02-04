@@ -4,7 +4,35 @@ import { throwError } from "./resolverErrors"
 import { AuthRequest } from "../../middleware/auth"
 import { signTokens } from "../../shared/utility"
 
+// Compute unread notifications count from a user's notifications array.
+const getUnreadCount = (user: userTypeMongo): number => {
+  return (user.notifications || []).filter(
+    (n: { read: boolean }) => !n.read,
+  ).length
+}
+
 const notificationResolvers = {
+  // Fetch all notifications for the authenticated user.
+  getNotifications: async (
+    _args: Record<string, never>,
+    req: AuthRequest,
+  ): Promise<{ notifications: unknown[]; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("getNotifications", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    const user = (await User.findById(req._id).select("notifications refresh_count")) as userTypeMongo
+
+    if (!user) {
+      throwError("getNotifications", null, "User not found!", 404)
+    }
+
+    return {
+      notifications: user.notifications || [],
+      tokens: signTokens(user),
+    }
+  },
+
   // Mark a single notification as read.
   // Uses atomic findOneAndUpdate to avoid version conflicts.
   markNotificationRead: async (
@@ -28,6 +56,7 @@ const notificationResolvers = {
 
     return {
       ...user._doc,
+      notificationsCount: getUnreadCount(user),
       tokens: signTokens(user),
       password: null,
       email: user.email,
@@ -57,6 +86,7 @@ const notificationResolvers = {
 
     return {
       ...user._doc,
+      notificationsCount: getUnreadCount(user),
       tokens: signTokens(user),
       password: null,
       email: user.email,
@@ -86,6 +116,7 @@ const notificationResolvers = {
 
     return {
       ...user._doc,
+      notificationsCount: 0,
       tokens: signTokens(user),
       password: null,
       email: user.email,
@@ -128,6 +159,21 @@ const notificationResolvers = {
     if (settings.emailUserJoined !== undefined) {
       setOperations["notificationSettings.emailUserJoined"] = settings.emailUserJoined
     }
+    if (settings.emailProtestFiled !== undefined) {
+      setOperations["notificationSettings.emailProtestFiled"] = settings.emailProtestFiled
+    }
+    if (settings.emailProtestVoteRequired !== undefined) {
+      setOperations["notificationSettings.emailProtestVoteRequired"] = settings.emailProtestVoteRequired
+    }
+    if (settings.emailProtestPassed !== undefined) {
+      setOperations["notificationSettings.emailProtestPassed"] = settings.emailProtestPassed
+    }
+    if (settings.emailProtestDenied !== undefined) {
+      setOperations["notificationSettings.emailProtestDenied"] = settings.emailProtestDenied
+    }
+    if (settings.emailProtestExpired !== undefined) {
+      setOperations["notificationSettings.emailProtestExpired"] = settings.emailProtestExpired
+    }
 
     // If no settings provided, just return current user.
     if (Object.keys(setOperations).length === 0) {
@@ -137,6 +183,7 @@ const notificationResolvers = {
       }
       return {
         ...user._doc,
+        notificationsCount: getUnreadCount(user),
         tokens: signTokens(user),
         password: null,
         email: user.email,
@@ -156,6 +203,7 @@ const notificationResolvers = {
 
     return {
       ...user._doc,
+      notificationsCount: getUnreadCount(user),
       tokens: signTokens(user),
       password: null,
       email: user.email,

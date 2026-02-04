@@ -1,0 +1,97 @@
+@use '../../../../../../scss/variables';
+@use '../../../../../../scss/mixins';
+
+// Voting panel for competitors.
+.voting-panel {
+  --mui-success: #4caf50;
+  --mui-error: #f44336;
+
+  width: 100%;
+  @include mixins.flexbox-start-column;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin: 20px 0;
+  box-sizing: border-box;
+}
+
+// Voting prompt label.
+.voting-panel__label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+// Voted result display (shows after user has voted).
+.voting-panel__result {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  @include mixins.flexbox-start;
+  gap: 8px;
+  align-items: center;
+}
+
+// Voting buttons container.
+.voting-panel__buttons {
+  @include mixins.flexbox-start;
+  gap: 12px;
+  width: 100%;
+}
+
+// Vote button base styles.
+.voting-panel__btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity variables.$trans-speed, transform variables.$trans-speed;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-2px);
+  }
+
+  // Yes vote button.
+  &--yes {
+    background: var(--mui-success);
+    color: white;
+
+    &.voting-panel__btn--selected {
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.4);
+    }
+  }
+
+  // No vote button.
+  &--no {
+    background: var(--mui-error);
+    color: white;
+
+    &.voting-panel__btn--selected {
+      box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.4);
+    }
+  }
+}
+
+// Vote icon sizing and color variants.
+.voting-panel__icon {
+  font-size: 20px;
+
+  // Green thumbs up for voted result.
+  &--yes {
+    color: var(--mui-success);
+  }
+
+  // Red thumbs down for voted result.
+  &--no {
+    color: var(--mui-error);
+  }
+}

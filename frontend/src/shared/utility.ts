@@ -318,6 +318,50 @@ export const isCompetitorInactive = (
   return !inCompetitors || isBanned || isKicked
 }
 
+// Type for vote objects with a boolean vote property.
+type VoteEntry = { vote: boolean }
+
+// Calculates the vote split counts and percentages.
+export const getVoteSplit = (
+  votes: VoteEntry[] | undefined,
+): { yesCount: number; noCount: number; yesPercent: number; noPercent: number } => {
+  if (!votes || votes.length === 0) {
+    return { yesCount: 0, noCount: 0, yesPercent: 50, noPercent: 50 }
+  }
+
+  const yesCount = votes.filter((v) => v.vote).length
+  const noCount = votes.filter((v) => !v.vote).length
+  const total = yesCount + noCount
+
+  if (total === 0) {
+    return { yesCount: 0, noCount: 0, yesPercent: 50, noPercent: 50 }
+  }
+
+  return {
+    yesCount,
+    noCount,
+    yesPercent: (yesCount / total) * 100,
+    noPercent: (noCount / total) * 100,
+  }
+}
+
+// Formats a date string to relative time (e.g., "2 hours ago").
+export const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return "Just now"
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
+
+  return date.toLocaleDateString()
+}
+
 // Aggregates all competitors from all rounds into a single array with their latest data.
 // Returns competitors sorted by their last known position, including inactive ones.
 export const aggregateAllCompetitors = (

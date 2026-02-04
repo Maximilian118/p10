@@ -315,10 +315,15 @@ export interface ProtestType {
   _id: string
   championship: ChampType
   competitor: userType // Who lodged the protest.
+  accused?: userType // Optional: the competitor the protest is against.
   status: ProtestStatus
   title: string
   description: string
   votes: VoteType[]
+  expiry: string // When the voting period expires.
+  pointsAllocated: boolean // Has adjudicator submitted points after determination?
+  filerPoints?: number // Points awarded to filer after determination.
+  accusedPoints?: number // Points deducted from accused after determination.
   created_at: string
   updated_at: string
   tokens: string

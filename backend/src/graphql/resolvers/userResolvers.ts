@@ -78,6 +78,7 @@ const userResolvers = {
       // Return the new user with tokens.
       return {
         ...user._doc,
+        notificationsCount: 0,
         tokens: signTokens(user),
         password: null,
       }
@@ -99,8 +100,14 @@ const userResolvers = {
       user.logged_in_at = moment().format()
       await user.save()
 
+      // Compute unread notifications count.
+      const notificationsCount = (user.notifications || []).filter(
+        (n: { read: boolean }) => !n.read,
+      ).length
+
       return {
         ...user._doc,
+        notificationsCount,
         tokens: signTokens(user),
         password: null,
       }

@@ -1,0 +1,55 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+// Floating user card container.
+.floating-user-card {
+  height: 56px;
+  width: 100%;
+  @include mixins.flexbox-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  box-sizing: border-box;
+
+  // Clickable variant - navigates to user profile.
+  &--clickable {
+    cursor: pointer;
+    transition: background variables.$trans-speed;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  // Accused variant has a subtle red tint.
+  &--accused {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+  }
+
+  // User info container.
+  .floating-user-card__info {
+    @include mixins.flexbox-start-column;
+    gap: 2px;
+    margin-left: 5px;
+
+    // User name.
+    .floating-user-card__name {
+      width: 100%;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      margin: 0;
+      text-align: left;
+    }
+
+    // User label.
+    .floating-user-card__label {
+      width: 100%;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0;
+    }
+  }
+}

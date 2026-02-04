@@ -419,6 +419,46 @@ const champSchema = `
     totalRounds: Int!
     tokens: [String!]
   }
+
+  # Protest type for the protest system.
+  type Protest {
+    _id: ID!
+    championship: Champ!
+    competitor: User!
+    accused: User
+    status: ProtestStatus!
+    title: String!
+    description: String!
+    votes: [Vote!]!
+    expiry: String!
+    pointsAllocated: Boolean!
+    filerPoints: Int
+    accusedPoints: Int
+    created_at: String!
+    updated_at: String!
+    tokens: [String!]
+  }
+
+  # Response type for multiple protests.
+  type Protests {
+    array: [Protest!]!
+    tokens: [String!]
+  }
+
+  # Input for creating a protest.
+  input CreateProtestInput {
+    champId: ID!
+    title: String!
+    description: String!
+    accusedId: ID
+  }
+
+  # Input for allocating points after protest determination.
+  input AllocateProtestPointsInput {
+    protestId: ID!
+    filerPoints: Int!
+    accusedPoints: Int
+  }
 `
 
 export default champSchema

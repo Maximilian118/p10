@@ -1,4 +1,5 @@
 import moment from "moment"
+import Filter from "bad-words"
 import { AuthRequest } from "../../middleware/auth"
 import Champ, {
   ChampType,
@@ -14,11 +15,11 @@ import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
 import Team from "../../models/team"
 import Badge from "../../models/badge"
-import Protest from "../../models/protest"
+import Protest, { ProtestType } from "../../models/protest"
 import { ObjectId } from "mongodb"
 import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 import { filterChampForUser } from "../../shared/utility"
-import { champPopulation, rulesAndRegsPopulation } from "../../shared/population"
+import { champPopulation, rulesAndRegsPopulation, protestPopulation } from "../../shared/population"
 import { io } from "../../app"
 import { broadcastRoundStatusChange, broadcastBetPlaced, SOCKET_EVENTS } from "../../socket/socketHandler"
 import {
@@ -29,6 +30,9 @@ import {
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
 import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
 import badgeResolvers from "./badgeResolvers"
+
+// Profanity filter for protest content.
+const profanityFilter = new Filter()
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -3051,6 +3055,766 @@ const champResolvers = {
       throw err
     }
   },
+
+  // ============================================
+  // PROTEST RESOLVERS
+  // ============================================
+
+  // Fetches a single protest by ID.
+  getProtest: async (
+    { protestId }: { protestId: string },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("getProtest", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protest = await Protest.findById(protestId).populate(protestPopulation).exec()
+
+      if (!protest) {
+        return throwError("getProtest", protestId, "Protest not found!", 404)
+      }
+
+      // Check for expiry and auto-determine if needed.
+      if (protest.status === "voting" && moment().isAfter(protest.expiry)) {
+        const champ = await Champ.findById(protest.championship)
+        if (champ) {
+          const yesVotes = protest.votes.filter((v) => v.vote).length
+          const totalCompetitors = champ.competitors.length
+          const newStatus = yesVotes > totalCompetitors / 2 ? "passed" : "denied"
+
+          protest.status = newStatus
+          protest.pointsAllocated = true
+          protest.updated_at = moment().format()
+
+          // Apply default points.
+          const filerPoints = newStatus === "passed" ? 1 : 0
+          const accusedPoints = newStatus === "passed" && protest.accused ? -1 : null
+
+          // Store points on the protest.
+          protest.filerPoints = filerPoints
+          if (accusedPoints !== null) {
+            protest.accusedPoints = accusedPoints
+          }
+
+          await protest.save()
+
+          // Apply points adjustment for filer.
+          if (filerPoints !== 0) {
+            await applyProtestPointsAdjustment(
+              champ,
+              protest.competitor.toString(),
+              filerPoints,
+              `Protest expired: ${protest.title}`,
+            )
+          }
+
+          // Apply points adjustment for accused if exists and passed.
+          if (accusedPoints !== null && protest.accused) {
+            await applyProtestPointsAdjustment(
+              champ,
+              protest.accused.toString(),
+              accusedPoints,
+              `Protest expired: ${protest.title}`,
+            )
+          }
+
+          await champ.save()
+
+          // Send expired notification to all competitors.
+          const competitorIds = champ.competitors.map((c) => c.toString())
+          await sendNotificationToMany(competitorIds, {
+            type: "protest_expired",
+            title: "Protest Expired",
+            description: `Protest "${protest.title}" has expired and been auto-determined.`,
+            champId: champ._id,
+            champName: champ.name,
+            champIcon: champ.icon,
+            protestId: protest._id,
+            protestTitle: protest.title,
+            protestStatus: newStatus,
+            filerPoints,
+            accusedPoints: accusedPoints ?? undefined,
+          })
+
+          // Re-fetch populated protest after update.
+          const updatedProtest = await Protest.findById(protestId).populate(protestPopulation).exec()
+          return updatedProtest!._doc
+        }
+      }
+
+      return protest._doc
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Fetches all protests for a championship.
+  getProtestsForChampionship: async (
+    { champId }: { champId: string },
+    req: AuthRequest,
+  ): Promise<{ array: ProtestType[]; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("getProtestsForChampionship", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protests = await Protest.find({ championship: champId })
+        .populate(protestPopulation)
+        .sort({ created_at: -1 })
+        .exec()
+
+      return {
+        array: protests.map((p) => p._doc),
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Creates a new protest.
+  createProtest: async (
+    {
+      input,
+    }: {
+      input: {
+        champId: string
+        title: string
+        description: string
+        accusedId?: string
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("createProtest", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Validate title length.
+      if (input.title.length > 100) {
+        return throwError("createProtest", "title", "Title must be 100 characters or less!", 400)
+      }
+
+      // Validate description length.
+      if (input.description.length > 1000) {
+        return throwError("createProtest", "description", "Description must be 1000 characters or less!", 400)
+      }
+
+      // Check for profanity in title and description separately.
+      if (profanityFilter.isProfane(input.title)) {
+        return throwError("title", "profanity", "Title contains inappropriate language!", 400)
+      }
+      if (profanityFilter.isProfane(input.description)) {
+        return throwError("description", "profanity", "Description contains inappropriate language!", 400)
+      }
+
+      const champ = await Champ.findById(input.champId).populate(champPopulation).exec()
+
+      if (!champ) {
+        return throwError("createProtest", input.champId, "Championship not found!", 404)
+      }
+
+      // Verify user is a competitor in the championship.
+      const isCompetitor = champ.competitors.some((c) => c._id.toString() === req._id)
+      if (!isCompetitor) {
+        return throwError(
+          "createProtest",
+          req._id,
+          "Only competitors can file protests!",
+          403,
+        )
+      }
+
+      // Check allowMultiple setting.
+      if (!champ.settings.protests.allowMultiple) {
+        const existingOpenProtest = await Protest.findOne({
+          championship: input.champId,
+          competitor: req._id,
+          status: { $in: ["adjudicating", "voting"] },
+        })
+        if (existingOpenProtest) {
+          return throwError(
+            "createProtest",
+            req._id,
+            "You already have an open protest. Please wait for it to be resolved.",
+            400,
+          )
+        }
+      }
+
+      // Validate accused is a competitor if provided.
+      if (input.accusedId) {
+        const isAccusedCompetitor = champ.competitors.some((c) => c._id.toString() === input.accusedId)
+        if (!isAccusedCompetitor) {
+          return throwError(
+            "createProtest",
+            input.accusedId,
+            "Accused must be a competitor in the championship!",
+            400,
+          )
+        }
+        // Can't accuse yourself.
+        if (input.accusedId === req._id) {
+          return throwError(
+            "createProtest",
+            input.accusedId,
+            "You cannot file a protest against yourself!",
+            400,
+          )
+        }
+      }
+
+      // Determine initial status based on alwaysVote setting.
+      const initialStatus = champ.settings.protests.alwaysVote ? "voting" : "adjudicating"
+
+      // Calculate expiry from settings (expiry is in minutes).
+      const expiryMinutes = champ.settings.protests.expiry
+      const expiry = moment().add(expiryMinutes, "minutes").format()
+
+      // Create the protest.
+      const protest = new Protest({
+        championship: new ObjectId(input.champId),
+        competitor: new ObjectId(req._id),
+        accused: input.accusedId ? new ObjectId(input.accusedId) : undefined,
+        status: initialStatus,
+        title: input.title,
+        description: input.description,
+        votes: [],
+        expiry,
+        pointsAllocated: false,
+        created_at: moment().format(),
+        updated_at: moment().format(),
+      })
+
+      await protest.save()
+
+      // Get filer and accused user data for notification.
+      const filer = await User.findById(req._id)
+      const accused = input.accusedId ? await User.findById(input.accusedId) : null
+
+      // Send notifications to all competitors.
+      const competitorIds = champ.competitors.map((c) => c._id.toString())
+
+      if (initialStatus === "voting") {
+        // alwaysVote = true, send vote required notification.
+        await sendNotificationToMany(competitorIds, {
+          type: "protest_vote_required",
+          title: "Vote Required",
+          description: `A protest "${input.title}" requires your vote.`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          protestId: protest._id,
+          protestTitle: input.title,
+          filerName: filer?.name,
+          filerIcon: filer?.icon,
+          accusedName: accused?.name,
+          accusedIcon: accused?.icon,
+          protestStatus: "voting",
+        })
+      } else {
+        // alwaysVote = false, send protest filed notification.
+        await sendNotificationToMany(competitorIds, {
+          type: "protest_filed",
+          title: "Protest Filed",
+          description: `${filer?.name} has filed a protest: "${input.title}"`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          protestId: protest._id,
+          protestTitle: input.title,
+          filerName: filer?.name,
+          filerIcon: filer?.icon,
+          accusedName: accused?.name,
+          accusedIcon: accused?.icon,
+          protestStatus: "adjudicating",
+        })
+      }
+
+      // Return populated protest.
+      const populatedProtest = await Protest.findById(protest._id).populate(protestPopulation).exec()
+      return populatedProtest!._doc
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Vote on a protest.
+  voteOnProtest: async (
+    { protestId, vote }: { protestId: string; vote: boolean },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("voteOnProtest", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protest = await Protest.findById(protestId)
+
+      if (!protest) {
+        return throwError("voteOnProtest", protestId, "Protest not found!", 404)
+      }
+
+      // Verify protest is in voting status.
+      if (protest.status !== "voting") {
+        return throwError(
+          "voteOnProtest",
+          protest.status,
+          "Protest is not in voting phase!",
+          400,
+        )
+      }
+
+      // Fetch championship to verify user is competitor.
+      const champ = await Champ.findById(protest.championship)
+      if (!champ) {
+        return throwError("voteOnProtest", protest.championship.toString(), "Championship not found!", 404)
+      }
+
+      const isCompetitor = champ.competitors.some((c) => c.toString() === req._id)
+      if (!isCompetitor) {
+        return throwError(
+          "voteOnProtest",
+          req._id,
+          "Only competitors can vote on protests!",
+          403,
+        )
+      }
+
+      // Check if user has already voted.
+      const hasVoted = protest.votes.some((v) => v.competitor.toString() === req._id)
+      if (hasVoted) {
+        return throwError(
+          "voteOnProtest",
+          req._id,
+          "You have already voted on this protest!",
+          400,
+        )
+      }
+
+      // Add the vote.
+      protest.votes.push({
+        competitor: new ObjectId(req._id),
+        vote,
+      })
+      protest.updated_at = moment().format()
+
+      // Check if voting should auto-complete (>50% yes votes).
+      const yesVotes = protest.votes.filter((v) => v.vote).length
+      const totalCompetitors = champ.competitors.length
+
+      if (yesVotes > totalCompetitors / 2) {
+        // Auto-pass the protest and allocate default points.
+        protest.status = "passed"
+        protest.pointsAllocated = true
+
+        // Apply default points (+1 to filer, -1 to accused if exists).
+        const filerPoints = 1
+        const accusedPoints = protest.accused ? -1 : null
+
+        // Store points on the protest.
+        protest.filerPoints = filerPoints
+        if (accusedPoints !== null) {
+          protest.accusedPoints = accusedPoints
+        }
+
+        await protest.save()
+
+        await applyProtestPointsAdjustment(
+          champ,
+          protest.competitor.toString(),
+          filerPoints,
+          `Protest auto-passed: ${protest.title}`,
+        )
+
+        if (accusedPoints !== null && protest.accused) {
+          await applyProtestPointsAdjustment(
+            champ,
+            protest.accused.toString(),
+            accusedPoints,
+            `Protest auto-passed: ${protest.title}`,
+          )
+        }
+
+        await champ.save()
+
+        // Send protest_passed notification to all competitors.
+        const competitorIds = champ.competitors.map((c) => c._id.toString())
+        await sendNotificationToMany(competitorIds, {
+          type: "protest_passed",
+          title: "Protest Passed",
+          description: `Protest "${protest.title}" has passed by majority vote.`,
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          protestId: protest._id,
+          protestTitle: protest.title,
+          protestStatus: "passed",
+          filerPoints,
+          accusedPoints: accusedPoints ?? undefined,
+          filerName: (protest as any).competitor?.name,
+          filerIcon: (protest as any).competitor?.icon,
+          accusedName: (protest as any).accused?.name,
+          accusedIcon: (protest as any).accused?.icon,
+        })
+
+        // Return populated protest.
+        const populatedProtest = await Protest.findById(protestId).populate(protestPopulation).exec()
+        return populatedProtest!._doc
+      }
+
+      await protest.save()
+
+      // Return populated protest.
+      const populatedProtest = await Protest.findById(protestId).populate(protestPopulation).exec()
+      return populatedProtest!._doc
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Move protest from adjudicating to voting (adjudicator only).
+  moveProtestToVoting: async (
+    { protestId }: { protestId: string },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("moveProtestToVoting", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protest = await Protest.findById(protestId)
+
+      if (!protest) {
+        return throwError("moveProtestToVoting", protestId, "Protest not found!", 404)
+      }
+
+      // Verify protest is in adjudicating status.
+      if (protest.status !== "adjudicating") {
+        return throwError(
+          "moveProtestToVoting",
+          protest.status,
+          "Protest is not in adjudicating phase!",
+          400,
+        )
+      }
+
+      // Fetch championship to verify user is adjudicator.
+      const champ = await Champ.findById(protest.championship).populate(champPopulation).exec()
+      if (!champ) {
+        return throwError("moveProtestToVoting", protest.championship.toString(), "Championship not found!", 404)
+      }
+
+      // Verify championship has an adjudicator.
+      if (!champ.adjudicator?.current?._id) {
+        return throwError("moveProtestToVoting", protest.championship.toString(), "Championship has no adjudicator!", 404)
+      }
+
+      const isAdjudicator = champ.adjudicator.current._id.toString() === req._id
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      if (!isAdjudicator && !isAdmin) {
+        return throwError(
+          "moveProtestToVoting",
+          req._id,
+          "Only the adjudicator can move a protest to voting!",
+          403,
+        )
+      }
+
+      // Update protest status.
+      protest.status = "voting"
+      protest.updated_at = moment().format()
+      await protest.save()
+
+      // Get filer and accused user data for notification.
+      const filer = await User.findById(protest.competitor)
+      const accused = protest.accused ? await User.findById(protest.accused) : null
+
+      // Send vote required notification to all competitors.
+      const competitorIds = champ.competitors.map((c) => c._id.toString())
+      await sendNotificationToMany(competitorIds, {
+        type: "protest_vote_required",
+        title: "Vote Required",
+        description: `A protest "${protest.title}" requires your vote.`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+        protestId: protest._id,
+        protestTitle: protest.title,
+        filerName: filer?.name,
+        filerIcon: filer?.icon,
+        accusedName: accused?.name,
+        accusedIcon: accused?.icon,
+        protestStatus: "voting",
+      })
+
+      // Return populated protest.
+      const populatedProtest = await Protest.findById(protestId).populate(protestPopulation).exec()
+      return populatedProtest!._doc
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Determine protest outcome (adjudicator only).
+  determineProtest: async (
+    { protestId, status }: { protestId: string; status: "passed" | "denied" },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("determineProtest", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protest = await Protest.findById(protestId)
+
+      if (!protest) {
+        return throwError("determineProtest", protestId, "Protest not found!", 404)
+      }
+
+      // Verify protest is open (adjudicating or voting).
+      if (protest.status !== "adjudicating" && protest.status !== "voting") {
+        return throwError(
+          "determineProtest",
+          protest.status,
+          "Protest has already been determined!",
+          400,
+        )
+      }
+
+      // Fetch championship to verify user is adjudicator.
+      const champ = await Champ.findById(protest.championship)
+      if (!champ) {
+        return throwError("determineProtest", protest.championship.toString(), "Championship not found!", 404)
+      }
+
+      // Verify championship has an adjudicator.
+      if (!champ.adjudicator?.current) {
+        return throwError("determineProtest", protest.championship.toString(), "Championship has no adjudicator!", 404)
+      }
+
+      const isAdjudicator = champ.adjudicator.current._id.toString() === req._id
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      if (!isAdjudicator && !isAdmin) {
+        return throwError(
+          "determineProtest",
+          req._id,
+          "Only the adjudicator can determine a protest!",
+          403,
+        )
+      }
+
+      // Update protest status (do NOT send notification yet - wait for points allocation).
+      protest.status = status
+      protest.updated_at = moment().format()
+      await protest.save()
+
+      // Return populated protest.
+      const populatedProtest = await Protest.findById(protestId).populate(protestPopulation).exec()
+      return populatedProtest!._doc
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Allocate points after protest determination (adjudicator only).
+  allocateProtestPoints: async (
+    {
+      input,
+    }: {
+      input: {
+        protestId: string
+        filerPoints: number
+        accusedPoints?: number
+      }
+    },
+    req: AuthRequest,
+  ): Promise<ProtestType> => {
+    if (!req.isAuth) {
+      throwError("allocateProtestPoints", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const protest = await Protest.findById(input.protestId)
+
+      if (!protest) {
+        return throwError("allocateProtestPoints", input.protestId, "Protest not found!", 404)
+      }
+
+      // Verify protest has been determined.
+      if (protest.status !== "passed" && protest.status !== "denied") {
+        return throwError(
+          "allocateProtestPoints",
+          protest.status,
+          "Protest must be passed or denied before allocating points!",
+          400,
+        )
+      }
+
+      // Verify points haven't already been allocated.
+      if (protest.pointsAllocated) {
+        return throwError(
+          "allocateProtestPoints",
+          input.protestId,
+          "Points have already been allocated for this protest!",
+          400,
+        )
+      }
+
+      // Fetch championship to verify user is adjudicator.
+      const champ = await Champ.findById(protest.championship).populate(champPopulation).exec()
+      if (!champ) {
+        return throwError("allocateProtestPoints", protest.championship.toString(), "Championship not found!", 404)
+      }
+
+      // Verify championship has an adjudicator.
+      if (!champ.adjudicator?.current?._id) {
+        return throwError("allocateProtestPoints", protest.championship.toString(), "Championship has no adjudicator!", 404)
+      }
+
+      const isAdjudicator = champ.adjudicator.current._id.toString() === req._id
+      const user = await User.findById(req._id)
+      const isAdmin = user?.permissions?.admin === true
+
+      if (!isAdjudicator && !isAdmin) {
+        return throwError(
+          "allocateProtestPoints",
+          req._id,
+          "Only the adjudicator can allocate protest points!",
+          403,
+        )
+      }
+
+      // Apply points adjustment for filer.
+      if (input.filerPoints !== 0) {
+        await applyProtestPointsAdjustment(
+          champ,
+          protest.competitor.toString(),
+          input.filerPoints,
+          `Protest determination: ${protest.title}`,
+        )
+      }
+
+      // Apply points adjustment for accused if exists and points provided.
+      if (input.accusedPoints !== undefined && input.accusedPoints !== 0 && protest.accused) {
+        await applyProtestPointsAdjustment(
+          champ,
+          protest.accused.toString(),
+          input.accusedPoints,
+          `Protest determination: ${protest.title}`,
+        )
+      }
+
+      await champ.save()
+
+      // Mark points as allocated and store the values.
+      protest.pointsAllocated = true
+      protest.filerPoints = input.filerPoints
+      if (input.accusedPoints !== undefined) {
+        protest.accusedPoints = input.accusedPoints
+      }
+      protest.updated_at = moment().format()
+      await protest.save()
+
+      // Get filer and accused user data for notification.
+      const filer = await User.findById(protest.competitor)
+      const accused = protest.accused ? await User.findById(protest.accused) : null
+
+      // Send notification to all competitors.
+      const competitorIds = champ.competitors.map((c) => c._id.toString())
+      const notificationType = protest.status === "passed" ? "protest_passed" : "protest_denied"
+
+      await sendNotificationToMany(competitorIds, {
+        type: notificationType,
+        title: protest.status === "passed" ? "Protest Passed" : "Protest Denied",
+        description: `Protest "${protest.title}" has been ${protest.status}.`,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+        protestId: protest._id,
+        protestTitle: protest.title,
+        filerName: filer?.name,
+        filerIcon: filer?.icon,
+        accusedName: accused?.name,
+        accusedIcon: accused?.icon,
+        filerPoints: input.filerPoints,
+        accusedPoints: input.accusedPoints,
+        protestStatus: protest.status,
+      })
+
+      // Return populated protest.
+      const populatedProtest = await Protest.findById(input.protestId).populate(protestPopulation).exec()
+      return populatedProtest!._doc
+    } catch (err) {
+      throw err
+    }
+  },
+}
+
+// Helper function to apply protest points adjustment.
+// Uses 'any' type for champ as it receives a mongoose document with markModified method.
+const applyProtestPointsAdjustment = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  champ: any,
+  competitorId: string,
+  points: number,
+  reason: string,
+): Promise<void> => {
+  // Find the last completed (or active) round where this competitor exists.
+  let roundIndex = -1
+  let competitorIndex = -1
+
+  for (let i = champ.rounds.length - 1; i >= 0; i--) {
+    const round = champ.rounds[i]
+    if (round.status === "waiting") continue
+
+    const idx = round.competitors.findIndex(
+      (c: CompetitorEntry) => c.competitor?.toString() === competitorId,
+    )
+    if (idx !== -1) {
+      roundIndex = i
+      competitorIndex = idx
+      break
+    }
+  }
+
+  if (roundIndex === -1 || competitorIndex === -1) {
+    // Competitor not found in any completed round - skip adjustment.
+    return
+  }
+
+  const competitorEntry = champ.rounds[roundIndex].competitors[competitorIndex]
+  const now = moment().format()
+
+  if (!competitorEntry.adjustment) {
+    champ.rounds[roundIndex].competitors[competitorIndex].adjustment = []
+  }
+
+  // Add penalty adjustment.
+  champ.rounds[roundIndex].competitors[competitorIndex].adjustment!.push({
+    adjustment: points,
+    type: "penalty",
+    reason,
+    updated_at: null,
+    created_at: now,
+  })
+
+  // Recalculate grandTotalPoints.
+  const adjustmentSum = champ.rounds[roundIndex].competitors[competitorIndex].adjustment!.reduce(
+    (sum: number, adj: PointsAdjustment) => sum + adj.adjustment,
+    0,
+  )
+  champ.rounds[roundIndex].competitors[competitorIndex].grandTotalPoints =
+    competitorEntry.totalPoints + adjustmentSum
+
+  champ.markModified("rounds")
 }
 
 export default champResolvers

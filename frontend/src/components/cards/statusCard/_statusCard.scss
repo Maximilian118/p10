@@ -1,0 +1,140 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+// CSS variables for status colors.
+.status-card {
+  --status-card-success: #4caf50;
+  --status-card-error: #f44336;
+}
+
+// Status card base styles.
+.status-card {
+  @include mixins.flexbox;
+  flex-direction: column;
+  position: relative;
+  border-radius: 8px;
+  height: 35px;
+  transition: transform variables.$trans-speed, box-shadow variables.$trans-speed;
+
+  span {
+    cursor: default;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: variables.$shadow-close;
+  }
+
+  // Passed status - green background.
+  &--passed {
+    background: variables.$mui-success;
+
+    .status-card__text {
+      color: white;
+    }
+  }
+
+  // Denied status - red background.
+  &--denied {
+    background: #f44336;
+
+    .status-card__text {
+      color: white;
+    }
+  }
+
+  // Adjudicating status - white background.
+  &--adjudicating {
+    background: white;
+
+    .status-card__text {
+      color: variables.$colour-9;
+    }
+  }
+
+  // Voting status - gradient background set via inline style.
+  &--voting {
+    .status-card__text {
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  // Compact variant - smaller for inline use.
+  &--compact {
+    height: 28px;
+    border-radius: 6px;
+
+    .status-card__text {
+      font-size: 12px;
+    }
+  }
+
+  // Notification variant - for notification list items.
+  &--notification {
+    height: 32px;
+    border-radius: 6px;
+
+    .status-card__text {
+      font-size: 12px;
+    }
+  }
+
+  // Action required state - adds red indicator.
+  &--action-required {
+    position: relative;
+    height: auto;
+    min-height: 35px;
+    padding: 8px 12px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 10px;
+      height: 10px;
+      background-color: #ff5252;
+      border-radius: 50%;
+      border: 2px solid variables.$colour-9;
+      box-shadow: 0 2px 4px rgba(255, 82, 82, 0.4);
+    }
+  }
+}
+
+// Vote count overlays (positioned at far left/right of the card).
+.status-card__count {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  &--yes {
+    left: 12px;
+  }
+
+  &--no {
+    right: 12px;
+  }
+}
+
+// Status text.
+.status-card__text {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+// Action required text.
+.status-card__action-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}

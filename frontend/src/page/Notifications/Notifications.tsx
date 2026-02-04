@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo, useCallback, useRef } from "react"
+import React, { useContext, useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import NotificationsNone from "@mui/icons-material/NotificationsNone"
 import Close from "@mui/icons-material/Close"
@@ -6,7 +6,7 @@ import Delete from "@mui/icons-material/Delete"
 import AppContext from "../../context"
 import { userBadgeSnapshotType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { clearNotification, clearAllNotifications, markNotificationRead } from "../../shared/requests/notificationRequests"
+import { getNotifications, clearNotification, clearAllNotifications, markNotificationRead } from "../../shared/requests/notificationRequests"
 import NotificationListItem from "./NotificationListItem/NotificationListItem"
 import Badge from "../../components/utility/badge/Badge"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
@@ -38,6 +38,25 @@ const Notifications: React.FC = () => {
   const [clearing, setClearing] = useState<boolean>(false)
   const [celebrationBadge, setCelebrationBadge] = useState<userBadgeSnapshotType | null>(null)
   const [showClearAllConfirm, setShowClearAllConfirm] = useState<boolean>(false)
+
+  // Track previous notificationsCount to detect WebSocket increments.
+  const prevCountRef = useRef(user.notificationsCount || 0)
+
+  // Background fetch notifications on mount (no spinner — cached data renders immediately).
+  useEffect(() => {
+    getNotifications(user, setUser, navigate, setBackendErr)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Re-fetch when notificationsCount increases (WebSocket notification arrived).
+  useEffect(() => {
+    const currentCount = user.notificationsCount || 0
+    if (currentCount > prevCountRef.current) {
+      getNotifications(user, setUser, navigate, setBackendErr)
+    }
+    prevCountRef.current = currentCount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.notificationsCount])
 
   // Sort notifications by createdAt (most recent first).
   const sortedNotifications = useMemo(() => {

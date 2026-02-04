@@ -73,6 +73,7 @@ export interface userType extends Omit<userInputType, "email"> {
   championships: userChampSnapshotType[] // Embedded Championship snapshots (permanent)
   badges: userBadgeSnapshotType[] // Embedded badge snapshots (permanent)
   notifications: NotificationType[] // User's notifications
+  notificationsCount?: number // Computed unread count (not stored in DB)
   notificationSettings: NotificationSettingsType // Email notification preferences
   permissions: {
     admin: boolean
@@ -171,6 +172,16 @@ const userSchema = new mongoose.Schema<userType>({
       champIcon: { type: String }, // Championship icon URL (denormalized for display)
       // Optional badge snapshot - ONLY set for "badge_earned" notifications.
       badgeSnapshot: { type: notificationBadgeSnapshotSchema, default: null },
+      // Protest notification fields - set for protest-related notification types.
+      protestId: { type: mongoose.Schema.ObjectId, ref: "Protest" },
+      protestTitle: { type: String },
+      filerName: { type: String },
+      filerIcon: { type: String },
+      accusedName: { type: String },
+      accusedIcon: { type: String },
+      filerPoints: { type: Number },
+      accusedPoints: { type: Number },
+      protestStatus: { type: String },
       createdAt: { type: String, default: moment().format() }, // ISO timestamp
     },
   ],
@@ -184,6 +195,11 @@ const userSchema = new mongoose.Schema<userType>({
     emailBanned: { type: Boolean, default: true },
     emailPromoted: { type: Boolean, default: true },
     emailUserJoined: { type: Boolean, default: true },
+    emailProtestFiled: { type: Boolean, default: true },
+    emailProtestVoteRequired: { type: Boolean, default: true },
+    emailProtestPassed: { type: Boolean, default: true },
+    emailProtestDenied: { type: Boolean, default: true },
+    emailProtestExpired: { type: Boolean, default: true },
   },
   refresh_count: { type: Number, default: 0 }, // Refresh count.
   logged_in_at: { type: String, default: moment().format() }, // Last logged in.

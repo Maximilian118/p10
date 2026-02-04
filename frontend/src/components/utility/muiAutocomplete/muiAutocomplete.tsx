@@ -201,7 +201,7 @@ const MUIAutocomplete = <T extends { url?: string, icon?: string, name: string }
           <Paper>
             {hasOptions && children}
             {displayCreateNew(label, hasOptions, onNewMouseDown, customNewLabel, displayNew)}
-          </Paper>  
+          </Paper>
         )
       }}
       renderInput={(params) => (

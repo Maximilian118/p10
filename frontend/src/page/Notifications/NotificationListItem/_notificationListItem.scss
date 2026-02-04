@@ -136,3 +136,65 @@
   color: rgba(255, 255, 255, 0.4);
   margin: 4px 0 0 0;
 }
+
+// Protest title when different from notification title.
+.notification-list-item__protest-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 8px 0;
+  font-style: italic;
+}
+
+// Protest notification preview.
+.notification-list-item__protest-preview {
+  @include mixins.flexbox-start-column;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color variables.$trans-speed;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Head-to-head avatars container.
+.notification-list-item__protest-avatars {
+  @include mixins.flexbox;
+  gap: 16px;
+  width: 100%;
+}
+
+// Single protest avatar with optional points.
+.notification-list-item__protest-avatar {
+  @include mixins.flexbox-column;
+  gap: 4px;
+}
+
+// VS text between avatars.
+.notification-list-item__protest-vs {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+// Points display under avatar.
+.notification-list-item__protest-points {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+
+  &--positive {
+    color: variables.$mui-success;
+  }
+
+  &--negative {
+    color: #f44336;
+  }
+}

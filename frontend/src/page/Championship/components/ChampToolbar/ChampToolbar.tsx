@@ -14,10 +14,11 @@ import {
   BadgeToolbarProps,
   RulesAndRegsToolbarProps,
   CompetitorsToolbarProps,
+  ProtestsToolbarProps,
 } from "./types"
 
 // Re-export types for backward compatibility.
-export type { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps }
+export type { FormToolbarProps, BadgeToolbarProps, RulesAndRegsToolbarProps, ProtestsToolbarProps }
 
 interface ChampToolbarProps {
   champ: ChampType
@@ -36,11 +37,12 @@ interface ChampToolbarProps {
   setShowAcceptInviteFullConfirm?: React.Dispatch<React.SetStateAction<boolean>>
   settingsProps?: FormToolbarProps
   automationProps?: FormToolbarProps
-  protestsProps?: FormToolbarProps
+  protestSettingsProps?: FormToolbarProps
   ruleChangesProps?: FormToolbarProps
   adminProps?: FormToolbarProps
   badgeProps?: BadgeToolbarProps
   rulesAndRegsProps?: RulesAndRegsToolbarProps
+  protestsProps?: ProtestsToolbarProps
 }
 
 // Toolbar with action buttons for the championship page.
@@ -61,11 +63,12 @@ const ChampToolbar: React.FC<ChampToolbarProps> = ({
   setShowAcceptInviteFullConfirm,
   settingsProps,
   automationProps,
-  protestsProps,
+  protestSettingsProps,
   ruleChangesProps,
   adminProps,
   badgeProps,
   rulesAndRegsProps,
+  protestsProps,
 }) => {
   const navigate = useNavigate()
 
@@ -117,13 +120,15 @@ const ChampToolbar: React.FC<ChampToolbarProps> = ({
         return badgeProps
       case "rulesAndRegs":
         return rulesAndRegsProps
+      case "protests":
+        return protestsProps
       case "settings":
       case "series":
       case "automation":
-      case "protests":
+      case "protestSettings":
       case "ruleChanges":
       case "admin":
-        return { settingsProps, automationProps, protestsProps, ruleChangesProps, adminProps }
+        return { settingsProps, automationProps, protestSettingsProps, ruleChangesProps, adminProps }
       default:
         return undefined
     }
