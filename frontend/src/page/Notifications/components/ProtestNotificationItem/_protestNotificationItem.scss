@@ -1,0 +1,55 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+// Protest notification preview.
+.protest-notification-item__preview {
+  @include mixins.flexbox-start-column;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color variables.$trans-speed;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Head-to-head avatars container.
+.protest-notification-item__avatars {
+  @include mixins.flexbox;
+  gap: 16px;
+  width: 100%;
+}
+
+// Single protest avatar with optional points.
+.protest-notification-item__avatar {
+  @include mixins.flexbox-column;
+  gap: 4px;
+}
+
+// VS text between avatars.
+.protest-notification-item__vs {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+// Points display under avatar.
+.protest-notification-item__points {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+
+  &--positive {
+    color: variables.$mui-success;
+  }
+
+  &--negative {
+    color: #f44336;
+  }
+}

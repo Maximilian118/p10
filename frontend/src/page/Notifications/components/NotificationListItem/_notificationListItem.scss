@@ -1,0 +1,93 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+// Shared notification list item container.
+.notification-list-item {
+  width: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background-color variables.$trans-speed;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+// Header row with title and clear button.
+.notification-list-item__header {
+  @include mixins.flexbox-space-between;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+// Notification title.
+.notification-list-item__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+}
+
+// Clear button.
+.notification-list-item__clear {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color variables.$trans-speed;
+  @include mixins.flexbox;
+
+  &:hover {
+    color: white;
+  }
+
+  svg {
+    font-size: 18px;
+  }
+}
+
+// Description text.
+.notification-list-item__description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+// Timestamp row with unread indicator.
+.notification-list-item__timestamp-row {
+  @include mixins.flexbox-start;
+  gap: 6px;
+}
+
+// Unread indicator dot.
+.notification-list-item__unread-dot {
+  width: 6px;
+  height: 6px;
+  background-color: variables.$mui-blue;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+// Timestamp.
+.notification-list-item__timestamp {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+// Protest title when different from notification title.
+.notification-list-item__protest-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 8px 0;
+  font-style: italic;
+}

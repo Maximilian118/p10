@@ -1,0 +1,31 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+// Badge preview card.
+.badge-notification-item__preview {
+  @include mixins.flexbox-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color variables.$trans-speed;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.badge-notification-item__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  margin: 0;
+}
+
+.badge-notification-item__tap {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 4px 0 0 0;
+}

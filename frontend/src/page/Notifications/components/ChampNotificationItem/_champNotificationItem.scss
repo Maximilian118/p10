@@ -1,0 +1,26 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+// Championship card preview.
+.champ-notification-item__card {
+  @include mixins.flexbox-start;
+  gap: 12px;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: transform variables.$trans-speed, box-shadow variables.$trans-speed;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: variables.$shadow-close;
+  }
+}
+
+.champ-notification-item__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: variables.$colour-9;
+  margin: 0;
+}
