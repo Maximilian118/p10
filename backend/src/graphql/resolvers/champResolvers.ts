@@ -3133,6 +3133,8 @@ const champResolvers = {
             champIcon: champ.icon,
             protestId: protest._id,
             protestTitle: protest.title,
+            filerId: protest.competitor,
+            accusedId: protest.accused,
             protestStatus: newStatus,
             filerPoints,
             accusedPoints: accusedPoints ?? undefined,
@@ -3309,8 +3311,10 @@ const champResolvers = {
           champIcon: champ.icon,
           protestId: protest._id,
           protestTitle: input.title,
+          filerId: filer?._id,
           filerName: filer?.name,
           filerIcon: filer?.icon,
+          accusedId: accused?._id,
           accusedName: accused?.name,
           accusedIcon: accused?.icon,
           protestStatus: "voting",
@@ -3326,8 +3330,10 @@ const champResolvers = {
           champIcon: champ.icon,
           protestId: protest._id,
           protestTitle: input.title,
+          filerId: filer?._id,
           filerName: filer?.name,
           filerIcon: filer?.icon,
+          accusedId: accused?._id,
           accusedName: accused?.name,
           accusedIcon: accused?.icon,
           protestStatus: "adjudicating",
@@ -3455,8 +3461,10 @@ const champResolvers = {
           protestStatus: "passed",
           filerPoints,
           accusedPoints: accusedPoints ?? undefined,
+          filerId: (protest as any).competitor?._id,
           filerName: (protest as any).competitor?.name,
           filerIcon: (protest as any).competitor?.icon,
+          accusedId: (protest as any).accused?._id,
           accusedName: (protest as any).accused?.name,
           accusedIcon: (protest as any).accused?.icon,
         })
@@ -3546,8 +3554,10 @@ const champResolvers = {
         champIcon: champ.icon,
         protestId: protest._id,
         protestTitle: protest.title,
+        filerId: filer?._id,
         filerName: filer?.name,
         filerIcon: filer?.icon,
+        accusedId: accused?._id,
         accusedName: accused?.name,
         accusedIcon: accused?.icon,
         protestStatus: "voting",
@@ -3692,6 +3702,35 @@ const champResolvers = {
         )
       }
 
+      // Guard: only allow points allocation between rounds.
+      let lastActiveRoundIndex = -1
+      for (let i = champ.rounds.length - 1; i >= 0; i--) {
+        if (champ.rounds[i].status !== "waiting") {
+          lastActiveRoundIndex = i
+          break
+        }
+      }
+      if (lastActiveRoundIndex === -1) {
+        return throwError("allocateProtestPoints", protest.championship.toString(), "No active rounds found!", 400)
+      }
+      if (champ.rounds[lastActiveRoundIndex].status !== "completed") {
+        return throwError(
+          "allocateProtestPoints",
+          protest.championship.toString(),
+          "Cannot allocate protest points while a round is in progress.",
+          400,
+        )
+      }
+      const nextRoundIndex = lastActiveRoundIndex + 1
+      if (nextRoundIndex < champ.rounds.length && champ.rounds[nextRoundIndex].status !== "waiting") {
+        return throwError(
+          "allocateProtestPoints",
+          protest.championship.toString(),
+          "Cannot allocate protest points — next round has already started.",
+          400,
+        )
+      }
+
       // Apply points adjustment for filer.
       if (input.filerPoints !== 0) {
         await applyProtestPointsAdjustment(
@@ -3703,7 +3742,7 @@ const champResolvers = {
       }
 
       // Apply points adjustment for accused if exists and points provided.
-      if (input.accusedPoints !== undefined && input.accusedPoints !== 0 && protest.accused) {
+      if (input.accusedPoints != null && input.accusedPoints !== 0 && protest.accused) {
         await applyProtestPointsAdjustment(
           champ,
           protest.accused.toString(),
@@ -3717,7 +3756,7 @@ const champResolvers = {
       // Mark points as allocated and store the values.
       protest.pointsAllocated = true
       protest.filerPoints = input.filerPoints
-      if (input.accusedPoints !== undefined) {
+      if (input.accusedPoints != null) {
         protest.accusedPoints = input.accusedPoints
       }
       protest.updated_at = moment().format()
@@ -3740,8 +3779,10 @@ const champResolvers = {
         champIcon: champ.icon,
         protestId: protest._id,
         protestTitle: protest.title,
+        filerId: filer?._id,
         filerName: filer?.name,
         filerIcon: filer?.icon,
+        accusedId: accused?._id,
         accusedName: accused?.name,
         accusedIcon: accused?.icon,
         filerPoints: input.filerPoints,
@@ -3776,7 +3817,7 @@ const applyProtestPointsAdjustment = async (
     if (round.status === "waiting") continue
 
     const idx = round.competitors.findIndex(
-      (c: CompetitorEntry) => c.competitor?.toString() === competitorId,
+      (c: CompetitorEntry) => (c.competitor?._id ?? c.competitor)?.toString() === competitorId,
     )
     if (idx !== -1) {
       roundIndex = i
@@ -3786,8 +3827,7 @@ const applyProtestPointsAdjustment = async (
   }
 
   if (roundIndex === -1 || competitorIndex === -1) {
-    // Competitor not found in any completed round - skip adjustment.
-    return
+    throw new Error("Competitor not found in any completed round.")
   }
 
   const competitorEntry = champ.rounds[roundIndex].competitors[competitorIndex]
@@ -3813,6 +3853,19 @@ const applyProtestPointsAdjustment = async (
   )
   champ.rounds[roundIndex].competitors[competitorIndex].grandTotalPoints =
     competitorEntry.totalPoints + adjustmentSum
+
+  // Propagate to next "waiting" round if it exists and has this competitor.
+  const nextIdx = roundIndex + 1
+  if (nextIdx < champ.rounds.length && champ.rounds[nextIdx].status === "waiting") {
+    const nextCompIdx = champ.rounds[nextIdx].competitors.findIndex(
+      (c: CompetitorEntry) => (c.competitor?._id ?? c.competitor)?.toString() === competitorId,
+    )
+    if (nextCompIdx !== -1) {
+      const newGrandTotal = champ.rounds[roundIndex].competitors[competitorIndex].grandTotalPoints
+      champ.rounds[nextIdx].competitors[nextCompIdx].totalPoints = newGrandTotal
+      champ.rounds[nextIdx].competitors[nextCompIdx].grandTotalPoints = newGrandTotal
+    }
+  }
 
   champ.markModified("rounds")
 }

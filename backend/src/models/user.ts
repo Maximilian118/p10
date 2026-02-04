@@ -175,8 +175,10 @@ const userSchema = new mongoose.Schema<userType>({
       // Protest notification fields - set for protest-related notification types.
       protestId: { type: mongoose.Schema.ObjectId, ref: "Protest" },
       protestTitle: { type: String },
+      filerId: { type: mongoose.Schema.ObjectId, ref: "User" },
       filerName: { type: String },
       filerIcon: { type: String },
+      accusedId: { type: mongoose.Schema.ObjectId, ref: "User" },
       accusedName: { type: String },
       accusedIcon: { type: String },
       filerPoints: { type: Number },

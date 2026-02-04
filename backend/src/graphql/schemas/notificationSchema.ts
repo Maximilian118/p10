@@ -28,8 +28,10 @@ const notificationSchema = `
     # Protest notification fields.
     protestId: ID
     protestTitle: String
+    filerId: ID
     filerName: String
     filerIcon: String
+    accusedId: ID
     accusedName: String
     accusedIcon: String
     filerPoints: Int

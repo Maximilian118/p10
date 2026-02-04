@@ -2,10 +2,10 @@
 @use '../../../../scss/mixins';
 
 // Protest notification preview.
-.protest-notification-item__preview {
-  @include mixins.flexbox-start-column;
+.protest-notification-item__avatars {
+  @include mixins.flexbox-space-evenly;
   gap: 12px;
-  margin-top: 12px;
+  margin: 12px 0;
   padding: 12px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -17,13 +17,6 @@
   }
 }
 
-// Head-to-head avatars container.
-.protest-notification-item__avatars {
-  @include mixins.flexbox;
-  gap: 16px;
-  width: 100%;
-}
-
 // Single protest avatar with optional points.
 .protest-notification-item__avatar {
   @include mixins.flexbox-column;
@@ -32,9 +25,9 @@
 
 // VS text between avatars.
 .protest-notification-item__vs {
-  font-size: 12px;
+  font-size: 20px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.5);
+  color: variables.$pirelli-red;
   text-transform: uppercase;
   letter-spacing: 1px;
 }

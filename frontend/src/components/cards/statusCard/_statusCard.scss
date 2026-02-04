@@ -3,8 +3,8 @@
 
 // CSS variables for status colors.
 .status-card {
-  --status-card-success: #4caf50;
-  --status-card-error: #f44336;
+  --status-card-success: #{variables.$mui-success};
+  --status-card-error: #{variables.$pirelli-red};
 }
 
 // Status card base styles.
@@ -15,6 +15,7 @@
   border-radius: 8px;
   height: 35px;
   transition: transform variables.$trans-speed, box-shadow variables.$trans-speed;
+  flex-shrink: 0;
 
   span {
     cursor: default;
@@ -36,7 +37,7 @@
 
   // Denied status - red background.
   &--denied {
-    background: #f44336;
+    background: variables.$pirelli-red;
 
     .status-card__text {
       color: white;
@@ -80,26 +81,6 @@
     }
   }
 
-  // Action required state - adds red indicator.
-  &--action-required {
-    position: relative;
-    height: auto;
-    min-height: 35px;
-    padding: 8px 12px;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: -3px;
-      right: -3px;
-      width: 10px;
-      height: 10px;
-      background-color: #ff5252;
-      border-radius: 50%;
-      border: 2px solid variables.$colour-9;
-      box-shadow: 0 2px 4px rgba(255, 82, 82, 0.4);
-    }
-  }
 }
 
 // Vote count overlays (positioned at far left/right of the card).
@@ -129,12 +110,3 @@
   letter-spacing: 0.5px;
 }
 
-// Action required text.
-.status-card__action-text {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-top: 2px;
-}

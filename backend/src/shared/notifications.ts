@@ -59,8 +59,10 @@ export interface SendNotificationOptions {
   // Optional protest data for protest notifications.
   protestId?: ObjectId | string
   protestTitle?: string
+  filerId?: ObjectId | string
   filerName?: string
   filerIcon?: string
+  accusedId?: ObjectId | string
   accusedName?: string
   accusedIcon?: string
   filerPoints?: number
@@ -104,8 +106,10 @@ export async function sendNotification(options: SendNotificationOptions): Promis
       badgeSnapshot,
       protestId,
       protestTitle,
+      filerId,
       filerName,
       filerIcon,
+      accusedId,
       accusedName,
       accusedIcon,
       filerPoints,
@@ -152,11 +156,17 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     if (protestTitle) {
       notification.protestTitle = protestTitle
     }
+    if (filerId) {
+      notification.filerId = typeof filerId === "string" ? new ObjectId(filerId) : filerId
+    }
     if (filerName) {
       notification.filerName = filerName
     }
     if (filerIcon) {
       notification.filerIcon = filerIcon
+    }
+    if (accusedId) {
+      notification.accusedId = typeof accusedId === "string" ? new ObjectId(accusedId) : accusedId
     }
     if (accusedName) {
       notification.accusedName = accusedName
@@ -273,8 +283,10 @@ export async function sendNotificationToMany(
     badgeSnapshot,
     protestId,
     protestTitle,
+    filerId,
     filerName,
     filerIcon,
+    accusedId,
     accusedName,
     accusedIcon,
     filerPoints,
@@ -320,8 +332,10 @@ export async function sendNotificationToMany(
     // Add protest data if present.
     if (protestId) notification.protestId = typeof protestId === "string" ? new ObjectId(protestId) : protestId
     if (protestTitle) notification.protestTitle = protestTitle
+    if (filerId) notification.filerId = typeof filerId === "string" ? new ObjectId(filerId) : filerId
     if (filerName) notification.filerName = filerName
     if (filerIcon) notification.filerIcon = filerIcon
+    if (accusedId) notification.accusedId = typeof accusedId === "string" ? new ObjectId(accusedId) : accusedId
     if (accusedName) notification.accusedName = accusedName
     if (accusedIcon) notification.accusedIcon = accusedIcon
     if (filerPoints !== undefined) notification.filerPoints = filerPoints

@@ -941,8 +941,10 @@ export const populateNotification = `
   }
   protestId
   protestTitle
+  filerId
   filerName
   filerIcon
+  accusedId
   accusedName
   accusedIcon
   filerPoints

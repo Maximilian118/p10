@@ -1,6 +1,6 @@
 import React from "react"
 import { ThemeProvider } from "@mui/material/styles"
-import { Autocomplete, TextField } from "@mui/material"
+import { Autocomplete, Button, TextField } from "@mui/material"
 import darkTheme from "../../../../../../shared/muiDarkTheme"
 import { ProtestType } from "../../../../../../shared/types"
 import "./_pointsPanel.scss"
@@ -9,7 +9,6 @@ interface PointsPanelProps {
   protest: ProtestType
   filerPoints: number | null
   accusedPoints: number | null
-  actionLoading: boolean
   onFilerPointsChange: (value: number | null) => void
   onAccusedPointsChange: (value: number | null) => void
   onAllocatePoints: () => void
@@ -31,7 +30,6 @@ const PointsPanel: React.FC<PointsPanelProps> = ({
   protest,
   filerPoints,
   accusedPoints,
-  actionLoading,
   onFilerPointsChange,
   onAccusedPointsChange,
   onAllocatePoints,
@@ -45,20 +43,20 @@ const PointsPanel: React.FC<PointsPanelProps> = ({
     <ThemeProvider theme={darkTheme}>
       <div className="points-panel">
         <p className="points-panel__label">Allocate Points</p>
+        {protest.status === "denied" && (
+          <p className="points-panel__hint">You may optionally penalise the filer to deter irresponsible protests.</p>
+        )}
 
         {/* Filer points */}
         <div className="points-panel__field">
-          <label className="points-panel__field-label">
-            Points for {protest.competitor?.name}
-            {protest.status === "passed" ? " (reward)" : " (penalty)"}:
-          </label>
+          <label className="points-panel__field-label">Points for {protest.competitor?.name}:</label>
           <Autocomplete
             options={filerPointOptions}
             getOptionLabel={(option) => option.label}
             value={filerPointOptions.find((o) => o.value === filerPoints) || null}
             onChange={(_, newValue) => onFilerPointsChange(newValue?.value ?? null)}
             renderInput={(params) => (
-              <TextField {...params} variant="outlined" size="small" placeholder="Select points" />
+              <TextField {...params} variant="outlined" size="small" placeholder="Select Points (Optional)" />
             )}
             disableClearable={false}
             className="points-panel__autocomplete"
@@ -68,14 +66,14 @@ const PointsPanel: React.FC<PointsPanelProps> = ({
         {/* Accused points - only if accused exists and protest passed */}
         {protest.accused && protest.status === "passed" && (
           <div className="points-panel__field">
-            <label className="points-panel__field-label">Points for {protest.accused.name} (penalty):</label>
+            <label className="points-panel__field-label">Points for {protest.accused.name}:</label>
             <Autocomplete
               options={accusedPointOptions}
               getOptionLabel={(option) => option.label}
               value={accusedPointOptions.find((o) => o.value === accusedPoints) || null}
               onChange={(_, newValue) => onAccusedPointsChange(newValue?.value ?? null)}
               renderInput={(params) => (
-                <TextField {...params} variant="outlined" size="small" placeholder="Select points" />
+                <TextField {...params} variant="outlined" size="small" placeholder="Select Points (Optional)" />
               )}
               disableClearable={false}
               className="points-panel__autocomplete"
@@ -84,13 +82,14 @@ const PointsPanel: React.FC<PointsPanelProps> = ({
         )}
 
         {/* Submit button */}
-        <button
+        <Button
+          variant="contained"
           className="points-panel__btn"
           onClick={onAllocatePoints}
-          disabled={actionLoading || filerPoints === null}
+
         >
           Submit Points
-        </button>
+        </Button>
       </div>
     </ThemeProvider>
   )

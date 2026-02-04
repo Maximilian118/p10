@@ -2,6 +2,7 @@ import React, { useMemo } from "react"
 import { ThumbUp, ThumbDown } from "@mui/icons-material"
 import { VoteType } from "../../../../../../shared/types"
 import "./_votingPanel.scss"
+import { Button } from "@mui/material"
 
 interface VotingPanelProps {
   votes: VoteType[]
@@ -41,20 +42,22 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ votes, userId, votingLoading,
       {/* Vote buttons - removed once user has voted */}
       {!hasVoted && (
         <div className="voting-panel__buttons">
-          <button
+          <Button
+            variant="contained"
             className="voting-panel__btn voting-panel__btn--yes"
             onClick={() => onVote(true)}
             disabled={votingLoading}
           >
             <ThumbUp className="voting-panel__icon" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="contained"
             className="voting-panel__btn voting-panel__btn--no"
             onClick={() => onVote(false)}
             disabled={votingLoading}
           >
             <ThumbDown className="voting-panel__icon" />
-          </button>
+          </Button>
         </div>
       )}
     </div>

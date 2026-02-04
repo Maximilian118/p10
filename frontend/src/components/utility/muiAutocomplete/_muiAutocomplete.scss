@@ -1,8 +1,13 @@
 @use '../../../scss/mixins';
 @use '../../../scss/variables';
 
+.MuiPaper-root {
+  background: white !important;
+}
+
 .MuiAutocomplete-option {
   background: white !important;
+  color: variables.$colour-6 !important;
 
   &:hover,
   &.Mui-focused,
@@ -11,8 +16,7 @@
     background: variables.$colour-1 !important;
   }
 
-  p {
-    color: variables.$colour-9;
+  p, li {
     font-size: 14px;
     overflow-x: scroll;
   }

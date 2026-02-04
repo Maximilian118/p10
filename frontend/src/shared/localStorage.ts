@@ -72,8 +72,10 @@ export interface NotificationType {
   // Optional protest data for protest notifications.
   protestId?: string
   protestTitle?: string
+  filerId?: string
   filerName?: string
   filerIcon?: string
+  accusedId?: string
   accusedName?: string
   accusedIcon?: string
   filerPoints?: number

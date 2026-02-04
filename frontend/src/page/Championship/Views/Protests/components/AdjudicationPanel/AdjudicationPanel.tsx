@@ -1,10 +1,11 @@
 import React from "react"
 import { ProtestStatus } from "../../../../../../shared/types"
 import "./_adjudicationPanel.scss"
+import { Button } from "@mui/material"
+import { Done, DoNotDisturb, HowToVote } from "@mui/icons-material"
 
 interface AdjudicationPanelProps {
   status: ProtestStatus
-  actionLoading: boolean
   onDetermination: (status: ProtestStatus) => void
   onMoveToVoting: () => void
 }
@@ -12,7 +13,6 @@ interface AdjudicationPanelProps {
 // Adjudicator actions panel for pass/deny/move-to-vote decisions.
 const AdjudicationPanel: React.FC<AdjudicationPanelProps> = ({
   status,
-  actionLoading,
   onDetermination,
   onMoveToVoting,
 }) => {
@@ -22,31 +22,34 @@ const AdjudicationPanel: React.FC<AdjudicationPanelProps> = ({
 
       {/* Determination buttons */}
       <div className="adjudication-panel__buttons">
-        <button
-          className="adjudication-panel__btn adjudication-panel__btn--pass"
+        <Button
+          variant="contained"
+          className="adjudication-panel__btn--pass"
           onClick={() => onDetermination("passed")}
-          disabled={actionLoading}
+          startIcon={<Done/>}
         >
           Pass
-        </button>
-        <button
-          className="adjudication-panel__btn adjudication-panel__btn--deny"
+        </Button>
+        <Button
+          variant="contained"
+          className="adjudication-panel__btn--deny"
           onClick={() => onDetermination("denied")}
-          disabled={actionLoading}
+          startIcon={<DoNotDisturb/>}
         >
           Deny
-        </button>
+        </Button>
       </div>
 
       {/* Move to voting button - only in adjudicating status */}
       {status === "adjudicating" && (
-        <button
-          className="adjudication-panel__btn adjudication-panel__btn--voting"
+        <Button
+          variant="contained"
+          className="adjudication-panel__btn--voting"
           onClick={onMoveToVoting}
-          disabled={actionLoading}
+          startIcon={<HowToVote/>}
         >
           Move to Vote
-        </button>
+        </Button>
       )}
     </div>
   )

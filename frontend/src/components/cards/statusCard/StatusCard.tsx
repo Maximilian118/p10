@@ -13,7 +13,8 @@ interface StatusCardProps {
 }
 
 // Returns display text for a protest status.
-const getStatusText = (status: ProtestStatus): string => {
+const getStatusText = (status: ProtestStatus, actionRequired: boolean): string => {
+  if (actionRequired) return "Action Required"
   switch (status) {
     case "adjudicating":
       return "Adjudicating"
@@ -45,22 +46,25 @@ const StatusCard: React.FC<StatusCardProps> = ({
     "status-card",
     `status-card--${status}`,
     `status-card--${variant}`,
-    actionRequired && "status-card--action-required",
-  ]
-    .filter(Boolean)
-    .join(" ")
+  ].join(" ")
 
   // Inline style for voting gradient.
   const votingStyle = isVoting
     ? { background: `linear-gradient(to right, var(--status-card-success) ${yesPercent}%, var(--status-card-error) ${yesPercent}%)` }
     : undefined
 
+  // Hide vote counts for passed/denied protests that never went to vote.
+  const showVoteCounts = !(yesCount === 0 && noCount === 0 && (status === "passed" || status === "denied"))
+
   return (
     <div className={cardClass} style={votingStyle}>
-      {yesCount !== undefined && <span className="status-card__count status-card__count--yes">{yesCount}</span>}
-      <span className="status-card__text">{getStatusText(status)}</span>
-      {noCount !== undefined && <span className="status-card__count status-card__count--no">{noCount}</span>}
-      {actionRequired && <span className="status-card__action-text">Action Required</span>}
+      {showVoteCounts && yesCount !== undefined && (
+        <span className="status-card__count status-card__count--yes">{yesCount}</span>
+      )}
+      <span className="status-card__text">{getStatusText(status, actionRequired)}</span>
+      {showVoteCounts && noCount !== undefined && (
+        <span className="status-card__count status-card__count--no">{noCount}</span>
+      )}
     </div>
   )
 }

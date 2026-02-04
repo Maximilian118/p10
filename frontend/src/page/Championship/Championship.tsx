@@ -194,6 +194,9 @@ const Championship: React.FC = () => {
   const [ showLeaveConfirm, setShowLeaveConfirm ] = useState<boolean>(false)
   const [ leavingChamp, setLeavingChamp ] = useState<boolean>(false)
 
+  // Whether a protest-level confirmation dialog is active (managed by Protest.tsx).
+  const [ protestConfirmActive, setProtestConfirmActive ] = useState<boolean>(false)
+
   // Ref to expose DropZone's open function for external triggering.
   const dropzoneOpenRef = useRef<(() => void) | null>(null)
   const [ justJoined, setJustJoined ] = useState<boolean>(false)
@@ -209,16 +212,31 @@ const Championship: React.FC = () => {
   // Scroll-based shrinking for banner - uses ref for CSS updates to avoid oscillation.
   const { shrinkState, handleScroll, bannerRef, setForceShrunk } = useScrollShrink({ threshold: 70 })
 
+  // Whether the protest-blocked confirm is shown.
+  const [ showProtestBlocked, setShowProtestBlocked ] = useState(false)
+
   // Determine if we're in an active round status view (hides RoundsBar/ChampToolbar).
   const isInRoundStatusView = roundStatusView !== null
     && roundStatusView !== "waiting"
     && roundStatusView !== "completed"
 
-  // Force banner to be fully shrunk when in round status views or confirmation.
-  const shouldForceShrink = isInRoundStatusView || showStartConfirm || showBanConfirm || showKickConfirm || showPromoteConfirm || showInviteFullConfirm || showAcceptInviteFullConfirm || showLeaveConfirm
+  // Whether any fullscreen overlay (confirm dialog, round status view, etc.) is active.
+  const isOverlayActive =
+    isInRoundStatusView ||
+    showStartConfirm ||
+    showBanConfirm ||
+    showKickConfirm ||
+    showPromoteConfirm ||
+    showInviteFullConfirm ||
+    showAcceptInviteFullConfirm ||
+    showLeaveConfirm ||
+    showProtestBlocked ||
+    protestConfirmActive
+
+  // Force banner to be fully shrunk when any overlay is active.
   useEffect(() => {
-    setForceShrunk(shouldForceShrink)
-  }, [shouldForceShrink, setForceShrunk])
+    setForceShrunk(isOverlayActive)
+  }, [isOverlayActive, setForceShrunk])
 
   const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
   const [ view, setView ] = useState<ChampView>("competitors")
@@ -936,7 +954,14 @@ const Championship: React.FC = () => {
 
   // Grouped toolbar props for protests view.
   const protestsToolbarProps: ProtestsToolbarProps = {
-    onCreateProtest: () => setShowCreateProtest(true),
+    onCreateProtest: () => {
+      const hasCompletedRound = champ.rounds.some((r) => r.status === "completed")
+      if (!hasCompletedRound) {
+        setShowProtestBlocked(true)
+      } else {
+        setShowCreateProtest(true)
+      }
+    },
     canCreateProtest: isCompetitor && !showCreateProtest,
     isCreating: showCreateProtest,
     onCancelCreate: () => setShowCreateProtest(false),
@@ -1426,8 +1451,21 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Protest blocked - no completed rounds */}
+        {view === "protests" && showProtestBlocked && (
+          <Confirm
+            variant="dark"
+            icon={<BlockIcon />}
+            heading="Cannot File Protest"
+            paragraphs={["At least one round must be completed before a protest can be filed."]}
+            confirmText="Back"
+            onConfirm={() => setShowProtestBlocked(false)}
+            singleButton
+          />
+        )}
+
         {/* Protests view */}
-        {view === "protests" && (
+        {view === "protests" && !showProtestBlocked && (
           <Protests
             champ={champ}
             user={user}
@@ -1447,6 +1485,7 @@ const Championship: React.FC = () => {
         {view === "protest" && selectedProtestId && (
           <Protest
             champ={champ}
+            setChamp={setChamp}
             user={user}
             setUser={setUser}
             protestId={selectedProtestId}
@@ -1455,6 +1494,7 @@ const Championship: React.FC = () => {
               setSelectedProtestId(null)
               setView("protests")
             }}
+            onConfirmChange={setProtestConfirmActive}
           />
         )}
 
@@ -1509,8 +1549,8 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {/* ChampToolbar - hidden during active round status views and confirmation */}
-        {!isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
+        {/* ChampToolbar - hidden when any fullscreen overlay is active */}
+        {!isOverlayActive && (
           <ChampToolbar
             champ={champ}
             setChamp={setChamp}
