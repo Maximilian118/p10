@@ -1,6 +1,6 @@
 import { useEffect, useContext } from "react"
 import AppContext from "../../context"
-import { initSocket, getSocket, onNotificationReceived } from "../socket/socketClient"
+import { initSocket, onNotificationReceived } from "../socket/socketClient"
 
 // Hook to listen for real-time notification updates via WebSocket.
 // Should be used at the app level to receive notifications regardless of current page.
@@ -8,19 +8,14 @@ import { initSocket, getSocket, onNotificationReceived } from "../socket/socketC
 export const useNotificationSocket = (): void => {
   const { user, setUser } = useContext(AppContext)
 
-  // Initialize socket when user has token.
+  // Initialize socket and listen for notification events.
+  // Re-runs on token change to update socket auth and reattach listener.
   useEffect(() => {
-    if (!user.token) return
+    if (!user.token || !user._id) return
 
     initSocket(user.token)
-  }, [user.token])
 
-  // Listen for notification events and increment unread count.
-  useEffect(() => {
-    const socket = getSocket()
-    if (!socket || !user._id) return
-
-    // Handler to increment notificationsCount in state and localStorage.
+    // Increment notificationsCount in state and localStorage.
     const handleNotification = (): void => {
       setUser((prev) => {
         const newCount = (prev.notificationsCount || 0) + 1
@@ -38,5 +33,5 @@ export const useNotificationSocket = (): void => {
     return () => {
       unsubscribe()
     }
-  }, [user._id, setUser])
+  }, [user.token, user._id, setUser])
 }

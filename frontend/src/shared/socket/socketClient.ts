@@ -73,8 +73,16 @@ export interface AdjudicatorChangedPayload {
 let socket: Socket | null = null
 
 // Initializes socket connection with JWT authentication.
+// Reuses the existing socket instance if one exists, updating auth for reconnection.
+// This preserves all attached listeners across token refreshes.
 export const initSocket = (accessToken: string): Socket => {
-  if (socket?.connected) {
+  if (socket) {
+    // Update auth token for future reconnection attempts.
+    socket.auth = { accessToken }
+    // Reconnect if disconnected (e.g. after token expiry).
+    if (!socket.connected) {
+      socket.connect()
+    }
     return socket
   }
 
@@ -83,7 +91,7 @@ export const initSocket = (accessToken: string): Socket => {
       accessToken,
     },
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
   })
