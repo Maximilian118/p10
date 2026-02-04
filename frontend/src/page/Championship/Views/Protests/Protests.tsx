@@ -1,9 +1,11 @@
-import React, { useMemo } from "react"
+import React, { useMemo, useRef, useCallback } from "react"
 import { ThemeProvider } from "@mui/material/styles"
+import { useNavigate } from "react-router-dom"
 import darkTheme from "../../../../shared/muiDarkTheme"
 import { ChampType, ProtestType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
+import { markNotificationRead } from "../../../../shared/requests/notificationRequests"
 import ProtestItem from "../../components/ProtestItem/ProtestItem"
 import CreateProtest from "./CreateProtest/CreateProtest"
 import "./_protests.scss"
@@ -56,11 +58,28 @@ const Protests: React.FC<ProtestsProps> = ({
   onSubmitRef,
   setCreateLoading,
 }) => {
+  const navigate = useNavigate()
+
   // Check if current user is adjudicator.
   const isAdjudicator = champ.adjudicator?.current?._id === user._id
 
   // Memoize sorted protests to avoid re-sorting on every render.
   const sortedProtests = useMemo(() => sortProtests(protests, isAdjudicator), [protests, isAdjudicator])
+
+  // Track which notifications have already been marked to prevent duplicate API calls.
+  const markedAsReadRef = useRef<Set<string>>(new Set())
+
+  // Mark the related notification as read when a protest item becomes visible.
+  const handleProtestVisible = useCallback(
+    (protestId: string) => {
+      const notification = user.notifications.find((n) => n.protestId === protestId && !n.read)
+      if (!notification || markedAsReadRef.current.has(notification._id)) return
+
+      markedAsReadRef.current.add(notification._id)
+      markNotificationRead(notification._id, user, setUser, navigate, setBackendErr)
+    },
+    [user, setUser, navigate, setBackendErr],
+  )
 
   // Render create form if in create mode.
   if (showCreateForm) {
@@ -91,7 +110,11 @@ const Protests: React.FC<ProtestsProps> = ({
               key={protest._id}
               protest={protest}
               isAdjudicator={isAdjudicator}
+              hasUnreadNotification={user.notifications.some(
+                (n) => n.protestId === protest._id && !n.read,
+              )}
               onClick={() => onProtestClick?.(protest)}
+              onVisible={handleProtestVisible}
             />
           ))
         )}
