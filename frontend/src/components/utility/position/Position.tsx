@@ -30,7 +30,7 @@ const Position: React.FC<PositionProps> = ({ position, season, change }) => {
       <p className="position">
         <StyledText text={ordinalText} color={color}/>
       </p>
-      <p className="season">{`S${season}`}</p>
+      {season !== undefined && <p className="season">{`S${season}`}</p>}
     </div>
   )
 }

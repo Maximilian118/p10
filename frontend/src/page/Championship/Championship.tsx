@@ -292,6 +292,7 @@ const Championship: React.FC = () => {
   // Handle real-time round status updates from socket.
   const handleRoundStatusChange = useCallback((payload: RoundStatusPayload) => {
     // Update local champ state with new status and round data if included.
+    // Results data (points, badges) is included in the socket payload when entering "results".
     setChamp(prev => {
       if (!prev) return prev
       const newRounds = [...prev.rounds]
@@ -300,7 +301,7 @@ const Championship: React.FC = () => {
           ...newRounds[payload.roundIndex],
           status: payload.status,
           statusChangedAt: payload.timestamp,
-          // Merge round data if included in payload (when transitioning from waiting).
+          // Merge round data if included in payload (waiting → countDown, or any → results).
           ...(payload.round && {
             drivers: payload.round.drivers,
             competitors: payload.round.competitors,
@@ -779,7 +780,7 @@ const Championship: React.FC = () => {
   }
 
   // Handle starting a round (adjudicator clicks start button).
-  // Transitions the current round from "waiting" to "countDown".
+  // Transitions the current round from "waiting" to "countDown" (or betting_open if skipCountDown).
   const handleStartRound = async () => {
     if (!champ || !id) return
 
@@ -798,7 +799,11 @@ const Championship: React.FC = () => {
 
     if (result) {
       setChamp(result)
-      setRoundStatusView("countDown")
+      // Use actual status from response (respects skipCountDown setting).
+      const actualStatus = result.rounds[currentRoundIdx].status
+      if (actualStatus !== "waiting" && actualStatus !== "completed") {
+        setRoundStatusView(actualStatus)
+      }
     }
   }
 
@@ -821,10 +826,12 @@ const Championship: React.FC = () => {
 
     if (result) {
       setChamp(result)
-      if (newStatus === "completed") {
+      // Use actual status from response (respects skipResults setting).
+      const actualStatus = result.rounds[currentRoundIdx].status
+      if (actualStatus === "completed") {
         setRoundStatusView(null)
-      } else {
-        setRoundStatusView(newStatus)
+      } else if (actualStatus !== "waiting") {
+        setRoundStatusView(actualStatus)
       }
     }
   }
@@ -1087,11 +1094,13 @@ const Championship: React.FC = () => {
             />
           )
         })()}
-        {isInRoundStatusView && roundStatusView === "results" && activeRound && (
+        {isInRoundStatusView && roundStatusView === "results" && activeRound && champ && (
           <ResultsView
             round={activeRound}
+            rounds={champ.rounds}
+            currentRoundIndex={activeRoundIndex}
             isAdjudicator={isAdjudicator}
-            onSkipTimer={() => handleAdvanceStatus("completed")}
+            onSkipTimer={() => setRoundStatusView(null)}
           />
         )}
 

@@ -55,6 +55,7 @@ export const useChampionshipSocket = (
 
   // Join/leave championship room when champId changes.
   // Skips joining if user is banned from the championship.
+  // Also handles reconnection by always listening for the "connect" event.
   useEffect(() => {
     if (!champId || !user.token) return
 
@@ -64,16 +65,18 @@ export const useChampionshipSocket = (
     const socket = getSocket()
     if (!socket) return
 
-    // Wait for socket to connect before joining room.
+    // Function to join the championship room.
     const joinRoom = (): void => {
       joinChampionshipRoom(champId)
     }
 
+    // Join immediately if already connected.
     if (socket.connected) {
       joinRoom()
-    } else {
-      socket.on("connect", joinRoom)
     }
+
+    // Always attach connect listener to handle initial connection and reconnections.
+    socket.on("connect", joinRoom)
 
     return () => {
       socket.off("connect", joinRoom)

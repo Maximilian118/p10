@@ -17,8 +17,9 @@ import corsHandler from "./middleware/corsHandler"
 import auth from "./middleware/auth"
 import { apiLimiter } from "./middleware/rateLimit"
 
-// Import socket handler.
+// Import socket handler and auto-transition recovery.
 import { initializeSocket } from "./socket/socketHandler"
+import { recoverStuckRounds } from "./socket/autoTransitions"
 
 // Initialise express.
 const app = express()
@@ -102,7 +103,11 @@ mongoose
     const PORT = process.env.PORT || 3001
     const HOST = process.env.HOST || "localhost"
     // Use httpServer.listen instead of app.listen for Socket.io support.
-    httpServer.listen(Number(PORT), HOST, () => console.log(`✓ Server started on ${HOST}:${PORT}`))
+    httpServer.listen(Number(PORT), HOST, () => {
+      console.log(`✓ Server started on ${HOST}:${PORT}`)
+      // Recover any rounds stuck in timed statuses from before the restart.
+      recoverStuckRounds(io)
+    })
   })
   .catch((err: unknown) => {
     console.log(`✗ Failed to connect to ${connectionType}`)

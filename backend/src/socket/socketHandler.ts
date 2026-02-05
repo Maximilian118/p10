@@ -96,21 +96,13 @@ export const initializeSocket = (io: Server): void => {
     }
   })
 
-  io.on("connection", async (socket: Socket) => {
+  io.on("connection", (socket: Socket) => {
     // Auto-join user to their personal room for notifications.
     const userRoom = `user:${socket.data.userId}`
     socket.join(userRoom)
 
-    // Fetch user name for readable logging (development only).
-    if (verboseLogs) {
-      try {
-        const user = await User.findById(socket.data.userId).select("name")
-        socket.data.userName = user?.name || socket.data.userId
-      } catch {
-        socket.data.userName = socket.data.userId
-      }
-      console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName}) - joined ${userRoom}`)
-    }
+    // IMPORTANT: Register all event listeners SYNCHRONOUSLY before any async operations.
+    // This prevents race conditions where the client emits an event before the listener is registered.
 
     // Join championship room to receive updates for that championship.
     // Emits current round state to the joining socket for immediate sync.
@@ -139,20 +131,19 @@ export const initializeSocket = (io: Server): void => {
         if (verboseLogs) console.log(`${socket.data.userName} joined room: ${champ.name}`)
 
         // Emit current round state to the joining socket.
-        const activeRoundIndex = champ.rounds.findIndex(
-            (r) => r.status !== "completed" && r.status !== "waiting",
-          )
-          if (activeRoundIndex !== -1) {
-            const round = champ.rounds[activeRoundIndex]
-            const payload: RoundStatusPayload = {
-              champId,
-              roundIndex: activeRoundIndex,
-              status: round.status,
-              timestamp: round.statusChangedAt || new Date().toISOString(),
-            }
-            socket.emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
-            if (verboseLogs) console.log(`Sent initial state to ${socket.data.userName}: round ${activeRoundIndex + 1} status "${round.status}"`)
+        // Find the first non-completed round (includes "waiting" for reconnection sync).
+        const currentRoundIndex = champ.rounds.findIndex((r) => r.status !== "completed")
+        if (currentRoundIndex !== -1) {
+          const round = champ.rounds[currentRoundIndex]
+          const payload: RoundStatusPayload = {
+            champId,
+            roundIndex: currentRoundIndex,
+            status: round.status,
+            timestamp: round.statusChangedAt || new Date().toISOString(),
           }
+          socket.emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
+          if (verboseLogs) console.log(`Sent initial state to ${socket.data.userName}: round ${currentRoundIndex + 1} status "${round.status}"`)
+        }
       } catch (err) {
         console.error(`Error fetching initial state for ${champId}:`, err)
       }
@@ -270,6 +261,18 @@ export const initializeSocket = (io: Server): void => {
     socket.on("disconnect", () => {
       if (verboseLogs) console.log(`Socket disconnected: ${socket.id} (user: ${socket.data.userName})`)
     })
+
+    // Fetch user name for readable logging AFTER all listeners are registered.
+    // This prevents race conditions where events arrive before listeners are set up.
+    if (verboseLogs) {
+      User.findById(socket.data.userId).select("name").then((user) => {
+        socket.data.userName = user?.name || socket.data.userId
+        console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName}) - joined ${userRoom}`)
+      }).catch(() => {
+        socket.data.userName = socket.data.userId
+        console.log(`Socket connected: ${socket.id} (user: ${socket.data.userId}) - joined ${userRoom}`)
+      })
+    }
   })
 }
 
@@ -282,6 +285,7 @@ export const broadcastRoundStatusChange = (
   newStatus: RoundStatus,
   roundData?: { drivers: unknown[]; competitors: unknown[]; teams: unknown[] }
 ): void => {
+  const roomName = `championship:${champId}`
   const payload: RoundStatusPayload = {
     champId,
     roundIndex,
@@ -289,7 +293,16 @@ export const broadcastRoundStatusChange = (
     timestamp: new Date().toISOString(),
     ...(roundData && { round: roundData }),
   }
-  io.to(`championship:${champId}`).emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
+
+  // Log room occupancy for monitoring.
+  io.in(roomName).fetchSockets().then((sockets) => {
+    console.log(`[Socket] Broadcasting to ${roomName}: ${sockets.length} sockets in room, status=${newStatus}`)
+    if (verboseLogs) {
+      sockets.forEach((s) => console.log(`  - Socket ${s.id}, userId=${s.data.userId}`))
+    }
+  })
+
+  io.to(roomName).emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
   if (verboseLogs) console.log(`Broadcasted status change: round ${roundIndex + 1} -> "${newStatus}"`)
 }
 

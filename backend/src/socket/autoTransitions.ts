@@ -2,6 +2,7 @@ import { Server } from "socket.io"
 import Champ, { RoundStatus } from "../models/champ"
 import { broadcastRoundStatusChange } from "./socketHandler"
 import { resultsHandler } from "../graphql/resolvers/resolverUtility"
+import { champPopulation } from "../shared/population"
 import moment from "moment"
 
 // Store active timers per championship to allow cancellation.
@@ -91,6 +92,73 @@ export const scheduleResultsTransition = (
   scheduleAutoTransition(io, champId, roundIndex, "completed", RESULTS_DURATION)
 }
 
+// Recovers rounds stuck in intermediate statuses after a server restart.
+// Pre-results statuses (countDown, betting_open, betting_closed) are reset to "waiting".
+// Results rounds beyond 6 minutes are transitioned to "completed" (resultsHandler already ran on entry).
+export const recoverStuckRounds = async (io: Server): Promise<void> => {
+  try {
+    const champs = await Champ.find({ active: true })
+
+    for (const champ of champs) {
+      for (let i = 0; i < champ.rounds.length; i++) {
+        const round = champ.rounds[i]
+        const { status } = round
+
+        // Countdown: re-schedule timer for remaining time, or reset to waiting if exceeded.
+        if (status === "countDown" && round.statusChangedAt) {
+          const elapsedMs = moment().diff(moment(round.statusChangedAt))
+          if (elapsedMs < COUNTDOWN_DURATION) {
+            // Still within countdown duration — re-schedule timer for remaining time.
+            const remainingMs = COUNTDOWN_DURATION - elapsedMs
+            console.log(`[autoTransitions] Re-scheduling countdown timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
+            scheduleAutoTransition(io, champ._id.toString(), i, "betting_open", remainingMs)
+          } else {
+            // Countdown expired — reset to waiting so adjudicator can restart cleanly.
+            console.log(`[autoTransitions] Countdown expired, resetting to waiting: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            champ.rounds[i].status = "waiting"
+            champ.rounds[i].statusChangedAt = null
+            champ.updated_at = moment().format()
+            await champ.save()
+            broadcastRoundStatusChange(io, champ._id.toString(), i, "waiting")
+          }
+        }
+
+        // Betting open/closed: reset to waiting so adjudicator can restart cleanly.
+        // These statuses require user interaction, so continuing after a disruption isn't ideal.
+        if (status === "betting_open" || status === "betting_closed") {
+          console.log(`[autoTransitions] Recovering stuck ${status}: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+          champ.rounds[i].status = "waiting"
+          champ.rounds[i].statusChangedAt = null
+          champ.updated_at = moment().format()
+          await champ.save()
+          broadcastRoundStatusChange(io, champ._id.toString(), i, "waiting")
+        }
+
+        // Results: re-schedule timer for remaining time, or transition to completed if exceeded.
+        if (status === "results" && round.statusChangedAt) {
+          const elapsedMs = moment().diff(moment(round.statusChangedAt))
+          if (elapsedMs > RESULTS_DURATION + 60000) {
+            // More than 6 minutes elapsed — transition immediately to completed.
+            console.log(`[autoTransitions] Recovering stuck results: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            await transitionRoundStatus(io, champ._id.toString(), i, "completed")
+          } else if (elapsedMs < RESULTS_DURATION) {
+            // Still within results duration — re-schedule timer for remaining time.
+            const remainingMs = RESULTS_DURATION - elapsedMs
+            console.log(`[autoTransitions] Re-scheduling results timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
+            scheduleAutoTransition(io, champ._id.toString(), i, "completed", remainingMs)
+          } else {
+            // Between 5-6 minutes — transition to completed now (grace period expired).
+            console.log(`[autoTransitions] Results grace period expired: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            await transitionRoundStatus(io, champ._id.toString(), i, "completed")
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[autoTransitions] Failed to recover stuck rounds:", err)
+  }
+}
+
 // Updates round status in database and broadcasts the change.
 const transitionRoundStatus = async (
   io: Server,
@@ -116,8 +184,20 @@ const transitionRoundStatus = async (
 
   // Execute resultsHandler when entering the results view.
   // This processes all results-related logic (points, badges, next round setup).
+  // Re-fetch with population so the socket broadcast includes calculated results data.
   if (newStatus === "results") {
     await resultsHandler(champId, roundIndex)
+
+    const populatedChamp = await Champ.findById(champId).populate(champPopulation).exec()
+    if (populatedChamp) {
+      const populatedRound = populatedChamp.rounds[roundIndex]
+      broadcastRoundStatusChange(io, champId, roundIndex, newStatus, {
+        drivers: populatedRound.drivers,
+        competitors: populatedRound.competitors,
+        teams: populatedRound.teams,
+      })
+      return
+    }
   }
 
   broadcastRoundStatusChange(io, champId, roundIndex, newStatus)

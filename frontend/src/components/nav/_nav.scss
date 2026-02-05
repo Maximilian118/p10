@@ -14,6 +14,10 @@
       padding-left: 10px;
     }
 
+    .server-msg {
+      color: variables.$f1-red;
+    }
+
     .nav-icon {
       color: variables.$colour-4;
       transition: variables.$trans-speed;

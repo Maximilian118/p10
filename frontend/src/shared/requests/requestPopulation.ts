@@ -499,6 +499,16 @@ export const populateChamp = `
         name
         icon
       }
+      badgesAwarded {
+        _id
+        url
+        name
+        customName
+        rarity
+        awardedHow
+        awardedDesc
+        zoom
+      }
       updated_at
       created_at
     }
@@ -832,6 +842,16 @@ export const populateChamp = `
           _id
           name
           icon
+        }
+        badgesAwarded {
+          _id
+          url
+          name
+          customName
+          rarity
+          awardedHow
+          awardedDesc
+          zoom
         }
         updated_at
         created_at

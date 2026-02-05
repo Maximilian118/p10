@@ -1574,6 +1574,19 @@ const champResolvers = {
 
       const currentStatus = champ.rounds[roundIndex].status
 
+      // Idempotent: if already at target status, return success without changes.
+      // Prevents race condition errors when auto-transition and manual skip occur simultaneously.
+      if (currentStatus === status) {
+        const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
+        if (!populatedChamp) {
+          return throwError("updateRoundStatus", _id, "Championship not found!", 404)
+        }
+        return filterChampForUser({
+          ...populatedChamp._doc,
+          tokens: req.tokens,
+        }, isAdmin)
+      }
+
       // Validate transition is allowed.
       if (!allowedTransitions[currentStatus].includes(status)) {
         return throwError(
@@ -1643,8 +1656,8 @@ const champResolvers = {
       }
 
       // Broadcast status change to all users viewing this championship.
-      // Include populated round data when transitioning from "waiting".
-      if (currentStatus === "waiting") {
+      // Include populated round data when transitioning from "waiting" or entering "results".
+      if (currentStatus === "waiting" || actualStatus === "results") {
         const populatedRound = populatedChamp.rounds[roundIndex]
         broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, {
           drivers: populatedRound.drivers,
@@ -1934,6 +1947,7 @@ const champResolvers = {
       })
 
       // Transition to "results" status - this triggers resultsHandler which calculates points.
+      // If skipResults is enabled, we'll transition to "completed" immediately after processing.
       round.status = "results"
       round.statusChangedAt = moment().format()
 
@@ -1949,9 +1963,6 @@ const champResolvers = {
         await updatedChamp.save()
       }
 
-      // Broadcast status change to all users viewing this championship.
-      broadcastRoundStatusChange(io, _id, roundIndex, "results")
-
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
@@ -1959,10 +1970,38 @@ const champResolvers = {
         return throwError("submitDriverPositions", _id, "Championship not found after update!", 404)
       }
 
-      console.log(
-        `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
-          `Positions submitted, transitioning to results`,
-      )
+      const populatedRound = populatedChamp.rounds[roundIndex]
+
+      // If skipResults is enabled, transition directly to "completed" without showing results.
+      if (champ.settings.skipResults) {
+        populatedChamp.rounds[roundIndex].status = "completed"
+        populatedChamp.rounds[roundIndex].statusChangedAt = moment().format()
+        populatedChamp.updated_at = moment().format()
+        await populatedChamp.save()
+
+        // Broadcast completed status (skip showing results).
+        broadcastRoundStatusChange(io, _id, roundIndex, "completed")
+
+        console.log(
+          `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
+            `Positions submitted, skipping results -> completed`,
+        )
+      } else {
+        // Broadcast status change with populated round data so all clients get results instantly.
+        broadcastRoundStatusChange(io, _id, roundIndex, "results", {
+          drivers: populatedRound.drivers,
+          competitors: populatedRound.competitors,
+          teams: populatedRound.teams,
+        })
+
+        console.log(
+          `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
+            `Positions submitted, transitioning to results`,
+        )
+
+        // Schedule auto-transition to completed.
+        scheduleResultsTransition(io, _id, roundIndex)
+      }
 
       return filterChampForUser({
         ...populatedChamp._doc,

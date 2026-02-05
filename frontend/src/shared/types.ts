@@ -218,6 +218,7 @@ export interface CompetitorEntryType {
   position: number // Position in standings AFTER this round.
   deleted?: boolean // Is this competitor a deleted user?
   deletedUserSnapshot?: DeletedUserSnapshotType // Preserved display data for deleted users.
+  badgesAwarded?: badgeType[] // Badges earned THIS round (populated by resultsHandler).
   updated_at: string | null // When they last changed their bet.
   created_at: string | null // When they first placed their bet.
 }

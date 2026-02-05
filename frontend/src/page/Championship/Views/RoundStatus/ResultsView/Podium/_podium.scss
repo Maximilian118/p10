@@ -1,0 +1,65 @@
+@use '../../../../../../scss/variables';
+@use '../../../../../../scss/mixins';
+
+.podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 24px 16px;
+  width: 100%;
+  box-sizing: border-box;
+
+  // Each podium slot is a vertical column centred on its icon.
+  &__slot {
+    @include mixins.flexbox-column;
+    gap: 6px;
+    flex: 0 1 120px;
+    max-width: 120px;
+
+    // 1st place is elevated above 2nd and 3rd.
+    &--first {
+      margin-bottom: 32px;
+    }
+
+    // 2nd place sits slightly lower than 1st.
+    &--second {
+      margin-bottom: 12px;
+    }
+
+    // 3rd place is the lowest.
+    &--third {
+      margin-bottom: 0;
+    }
+  }
+
+  // Wrapper for icon and "Best!" indicator.
+  &__icon-wrapper {
+    position: relative;
+    @include mixins.flexbox;
+  }
+
+  // "Best!" text absolutely positioned at top-left of icon.
+  &__best {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    color: variables.$mui-blue;
+    font-size: 12px;
+    font-weight: 700;
+    z-index: 1;
+    text-shadow: variables.$shadow-text;
+  }
+
+  // Competitor name, truncated if too long.
+  &__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: variables.$colour-9;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+}

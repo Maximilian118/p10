@@ -52,6 +52,7 @@ const champSchema = `
     position: Int!
     deleted: Boolean
     deletedUserSnapshot: DeletedUserSnapshot
+    badgesAwarded: [Badge]
     updated_at: String
     created_at: String
   }

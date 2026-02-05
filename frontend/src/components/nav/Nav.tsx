@@ -10,6 +10,7 @@ import { IconButton } from "@mui/material"
 import { useNavigate, useLocation } from "react-router-dom"
 import "./_nav.scss"
 import BadgeIcon from "../utility/icon/badgeIcon/BadgeIcon"
+import useConnectionStatus from "../../shared/hooks/useConnectionStatus"
 
 interface navType {
   user: userType,
@@ -28,6 +29,7 @@ const Nav: React.FC<navType> = ({ user }) => {
   const navContainerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
+  const serverMsg = useConnectionStatus()
 
   // Close drawer when clicking outside.
   useEffect(() => {
@@ -85,6 +87,7 @@ const Nav: React.FC<navType> = ({ user }) => {
             {drawerOpen ? <Close /> : <MenuIcon />}
           </IconButton>
         </div>
+        {serverMsg && <p className="server-msg">{serverMsg}</p>}
         <div className="nav-right">
           <BadgeIcon 
             svg={notificationsCount === 0 ? NotificationsNone : Notifications}

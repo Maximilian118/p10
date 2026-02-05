@@ -43,6 +43,7 @@ export interface CompetitorEntry {
   position: number // Position in standings AFTER this round.
   deleted?: boolean // Is this competitor a deleted user?
   deletedUserSnapshot?: DeletedUserSnapshot // Preserved display data for deleted users.
+  badgesAwarded?: ObjectId[] // Badge IDs earned THIS round (populated by resultsHandler).
   updated_at: string | null // In case the user has changed their mind during the betting process.
   created_at: string | null // When they first placed their bet.
 }
@@ -282,6 +283,7 @@ const competitorEntrySchema = new mongoose.Schema(
     position: { type: Number, default: 0 },
     deleted: { type: Boolean, default: false },
     deletedUserSnapshot: { type: deletedUserSnapshotSchema, default: null },
+    badgesAwarded: [{ type: mongoose.Schema.ObjectId, ref: "Badge", default: [] }],
     updated_at: { type: String, default: null },
     created_at: { type: String, default: null },
   },

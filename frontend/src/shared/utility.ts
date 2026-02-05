@@ -410,3 +410,45 @@ export const aggregateAllCompetitors = (
     return b.grandTotalPoints - a.grandTotalPoints
   })
 }
+
+// Determines if a competitor achieved their best (highest points) round this season.
+// "Best" means this round's points are strictly greater than all previous rounds' points.
+// Returns false for the first round (no baseline) or if the competitor scored 0 points.
+export const isBestRound = (
+  rounds: RoundType[],
+  competitorId: string,
+  currentRoundIndex: number
+): boolean => {
+  // Not applicable for the first round - no previous results to compare against.
+  if (currentRoundIndex === 0) return false
+
+  const currentRound = rounds[currentRoundIndex]
+  const currentEntry = currentRound?.competitors?.find(
+    c => (c.competitor?._id ?? c.deletedUserSnapshot?._id) === competitorId
+  )
+
+  // No entry found or zero points this round.
+  if (!currentEntry || currentEntry.points <= 0) return false
+
+  // Check all previous rounds this season for a higher or equal score.
+  for (let i = 0; i < currentRoundIndex; i++) {
+    const entry = rounds[i]?.competitors?.find(
+      c => (c.competitor?._id ?? c.deletedUserSnapshot?._id) === competitorId
+    )
+    if (entry && entry.points >= currentEntry.points) return false
+  }
+
+  return true
+}
+
+// Returns the display name for a competitor entry, falling back to deleted snapshot.
+export const getCompetitorName = (entry: CompetitorEntryType): string =>
+  entry.competitor?.name ?? entry.deletedUserSnapshot?.name ?? "Unknown"
+
+// Returns the icon URL for a competitor entry, falling back to deleted snapshot.
+export const getCompetitorIcon = (entry: CompetitorEntryType): string =>
+  entry.competitor?.icon ?? entry.deletedUserSnapshot?.icon ?? ""
+
+// Returns the ID for a competitor entry, falling back to deleted snapshot.
+export const getCompetitorId = (entry: CompetitorEntryType): string =>
+  entry.competitor?._id ?? entry.deletedUserSnapshot?._id ?? ""

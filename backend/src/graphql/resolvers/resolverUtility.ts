@@ -922,6 +922,23 @@ const awardBadges = async (
     }
   }
 
+  // Write badgesAwarded to competitor entries for this round.
+  // Group awards by competitor for efficient lookup.
+  const awardsByCompetitor = new Map<string, ObjectId[]>()
+  for (const award of badgeAwards) {
+    const key = award.competitorId.toString()
+    if (!awardsByCompetitor.has(key)) {
+      awardsByCompetitor.set(key, [])
+    }
+    awardsByCompetitor.get(key)!.push(award.badgeId)
+  }
+
+  // Set badgesAwarded on each competitor entry (empty array if no awards).
+  for (const competitorEntry of currentRound.competitors) {
+    const competitorKey = competitorEntry.competitor.toString()
+    competitorEntry.badgesAwarded = awardsByCompetitor.get(competitorKey) || []
+  }
+
   // Batch save badge awards to Championship.discoveredBadges (first discovery only).
   if (badgeAwards.length > 0) {
     // Build discoveredBadges entries for badges that are being discovered for the first time.
