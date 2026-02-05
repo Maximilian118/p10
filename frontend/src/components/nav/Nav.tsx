@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import UserIcon from "../utility/icon/userIcon/userIcon"
 import { userType } from "../../shared/localStorage"
-import { Home, Menu as MenuIcon, Close, Notifications } from "@mui/icons-material"
+import { Home, Menu as MenuIcon, Close, Notifications, NotificationsNone } from "@mui/icons-material"
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
 import GroupsIcon from "@mui/icons-material/Groups"
@@ -87,7 +87,7 @@ const Nav: React.FC<navType> = ({ user }) => {
         </div>
         <div className="nav-right">
           <BadgeIcon 
-            svg={Notifications} 
+            svg={user.notifications.length === 0 ? NotificationsNone : Notifications} 
             onClick={() => handleNotificationsClicked()} 
             count={notificationsCount}
           />
