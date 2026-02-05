@@ -1,19 +1,19 @@
 import React from "react"
 import './_styledText.scss'
 
-export type StyledTextColour = "gold" | "silver" | "bronze" | "default"
+export type StyledTextColour = "gold" | "silver" | "bronze" | "success" | "error" | "default"
 
 interface StyledTextProps {
   text: string | number
-  colour?: StyledTextColour
+  color?: StyledTextColour
 }
 
 // Renders text with optional podium styling.
-const StyledText: React.FC<StyledTextProps> = ({ text, colour = "default" }) => {
+const StyledText: React.FC<StyledTextProps> = ({ text, color = "default" }) => {
   const displayText = String(text)
 
   return (
-    <span className={`styled-text ${colour}`}>
+    <span className={`styled-text ${color}`}>
       {displayText}
     </span>
   )

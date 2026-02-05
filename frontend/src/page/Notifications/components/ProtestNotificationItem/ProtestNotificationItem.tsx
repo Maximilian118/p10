@@ -4,15 +4,16 @@ import { NotificationType, ProtestStatus } from "../../../../shared/types"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import StatusCard from "../../../../components/cards/statusCard/StatusCard"
 import "./_protestNotificationItem.scss"
+import Points from "../../../../components/utility/points/Points"
 
 interface ProtestNotificationItemProps {
   notification: NotificationType
 }
 
-// Format points display with sign.
-const formatPoints = (points: number | undefined): string => {
-  if (points === undefined) return ""
-  return points > 0 ? `+${points}` : `${points}`
+// Returns color based on points sign: positive = success, negative = error, zero/falsy = default.
+const getPointsColor = (points: number | undefined): "success" | "error" | "default" => {
+  if (!points) return "default"
+  return points > 0 ? "success" : "error"
 }
 
 // Protest notification content — renders head-to-head avatars, points, and status card.
@@ -36,43 +37,29 @@ const ProtestNotificationItem: React.FC<ProtestNotificationItemProps> = ({ notif
     }
   }
 
-  const hasProtestPoints =
-    (notification.type === "protest_passed" || notification.type === "protest_denied") &&
-    notification.filerPoints !== undefined
+  const isDenied = notification.type === "protest_denied"
+  const isPassed = notification.type === "protest_passed"
+  const hasProtestPoints = (isPassed || isDenied) && notification.filerPoints !== undefined
+
+  // For denied protests, only show filer penalty (points < 0). No accused/VS.
+  const showFilerPoints = hasProtestPoints && (!isDenied || (notification.filerPoints ?? 0) < 0)
 
   return (
     <>
-      <div className="protest-notification-item__avatars">
+      <div className="protest-notification-item__avatars" style={{ justifyContent: isDenied ? "center" : "space-evenly"}}>
         {/* Filer avatar — navigates to filer's profile */}
-          <div className="protest-notification-item__avatar" onClick={handleFilerClick}>
-            <ImageIcon src={notification.filerIcon || ""} size="large" />
-            {hasProtestPoints && (
-              <span
-                className={`protest-notification-item__points ${
-                  notification.filerPoints && notification.filerPoints > 0
-                    ? "protest-notification-item__points--positive"
-                    : "protest-notification-item__points--negative"
-                }`}
-              >
-                {formatPoints(notification.filerPoints)}
-              </span>
+        <ImageIcon src={notification.filerIcon || ""} size="large" onClick={() => handleFilerClick}/>
+        {showFilerPoints && <Points total={notification.filerPoints ?? 0} color={getPointsColor(notification.filerPoints)} darkMode/>}
+        {/* Accused section — only for passed protests */}
+        {!isDenied && notification.accusedName && notification.accusedIcon && (
+          <>
+            <span className="protest-notification-item__vs">VS</span>
+            {hasProtestPoints && notification.accusedPoints !== undefined && (
+              <Points total={notification.accusedPoints ?? 0} color={getPointsColor(notification.accusedPoints)} darkMode/>
             )}
-          </div>
-
-          {notification.accusedName && notification.accusedIcon && (
-            <>
-              <span className="protest-notification-item__vs">VS</span>
-              {/* Accused avatar — navigates to accused's profile */}
-              <div className="protest-notification-item__avatar" onClick={handleAccusedClick}>
-                <ImageIcon src={notification.accusedIcon} size="large" />
-                {hasProtestPoints && notification.accusedPoints !== undefined && (
-                  <span className="protest-notification-item__points protest-notification-item__points--negative">
-                    {formatPoints(notification.accusedPoints)}
-                  </span>
-                )}
-              </div>
-            </>
-          )}
+            <ImageIcon src={notification.accusedIcon} size="large" onClick={() => handleAccusedClick}/>
+          </>
+        )}
       </div>
       {/* Status card for protest status */}
       {notification.protestStatus && (

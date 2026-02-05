@@ -22,6 +22,10 @@
 
   .pts {
     bottom: -5px;
+
+    &--dark {
+      color: white;
+    }
   }
 
   .add-points, .remove-points {

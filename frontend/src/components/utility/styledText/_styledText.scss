@@ -17,6 +17,14 @@
     color: variables.$bronze;
   }
 
+  &.success {
+    color: variables.$mui-success;
+  }
+
+  &.error {
+    color: variables.$pirelli-red;
+  }
+
   &.default {
     color: inherit;
   }
