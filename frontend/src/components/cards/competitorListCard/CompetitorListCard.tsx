@@ -157,6 +157,7 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
             position={entry.position}
             canEdit={adjudicatorView}
             onPointsChange={onPointsChange}
+            color={entry.grandTotalPoints < 0 ? "error" : undefined}
           />
         </div>
 
