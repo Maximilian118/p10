@@ -35,7 +35,7 @@ const BadgeInfoCard: React.FC<BadgeInfoCardProps> = ({ badge, isOpen }) => {
       <div className="badge-info-card">
         {badge && (
           <div className="badge-info-header">
-            <Badge badge={badge} zoom={badge.zoom} />
+            <Badge badge={badge} zoom={badge.zoom} overlayThickness={3}/>
             <div className="badge-info">
               <span className={`badge-info-name ${isHidden ? 'badge-info-name--hidden' : ''}`}>
                 {displayName}

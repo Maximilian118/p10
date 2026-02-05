@@ -11,9 +11,19 @@ interface badgeCompType {
   onClick?: (e: React.MouseEvent) => void
   style?: React.CSSProperties
   showEditButton?: boolean // Controls edit button visibility, defaults to true when onClick exists.
+  showOverlay?: boolean // Can optionally remove the overlay.
+  overlayThickness?: number // Can optionally adjust the overlay thickness.
 }
 
-const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditButton = true }) => {
+const Badge: React.FC<badgeCompType> = ({ 
+  badge, 
+  zoom, 
+  onClick, 
+  style, 
+  showEditButton = true, 
+  showOverlay = true, 
+  overlayThickness = 2,
+}) => {
   const [ error, setError ] = useState<boolean>(false)
 
   // Get previewUrl if it exists (only on badgeType, not userBadgeSnapshotType).
@@ -66,7 +76,7 @@ const Badge: React.FC<badgeCompType> = ({ badge, zoom, onClick, style, showEditB
           <Edit/>
         </IconButton>
       )}
-      <BadgeOverlay rarity={badge.rarity} thickness={2}/>
+      {showOverlay && <BadgeOverlay rarity={badge.rarity} thickness={overlayThickness}/>}
       <div className="outer-ring">
         <div className="inner-ring"/>
           {iconContent(error, displayUrl)}

@@ -35,6 +35,10 @@ const rowConfigs: Record<StartLightsStatus, string[][]> = {
 }
 
 const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence = false, initialSeconds }) => {
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  // Handles the image onLoad event to synchronize rendering of lights and image
+  const handleImageLoad = () => setImageLoaded(true)
   // Calculate initial state based on whether we're joining mid-sequence.
   // If startSequence is true and initialSeconds is within the 5s window, start at that position.
   // If countdown expired (0s), clamp to 1 so we show red5 instead of off.
@@ -124,11 +128,15 @@ const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence 
   const config = rowConfigs[currentStatus] || rowConfigs.off
 
   return (
-    <div className="start-lights-container">
+    <div className={`start-lights-container ${imageLoaded ? 'loaded' : ''}`}>
       <div className="start-lights">
         {config.map((rowColours, index) => lightRow(rowColours, index))}
       </div>
-      <img alt="Start Lights" src="https://p10-game.s3.eu-west-2.amazonaws.com/assets/start_lights.png"/>
+      <img
+        alt="Start Lights"
+        src="https://p10-game.s3.eu-west-2.amazonaws.com/assets/start_lights.png"
+        onLoad={handleImageLoad}
+      />
     </div>
   )
 }

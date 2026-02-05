@@ -1,0 +1,14 @@
+@use '../../scss/mixins';
+
+// Full-screen modal overlay with dark background.
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  @include mixins.flexbox-column;
+  cursor: pointer;
+}

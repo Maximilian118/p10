@@ -8,27 +8,12 @@ import { userBadgeSnapshotType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getNotifications, clearNotification, clearAllNotifications, markNotificationRead } from "../../shared/requests/notificationRequests"
 import NotificationListItem from "./components/NotificationListItem/NotificationListItem"
-import Badge from "../../components/utility/badge/Badge"
+import BadgeCelebration from "../../components/modal/configs/BadgeCelebration/BadgeCelebration"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import Confirm from "../../components/utility/confirm/Confirm"
 import "./_notifications.scss"
 import { Button } from "@mui/material"
 import { ArrowBack } from "@mui/icons-material"
-
-// Confetti colors for celebration.
-const confettiColors = ["#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8"]
-
-// Generate random confetti pieces.
-const generateConfetti = (count: number) => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    delay: Math.random() * 2,
-    color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-    size: 8 + Math.random() * 8,
-    rotation: Math.random() * 360,
-  }))
-}
 
 // Notifications page component.
 const Notifications: React.FC = () => {
@@ -65,10 +50,6 @@ const Notifications: React.FC = () => {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
   }, [user.notifications])
-
-  // Generate confetti pieces for celebration modal (regenerates when badge changes).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const confettiPieces = useMemo(() => generateConfetti(50), [celebrationBadge])
 
   // Track notifications that have been marked as read to prevent duplicate API calls.
   const markedAsReadRef = useRef<Set<string>>(new Set())
@@ -190,46 +171,7 @@ const Notifications: React.FC = () => {
 
       {/* Badge Celebration Modal */}
       {celebrationBadge && (
-        <div className="badge-celebration" onClick={closeCelebration}>
-          {/* Confetti animation */}
-          <div className="badge-celebration__confetti">
-            {confettiPieces.map((piece) => (
-              <div
-                key={piece.id}
-                className="confetti-piece"
-                style={{
-                  left: `${piece.left}%`,
-                  animationDelay: `${piece.delay}s`,
-                  backgroundColor: piece.color,
-                  width: `${piece.size}px`,
-                  height: `${piece.size}px`,
-                  borderRadius: Math.random() > 0.5 ? "50%" : "0",
-                  transform: `rotate(${piece.rotation}deg)`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Badge */}
-          <div className="badge-celebration__badge">
-            <Badge badge={celebrationBadge} zoom={100} />
-          </div>
-
-          {/* Badge name */}
-          <h2 className="badge-celebration__name">
-            {celebrationBadge.customName || celebrationBadge.name}
-          </h2>
-
-          {/* Badge description */}
-          <p className="badge-celebration__description">
-            {celebrationBadge.awardedDesc}
-          </p>
-
-          {/* Close hint */}
-          <p className="badge-celebration__close-hint">
-            Click anywhere to close
-          </p>
-        </div>
+        <BadgeCelebration badge={celebrationBadge} onClose={closeCelebration} />
       )}
     </div>
   )
