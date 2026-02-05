@@ -1,0 +1,29 @@
+@use '../../scss/variables';
+
+.splash-container {
+  cursor: pointer;
+  
+  .splash-background {
+    top: 40px !important;
+    left: 0 !important;
+
+    @media (max-width: 500px) {
+      width: 240% !important;
+      top: auto !important;
+      left: -30% !important;
+      bottom: 0 !important;
+    }
+  }
+
+  .splash-title {
+    margin-bottom: 200px;
+
+    h2 {
+      margin-bottom: 10px;
+    }
+  }
+
+  .go-to-login {
+    color: variables.$mui-blue;
+  }
+}

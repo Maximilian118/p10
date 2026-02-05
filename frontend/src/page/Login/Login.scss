@@ -1,0 +1,23 @@
+@use '../../scss/variables';
+
+.login-container {
+  .login-background {
+    width: 140% !important;
+    left: -90px !important;
+
+    @media (max-width: 500px) {
+      width: 180% !important;
+      top: auto !important;
+      left: -30% !important;
+      bottom: 100px !important;
+    }
+  }
+
+  .login-title {
+    margin-bottom: 200px;
+
+    h2 {
+      margin-bottom: 10px;
+    }
+  }
+}

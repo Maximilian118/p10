@@ -4,8 +4,8 @@ import { userType } from './shared/localStorage'
 
 import Notfound from "./page/NotFound"
 import Home from './page/Home'
-import Splash from './page/Splash'
-import Login from './page/Login'
+import Splash from './page/Splash/Splash'
+import Login from './page/Login/Login'
 import Forgot from "./page/Forgot"
 import Create from "./page/Create"
 import Profile from "./page/Profile/Profile"
