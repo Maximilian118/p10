@@ -12,7 +12,7 @@ import FillLoading from "../components/utility/fillLoading/FillLoading"
 import SeriesListCard from "../components/cards/seriesListCard/SeriesListCard"
 
 // Page for displaying all series.
-const Series: React.FC = () => {
+const SeriesList: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
   const [ search, setSearch ] = useState<seriesType[]>([])
@@ -74,4 +74,4 @@ const Series: React.FC = () => {
   )
 }
 
-export default Series
+export default SeriesList

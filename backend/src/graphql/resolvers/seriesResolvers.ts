@@ -10,7 +10,7 @@ import {
   driversErrors,
   falsyValErrors,
   hasChampErrors,
-  imageErrors,
+  seriesImageErrors,
   nameCanNumbersErrors,
   officialEntityErrors,
   throwError,
@@ -30,18 +30,19 @@ const seriesResolvers = {
     }
 
     try {
-      const { created_by, url, name, shortName, drivers } = args.seriesInput
+      const { created_by, icon, profile_picture, name, shortName, drivers } = args.seriesInput
 
       // Check for errors.
       await createdByErrors(req._id, created_by)
-      imageErrors(url)
+      seriesImageErrors(icon, profile_picture)
       nameCanNumbersErrors("seriesName", name)
       driversErrors(drivers)
 
       // Create a new series DB object.
       const series = new Series({
         created_by,
-        url,
+        icon,
+        profile_picture,
         name,
         shortName,
         drivers,
@@ -89,6 +90,30 @@ const seriesResolvers = {
       throw err
     }
   },
+  // Get a single series by ID.
+  getSeriesById: async (
+    { _id }: { _id: string },
+    req: AuthRequest,
+  ): Promise<seriesType> => {
+    if (!req.isAuth) {
+      throwError("getSeriesById", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const series = await Series.findById(_id).populate(seriesPopulation).exec()
+
+      if (!series) {
+        throw throwError("seriesName", _id, "No series by that _id could be found.")
+      }
+
+      return {
+        ...series._doc,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      throw err
+    }
+  },
   updateSeries: async (
     args: { seriesInput: seriesInputType },
     req: AuthRequest,
@@ -97,11 +122,11 @@ const seriesResolvers = {
       throwError("updateSeries", req.isAuth, "Not Authenticated!", 401)
     }
     try {
-      const { _id, url, name, shortName, drivers } = args.seriesInput
+      const { _id, icon, profile_picture, name, shortName, drivers } = args.seriesInput
       // Check for errors
-      imageErrors(url)
+      seriesImageErrors(icon, profile_picture)
       falsyValErrors({
-        dropzone: url,
+        dropzone: icon,
         seriesName: name,
       })
 
@@ -115,8 +140,12 @@ const seriesResolvers = {
       // Check if official entity - only admins can modify.
       await officialEntityErrors(series.official, req._id, "series")
 
-      if (url !== series._doc.url) {
-        series.url = url
+      if (icon !== series._doc.icon) {
+        series.icon = icon
+      }
+
+      if (profile_picture !== series._doc.profile_picture) {
+        series.profile_picture = profile_picture
       }
 
       if (capitalise(series.name) !== capitalise(name)) {
@@ -193,11 +222,14 @@ const seriesResolvers = {
         }
       }
 
-      // Delete the image from s3.
-      const deleteErr = await deleteS3(clientS3(), clientS3(series._doc.url).params, 0)
-      // If deleteS3 had any errors.
-      if (deleteErr) {
-        throw throwError("dropzone", series._doc.url, deleteErr)
+      // Delete both images from S3.
+      const iconDeleteErr = await deleteS3(clientS3(), clientS3(series._doc.icon).params, 0)
+      if (iconDeleteErr) {
+        throw throwError("dropzone", series._doc.icon, iconDeleteErr)
+      }
+      const ppDeleteErr = await deleteS3(clientS3(), clientS3(series._doc.profile_picture).params, 0)
+      if (ppDeleteErr) {
+        throw throwError("dropzone", series._doc.profile_picture, ppDeleteErr)
       }
       // Delete series from DB.
       await series.deleteOne()

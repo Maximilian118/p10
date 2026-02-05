@@ -1,0 +1,58 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+.series-profile {
+  position: relative;
+  @include mixins.flexbox-start-column;
+  background: white;
+
+  // Container for the large series icon.
+  .series-icon-container {
+    width: 200px;
+    height: 200px;
+    margin-top: 20px;
+    flex-shrink: 0;
+  }
+
+  .series-profile-content {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+    flex-grow: 1;
+    padding: 0 7.5% 20px;
+    box-sizing: border-box;
+
+    h2 {
+      width: 100%;
+      text-align: center;
+      margin: 40px;
+      color: variables.$colour-9;
+    }
+
+    // Scrollable grid of driver icons.
+    .series-drivers-grid {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      overflow-y: auto;
+      flex-grow: 1;
+
+      .series-driver-icon {
+        @include mixins.flexbox-column;
+        cursor: pointer;
+        width: 50px;
+
+        p {
+          margin-top: 4px;
+          font-size: 11px;
+          text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+        }
+      }
+    }
+  }
+}

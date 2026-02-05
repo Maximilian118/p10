@@ -1,7 +1,8 @@
 const seriesSchema = `
   type Series {
     _id: ID!
-    url: String!
+    icon: String!
+    profile_picture: String!
     name: String!
     shortName: String
     hasAPI: Boolean
@@ -22,7 +23,8 @@ const seriesSchema = `
   input seriesInput {
     _id: ID
     created_by: ID
-    url: String
+    icon: String
+    profile_picture: String
     name: String!
     shortName: String
     drivers: [ID!]

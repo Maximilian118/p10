@@ -240,7 +240,8 @@ export const populateDriver = `
   }
   series {
     _id
-    url
+    icon
+    profile_picture
     name
     shortName
     championships {
@@ -292,7 +293,8 @@ export const populateDriver = `
 // Series population template literal.
 export const populateSeries = `
   _id
-  url
+  icon
+  profile_picture
   name
   shortName
   hasAPI
@@ -304,6 +306,35 @@ export const populateSeries = `
   }
   created_by {
     _id
+  }
+  official
+  created_at
+  updated_at
+`
+
+// Series population for standalone Series profile page.
+export const populateSeriesFull = `
+  _id
+  icon
+  profile_picture
+  name
+  shortName
+  hasAPI
+  championships {
+    _id
+  }
+  drivers {
+    _id
+    icon
+    name
+    teams {
+      _id
+      icon
+      name
+    }
+  }
+  created_by {
+    ${populateUser}
   }
   official
   created_at
@@ -536,7 +567,8 @@ export const populateChamp = `
   }
   series {
     _id
-    url
+    icon
+    profile_picture
     name
     shortName
     hasAPI

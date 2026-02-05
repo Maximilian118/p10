@@ -27,6 +27,7 @@ const Schema = buildSchema(`
     getUsers(limit: Int): Users
     getBadgesByChamp(championship: String): Badges
     getSeries: SeriesList
+    getSeriesById(_id: ID!): Series!
     getDrivers: Drivers
     getTeams: Teams
     getTeamById(_id: ID!): Team!

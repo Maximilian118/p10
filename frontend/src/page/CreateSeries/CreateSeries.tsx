@@ -249,7 +249,8 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
       const updatedSeries: seriesType = {
         ...editingSeries,
         name: form.seriesName,
-        url: form.icon && typeof form.icon === "string" ? form.icon : editingSeries.url,
+        icon: form.icon && typeof form.icon === "string" ? form.icon : editingSeries.icon,
+        profile_picture: form.profile_picture && typeof form.profile_picture === "string" ? form.profile_picture : editingSeries.profile_picture,
         drivers: form.drivers,
       }
 
@@ -385,7 +386,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
         backendErr={backendErr}
         setBackendErr={setBackendErr}
         purposeText="Series Image"
-        thumbImg={editingSeries?.url || false}
+        thumbImg={editingSeries?.icon || false}
         disabled={!permissions}
       />
       <TextField

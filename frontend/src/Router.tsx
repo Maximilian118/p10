@@ -16,7 +16,8 @@ import Championships from "./page/Championships"
 import CreateChamp from "./page/CreateChamp/CreateChamp"
 import Championship from "./page/Championship/Championship"
 import UserProfile from "./page/UserProfile/UserProfile"
-import Series from "./page/Series"
+import SeriesList from "./page/SeriesList"
+import Series from "./page/Series/Series"
 import CreateSeries from "./page/CreateSeries/CreateSeries"
 import Drivers from "./page/Drivers"
 import CreateDriver from "./page/CreateDriver/CreateDriver"
@@ -46,7 +47,8 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/championships" Component={Championships}/>
     <Route path="/create-championship" Component={CreateChamp}/>
     <Route path="/championship/:id" Component={Championship}/>
-    <Route path="/series" Component={Series}/>
+    <Route path="/series" Component={SeriesList}/>
+    <Route path="/series/:id" Component={Series}/>
     <Route path="/create-series" Component={CreateSeries}/>
     <Route path="/drivers" Component={Drivers}/>
     <Route path="/driver/:id" Component={Driver}/>

@@ -4,7 +4,7 @@ import { NavigateFunction } from "react-router-dom"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
 import { seriesType } from "../types"
 import { createSeriesFormType } from "../../page/CreateSeries/CreateSeries"
-import { populateSeries } from "./requestPopulation"
+import { populateSeries, populateSeriesFull } from "./requestPopulation"
 import { uplaodS3 } from "./bucketRequests"
 import { capitalise } from "../utility"
 
@@ -76,12 +76,16 @@ export const createSeries = async (
   setLoading(true)
   let series: seriesType | null = null
 
-  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr)
   if (!iconURL && form.icon) { setLoading(false); return null }
 
-  // Store uploaded URL in form state for retry (only if File was uploaded).
+  const profilePictureURL = await uplaodS3("series", form.seriesName, "profile-picture", form.profile_picture, setBackendErr)
+  if (!profilePictureURL && form.profile_picture) { setLoading(false); return null }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.profile_picture instanceof File && profilePictureURL) setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
 
   try {
     await axios
@@ -90,13 +94,14 @@ export const createSeries = async (
         {
           variables: {
             created_by: user._id,
-            url: iconURL,
+            icon: iconURL,
+            profile_picture: profilePictureURL,
             name: capitalise(form.seriesName),
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation NewSeries( $created_by: ID!, $url: String!, $name: String!, $drivers: [ID!]! ) {
-              newSeries(seriesInput: { created_by: $created_by, url: $url, name: $name, drivers: $drivers }) {
+            mutation NewSeries( $created_by: ID!, $icon: String!, $profile_picture: String!, $name: String!, $drivers: [ID!]! ) {
+              newSeries(seriesInput: { created_by: $created_by, icon: $icon, profile_picture: $profile_picture, name: $name, drivers: $drivers }) {
                 ${populateSeries}
                 tokens
               }
@@ -137,12 +142,16 @@ export const editSeries = async (
   setLoading(true)
   let success = false
 
-  // Upload image to S3 (uplaodS3 handles File/string/null internally).
+  // Upload images to S3 (uplaodS3 handles File/string/null internally).
   const iconURL = await uplaodS3("series", form.seriesName, "icon", form.icon, setBackendErr, user, setUser, navigate, 2)
   if (!iconURL && form.icon) { setLoading(false); return false }
 
-  // Store uploaded URL in form state for retry (only if File was uploaded).
+  const profilePictureURL = await uplaodS3("series", form.seriesName, "profile-picture", form.profile_picture, setBackendErr, user, setUser, navigate, 2)
+  if (!profilePictureURL && form.profile_picture) { setLoading(false); return false }
+
+  // Store uploaded URLs in form state for retry (only if File was uploaded).
   if (form.icon instanceof File && iconURL) setForm((prev) => ({ ...prev, icon: iconURL }))
+  if (form.profile_picture instanceof File && profilePictureURL) setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
 
   try {
     await axios
@@ -151,13 +160,14 @@ export const editSeries = async (
         {
           variables: {
             _id: seriesItem._id,
-            url: iconURL || seriesItem.url,
+            icon: iconURL || seriesItem.icon,
+            profile_picture: profilePictureURL || seriesItem.profile_picture,
             name: capitalise(form.seriesName),
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation UpdateSeries( $_id: ID!, $url: String!, $name: String!, $drivers: [ID!]) {
-              updateSeries(seriesInput: { _id: $_id, url: $url, name: $name, drivers: $drivers }) {
+            mutation UpdateSeries( $_id: ID!, $icon: String!, $profile_picture: String!, $name: String!, $drivers: [ID!]) {
+              updateSeries(seriesInput: { _id: $_id, icon: $icon, profile_picture: $profile_picture, name: $name, drivers: $drivers }) {
                 ${populateSeries}
                 tokens
               }
@@ -231,4 +241,51 @@ export const removeSeries = async (
 
   setLoading(false)
   return success
+}
+
+// Get a single series by ID.
+export const getSeriesById = async (
+  _id: string,
+  setSeries: React.Dispatch<React.SetStateAction<seriesType | null>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { _id },
+          query: `
+            query GetSeriesById($_id: ID!) {
+              getSeriesById(_id: $_id) {
+                ${populateSeriesFull}
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getSeriesById", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const series = graphQLResponse("getSeriesById", res, user, setUser) as seriesType
+          setSeries(series)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getSeriesById", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getSeriesById", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
 }

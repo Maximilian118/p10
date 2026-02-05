@@ -165,7 +165,8 @@ export interface driverType {
 
 export interface seriesType {
   _id?: string
-  url: string
+  icon: string
+  profile_picture: string
   name: string
   shortName?: string
   hasAPI?: boolean

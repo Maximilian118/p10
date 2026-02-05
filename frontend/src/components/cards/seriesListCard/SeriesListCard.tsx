@@ -33,7 +33,7 @@ const SeriesListCard: React.FC<seriesListCardType> = ({ series, onClick, selecte
     <div className={classNames} style={style} onClick={disabled ? undefined : onClick}>
       {series.official && <Banner text="Official"/>}
       <div className="main-icon-container">
-        <ImageIcon src={series.url} size="contained" background/>
+        <ImageIcon src={series.icon} size="contained" background/>
         {!disabled && canEdit && <EditButton
           inverted={selected}
           onClick={e => {

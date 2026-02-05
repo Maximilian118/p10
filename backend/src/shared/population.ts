@@ -35,7 +35,7 @@ export const driverPopulation = [
   {
     path: "series",
     model: "Series",
-    select: "_id url name shortName championships",
+    select: "_id icon profile_picture name shortName championships",
     populate: {
       path: "championships",
       model: "Champ",

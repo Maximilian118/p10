@@ -266,6 +266,32 @@ export const driverImageErrors = (
   }
 }
 
+// Validates series image fields (icon and profile_picture required).
+export const seriesImageErrors = (
+  icon: string,
+  profile_picture: string,
+): void => {
+  const type = "dropzone"
+
+  // Icon is required.
+  if (!icon) {
+    throwError(type, icon, "A series icon is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/icon\/[a-z0-9-]+$/i.test(icon)) {
+    throwError(type, icon, "Icon URL is not valid... Tricky one.")
+  }
+
+  // Profile picture is required.
+  if (!profile_picture) {
+    throwError(type, profile_picture, "A series profile picture is required.")
+  }
+
+  if (!/^http:\/\/[a-z0-9-.]+\/[a-z0-9-]+\/[a-z0-9-]+\/profile-picture\/[a-z0-9-]+$/i.test(profile_picture)) {
+    throwError(type, profile_picture, "Profile picture URL is not valid... Tricky one.")
+  }
+}
+
 // Validates team image fields (icon and emblem required).
 export const teamImageErrors = (
   icon: string,

@@ -4,7 +4,8 @@ import { ObjectId } from "mongodb"
 
 export interface seriesType {
   _id: ObjectId
-  url: string // NEED TO CHANGE THIS TO THE NORMAL icon and profile_picture WORKFLOW
+  icon: string // Compressed series image ~0.1MB in AWS S3
+  profile_picture: string // Full quality series image ~1MB in AWS S3
   name: string // Name of the series
   shortName?: string // Short identifier for the series (e.g., "F1" for FIA Formula One World Championship)
   championships: ObjectId[] // All the championships this series is used in
@@ -20,14 +21,16 @@ export interface seriesType {
 
 export interface seriesInputType {
   _id: ObjectId
-  url: string
+  icon: string
+  profile_picture: string
   name: string
   shortName?: string
   drivers: ObjectId[]
 }
 
 const seriesSchema = new mongoose.Schema<seriesType>({
-  url: { type: String, required: true }, // URL to an image in AWS S3.
+  icon: { type: String, required: true }, // Compressed series image URL in AWS S3.
+  profile_picture: { type: String, required: true }, // Full quality series image URL in AWS S3.
   name: { type: String, required: true }, // Name of the series.
   shortName: { type: String, required: false }, // Short identifier (e.g., "F1").
   championships: [{ type: mongoose.Schema.ObjectId, ref: "Champ" }], // Championships that this series is being used for.

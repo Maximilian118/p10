@@ -5,7 +5,8 @@ import { seriesType, driverType, teamType } from "./types"
 export const initSeries = (user: userType): seriesType => {
   return {
     created_by: user._id,
-    url: "",
+    icon: "",
+    profile_picture: "",
     name: "",
     championships: [],
     drivers: [],
