@@ -1,6 +1,6 @@
 import { driverType, teamType } from "../../shared/types"
 import { userType } from "../../shared/localStorage"
-import { createdByID } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 import { createDriverFormType } from "./CreateDriver"
 import moment from "moment"
 
@@ -20,23 +20,14 @@ export const generateDriverID = (name: string): string => {
   return lettersOnly.slice(0, 3).toUpperCase()
 }
 
-// Determine user's edit permissions for a driver.
+// Determine user's edit permissions for a driver using usage-scoped adjudicator model.
 // Returns "delete" if user can delete, "edit" if user can only edit, "" if no permissions.
-// Official drivers can only be modified by admins.
 export const canEditDriver = (
   editingDriver: driverType | null | undefined,
   user: userType
 ): "delete" | "edit" | "" => {
-  if (!editingDriver) return "edit"
-  // Official check - only admins can modify.
-  if (editingDriver.official && !user.permissions.admin) return ""
-  const noTeams = editingDriver.teams.length === 0
-  const creator = createdByID(editingDriver.created_by) === user._id
-  const authority = user.permissions.adjudicator || creator
-  if (user.permissions.admin) return "delete"
-  if (authority && noTeams) return "delete"
-  if (authority) return "edit"
-  return ""
+  const championships = editingDriver?.series?.flatMap(s => s.championships || []) || []
+  return canEditEntity(editingDriver, user, championships)
 }
 
 // Check if form has changed from original driver values.

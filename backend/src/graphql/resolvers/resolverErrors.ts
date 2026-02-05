@@ -610,6 +610,50 @@ export const officialEntityErrors = async (
   }
 }
 
+// Check usage-scoped adjudicator permissions for non-official entities.
+// Called after officialEntityErrors. Skips if entity is official (already handled).
+// For unused entities: creator + any adjudicator can edit.
+// For entities used in championships: only adjudicator of those specific championships can edit.
+export const entityPermissionErrors = async (
+  entity: { official?: boolean; created_by: ObjectId; championships?: ObjectId[]; series?: ObjectId[] },
+  req_id: string | undefined,
+  entityType: "series" | "driver" | "team",
+): Promise<void> => {
+  if (entity.official) return
+
+  const user = await User.findById(req_id)
+  if (!user) {
+    throwError("name", null, "User not found.")
+    return
+  }
+  if (user.permissions.admin) return
+
+  // Get championship IDs that use this entity.
+  let champIds: string[] = []
+  if (entityType === "series") {
+    champIds = (entity.championships || []).map((c: ObjectId) => c.toString())
+  } else {
+    const seriesIds = (entity.series || []).map((s: ObjectId) => s.toString())
+    const seriesDocs = await Series.find({ _id: { $in: seriesIds } }).select("championships")
+    champIds = seriesDocs.flatMap(s => s.championships.map((c: ObjectId) => c.toString()))
+  }
+  const uniqueChampIds = [...new Set(champIds)]
+
+  if (uniqueChampIds.length === 0) {
+    const isCreator = entity.created_by.toString() === req_id
+    if (user.permissions.adjudicator || isCreator) return
+    throwError("name", null, "You don't have permission to edit this.")
+  } else {
+    const champs = await Champ.find({ _id: { $in: uniqueChampIds } }).select("adjudicator")
+    const isAdjudicatorOfUsing = champs.some(
+      c => c.adjudicator?.current?.toString() === req_id
+    )
+    if (!isAdjudicatorOfUsing) {
+      throwError("name", null, "Only the adjudicator of a championship using this can edit it.")
+    }
+  }
+}
+
 // Check if a driver is part of any championship (via series or bets).
 export const driverInChampErrors = async (driver: driverType): Promise<void> => {
   const type = "driverName"

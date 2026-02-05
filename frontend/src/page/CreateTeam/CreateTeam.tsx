@@ -7,7 +7,7 @@ import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { teamType, driverType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { inputLabel, updateForm, validateRequired, validateDateNotFuture, validateUniqueName } from "../../shared/formValidation"
-import { createdByID } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 import { getTeams } from "../../shared/requests/teamRequests"
 import { createTeam, editTeam, removeTeam } from "../../shared/requests/teamRequests"
 import DropZone from "../../components/utility/dropZone/DropZone"
@@ -136,19 +136,10 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     }
   }, [teams, editingTeam, form.drivers, driversManuallyModified])
 
-  // Determine user's edit permissions.
-  // Official teams can only be modified by admins.
+  // Determine user's edit permissions using usage-scoped adjudicator model.
   const canEdit = (): "delete" | "edit" | "" => {
-    if (!editingTeam) return "edit"
-    // Official check - only admins can modify.
-    if (editingTeam.official && !user.permissions.admin) return ""
-    const noDrivers = editingTeam.drivers.length === 0
-    const creator = createdByID(editingTeam.created_by) === user._id
-    const authority = user.permissions.adjudicator || creator
-    if (user.permissions.admin) return "delete"
-    if (authority && noDrivers) return "delete"
-    if (authority) return "edit"
-    return ""
+    const championships = editingTeam?.series?.flatMap(s => s.championships || []) || []
+    return canEditEntity(editingTeam, user, championships)
   }
 
   // Check if form has changed from original team values.

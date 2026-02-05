@@ -13,6 +13,7 @@ import {
   seriesImageErrors,
   nameCanNumbersErrors,
   officialEntityErrors,
+  entityPermissionErrors,
   throwError,
 } from "./resolverErrors"
 import {
@@ -140,6 +141,9 @@ const seriesResolvers = {
       // Check if official entity - only admins can modify.
       await officialEntityErrors(series.official, req._id, "series")
 
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(series, req._id, "series")
+
       if (icon !== series._doc.icon) {
         series.icon = icon
       }
@@ -201,6 +205,9 @@ const seriesResolvers = {
 
       // Check if official entity - only admins can delete.
       await officialEntityErrors(series.official, req._id, "series")
+
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(series, req._id, "series")
 
       // Check for errors
       hasChampErrors("series", series.championships)

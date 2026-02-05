@@ -7,7 +7,8 @@ import EditButton from "../../components/utility/button/editButton/EditButton"
 import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getTeamById } from "../../shared/requests/teamRequests"
-import { createdByID, getContrastTextColor } from "../../shared/utility"
+import { getContrastTextColor } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import IconList from "../../components/utility/iconList/IconList"
@@ -78,10 +79,9 @@ const Team: React.FC = () => {
     ? getContrastTextColor(team.dominantColour)
     : 'white'
 
-  // Check if user has permission to edit this team.
-  // Admins can always edit. Non-admins can only edit non-official teams if they are adjudicator or creator.
-  const canEdit = user.permissions.admin
-    || (!team.official && (user.permissions.adjudicator || createdByID(team.created_by) === user._id))
+  // Check if user has permission to edit this team using usage-scoped adjudicator model.
+  const championships = team.series?.flatMap(s => s.championships || []) || []
+  const canEdit = canEditEntity(team, user, championships)
 
   return (
     <div

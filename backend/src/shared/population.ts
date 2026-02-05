@@ -11,14 +11,34 @@ export const teamPopulation = [
       {
         path: "series",
         model: "Series",
-        select: "_id name shortName",
+        select: "_id name shortName championships",
+        populate: {
+          path: "championships",
+          model: "Champ",
+          select: "_id adjudicator",
+          populate: {
+            path: "adjudicator.current",
+            model: "User",
+            select: "_id",
+          },
+        },
       },
     ],
   },
   {
     path: "series",
     model: "Series",
-    select: "_id name shortName",
+    select: "_id name shortName championships",
+    populate: {
+      path: "championships",
+      model: "Champ",
+      select: "_id adjudicator",
+      populate: {
+        path: "adjudicator.current",
+        model: "User",
+        select: "_id",
+      },
+    },
   },
 ]
 
@@ -39,7 +59,12 @@ export const driverPopulation = [
     populate: {
       path: "championships",
       model: "Champ",
-      select: "_id icon name",
+      select: "_id icon name adjudicator",
+      populate: {
+        path: "adjudicator.current",
+        model: "User",
+        select: "_id",
+      },
     },
   },
 ]
@@ -54,6 +79,16 @@ export const seriesPopulation = [
     path: "drivers",
     model: "Driver",
     populate: [...driverPopulation],
+  },
+  {
+    path: "championships",
+    model: "Champ",
+    select: "_id adjudicator",
+    populate: {
+      path: "adjudicator.current",
+      model: "User",
+      select: "_id",
+    },
   },
 ]
 

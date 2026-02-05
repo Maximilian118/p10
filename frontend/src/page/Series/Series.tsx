@@ -6,7 +6,7 @@ import EditButton from "../../components/utility/button/editButton/EditButton"
 import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { getSeriesById } from "../../shared/requests/seriesRequests"
-import { createdByID } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import ImageIcon from "../../components/utility/icon/imageIcon/ImageIcon"
@@ -57,10 +57,8 @@ const Series: React.FC = () => {
     )
   }
 
-  // Check if user has permission to edit this series.
-  // Admins can always edit. Non-admins can only edit non-official series if they are adjudicator or creator.
-  const canEdit = user.permissions.admin
-    || (!series.official && (user.permissions.adjudicator || createdByID(series.created_by) === user._id))
+  // Check if user has permission to edit this series using usage-scoped adjudicator model.
+  const canEdit = canEditEntity(series, user, series.championships || [])
 
   return (
     <div className="content-container series-profile">

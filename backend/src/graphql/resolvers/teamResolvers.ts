@@ -9,6 +9,7 @@ import {
   throwError,
   falsyValErrors,
   officialEntityErrors,
+  entityPermissionErrors,
 } from "./resolverErrors"
 import { teamPopulation } from "../../shared/population"
 import { syncTeamDrivers, updateDrivers, recalculateTeamSeries } from "./resolverUtility"
@@ -104,6 +105,9 @@ const teamResolvers = {
       // Check if official entity - only admins can delete.
       await officialEntityErrors(team.official, req._id, "teams")
 
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(team, req._id, "team")
+
       if (team.drivers.length > 0) {
         throw throwError("teamName", team, "This team still has drivers.")
       }
@@ -153,6 +157,9 @@ const teamResolvers = {
 
       // Check if official entity - only admins can modify.
       await officialEntityErrors(team.official, req._id, "teams")
+
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(team, req._id, "team")
 
       // Update image fields if changed.
       if (icon !== team._doc.icon) {

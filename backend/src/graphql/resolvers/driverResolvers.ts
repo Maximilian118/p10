@@ -10,6 +10,7 @@ import {
   driverNameErrors,
   falsyValErrors,
   officialEntityErrors,
+  entityPermissionErrors,
   throwError,
 } from "./resolverErrors"
 import Series from "../../models/series"
@@ -131,6 +132,9 @@ const driverResolvers = {
       // Check if official entity - only admins can delete.
       await officialEntityErrors(driver.official, req._id, "drivers")
 
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(driver, req._id, "driver")
+
       if (driver.teams.length > 0) {
         throw throwError("driverName", driver, "This driver still has teams.")
       }
@@ -222,6 +226,9 @@ const driverResolvers = {
 
       // Check if official entity - only admins can modify.
       await officialEntityErrors(driver.official, req._id, "drivers")
+
+      // Check usage-scoped adjudicator permissions.
+      await entityPermissionErrors(driver, req._id, "driver")
 
       if (driver.icon !== icon) {
         driver.icon = icon

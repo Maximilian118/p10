@@ -141,6 +141,10 @@ export const populateTeamFull = `
     _id
     name
     shortName
+    championships {
+      _id
+      adjudicator { current { _id } }
+    }
   }
   drivers {
     _id
@@ -155,6 +159,7 @@ export const populateTeamFull = `
       shortName
       championships {
         _id
+        adjudicator { current { _id } }
         history {
           season
           rounds {
@@ -190,6 +195,10 @@ export const populateTeamList = `
   name
   series {
     _id
+    championships {
+      _id
+      adjudicator { current { _id } }
+    }
   }
   drivers {
     _id
@@ -248,6 +257,7 @@ export const populateDriver = `
       _id
       icon
       name
+      adjudicator { current { _id } }
       history {
         season
         rounds {
@@ -300,6 +310,7 @@ export const populateSeries = `
   hasAPI
   championships {
     _id
+    adjudicator { current { _id } }
   }
   drivers {
     ${populateDriver}
@@ -322,6 +333,7 @@ export const populateSeriesFull = `
   hasAPI
   championships {
     _id
+    adjudicator { current { _id } }
   }
   drivers {
     _id

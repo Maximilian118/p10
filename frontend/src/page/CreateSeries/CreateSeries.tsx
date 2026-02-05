@@ -9,7 +9,7 @@ import { createSeries, editSeries, removeSeries } from "../../shared/requests/se
 import { getDrivers } from "../../shared/requests/driverRequests"
 import { inputLabel, updateForm, validateRequired, validateMinLength } from "../../shared/formValidation"
 import { initDriver } from "../../shared/init"
-import { createdByID } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 import DropZone from "../../components/utility/dropZone/DropZone"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import CreateDriver from "../CreateDriver/CreateDriver"
@@ -109,19 +109,9 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     }
   }, [drivers, reqSent, user, setUser, navigate])
 
-  // Determine user's edit permissions.
-  // Official series can only be modified by admins.
+  // Determine user's edit permissions using usage-scoped adjudicator model.
   const canEdit = (): "delete" | "edit" | "" => {
-    if (!editingSeries) return "edit"
-    // Official check - only admins can modify.
-    if (editingSeries.official && !user.permissions.admin) return ""
-    const noChampionships = (editingSeries.championships?.length || 0) === 0
-    const creator = createdByID(editingSeries.created_by) === user._id
-    const authority = user.permissions.adjudicator || creator
-    if (user.permissions.admin) return "delete"
-    if (authority && noChampionships) return "delete"
-    if (authority) return "edit"
-    return ""
+    return canEditEntity(editingSeries, user, editingSeries?.championships || [])
   }
 
   // Check if form has changed from original series values.

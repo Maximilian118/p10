@@ -22,7 +22,7 @@ import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import EditButton from "../../components/utility/button/editButton/EditButton"
 import ImageIcon from "../../components/utility/icon/imageIcon/ImageIcon"
 import IconList from "../../components/utility/iconList/IconList"
-import { createdByID } from "../../shared/utility"
+import { canEditEntity } from "../../shared/entityPermissions"
 
 // Driver profile page displaying driver stats and body image.
 const Driver: React.FC = () => {
@@ -91,10 +91,9 @@ const Driver: React.FC = () => {
   const chartData = getDriverChartData(driver)
   const hasPositionData = chartData.length > 0 && chartData.some(line => line.data.length > 0)
 
-  // Check if user has permission to edit this driver.
-  // Admins can always edit. Non-admins can only edit non-official drivers if they are adjudicator or creator.
-  const canEdit = user.permissions.admin
-    || (!driver?.official && (user.permissions.adjudicator || createdByID(driver?.created_by) === user._id))
+  // Check if user has permission to edit this driver using usage-scoped adjudicator model.
+  const championships = driver?.series?.flatMap(s => s.championships || []) || []
+  const canEdit = canEditEntity(driver, user, championships)
 
   // Render loading state.
   if (loading) {
