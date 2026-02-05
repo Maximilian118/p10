@@ -30,6 +30,7 @@
   width: 100%;
   @include mixins.flexbox-column;
   gap: 2px;
+  margin-bottom: 120px;
 }
 
 // SeriesPicker overrides for Championship context.

@@ -754,16 +754,20 @@ const champResolvers = {
         return throwError("inviteUser", _id, "Championship not found!", 404)
       }
 
-      // Verify user is adjudicator or admin.
+      // Verify user has permission to invite.
       const requestingUser = await User.findById(req._id)
       const isAdmin = requestingUser?.permissions?.admin === true
       const isAdjudicator = champ.adjudicator.current.toString() === req._id
+      const isCompetitor = champ.competitors.some((c) => c.toString() === req._id)
 
-      if (!isAdmin && !isAdjudicator) {
+      // Adjudicators and admins can always invite. Competitors can invite when not invite-only.
+      const canInvite = isAdmin || isAdjudicator || (isCompetitor && !champ.settings.inviteOnly)
+
+      if (!canInvite) {
         return throwError(
           "inviteUser",
           req._id,
-          "Only adjudicator or admin can invite users!",
+          "You do not have permission to invite users!",
           403,
         )
       }

@@ -107,7 +107,21 @@ export const useJoinButton = ({
 
     // Open championships (not invite only).
     if (!champ.settings.inviteOnly) {
-      if (isCompetitor) return undefined
+      // Competitors and adjudicator can invite others in open championships.
+      if (isCompetitor || isAdjudicator) {
+        return {
+          label: "Invite Competitors",
+          onClick: () => {
+            if (isFull && setShowInviteFullConfirm) {
+              setShowInviteFullConfirm(true)
+            } else if (navigateToView) {
+              navigateToView("invite")
+            }
+          },
+          endIcon: <GroupAdd />,
+          color: "success",
+        }
+      }
 
       if (isFull) {
         return {

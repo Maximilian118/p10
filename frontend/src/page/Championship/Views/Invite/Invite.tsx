@@ -19,7 +19,7 @@ interface InviteProps {
   setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>
 }
 
-// Invite view component - allows adjudicators to invite users to the championship.
+// Invite view component - allows adjudicators (or competitors in open championships) to invite users.
 const Invite: React.FC<InviteProps> = ({
   champ,
   setChamp,
