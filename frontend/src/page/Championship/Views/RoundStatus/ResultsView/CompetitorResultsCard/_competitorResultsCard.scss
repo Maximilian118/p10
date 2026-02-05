@@ -8,30 +8,12 @@
   background: white;
   padding: 5px 7.5%;
   box-sizing: border-box;
-
-  // Wrapper for icon and "Best!" indicator.
-  &__icon-wrapper {
-    position: relative;
-    flex-shrink: 0;
-    margin-right: 10px;
-  }
-
-  // Smaller "Best!" text for list cards.
-  &__best {
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    color: variables.$mui-blue;
-    font-size: 10px;
-    font-weight: 700;
-    z-index: 1;
-    text-shadow: variables.$shadow-text;
-  }
+  margin-bottom: 2px;
 
   // Position indicator.
   &__position {
     flex-shrink: 0;
-    margin-right: 10px;
+    margin: 0 10px;
   }
 
   // Badges container fills remaining space.
@@ -39,7 +21,6 @@
     flex-grow: 1;
     @include mixins.flexbox-start;
     gap: 4px;
-    overflow-x: auto;
     min-width: 0;
   }
 }

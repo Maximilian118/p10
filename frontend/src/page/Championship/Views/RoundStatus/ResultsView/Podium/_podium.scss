@@ -17,6 +17,10 @@
     flex: 0 1 120px;
     max-width: 120px;
 
+    p {
+      margin-top: 4px;
+    }
+
     // 1st place is elevated above 2nd and 3rd.
     &--first {
       margin-bottom: 32px;
@@ -37,18 +41,6 @@
   &__icon-wrapper {
     position: relative;
     @include mixins.flexbox;
-  }
-
-  // "Best!" text absolutely positioned at top-left of icon.
-  &__best {
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    color: variables.$mui-blue;
-    font-size: 12px;
-    font-weight: 700;
-    z-index: 1;
-    text-shadow: variables.$shadow-text;
   }
 
   // Competitor name, truncated if too long.

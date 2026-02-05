@@ -6,37 +6,37 @@
   width: 100%;
   padding: 16px 0;
 
-  h2 {
-    font-size: 18px;
-    font-weight: 600;
-    color: variables.$colour-9;
-    margin-bottom: 8px;
-    text-align: center;
-  }
-
   // Container for competitor result cards below the podium.
   &__list {
     width: 100%;
   }
 
   // Timer and skip button at the top of the results view.
+  // Uses a 3-column grid so the h2 stays centred regardless of left/right content widths.
   &__header {
     width: 100%;
-    @include mixins.flexbox;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
-    position: relative;
+    padding: 0 20px 16px;
+    box-sizing: border-box;
 
-    // Override Timer component font-size to be small within results view.
     .timer {
-      font-size: 1.25rem;
+      font-size: 18px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: variables.$colour-9;
+      text-align: center;
     }
 
     .skip-btn {
-      position: absolute;
-      right: 20px;
-      padding: 0;
+      padding: 0 0 2px;
       background: none;
+      justify-self: end;
     }
   }
 }

@@ -38,27 +38,22 @@ const hasResultsData = (competitors: CompetitorEntryType[]): boolean => {
   return competitors.some(c => c.points > 0 || Array.isArray(c.badgesAwarded))
 }
 
-// Sorts competitors by this round's points (descending) and assigns round finishing positions.
-// Competitors with equal points share the same position.
+// Sorts competitors by round points (descending), breaking ties by championship standing.
+// Each competitor gets a unique sequential position.
 const sortByRoundPoints = (
   competitors: CompetitorEntryType[]
 ): { entry: CompetitorEntryType; roundPosition: number }[] => {
   const sorted = [...competitors]
     .filter(c => !c.deleted)
-    .sort((a, b) => b.points - a.points)
+    .sort((a, b) => {
+      // Primary: round points descending.
+      if (b.points !== a.points) return b.points - a.points
+      // Tiebreaker: championship total points descending.
+      return b.grandTotalPoints - a.grandTotalPoints
+    })
 
-  const result: { entry: CompetitorEntryType; roundPosition: number }[] = []
-  let currentPosition = 1
-
-  for (let i = 0; i < sorted.length; i++) {
-    // Competitors with the same points share the same position.
-    if (i > 0 && sorted[i].points < sorted[i - 1].points) {
-      currentPosition = i + 1
-    }
-    result.push({ entry: sorted[i], roundPosition: currentPosition })
-  }
-
-  return result
+  // Assign unique sequential positions (1st, 2nd, 3rd, ...).
+  return sorted.map((entry, i) => ({ entry, roundPosition: i + 1 }))
 }
 
 // Displays round results: podium for top 3, cards for remaining competitors, countdown timer.
@@ -90,26 +85,12 @@ const ResultsView: React.FC<ResultsViewProps> = ({
   // Split into podium (top 3) and remaining competitors.
   const podiumEntries = ranked.slice(0, 3).map(r => r.entry)
 
-  // Re-number remainder positions starting after the podium (4th+).
-  // Competitors with equal points still share the same position within the list.
-  const podiumCount = podiumEntries.length
-  const sliced = ranked.slice(podiumCount)
-  const remainderEntries: typeof sliced = []
-  for (let i = 0; i < sliced.length; i++) {
-    if (i === 0) {
-      remainderEntries.push({ ...sliced[i], roundPosition: podiumCount + 1 })
-    } else if (sliced[i].entry.points === sliced[i - 1].entry.points) {
-      remainderEntries.push({ ...sliced[i], roundPosition: remainderEntries[i - 1].roundPosition })
-    } else {
-      remainderEntries.push({ ...sliced[i], roundPosition: podiumCount + 1 + i })
-    }
-  }
-
   return (
     <div className="results-view">
       {/* Timer and skip button at the top. */}
       <div className="results-view__header">
         <Timer seconds={secondsLeft} format="minutes" />
+        <h2>Results</h2>
         {onSkipTimer && (
           <Button 
             className="skip-btn"
@@ -122,22 +103,13 @@ const ResultsView: React.FC<ResultsViewProps> = ({
         )}
       </div>
 
-      <h2>R{round.round} - Results</h2>
-
       {/* Motorsport-style podium for the top 3 finishers. */}
-      {podiumEntries.length > 0 && (
-        <Podium
-          competitors={podiumEntries}
-          rounds={rounds}
-          currentRoundIndex={currentRoundIndex}
-          onBadgeClick={setSelectedBadge}
-        />
-      )}
+      {podiumEntries.length > 0 && <Podium competitors={podiumEntries}/>}
 
-      {/* Competitor results cards for 4th place and below. */}
-      {remainderEntries.length > 0 && (
+      {/* Competitor results cards for all finishers. */}
+      {ranked.length > 0 && (
         <div className="results-view__list">
-          {remainderEntries.map(({ entry, roundPosition }) => {
+          {ranked.map(({ entry, roundPosition }) => {
             const competitorId = getCompetitorId(entry)
             return (
               <CompetitorResultsCard

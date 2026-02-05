@@ -10,7 +10,7 @@
   position: relative;
   flex-shrink: 0;
 
-  .season, .change {
+  .season, .change, .best, .points {
     position: absolute;
     font-size: 8px;
   }
@@ -24,7 +24,20 @@
     }
   }
 
+  // "Best!" indicator in the bottom slot.
+  .best {
+    bottom: -8px;
+    color: variables.$mui-blue;
+    font-weight: 700;
+  }
+
   .season {
     bottom: -5px;
+  }
+
+  // Round points in the top slot.
+  .points {
+    top: -5px;
+    color: variables.$mui-success;
   }
 }

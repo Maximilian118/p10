@@ -8,9 +8,11 @@ interface PositionProps {
   position: number // What's the current position of x in the championship?
   season?: number // What season is the championship in currently?
   change?: number | null // Position change: positive = moved up, negative = moved down.
+  isBest?: boolean // Show "Best!" indicator below position instead of season.
+  points?: number // Show "+X" points above position instead of change.
 }
 
-const Position: React.FC<PositionProps> = ({ position, season, change }) => {
+const Position: React.FC<PositionProps> = ({ position, season, change, isBest, points }) => {
   const ordinalText = moment.localeData().ordinal(position)
 
   // Map podium class to StyledText color (empty string becomes "default").
@@ -23,14 +25,19 @@ const Position: React.FC<PositionProps> = ({ position, season, change }) => {
 
   return (
     <div className="position-container">
-      {/* Only render if there's actual movement. */}
-      {change !== undefined && change !== null && change !== 0 && (
+      {/* Top slot: round points or position change. */}
+      {points ? (
+        <p className="points">{`+${points}`}</p>
+      ) : change !== undefined && change !== null && change !== 0 && (
         <p className={`change ${lostClass}`}>{changeText}</p>
       )}
       <p className="position">
         <StyledText text={ordinalText} color={color}/>
       </p>
-      {season !== undefined && <p className="season">{`S${season}`}</p>}
+      {/* Bottom slot: "Best!" indicator or season number. */}
+      {isBest ? (
+        <p className="best">Best!</p>
+      ) : season !== undefined && <p className="season">{`S${season}`}</p>}
     </div>
   )
 }
