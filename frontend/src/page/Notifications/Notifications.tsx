@@ -116,7 +116,8 @@ const Notifications: React.FC = () => {
 
   // Show clear all confirmation modal.
   if (showClearAllConfirm) {
-    return (
+    const hasNotifications = sortedNotifications.length > 0
+    return hasNotifications ? (
       <Confirm
         variant="dark"
         icon={<Delete />}
@@ -130,6 +131,16 @@ const Notifications: React.FC = () => {
         onCancel={() => setShowClearAllConfirm(false)}
         onConfirm={handleClearAll}
         loading={clearing}
+      />
+    ) : (
+      <Confirm
+        variant="dark"
+        icon={<NotificationsNone />}
+        heading="No Notifications"
+        paragraphs={["There are no notifications to clear."]}
+        confirmText="Back"
+        onConfirm={() => setShowClearAllConfirm(false)}
+        singleButton
       />
     )
   }
@@ -147,16 +158,14 @@ const Notifications: React.FC = () => {
           Back
         </Button>
         <h1 className="notifications-header__title">Notifications</h1>
-        {sortedNotifications.length > 0 && (
-          <Button
+        <Button
           className="notifications-header__clear-all"
-            size="small"
-            onClick={() => setShowClearAllConfirm(true)}
-            endIcon={<Close/>}
-          >
-            Clear
-          </Button>
-        )}
+          size="small"
+          onClick={() => setShowClearAllConfirm(true)}
+          endIcon={<Close/>}
+        >
+          Clear
+        </Button>
       </header>
       <span className="notifications-header__line" />
       {sortedNotifications.length === 0 ? (
