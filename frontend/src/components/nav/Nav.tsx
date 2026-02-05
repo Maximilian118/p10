@@ -87,7 +87,7 @@ const Nav: React.FC<navType> = ({ user }) => {
         </div>
         <div className="nav-right">
           <BadgeIcon 
-            svg={user.notifications.length === 0 ? NotificationsNone : Notifications} 
+            svg={notificationsCount === 0 ? NotificationsNone : Notifications}
             onClick={() => handleNotificationsClicked()} 
             count={notificationsCount}
           />
