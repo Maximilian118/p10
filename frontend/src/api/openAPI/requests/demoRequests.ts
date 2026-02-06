@@ -1,6 +1,6 @@
 import axios from "axios"
 import { getApiUrl } from "../../../shared/utility"
-import { graphQLResponse, graphQLErrors, headers } from "../../../shared/requests/requestsUtility"
+import { graphQLResponse, graphQLErrors, graphQLErrorType, headers } from "../../../shared/requests/requestsUtility"
 import { userType } from "../../../shared/localStorage"
 
 // Response type for demo mutations.
@@ -15,6 +15,7 @@ interface DemoStatus {
 export const startDemo = async (
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
   sessionKey?: number,
   speed?: number,
 ): Promise<DemoStatus | null> => {
@@ -42,7 +43,7 @@ export const startDemo = async (
     const data = graphQLResponse("startDemo", res, user, setUser) as DemoStatus | null
     return data
   } catch (err) {
-    graphQLErrors("startDemo", err, undefined, undefined, undefined, true)
+    graphQLErrors("startDemo", err, undefined, undefined, setBackendErr, true)
     return null
   }
 }
@@ -51,6 +52,7 @@ export const startDemo = async (
 export const stopDemo = async (
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
 ): Promise<DemoStatus | null> => {
   try {
     const res = await axios.post(
@@ -71,7 +73,7 @@ export const stopDemo = async (
     const data = graphQLResponse("stopDemo", res, user, setUser) as DemoStatus | null
     return data
   } catch (err) {
-    graphQLErrors("stopDemo", err, undefined, undefined, undefined, true)
+    graphQLErrors("stopDemo", err, undefined, undefined, setBackendErr, true)
     return null
   }
 }

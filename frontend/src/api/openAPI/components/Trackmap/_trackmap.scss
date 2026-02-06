@@ -2,6 +2,7 @@
 
 .trackmap {
   width: 100%;
+  height: 50%;
   @include mixins.flexbox-column;
   position: relative;
 

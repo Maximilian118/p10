@@ -1,6 +1,7 @@
 import React, { useMemo } from "react"
 import useTrackmap from "../../useTrackmap"
 import { CarPosition } from "../../types"
+import FillLoading from "../../../../components/utility/fillLoading/FillLoading"
 import "./_trackmap.scss"
 
 interface TrackmapProps {
@@ -11,6 +12,7 @@ interface TrackmapProps {
     teamName: string
     teamColour: string
   } | null) => void
+  demoMode?: boolean
 }
 
 // Converts an array of {x, y} points into an SVG path string.
@@ -77,8 +79,8 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
 // Renders a live F1 track map as SVG with car position dots.
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles.
-const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect }) => {
-  const { trackPath, carPositions, sessionActive, trackName, connectionStatus } = useTrackmap()
+const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
+  const { trackPath, carPositions, sessionActive, trackName, connectionStatus, demoPhase } = useTrackmap()
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
@@ -101,13 +103,25 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect }) => {
 
   // No data state.
   const hasData = trackPath && trackPath.length > 0
-  const showNoSession = !sessionActive && !hasData
+  const showNoSession = !demoMode && !sessionActive && !hasData
+
+  // Demo mode: show spinner while backend is fetching data or waiting for track to build.
+  if (demoMode && (demoPhase === "fetching" || !hasData)) {
+    return (
+      <div className="trackmap">
+        <FillLoading />
+      </div>
+    )
+  }
+
+  // Determine the title to display (hidden in demo mode — shown in the header instead).
+  const displayTitle = demoMode ? null : trackName
 
   return (
     <div className="trackmap">
-      {/* Track name header when session is active */}
-      {trackName && (
-        <p className="trackmap-title">{trackName}</p>
+      {/* Track name header (live mode only) */}
+      {displayTitle && (
+        <p className="trackmap-title">{displayTitle}</p>
       )}
 
       {hasData && (
@@ -150,11 +164,11 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect }) => {
       )}
 
       {/* Connection status indicator */}
-      {connectionStatus === "connecting" && !hasData && (
+      {connectionStatus === "connecting" && !hasData && !demoMode && (
         <p className="trackmap-status">Connecting to live data...</p>
       )}
 
-      {/* No session fallback */}
+      {/* No session fallback (live mode only) */}
       {showNoSession && (
         <p className="trackmap-status">No live session data</p>
       )}

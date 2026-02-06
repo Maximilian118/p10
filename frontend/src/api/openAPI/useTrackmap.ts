@@ -10,11 +10,13 @@ const EVENTS = {
   POSITIONS: "openf1:positions",
   SESSION: "openf1:session",
   DRIVERS: "openf1:drivers",
+  DEMO_STATUS: "openf1:demo-status",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
 
 export type TrackmapConnectionStatus = "connecting" | "connected" | "no_session"
+export type DemoPhase = "idle" | "fetching" | "ready" | "stopped" | "ended"
 
 export interface UseTrackmapResult {
   trackPath: { x: number; y: number }[] | null
@@ -23,6 +25,9 @@ export interface UseTrackmapResult {
   trackName: string
   drivers: OpenF1DriverInfo[]
   connectionStatus: TrackmapConnectionStatus
+  demoPhase: DemoPhase
+  demoRemainingMs: number
+  demoStartedAt: number
 }
 
 // Hook that provides live F1 track map data and car positions.
@@ -36,6 +41,9 @@ const useTrackmap = (): UseTrackmapResult => {
   const [trackName, setTrackName] = useState("")
   const [drivers, setDrivers] = useState<OpenF1DriverInfo[]>([])
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
+  const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
+  const [demoRemainingMs, setDemoDurationMs] = useState(0)
+  const [demoStartedAt, setDemoStartedAt] = useState(0)
 
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
@@ -86,10 +94,21 @@ const useTrackmap = (): UseTrackmapResult => {
       setDrivers(driverList)
     }
 
+    // Handle demo mode phase updates.
+    const handleDemoStatus = (data: { phase: DemoPhase; remainingMs?: number }) => {
+      setDemoPhase(data.phase)
+      // Capture the remaining session time and start timestamp when demo is ready.
+      if (data.phase === "ready" && data.remainingMs) {
+        setDemoDurationMs(data.remainingMs)
+        setDemoStartedAt(Date.now())
+      }
+    }
+
     socket.on(EVENTS.SESSION, handleSession)
     socket.on(EVENTS.TRACKMAP, handleTrackmap)
     socket.on(EVENTS.POSITIONS, handlePositions)
     socket.on(EVENTS.DRIVERS, handleDrivers)
+    socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
 
     // Cleanup: leave the room and remove listeners.
     return () => {
@@ -98,6 +117,7 @@ const useTrackmap = (): UseTrackmapResult => {
       socket.off(EVENTS.TRACKMAP, handleTrackmap)
       socket.off(EVENTS.POSITIONS, handlePositions)
       socket.off(EVENTS.DRIVERS, handleDrivers)
+      socket.off(EVENTS.DEMO_STATUS, handleDemoStatus)
     }
   }, [])
 
@@ -108,7 +128,37 @@ const useTrackmap = (): UseTrackmapResult => {
     trackName,
     drivers,
     connectionStatus,
+    demoPhase,
+    demoRemainingMs,
+    demoStartedAt,
   }
+}
+
+// Lightweight hook for demo status only (phase, remaining time, start time).
+// Does NOT subscribe to the openf1:live room — use alongside a component
+// that already calls useTrackmap (e.g. Trackmap) to avoid double subscription.
+export const useDemoStatus = (): { demoPhase: DemoPhase; demoRemainingMs: number; demoStartedAt: number } => {
+  const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
+  const [demoRemainingMs, setDemoDurationMs] = useState(0)
+  const [demoStartedAt, setDemoStartedAt] = useState(0)
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleDemoStatus = (data: { phase: DemoPhase; remainingMs?: number }) => {
+      setDemoPhase(data.phase)
+      if (data.phase === "ready" && data.remainingMs) {
+        setDemoDurationMs(data.remainingMs)
+        setDemoStartedAt(Date.now())
+      }
+    }
+
+    socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
+    return () => { socket.off(EVENTS.DEMO_STATUS, handleDemoStatus) }
+  }, [])
+
+  return { demoPhase, demoRemainingMs, demoStartedAt }
 }
 
 export default useTrackmap

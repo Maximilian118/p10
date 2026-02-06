@@ -26,6 +26,7 @@ export const OPENF1_EVENTS = {
   POSITIONS: "openf1:positions",
   SESSION: "openf1:session",
   DRIVERS: "openf1:drivers",
+  DEMO_STATUS: "openf1:demo-status",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
@@ -84,6 +85,65 @@ export const initSessionManager = (io: Server): void => {
 // Returns the active session's track name (used by GraphQL resolver).
 export const getActiveTrackName = (): string | null => {
   return activeSession?.trackName ?? null
+}
+
+// Initializes a demo session directly without OpenF1 API calls.
+// Sets activeSession synchronously first so replay messages aren't dropped,
+// then loads the existing trackmap from MongoDB (fast local query).
+export const initDemoSession = async (
+  sessionKey: number,
+  trackName: string,
+  drivers: Map<number, DriverInfo>,
+): Promise<void> => {
+  activeSession = {
+    sessionKey,
+    meetingKey: 0,
+    trackName,
+    sessionType: "Demo",
+    drivers,
+    positionsByDriverLap: new Map(),
+    currentPositions: new Map(),
+    currentLapByDriver: new Map(),
+    completedLaps: new Map(),
+    bestLapTime: 0,
+    totalLapsProcessed: 0,
+    lastUpdateLap: 0,
+    baselinePath: null,
+  }
+
+  // Load existing trackmap from MongoDB so the track appears instantly.
+  try {
+    const existing = await Trackmap.findOne({ trackName })
+    if (existing && existing.path.length > 0) {
+      activeSession.baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
+      activeSession.totalLapsProcessed = existing.totalLapsProcessed
+      activeSession.lastUpdateLap = existing.totalLapsProcessed
+      console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
+    }
+  } catch (err) {
+    console.error("⚠ Failed to load track map for demo:", err)
+  }
+
+  startPositionBatching()
+  emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo" })
+  emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
+
+  // Emit existing trackmap if available.
+  if (activeSession.baselinePath && activeSession.baselinePath.length > 0) {
+    emitToRoom(OPENF1_EVENTS.TRACKMAP, {
+      trackName,
+      path: activeSession.baselinePath,
+      pathVersion: activeSession.totalLapsProcessed,
+      totalLapsProcessed: activeSession.totalLapsProcessed,
+    })
+  }
+}
+
+// Cleans up a demo session and notifies the frontend.
+export const endDemoSession = (): void => {
+  stopPositionBatching()
+  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
+  activeSession = null
 }
 
 // ─── MQTT Message Routing ────────────────────────────────────────
@@ -483,7 +543,7 @@ const stopPositionBatching = (): void => {
 // ─── Socket.IO Emission ──────────────────────────────────────────
 
 // Emits an event to all clients in the openf1:live room.
-const emitToRoom = (event: string, data: unknown): void => {
+export const emitToRoom = (event: string, data: unknown): void => {
   if (ioServer) {
     ioServer.to(OPENF1_ROOM).emit(event, data)
   }

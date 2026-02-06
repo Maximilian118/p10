@@ -12,13 +12,13 @@ export const getTrackmap = async (
   trackName?: string,
 ): Promise<TrackmapData | null> => {
   try {
-    const trackNameArg = trackName ? `trackName: "${trackName}"` : ""
+    const trackNameArg = trackName ? `(trackName: "${trackName}")` : ""
 
     const res = await axios.post(
       `${getApiUrl()}/graphql`,
       {
         query: `{
-          getTrackmap(${trackNameArg}) {
+          getTrackmap${trackNameArg} {
             trackName
             path { x y }
             pathVersion
@@ -33,7 +33,7 @@ export const getTrackmap = async (
     const data = graphQLResponse("getTrackmap", res, user, setUser) as TrackmapData | null
     return data
   } catch (err) {
-    graphQLErrors("getTrackmap", err, undefined, undefined, undefined, true)
+    graphQLErrors("getTrackmap", err)
     return null
   }
 }

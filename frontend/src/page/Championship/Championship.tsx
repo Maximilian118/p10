@@ -42,6 +42,7 @@ import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClos
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import { getAPIView } from "./Views/RoundStatus/APIViews"
 import F1SessionView from "./Views/RoundStatus/APIViews/F1SessionView/F1SessionView"
+import DemoSessionPicker from "./Views/DemoSessionPicker/DemoSessionPicker"
 import { startDemo, stopDemo } from "../../api/openAPI/requests/demoRequests"
 import Confirm from "../../components/utility/confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
@@ -249,6 +250,9 @@ const Championship: React.FC = () => {
 
   // Protests data for the championship.
   const [ protests, setProtests ] = useState<ProtestType[]>([])
+
+  // Selected demo session (null = show picker, set = show F1SessionView).
+  const [ demoSession, setDemoSession ] = useState<{ key: number; label: string } | null>(null)
 
   // Create protest state.
   const [ showCreateProtest, setShowCreateProtest ] = useState(false)
@@ -468,9 +472,15 @@ const Championship: React.FC = () => {
         setRuleChangesForm(initRuleChangesForm(champ))
       }
 
-      // Stop demo replay when navigating away from demo mode.
+      // Handle demo mode back navigation.
       if (view === "demoMode") {
-        stopDemo(user, setUser)
+        if (demoSession) {
+          // Back from F1SessionView → return to session picker.
+          stopDemo(user, setUser, setBackendErr)
+          setDemoSession(null)
+          return
+        }
+        // Back from picker → normal navigation to previous view.
       }
 
       setViewHistory(prev => prev.slice(0, -1))
@@ -550,13 +560,13 @@ const Championship: React.FC = () => {
     }
   }, [champ])
 
-  // Start demo replay when entering demo mode view.
+  // Start demo replay when a session is selected.
   useEffect(() => {
-    if (view === "demoMode") {
-      startDemo(user, setUser)
+    if (view === "demoMode" && demoSession) {
+      startDemo(user, setUser, setBackendErr, demoSession.key)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [demoSession])
 
   // Fetch protests when navigating to protests view.
   useEffect(() => {
@@ -1525,9 +1535,12 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {/* Demo mode - replay historical F1 session */}
-        {view === "demoMode" && (
-          <F1SessionView demoMode />
+        {/* Demo mode - session picker or replay */}
+        {view === "demoMode" && !demoSession && (
+          <DemoSessionPicker onSessionSelect={setDemoSession} />
+        )}
+        {view === "demoMode" && demoSession && (
+          <F1SessionView demoMode sessionLabel={demoSession.label} />
         )}
 
         {/* Invite full confirmation - adjudicator trying to invite when championship is full */}
