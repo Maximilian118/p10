@@ -7,6 +7,8 @@ import driverSchema from "./driverSchema"
 import seriesSchema from "./seriesSchema"
 import teamSchema from "./teamSchema"
 import notificationSchema from "./notificationSchema"
+import trackmapSchema from "./trackmapSchema"
+import demoSchema from "./demoSchema"
 
 const Schema = buildSchema(`
   scalar JSON
@@ -19,6 +21,8 @@ const Schema = buildSchema(`
   ${driverSchema}
   ${teamSchema}
   ${notificationSchema}
+  ${trackmapSchema}
+  ${demoSchema}
 
   type rootQuery {
     signS3(filename: String!): S3Payload!
@@ -38,6 +42,7 @@ const Schema = buildSchema(`
     getNotifications: NotificationsResult!
     getProtest(protestId: ID!): Protest!
     getProtestsForChampionship(champId: ID!): Protests!
+    getTrackmap(trackName: String): Trackmap
   }
 
   type rootMutation {
@@ -96,6 +101,8 @@ const Schema = buildSchema(`
     moveProtestToVoting(protestId: ID!): Protest!
     determineProtest(protestId: ID!, status: ProtestStatus!): Protest!
     allocateProtestPoints(input: AllocateProtestPointsInput!): Protest!
+    startDemo(sessionKey: Int, speed: Int): DemoStatus!
+    stopDemo: DemoStatus!
   }
 
   schema {

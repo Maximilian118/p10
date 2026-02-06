@@ -7,6 +7,7 @@ import { competitorsStrategy } from "./competitorsConfig"
 import { protestsStrategy } from "./protestsConfig"
 import { protestStrategy } from "./protestConfig"
 import { defaultStrategy } from "./defaultConfig"
+import { demoModeStrategy } from "./demoModeConfig"
 
 // Registry mapping views to their strategies.
 const strategyRegistry: Partial<Record<ChampView, ToolbarStrategy>> = {
@@ -15,6 +16,7 @@ const strategyRegistry: Partial<Record<ChampView, ToolbarStrategy>> = {
   rulesAndRegs: rulesAndRegsStrategy,
   protests: protestsStrategy,
   protest: protestStrategy,
+  demoMode: demoModeStrategy,
 }
 
 // Resolves the appropriate strategy for a given view.
@@ -35,5 +37,5 @@ export const getStrategy = (view: ChampView): ToolbarStrategy => {
 }
 
 // Export individual strategies for testing.
-export { formViewStrategy, badgesStrategy, rulesAndRegsStrategy, competitorsStrategy, protestsStrategy, protestStrategy, defaultStrategy }
+export { formViewStrategy, badgesStrategy, rulesAndRegsStrategy, competitorsStrategy, protestsStrategy, protestStrategy, defaultStrategy, demoModeStrategy }
 export { isFormView }

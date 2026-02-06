@@ -41,6 +41,8 @@ import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import { getAPIView } from "./Views/RoundStatus/APIViews"
+import F1SessionView from "./Views/RoundStatus/APIViews/F1SessionView/F1SessionView"
+import { startDemo, stopDemo } from "../../api/openAPI/requests/demoRequests"
 import Confirm from "../../components/utility/confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import BlockIcon from "@mui/icons-material/Block"
@@ -453,6 +455,7 @@ const Championship: React.FC = () => {
 
   // Navigate back to the previous view.
   // Resets all form states when exiting settings entirely (settings → competitors).
+  // Stops demo replay when leaving demo mode.
   const navigateBack = () => {
     if (viewHistory.length > 0) {
       const previousView = viewHistory[viewHistory.length - 1]
@@ -463,6 +466,11 @@ const Championship: React.FC = () => {
         setAutomationForm(initAutomationForm(champ))
         setProtestsForm(initProtestsForm(champ))
         setRuleChangesForm(initRuleChangesForm(champ))
+      }
+
+      // Stop demo replay when navigating away from demo mode.
+      if (view === "demoMode") {
+        stopDemo(user, setUser)
       }
 
       setViewHistory(prev => prev.slice(0, -1))
@@ -541,6 +549,14 @@ const Championship: React.FC = () => {
       setAdminForm(initAdminForm(champ))
     }
   }, [champ])
+
+  // Start demo replay when entering demo mode view.
+  useEffect(() => {
+    if (view === "demoMode") {
+      startDemo(user, setUser)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view])
 
   // Fetch protests when navigating to protests view.
   useEffect(() => {
@@ -1342,6 +1358,8 @@ const Championship: React.FC = () => {
             setSettingsFormErr={setSettingsFormErr}
             backendErr={backendErr}
             dropzoneOpenRef={dropzoneOpenRef}
+            isCompetitor={isCompetitor}
+            onLeaveChampionship={() => setShowLeaveConfirm(true)}
           />
         )}
 
@@ -1507,6 +1525,11 @@ const Championship: React.FC = () => {
           />
         )}
 
+        {/* Demo mode - replay historical F1 session */}
+        {view === "demoMode" && (
+          <F1SessionView demoMode />
+        )}
+
         {/* Invite full confirmation - adjudicator trying to invite when championship is full */}
         {showInviteFullConfirm && (
           <Confirm
@@ -1595,11 +1618,9 @@ const Championship: React.FC = () => {
         onBackToDefault={navigateToDefault}
         canAccessSettings={canAccessSettings}
         isAdmin={isAdmin}
-        isCompetitor={isCompetitor}
         isAdjudicator={isAdjudicator}
         adjudicatorViewActive={adjudicatorView}
         onToggleAdjudicatorView={() => setAdjudicatorView(prev => !prev)}
-        onLeaveChampionship={() => setShowLeaveConfirm(true)}
       />
     </>
   )

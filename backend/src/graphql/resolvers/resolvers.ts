@@ -6,6 +6,8 @@ import driverResolvers from "./driverResolvers"
 import teamResolvers from "./teamResolvers"
 import champResolvers from "./champResolvers"
 import notificationResolvers from "./notificationResolvers"
+import trackmapResolvers from "./trackmapResolvers"
+import demoResolvers from "./demoResolvers"
 
 const Resolvers = {
   ...userResolvers,
@@ -16,6 +18,8 @@ const Resolvers = {
   ...teamResolvers,
   ...champResolvers,
   ...notificationResolvers,
+  ...trackmapResolvers,
+  ...demoResolvers,
 }
 
 export default Resolvers

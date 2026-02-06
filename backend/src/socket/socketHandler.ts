@@ -21,6 +21,13 @@ export const SOCKET_EVENTS = {
   ADJUDICATOR_CHANGED: "adjudicator:changed",
   NOTIFICATION_RECEIVED: "notification:received",
   ERROR: "error",
+  // OpenF1 live data (see services/openF1/sessionManager.ts for handlers)
+  OPENF1_TRACKMAP: "openf1:trackmap",
+  OPENF1_POSITIONS: "openf1:positions",
+  OPENF1_SESSION: "openf1:session",
+  OPENF1_DRIVERS: "openf1:drivers",
+  OPENF1_SUBSCRIBE: "openf1:subscribe",
+  OPENF1_UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
 
 // Payload for round status change events.

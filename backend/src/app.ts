@@ -21,6 +21,9 @@ import { apiLimiter } from "./middleware/rateLimit"
 import { initializeSocket } from "./socket/socketHandler"
 import { recoverStuckRounds } from "./socket/autoTransitions"
 
+// Import OpenF1 live data service.
+import { initializeOpenF1Service } from "./services/openF1"
+
 // Initialise express.
 const app = express()
 
@@ -107,6 +110,8 @@ mongoose
       console.log(`✓ Server started on ${HOST}:${PORT}`)
       // Recover any rounds stuck in timed statuses from before the restart.
       recoverStuckRounds(io)
+      // Initialize OpenF1 MQTT service for live F1 session data.
+      initializeOpenF1Service(io)
     })
   })
   .catch((err: unknown) => {

@@ -11,12 +11,13 @@ interface MUITextFieldType{
   required?: boolean
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>
   className?: string
+  disabled?: boolean
 }
 // Mainly exists for perfomance purposes. E.G if each keystroke is a little big laggy on a normal TextField.
 // TextField updates itself with a local state instead of in form.
 // If the form is heavy and the page is lacking performance on keystrokes, onBlur can be used to apply state to the form when user selects something else.
 // onChange is preseved for original UX if the form is light and we can afford to update state per keystroke.
-const MUITextField: React.FC<MUITextFieldType> = ({ name, label, value, error, onBlur, onChange, required, inputProps, className }) => {
+const MUITextField: React.FC<MUITextFieldType> = ({ name, label, value, error, onBlur, onChange, required, inputProps, className, disabled }) => {
   const [ localValue, setLocalValue ] = useState(value)
 
   const onChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +40,7 @@ const MUITextField: React.FC<MUITextFieldType> = ({ name, label, value, error, o
       inputProps={inputProps}
       className={className}
       variant="filled"
+      disabled={disabled}
     />
   )
 }
