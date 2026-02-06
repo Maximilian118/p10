@@ -173,9 +173,10 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   }, [lastRejectedBet, pendingDriverId])
 
   // Get competitors sorted by totalPoints (descending) for "Place for Others" mode.
-  const sortedCompetitors = [...round.competitors].sort(
-    (a, b) => b.totalPoints - a.totalPoints
-  )
+  // Exclude the current user (adjudicator) so they can't place a bet for themselves.
+  const sortedCompetitors = [...round.competitors]
+    .filter(c => c.competitor?._id !== user._id)
+    .sort((a, b) => b.totalPoints - a.totalPoints)
 
   // Handles clicking on a driver to place a bet or select driver for "Place for Others".
   const handleDriverClick = (driver: driverType): void => {
