@@ -10,6 +10,9 @@ import {
   getStreakLength,
   isLastRound,
   isRoundCompleted,
+  hasMinimumCompetitors,
+  MIN_COMPETITORS_PODIUM,
+  MIN_COMPETITORS_TOP5,
 } from "../helpers"
 import {
   createWinStreakChecker,
@@ -136,6 +139,7 @@ export const streaksEvaluators: [string, BadgeChecker][] = [
   [
     "Podium Streak x2",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       const streak = getStreakLength(ctx.allRounds, ctx.competitorId, ctx.currentRoundIndex, isOnPodium)
       return { earned: streak >= 2 }
     },
@@ -143,6 +147,7 @@ export const streaksEvaluators: [string, BadgeChecker][] = [
   [
     "Podium Streak x3",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       const streak = getStreakLength(ctx.allRounds, ctx.competitorId, ctx.currentRoundIndex, isOnPodium)
       return { earned: streak >= 3 }
     },
@@ -150,6 +155,7 @@ export const streaksEvaluators: [string, BadgeChecker][] = [
   [
     "Podium Streak x5",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       const streak = getStreakLength(ctx.allRounds, ctx.competitorId, ctx.currentRoundIndex, isOnPodium)
       return { earned: streak >= 5 }
     },
@@ -157,6 +163,7 @@ export const streaksEvaluators: [string, BadgeChecker][] = [
   [
     "Top 5 Streak x5",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)) return { earned: false }
       const streak = getStreakLength(
         ctx.allRounds,
         ctx.competitorId,
@@ -169,6 +176,7 @@ export const streaksEvaluators: [string, BadgeChecker][] = [
   [
     "Top 5 Streak x10",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)) return { earned: false }
       const streak = getStreakLength(
         ctx.allRounds,
         ctx.competitorId,

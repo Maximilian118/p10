@@ -8,8 +8,17 @@ import {
   isInTopN,
   isLast,
   didScorePoints,
+  didPlaceBet,
   getCompetitorEntry,
   getCompetitorBetDriver,
+  hasMinimumCompetitors,
+  hasMinimumCompletedRounds,
+  MIN_COMPETITORS_PODIUM,
+  MIN_COMPETITORS_TOP5,
+  MIN_COMPETITORS_TOP7,
+  MIN_COMPETITORS_TOP10,
+  MIN_COMPETITORS_MIDDLE,
+  MIN_ROUNDS_CUMULATIVE,
 } from "../helpers"
 import {
   createWinCountChecker,
@@ -33,13 +42,15 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
   [
     "Round Podium",
     (ctx) => ({
-      earned: isOnPodium(ctx.currentRound, ctx.competitorId),
+      earned: hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)
+        && isOnPodium(ctx.currentRound, ctx.competitorId),
     }),
   ],
   [
     "Round Top 5",
     (ctx) => ({
-      earned: isInTopN(ctx.currentRound, ctx.competitorId, 5),
+      earned: hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)
+        && isInTopN(ctx.currentRound, ctx.competitorId, 5),
     }),
   ],
   [
@@ -71,7 +82,8 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
   [
     "No Points",
     (ctx) => ({
-      earned: !didScorePoints(ctx.currentRound, ctx.competitorId),
+      earned: didPlaceBet(ctx.currentRound, ctx.competitorId)
+        && !didScorePoints(ctx.currentRound, ctx.competitorId),
     }),
   ],
   [
@@ -138,13 +150,15 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
   [
     "Round Top 7",
     (ctx) => ({
-      earned: isInTopN(ctx.currentRound, ctx.competitorId, 7),
+      earned: hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP7)
+        && isInTopN(ctx.currentRound, ctx.competitorId, 7),
     }),
   ],
   [
     "Round Top 10",
     (ctx) => ({
-      earned: isInTopN(ctx.currentRound, ctx.competitorId, 10),
+      earned: hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP10)
+        && isInTopN(ctx.currentRound, ctx.competitorId, 10),
     }),
   ],
   ["3 Round Wins", createWinCountChecker(3)],
@@ -154,8 +168,9 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
   [
     "First Podium",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       if (!isOnPodium(ctx.currentRound, ctx.competitorId)) return { earned: false }
-      // Count podiums before current round
+      // Count podiums before current round.
       const previousPodiums = ctx.allRounds.slice(0, ctx.currentRoundIndex).filter(
         (r) => (r.status === "completed" || r.status === "results") && isOnPodium(r, ctx.competitorId),
       ).length
@@ -165,6 +180,7 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
   [
     "Round Middle",
     (ctx) => {
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_MIDDLE)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const totalCompetitors = ctx.currentRound.competitors.length
@@ -176,6 +192,7 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
     "Photo Finish",
     (ctx) => {
       // Win by tiebreaker - winner and runner-up have same total points in standings.
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       const winner = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       const runnerUp = ctx.currentRound.competitors.find((c) => c.position === 2)
@@ -218,6 +235,7 @@ export const roundPerformanceEvaluators: [string, BadgeChecker][] = [
     "DRS Enabled",
     (ctx) => {
       // Win immediately after finishing P2.
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
 

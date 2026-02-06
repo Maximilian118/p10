@@ -12,6 +12,8 @@ export interface BadgeContext {
   champ: ChampType
   allRounds: Round[]
   maxCompetitors: number
+  // Snapshot of each driver's consecutiveDNFs taken BEFORE stats update resets them.
+  driverDNFSnapshot?: Map<string, number>
 }
 
 // Result from a badge checker.

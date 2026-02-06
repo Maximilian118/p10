@@ -5,6 +5,8 @@ import {
   getCompetitorEntry,
   getMaxPointsInRound,
   isRoundCompleted,
+  hasMinimumCompletedRounds,
+  MIN_ROUNDS_CUMULATIVE,
 } from "../helpers"
 import {
   createPointLeadChecker,
@@ -23,13 +25,14 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
   [
     "Even Points Streak",
     (ctx) => {
-      // Have even total points for 4 consecutive rounds
+      // Have even total points for 4 consecutive rounds (0 doesn't count as even).
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       let streak = 0
       for (let i = ctx.currentRoundIndex; i >= 0 && streak < 4; i--) {
         const round = ctx.allRounds[i]
         if (!isRoundCompleted(round)) continue
         const entry = getCompetitorEntry(round, ctx.competitorId)
-        if (entry && entry.totalPoints % 2 === 0) {
+        if (entry && entry.totalPoints > 0 && entry.totalPoints % 2 === 0) {
           streak++
         } else {
           break
@@ -122,7 +125,7 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
         if (entry) points.unshift(entry.points)
       }
       if (points.length < 3) return { earned: false }
-      return { earned: points[0] > points[1] && points[1] > points[2] && points[2] >= 0 }
+      return { earned: points[0] > points[1] && points[1] > points[2] && points[2] > 0 }
     },
   ],
   // Additional points/scoring badges

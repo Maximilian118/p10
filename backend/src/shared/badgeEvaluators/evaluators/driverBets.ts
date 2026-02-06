@@ -9,6 +9,10 @@ import {
   getSameDriverBetStreak,
   EUROPEAN_COUNTRIES,
   calculateDriverAge,
+  hasEstablishedForm,
+  hasMinimumTeams,
+  MIN_ROUNDS_FORM,
+  MIN_TEAMS_BACKMARKER,
 } from "../helpers"
 import {
   createExtremeStatWinChecker,
@@ -197,11 +201,12 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
   [
     "Backmarker Hero",
     (ctx) => {
+      if (!hasMinimumTeams(ctx.currentRound, MIN_TEAMS_BACKMARKER)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry?.bet) return { earned: false }
 
-      // Find backmarker teams (bottom 3)
+      // Find backmarker teams (bottom 3).
       const sortedTeams = [...ctx.currentRound.teams].sort((a, b) => b.positionConstructors - a.positionConstructors)
       const backmarkerTeams = sortedTeams.slice(0, 3)
 
@@ -311,16 +316,6 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
     },
   ],
   [
-    "Pole Picker",
-    (ctx, populatedDrivers) => {
-      // Win by betting on driver who took pole (positionActual === 1 in qualifying).
-      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
-      if (!populatedDrivers) return { earned: false }
-      const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
-      return { earned: betDriver?.positionActual === 1 }
-    },
-  ],
-  [
     "Front Row Bet",
     (ctx, populatedDrivers) => {
       // Win by betting on driver who qualified in top 3 (positionActual <= 3).
@@ -345,6 +340,7 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
     "Hot Streak Pick",
     (ctx, populatedDrivers) => {
       // Win with driver whose formScore is in top 3 (lower = better form).
+      if (!hasEstablishedForm(ctx, MIN_ROUNDS_FORM)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (!populatedDrivers) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
@@ -364,6 +360,7 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
     "Cold Pick",
     (ctx, populatedDrivers) => {
       // Win with driver whose formScore is in bottom 3 (higher = worse form).
+      if (!hasEstablishedForm(ctx, MIN_ROUNDS_FORM)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (!populatedDrivers) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
@@ -386,18 +383,19 @@ export const driverBetsEvaluators: [string, BadgeChecker][] = [
   // ============================================================================
   [
     "Curse Breaker",
-    (ctx, populatedDrivers) => {
+    (ctx) => {
       // Win with driver ending a 2+ DNF streak (API-dependent).
+      // Uses driverDNFSnapshot taken BEFORE updateDriverStats resets consecutiveDNFs.
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
-      if (!populatedDrivers) return { earned: false }
+      if (!ctx.driverDNFSnapshot) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry?.bet) return { earned: false }
-      const driver = populatedDrivers.get(entry.bet.toString())
-      // Driver must have had a 2+ consecutive DNF streak (now broken).
-      // Check betDriver's positionActual to see if they finished (not DNF).
+      // Check if driver finished (not DNF) in this round.
       const betDriver = getCompetitorBetDriver(ctx.currentRound, ctx.competitorId)
       const didFinish = betDriver ? betDriver.positionActual > 0 && betDriver.positionActual < 21 : false
-      return { earned: didFinish && (driver?.stats?.consecutiveDNFs ?? 0) >= 2 }
+      // Read pre-update DNF count from snapshot instead of current driver stats.
+      const priorDNFs = ctx.driverDNFSnapshot.get(entry.bet.toString()) ?? 0
+      return { earned: didFinish && priorDNFs >= 2 }
     },
   ],
   [

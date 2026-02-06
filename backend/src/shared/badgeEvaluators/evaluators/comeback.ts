@@ -9,6 +9,10 @@ import {
   isLast,
   isLastRound,
   isRoundCompleted,
+  hasMinimumCompetitors,
+  MIN_COMPETITORS_PODIUM,
+  MIN_COMPETITORS_TOP5,
+  MIN_ROUNDS_RECOVERY,
 } from "../helpers"
 import { createPointsAfterDryStreakChecker } from "../factories"
 
@@ -20,20 +24,10 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
   ["Points After 9 Dry", createPointsAfterDryStreakChecker(9)],
   ["Points After 12 Dry", createPointsAfterDryStreakChecker(12)],
   [
-    "Win After Last",
-    (ctx) => {
-      // Win after being last in previous round.
-      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
-      if (ctx.currentRoundIndex === 0) return { earned: false }
-      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
-      if (!isRoundCompleted(prevRound)) return { earned: false }
-      return { earned: isLast(prevRound, ctx.competitorId) }
-    },
-  ],
-  [
     "Podium to Last",
     (ctx) => {
       // Drop from podium to last place.
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       if (!isLast(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
@@ -45,6 +39,7 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
     "Last to Podium",
     (ctx) => {
       // Rise from last to podium.
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       if (!isOnPodium(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
@@ -73,6 +68,7 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
     "Bottom to Top 5",
     (ctx) => {
       // Rise from bottom to top 5.
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!currentEntry || currentEntry.position > 5) return { earned: false }
@@ -90,6 +86,7 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
     "Top 5 to Bottom",
     (ctx) => {
       // Drop from top 5 to bottom.
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!currentEntry) return { earned: false }
@@ -106,14 +103,16 @@ export const comebackEvaluators: [string, BadgeChecker][] = [
   [
     "Survivor",
     (ctx) => {
-      // Recover to top half after being last.
+      // Recover to top half after being last, with at least 3 rounds of gap.
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!currentEntry) return { earned: false }
       const halfwayPosition = Math.ceil(ctx.currentRound.competitors.length / 2)
       if (currentEntry.position > halfwayPosition) return { earned: false }
 
-      // Check if was ever last.
-      for (let i = 0; i < ctx.currentRoundIndex; i++) {
+      // Check if was last at least MIN_ROUNDS_RECOVERY rounds ago.
+      const upperBound = ctx.currentRoundIndex - MIN_ROUNDS_RECOVERY
+      for (let i = 0; i < upperBound; i++) {
         const round = ctx.allRounds[i]
         if (!isRoundCompleted(round)) continue
         if (isLast(round, ctx.competitorId)) return { earned: true }

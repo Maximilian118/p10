@@ -5,6 +5,67 @@ import { Round, CompetitorEntry, DriverEntry, PointsStructureEntry } from "../..
 import { driverType } from "../../models/driver"
 import { BadgeContext } from "./types"
 
+// ============================================================================
+// THRESHOLD CONSTANTS
+// ============================================================================
+// Minimum competitor counts to prevent trivial badge awards in small fields.
+export const MIN_COMPETITORS_PODIUM = 6       // Top 3 badges need ≥6 competitors (top 3 = 50%)
+export const MIN_COMPETITORS_TOP5 = 8         // Top 5 badges need ≥8 (top 5 = 62.5%)
+export const MIN_COMPETITORS_TOP7 = 10        // Top 7 badges need ≥10 (top 7 = 70%)
+export const MIN_COMPETITORS_TOP10 = 12       // Top 10 badges need ≥12 (top 10 = 83%)
+export const MIN_COMPETITORS_MIDDLE = 5       // "Middle" position needs ≥5
+export const MIN_COMPETITORS_RELEGATION = 7   // Relegation/bottom 3 needs ≥7
+export const MIN_COMPETITORS_LONE_WOLF = 4    // "Last to bet" needs ≥4 bettors
+
+// Minimum round counts to prevent meaningless early-season awards.
+export const MIN_ROUNDS_FORM = 3              // Form-based badges need ≥3 rounds of data
+export const MIN_ROUNDS_EARLY_SEASON = 3      // Certain badges don't trigger before round 3
+export const MIN_ROUNDS_CUMULATIVE = 3        // Cumulative standings badges need ≥3 rounds
+export const MIN_ROUNDS_RECOVERY = 3          // Recovery badges need ≥3 rounds between events
+
+// Minimum team count for team-relative badges.
+export const MIN_TEAMS_BACKMARKER = 7         // "Bottom 3 teams" needs ≥7 teams
+
+// ============================================================================
+// GUARD FUNCTIONS
+// ============================================================================
+
+// Check if enough rounds have been completed in the current season.
+export const hasMinimumCompletedRounds = (ctx: BadgeContext, min: number): boolean => {
+  let count = 0
+  for (const round of ctx.allRounds) {
+    if (isRoundCompleted(round)) count++
+  }
+  return count >= min
+}
+
+// Check if a round has at least the specified number of competitors.
+export const hasMinimumCompetitors = (round: Round, min: number): boolean =>
+  round.competitors.length >= min
+
+// Check if a round has at least the specified number of competitors who placed bets.
+export const hasMinimumBettingCompetitors = (round: Round, min: number): boolean =>
+  round.competitors.filter((c) => c.bet !== null && c.bet !== undefined).length >= min
+
+// Semantic wrapper to check if form data is mature enough for form-based badges.
+export const hasEstablishedForm = (ctx: BadgeContext, minRounds: number): boolean =>
+  hasMinimumCompletedRounds(ctx, minRounds)
+
+// Check if competitor placed a bet AND scored zero (not just "didn't bet").
+export const didBetAndScoreZero = (round: Round, competitorId: ObjectId): boolean => {
+  const entry = getCompetitorEntry(round, competitorId)
+  if (!entry) return false
+  return entry.bet !== null && entry.bet !== undefined && entry.points === 0
+}
+
+// Check if a round has at least the specified number of teams.
+export const hasMinimumTeams = (round: Round, min: number): boolean =>
+  round.teams.length >= min
+
+// ============================================================================
+// CORE HELPERS
+// ============================================================================
+
 // European countries for nationality checks.
 export const EUROPEAN_COUNTRIES = [
   "UK", "Germany", "France", "Spain", "Italy", "Netherlands", "Belgium", "Finland",

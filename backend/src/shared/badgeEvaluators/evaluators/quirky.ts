@@ -13,6 +13,10 @@ import {
   countRunnerUpsInSeason,
   isLastRound,
   isRoundCompleted,
+  hasMinimumCompletedRounds,
+  didBetAndScoreZero,
+  MIN_ROUNDS_CUMULATIVE,
+  MIN_COMPETITORS_LONE_WOLF,
 } from "../helpers"
 
 // Fun/quirky badge evaluators.
@@ -20,15 +24,12 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
   [
     "Triple Zero",
     (ctx) => {
-      // Score 0 points three rounds in a row
+      // Score 0 points three rounds in a row (must have placed bets, not just missed them).
       const streak = getStreakLength(
         ctx.allRounds,
         ctx.competitorId,
         ctx.currentRoundIndex,
-        (round, compId) => {
-          const entry = getCompetitorEntry(round, compId)
-          return entry?.points === 0
-        },
+        (round, compId) => didBetAndScoreZero(round, compId),
       )
       return { earned: streak >= 3 }
     },
@@ -47,19 +48,20 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
   [
     "Won After Scoring Zero",
     (ctx) => {
-      // Win despite scoring 0 in the previous round
+      // Win despite scoring 0 in the previous round (must have bet, not just missed).
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
       if (!isRoundCompleted(prevRound)) return { earned: false }
-      const prevEntry = getCompetitorEntry(prevRound, ctx.competitorId)
-      return { earned: prevEntry?.points === 0 }
+      return { earned: didBetAndScoreZero(prevRound, ctx.competitorId) }
     },
   ],
   [
     "Lost by 1 Point",
     (ctx) => {
-      // Lose by 1 point (runner-up with 1 point less than winner)
+      // Lose by 1 point (runner-up with 1 point less than winner).
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!didCompetitorRunnerUp(ctx.currentRound, ctx.competitorId)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       const winner = ctx.currentRound.competitors.find((c) => c.position === 1)
@@ -70,7 +72,8 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
   [
     "Won by 1 Point",
     (ctx) => {
-      // Win by 1 point
+      // Win by 1 point.
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       const runnerUp = ctx.currentRound.competitors.find((c) => c.position === 2)
@@ -79,20 +82,10 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
     },
   ],
   [
-    "Won From Last Place",
-    (ctx) => {
-      // Win as the underdog (lowest in standings before this round).
-      if (!didCompetitorWin(ctx.currentRound, ctx.competitorId)) return { earned: false }
-      if (ctx.currentRoundIndex === 0) return { earned: false }
-      const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
-      if (!isRoundCompleted(prevRound)) return { earned: false }
-      return { earned: isLast(prevRound, ctx.competitorId) }
-    },
-  ],
-  [
     "Beat Leader From Last",
     (ctx) => {
-      // Beat the standings leader when in last place
+      // Beat the standings leader when in last place.
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (ctx.currentRoundIndex === 0) return { earned: false }
       const prevRound = ctx.allRounds[ctx.currentRoundIndex - 1]
       if (!isRoundCompleted(prevRound)) return { earned: false }
@@ -137,7 +130,8 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
   [
     "Absolute Zero",
     (ctx) => {
-      // Finish last with zero points
+      // Finish last with zero points.
+      if (!hasMinimumCompletedRounds(ctx, MIN_ROUNDS_CUMULATIVE)) return { earned: false }
       if (!isLast(ctx.currentRound, ctx.competitorId)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       return { earned: entry?.totalPoints === 0 }
@@ -530,7 +524,8 @@ export const quirkyEvaluators: [string, BadgeChecker][] = [
           time: new Date(c.updated_at!).getTime(),
         }))
 
-      if (betsWithTimestamps.length < 2) return { earned: false }
+      // Require at least MIN_COMPETITORS_LONE_WOLF bettors to avoid trivial awards.
+      if (betsWithTimestamps.length < MIN_COMPETITORS_LONE_WOLF) return { earned: false }
 
       // Check if this competitor was the last to bet.
       const myBet = betsWithTimestamps.find((b) => b.id === ctx.competitorId.toString())

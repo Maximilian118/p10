@@ -814,6 +814,7 @@ const awardBadges = async (
   champ: ChampType,
   currentRound: Round,
   roundIndex: number,
+  driverDNFSnapshot?: Map<string, number>,
 ): Promise<void> => {
   // Load all badge definitions for this championship.
   if (!champ.champBadges || champ.champBadges.length === 0) {
@@ -859,6 +860,7 @@ const awardBadges = async (
       champ,
       allRounds: champ.rounds,
       maxCompetitors: champ.settings?.maxCompetitors || 24,
+      driverDNFSnapshot,
     }
 
     // Evaluate each badge.
@@ -1183,6 +1185,18 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   }
 
   // ============================================================================
+  // PRE-STEP 5: SNAPSHOT DRIVER DNF COUNTS
+  // ============================================================================
+  // Capture consecutiveDNFs BEFORE updateDriverStats resets them to 0.
+  // This snapshot is passed to badge evaluators so Curse Breaker can detect
+  // when a driver breaks a DNF streak (the stat would be 0 after update).
+  const driverIds = currentRound.drivers.map((d) => d.driver)
+  const driversForSnapshot = await Driver.find({ _id: { $in: driverIds } })
+  const driverDNFSnapshot = new Map<string, number>(
+    driversForSnapshot.map((d) => [d._id.toString(), d.stats?.consecutiveDNFs ?? 0]),
+  )
+
+  // ============================================================================
   // STEP 5: UPDATE DRIVER STATS
   // ============================================================================
   // Update driver statistics in the database:
@@ -1197,7 +1211,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // STEP 6: AWARD BADGES
   // ============================================================================
   // For each competitor, evaluate all badge criteria and award earned badges.
-  await awardBadges(champ, currentRound, roundIndex)
+  await awardBadges(champ, currentRound, roundIndex, driverDNFSnapshot)
 
   // ============================================================================
   // STEP 7: UPDATE USER CHAMPIONSHIP SNAPSHOTS

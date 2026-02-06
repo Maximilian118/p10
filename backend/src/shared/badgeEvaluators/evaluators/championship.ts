@@ -10,6 +10,11 @@ import {
   isLastRound,
   isRoundCompleted,
   getLastSeasonFinalEntry,
+  hasMinimumCompetitors,
+  MIN_COMPETITORS_PODIUM,
+  MIN_COMPETITORS_TOP5,
+  MIN_COMPETITORS_MIDDLE,
+  MIN_COMPETITORS_RELEGATION,
 } from "../helpers"
 
 // Championship achievement badge evaluators (evaluated at season end).
@@ -27,6 +32,7 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
     "Championship Top 3",
     (ctx) => {
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_PODIUM)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       return { earned: entry ? entry.position <= 3 : false }
     },
@@ -35,6 +41,7 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
     "Championship Top 5",
     (ctx) => {
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_TOP5)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       return { earned: entry ? entry.position <= 5 : false }
     },
@@ -224,6 +231,7 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
     (ctx) => {
       // Finish in top half of championship standings at season end.
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_MIDDLE)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const halfwayPosition = Math.ceil(ctx.currentRound.competitors.length / 2)
@@ -235,6 +243,7 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
     (ctx) => {
       // Finish in bottom half of championship standings at season end.
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_MIDDLE)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const halfwayPosition = Math.ceil(ctx.currentRound.competitors.length / 2)
@@ -245,6 +254,7 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
     "Midpack Finish",
     (ctx) => {
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_MIDDLE)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const middlePosition = Math.ceil(ctx.currentRound.competitors.length / 2)
@@ -254,8 +264,9 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
   [
     "Relegated",
     (ctx) => {
-      // Finish in relegation zone - bottom 3
+      // Finish in relegation zone - bottom 3.
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_RELEGATION)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const totalCompetitors = ctx.currentRound.competitors.length
@@ -265,16 +276,17 @@ export const championshipEvaluators: [string, BadgeChecker][] = [
   [
     "Survived Relegation",
     (ctx) => {
-      // Avoid relegation after being in danger
+      // Avoid relegation after being in danger.
       if (!isLastRound(ctx)) return { earned: false }
+      if (!hasMinimumCompetitors(ctx.currentRound, MIN_COMPETITORS_RELEGATION)) return { earned: false }
       const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
       if (!entry) return { earned: false }
       const totalCompetitors = ctx.currentRound.competitors.length
 
-      // Check if currently safe
+      // Check if currently safe.
       if (entry.position > totalCompetitors - 3) return { earned: false }
 
-      // Check if was in danger before
+      // Check if was in danger before.
       for (let i = ctx.currentRoundIndex - 1; i >= 0; i--) {
         const round = ctx.allRounds[i]
         if (round.status !== "completed" && round.status !== "results") continue
