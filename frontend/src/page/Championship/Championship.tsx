@@ -223,6 +223,10 @@ const Championship: React.FC = () => {
     && roundStatusView !== "waiting"
     && roundStatusView !== "completed"
 
+  const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
+  const [ view, setView ] = useState<ChampView>("competitors")
+  const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
+
   // Whether any fullscreen overlay (confirm dialog, round status view, etc.) is active.
   const isOverlayActive =
     isInRoundStatusView ||
@@ -236,14 +240,11 @@ const Championship: React.FC = () => {
     showProtestBlocked ||
     protestConfirmActive
 
-  // Force banner to be fully shrunk when any overlay is active.
+  // Force banner to be fully shrunk when any overlay or demo mode is active.
+  // Demo mode is separate from isOverlayActive so the ChampToolbar stays visible.
   useEffect(() => {
-    setForceShrunk(isOverlayActive)
-  }, [isOverlayActive, setForceShrunk])
-
-  const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false)
-  const [ view, setView ] = useState<ChampView>("competitors")
-  const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
+    setForceShrunk(isOverlayActive || view === "demoMode")
+  }, [isOverlayActive, view, setForceShrunk])
 
   // Selected protest ID for detail view.
   const [ selectedProtestId, setSelectedProtestId ] = useState<string | null>(null)

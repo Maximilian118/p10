@@ -1,6 +1,5 @@
-import React, { useMemo } from "react"
+import React, { useMemo, useEffect, useRef } from "react"
 import useTrackmap from "../../useTrackmap"
-import { CarPosition } from "../../types"
 import FillLoading from "../../../../components/utility/fillLoading/FillLoading"
 import "./_trackmap.scss"
 
@@ -13,6 +12,7 @@ interface TrackmapProps {
     teamColour: string
   } | null) => void
   demoMode?: boolean
+  onTrackReady?: () => void
 }
 
 // Converts an array of {x, y} points into an SVG path string.
@@ -22,28 +22,81 @@ const buildSvgPath = (path: { x: number; y: number }[]): string => {
   return `M ${first.x},${first.y} ${rest.map((p) => `L ${p.x},${p.y}`).join(" ")} Z`
 }
 
-// Computes the SVG viewBox from track path and car positions with padding.
+// Rotates a point around a centre by the given angle in radians.
+const rotatePoint = (
+  px: number, py: number,
+  cx: number, cy: number,
+  rad: number,
+): { x: number; y: number } => {
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const dx = px - cx
+  const dy = py - cy
+  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
+}
+
+// Uses PCA to find the optimal rotation angle (degrees) that orients the track
+// so its longest extent aligns horizontally — ideal for a landscape container.
+const computeRotationAngle = (path: { x: number; y: number }[]): number => {
+  if (path.length < 3) return 0
+
+  const n = path.length
+
+  // Compute centroid.
+  const cx = path.reduce((sum, p) => sum + p.x, 0) / n
+  const cy = path.reduce((sum, p) => sum + p.y, 0) / n
+
+  // Compute covariance matrix components.
+  let cxx = 0
+  let cyy = 0
+  let cxy = 0
+  path.forEach((p) => {
+    const dx = p.x - cx
+    const dy = p.y - cy
+    cxx += dx * dx
+    cyy += dy * dy
+    cxy += dx * dy
+  })
+
+  // Principal axis angle — direction of maximum variance.
+  const theta = 0.5 * Math.atan2(2 * cxy, cxx - cyy)
+
+  // Rotate by -θ to align principal axis with horizontal.
+  return -theta * (180 / Math.PI)
+}
+
+// Computes the centroid of a path.
+const computeCentroid = (path: { x: number; y: number }[]): { cx: number; cy: number } => {
+  const n = path.length
+  const cx = path.reduce((sum, p) => sum + p.x, 0) / n
+  const cy = path.reduce((sum, p) => sum + p.y, 0) / n
+  return { cx, cy }
+}
+
+// Computes the SVG viewBox from the track path after applying rotation.
+// Uses track path only (not car positions) so the view stays stable.
 const computeViewBox = (
-  path: { x: number; y: number }[] | null,
-  positions: CarPosition[],
+  path: { x: number; y: number }[],
+  angleDeg: number,
+  cx: number,
+  cy: number,
 ): string => {
-  const allPoints: { x: number; y: number }[] = []
+  if (path.length === 0) return "0 0 100 100"
 
-  if (path) allPoints.push(...path)
-  positions.forEach((p) => allPoints.push({ x: p.x, y: p.y }))
+  const rad = angleDeg * (Math.PI / 180)
 
-  if (allPoints.length === 0) return "0 0 100 100"
-
+  // Rotate all track points to find the rotated bounding box.
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
   let maxY = -Infinity
 
-  allPoints.forEach((p) => {
-    if (p.x < minX) minX = p.x
-    if (p.x > maxX) maxX = p.x
-    if (p.y < minY) minY = p.y
-    if (p.y > maxY) maxY = p.y
+  path.forEach((p) => {
+    const rp = rotatePoint(p.x, p.y, cx, cy, rad)
+    if (rp.x < minX) minX = rp.x
+    if (rp.x > maxX) maxX = rp.x
+    if (rp.y < minY) minY = rp.y
+    if (rp.y > maxY) maxY = rp.y
   })
 
   // Add 10% padding on all sides.
@@ -79,8 +132,21 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
 // Renders a live F1 track map as SVG with car position dots.
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles.
-const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
+// The track is rotated via PCA to fill a landscape container optimally.
+const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackReady }) => {
   const { trackPath, carPositions, sessionActive, trackName, connectionStatus, demoPhase } = useTrackmap()
+  const trackReadyFired = useRef(false)
+
+  // No data state.
+  const hasData = trackPath && trackPath.length > 0
+
+  // Fire the onTrackReady callback once when track data first arrives.
+  useEffect(() => {
+    if (hasData && !trackReadyFired.current) {
+      trackReadyFired.current = true
+      onTrackReady?.()
+    }
+  }, [hasData, onTrackReady])
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
@@ -88,10 +154,22 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
     [trackPath],
   )
 
-  // Memoize the viewBox.
+  // Memoize the rotation angle from PCA.
+  const rotationAngle = useMemo(
+    () => (trackPath ? computeRotationAngle(trackPath) : 0),
+    [trackPath],
+  )
+
+  // Memoize the centroid for rotation transforms.
+  const centroid = useMemo(
+    () => (trackPath ? computeCentroid(trackPath) : { cx: 0, cy: 0 }),
+    [trackPath],
+  )
+
+  // Memoize the viewBox from the rotated track path bounds.
   const viewBox = useMemo(
-    () => computeViewBox(trackPath, carPositions),
-    [trackPath, carPositions],
+    () => (trackPath ? computeViewBox(trackPath, rotationAngle, centroid.cx, centroid.cy) : "0 0 100 100"),
+    [trackPath, rotationAngle, centroid],
   )
 
   // Memoize the dot radius.
@@ -101,8 +179,6 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
   // Track stroke width relative to dot size.
   const trackStrokeWidth = dotRadius * 2
 
-  // No data state.
-  const hasData = trackPath && trackPath.length > 0
   const showNoSession = !demoMode && !sessionActive && !hasData
 
   // Demo mode: show spinner while backend is fetching data or waiting for track to build.
@@ -117,6 +193,9 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
   // Determine the title to display (hidden in demo mode — shown in the header instead).
   const displayTitle = demoMode ? null : trackName
 
+  // SVG group transform string for the PCA rotation.
+  const rotateTransform = `rotate(${rotationAngle}, ${centroid.cx}, ${centroid.cy})`
+
   return (
     <div className="trackmap">
       {/* Track name header (live mode only) */}
@@ -130,36 +209,39 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode }) => {
           viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Track outline path */}
-          <path
-            d={svgPathString}
-            stroke="#2a2a3a"
-            strokeWidth={trackStrokeWidth}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            fill="none"
-          />
-
-          {/* Car dots at current positions */}
-          {carPositions.map((car) => (
-            <circle
-              key={car.driverNumber}
-              cx={car.x}
-              cy={car.y}
-              r={dotRadius}
-              fill={`#${car.teamColour}`}
-              stroke="#ffffff"
-              strokeWidth={strokeWidth}
-              className="car-dot"
-              onClick={() => onDriverSelect?.({
-                driverNumber: car.driverNumber,
-                nameAcronym: car.nameAcronym,
-                fullName: car.fullName,
-                teamName: car.teamName,
-                teamColour: car.teamColour,
-              })}
+          {/* Rotated group — all content uses original coordinates */}
+          <g transform={rotateTransform}>
+            {/* Track outline path */}
+            <path
+              d={svgPathString}
+              stroke="#2a2a3a"
+              strokeWidth={trackStrokeWidth}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fill="none"
             />
-          ))}
+
+            {/* Car dots at current positions */}
+            {carPositions.map((car) => (
+              <circle
+                key={car.driverNumber}
+                cx={car.x}
+                cy={car.y}
+                r={dotRadius}
+                fill={`#${car.teamColour}`}
+                stroke="#ffffff"
+                strokeWidth={strokeWidth}
+                className="car-dot"
+                onClick={() => onDriverSelect?.({
+                  driverNumber: car.driverNumber,
+                  nameAcronym: car.nameAcronym,
+                  fullName: car.fullName,
+                  teamName: car.teamName,
+                  teamColour: car.teamColour,
+                })}
+              />
+            ))}
+          </g>
         </svg>
       )}
 

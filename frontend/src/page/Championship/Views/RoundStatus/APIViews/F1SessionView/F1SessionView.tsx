@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
 import "./_f1SessionView.scss"
-import { RoundType } from "../../../../../../shared/types"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
 import { useDemoStatus } from "../../../../../../api/openAPI/useTrackmap"
@@ -14,7 +13,7 @@ interface SelectedDriver {
 }
 
 interface F1SessionViewProps {
-  round?: RoundType
+  round?: unknown
   isAdjudicator?: boolean
   onAdvance?: () => void
   demoMode?: boolean
@@ -40,6 +39,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
 }) => {
   const [selectedDriver, setSelectedDriver] = useState<SelectedDriver | null>(null)
   const [remainingMs, setRemainingMs] = useState(0)
+  const [trackReady, setTrackReady] = useState(false)
   const { demoPhase, demoRemainingMs, demoStartedAt } = useDemoStatus()
 
   const advButton = !demoMode && isAdjudicator && onAdvance
@@ -53,18 +53,24 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     }
   }, [demoStartedAt, demoRemainingMs])
 
+  // Start the countdown only after the track has loaded and the demo hasn't ended.
   useEffect(() => {
-    if (!demoMode || demoRemainingMs === 0 || demoEnded) return
+    if (!demoMode || demoRemainingMs === 0 || demoEnded || !trackReady) return
 
     updateCountdown()
     const timer = setInterval(updateCountdown, 1000)
     return () => clearInterval(timer)
-  }, [demoMode, demoRemainingMs, updateCountdown])
+  }, [demoMode, demoRemainingMs, demoEnded, trackReady, updateCountdown])
 
   // Handles driver selection from the track map.
   const handleDriverSelect = (driver: SelectedDriver | null) => {
     setSelectedDriver(driver)
   }
+
+  // Called once by the Trackmap component when track data first arrives.
+  const handleTrackReady = useCallback(() => {
+    setTrackReady(true)
+  }, [])
 
   // Determine the title text and style based on demo state.
   const titleText = demoEnded ? "End of Demo" : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))
@@ -83,13 +89,17 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             <span className="demo-badge">DEMO</span>
           </span>
         </div>
-      ) : (
+      ) : !demoMode && (
         <p className="f1-session-title">F1 Live Session</p>
       )}
 
       {/* Live track map with car positions */}
       <div className="trackmap-container">
-        <Trackmap onDriverSelect={handleDriverSelect} demoMode={demoMode} />
+        <Trackmap
+          onDriverSelect={handleDriverSelect}
+          demoMode={demoMode}
+          onTrackReady={handleTrackReady}
+        />
       </div>
 
       {/* Selected driver info */}

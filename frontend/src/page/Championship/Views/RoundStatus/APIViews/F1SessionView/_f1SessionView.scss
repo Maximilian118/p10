@@ -2,7 +2,7 @@
 
 .f1-session-view {
   width: 100%;
-  @include mixins.flexbox-space-between-column;
+  @include mixins.flexbox-start-column;
   flex-grow: 1;
   padding: 20px 5% 40px;
   box-sizing: border-box;
@@ -59,8 +59,8 @@
   // Track map container fills the main content area.
   .trackmap-container {
     width: 100%;
-    margin: auto 0;
-    padding: 10px 0;
+    height: 240px;
+    margin-top: 10px
   }
 
   // Selected driver info bar beneath the track map.
