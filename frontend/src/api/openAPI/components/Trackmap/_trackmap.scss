@@ -20,10 +20,24 @@
     display: block;
   }
 
-  // Car dots are clickable with smooth position transitions.
+  // Car dot group — wraps each car dot for CSS transform-based animation.
+  // Linear transition produces constant-velocity motion between position
+  // updates (~3.7 Hz from OpenF1), matching the natural movement of a car
+  // on track. Duration (800ms) intentionally exceeds the update interval
+  // so dots are always mid-transition and never stop moving.
+  .car-dot-group {
+    transition: transform 800ms linear;
+    will-change: transform;
+
+    // Suppress transition on initial mount to prevent dots sliding from origin.
+    &--no-transition {
+      transition: none;
+    }
+  }
+
+  // Car dot circle — handles interactive styles only.
   .car-dot {
     cursor: pointer;
-    transition: cx 0.1s linear, cy 0.1s linear;
   }
 
   // Status text shown when no data or connecting.

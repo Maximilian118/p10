@@ -15,6 +15,58 @@ interface TrackmapProps {
   onTrackReady?: () => void
 }
 
+interface CarDotProps {
+  driverNumber: number
+  x: number
+  y: number
+  teamColour: string
+  nameAcronym: string
+  fullName: string
+  teamName: string
+  dotRadius: number
+  strokeWidth: number
+  isNew: boolean
+  onSelect?: (driver: {
+    driverNumber: number
+    nameAcronym: string
+    fullName: string
+    teamName: string
+    teamColour: string
+  }) => void
+}
+
+// Renders a single car dot positioned via CSS transform. The parent SCSS rule
+// applies `transition: transform 800ms linear` for GPU-accelerated smooth
+// interpolation between position updates (~3.7 Hz from OpenF1). The transition
+// duration is intentionally longer than the update interval so dots are always
+// mid-transition and never stop moving.
+const CarDot = React.memo<CarDotProps>(({
+  driverNumber, x, y, teamColour, nameAcronym, fullName, teamName,
+  dotRadius, strokeWidth, isNew, onSelect,
+}) => (
+  <g
+    className={`car-dot-group${isNew ? " car-dot-group--no-transition" : ""}`}
+    style={{ transform: `translate(${x}px, ${y}px)` }}
+  >
+    <circle
+      r={dotRadius}
+      fill={`#${teamColour}`}
+      stroke="#ffffff"
+      strokeWidth={strokeWidth}
+      className="car-dot"
+      onClick={() => onSelect?.({
+        driverNumber, nameAcronym, fullName, teamName, teamColour,
+      })}
+    />
+  </g>
+), (prev, next) =>
+  prev.x === next.x
+  && prev.y === next.y
+  && prev.teamColour === next.teamColour
+  && prev.dotRadius === next.dotRadius
+  && prev.isNew === next.isNew
+)
+
 // Converts an array of {x, y} points into an SVG path string.
 const buildSvgPath = (path: { x: number; y: number }[]): string => {
   if (path.length === 0) return ""
@@ -131,11 +183,15 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
 
 // Renders a live F1 track map as SVG with car position dots.
 // The track outline is rendered from a precomputed path (from the backend),
-// and car positions are overlaid as coloured circles.
+// and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
 const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackReady }) => {
   const { trackPath, carPositions, sessionActive, trackName, connectionStatus, demoPhase } = useTrackmap()
   const trackReadyFired = useRef(false)
+
+  // Tracks which drivers have rendered at least once. On initial appearance
+  // the transition is suppressed so dots don't slide from the SVG origin.
+  const seenDrivers = useRef<Set<number>>(new Set())
 
   // No data state.
   const hasData = trackPath && trackPath.length > 0
@@ -147,6 +203,15 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
       onTrackReady?.()
     }
   }, [hasData, onTrackReady])
+
+  // Clean up seenDrivers when drivers leave so that re-appearing drivers
+  // get the no-transition initial placement again.
+  useEffect(() => {
+    const currentDrivers = new Set(carPositions.map((c) => c.driverNumber))
+    seenDrivers.current.forEach((dn) => {
+      if (!currentDrivers.has(dn)) seenDrivers.current.delete(dn)
+    })
+  }, [carPositions])
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
@@ -221,26 +286,27 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
               fill="none"
             />
 
-            {/* Car dots at current positions */}
-            {carPositions.map((car) => (
-              <circle
-                key={car.driverNumber}
-                cx={car.x}
-                cy={car.y}
-                r={dotRadius}
-                fill={`#${car.teamColour}`}
-                stroke="#ffffff"
-                strokeWidth={strokeWidth}
-                className="car-dot"
-                onClick={() => onDriverSelect?.({
-                  driverNumber: car.driverNumber,
-                  nameAcronym: car.nameAcronym,
-                  fullName: car.fullName,
-                  teamName: car.teamName,
-                  teamColour: car.teamColour,
-                })}
-              />
-            ))}
+            {/* Car dots — positioned via CSS transform, animated via CSS transition */}
+            {carPositions.map((car) => {
+              const isNew = !seenDrivers.current.has(car.driverNumber)
+              if (isNew) seenDrivers.current.add(car.driverNumber)
+              return (
+                <CarDot
+                  key={car.driverNumber}
+                  driverNumber={car.driverNumber}
+                  x={car.x}
+                  y={car.y}
+                  teamColour={car.teamColour}
+                  nameAcronym={car.nameAcronym}
+                  fullName={car.fullName}
+                  teamName={car.teamName}
+                  dotRadius={dotRadius}
+                  strokeWidth={strokeWidth}
+                  isNew={isNew}
+                  onSelect={onDriverSelect}
+                />
+              )
+            })}
           </g>
         </svg>
       )}

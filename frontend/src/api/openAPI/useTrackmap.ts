@@ -84,7 +84,9 @@ const useTrackmap = (): UseTrackmapResult => {
       }
     }
 
-    // Handle batched car position updates.
+    // Handle batched car position updates. CSS transitions on CarDot handle
+    // smooth interpolation, so React re-renders at 10 Hz are fine — React.memo
+    // on each CarDot ensures only dots with changed positions actually re-render.
     const handlePositions = (positions: CarPosition[]) => {
       setCarPositions(positions)
     }
