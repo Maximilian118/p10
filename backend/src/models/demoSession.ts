@@ -13,6 +13,7 @@ export interface DemoMessageType {
 export interface DemoSessionType {
   _id: ObjectId
   sessionKey: number
+  circuitKey: number
   trackName: string
   sessionName: string
   driverCount: number
@@ -25,6 +26,7 @@ export interface DemoSessionType {
 // Demo session schema — stores a trimmed snapshot that fits within BSON 16MB limit.
 const demoSessionSchema = new mongoose.Schema<DemoSessionType>({
   sessionKey: { type: Number, required: true, unique: true },
+  circuitKey: { type: Number, default: 0 },
   trackName: { type: String, required: true },
   sessionName: { type: String, required: true },
   driverCount: { type: Number, default: 0 },

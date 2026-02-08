@@ -22,6 +22,9 @@ let replaySpeed = 2
 let replayActive = false
 let replaySessionKey = 0
 let replayTrackName = ""
+// Generation counter — prevents orphaned timers when a new replay starts
+// while the previous one is still initializing (e.g. awaiting MultiViewer fetch).
+let replayGeneration = 0
 
 // Represents the current demo status.
 export interface DemoStatus {
@@ -47,7 +50,7 @@ const emitDemoPhase = (phase: "fetching" | "ready" | "stopped" | "ended"): void 
 // Fetches all session data from the OpenF1 REST API and builds the message queue.
 const fetchFromAPI = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; trackName: string; sessionName: string; driverCount: number; sessionEndTs: number }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionName: string; driverCount: number; sessionEndTs: number }> => {
   const token = await getOpenF1Token()
   const authHeaders = { Authorization: `Bearer ${token}` }
 
@@ -63,7 +66,8 @@ const fetchFromAPI = async (
 
   const session = sessionRes.data[0]
   const trackName = session.circuit_short_name || session.session_name
-  console.log(`  Track: ${trackName}, Session: ${session.session_name}`)
+  const circuitKey = session.circuit_key ?? null
+  console.log(`  Track: ${trackName}, Session: ${session.session_name}, Circuit Key: ${circuitKey}`)
 
   // Fetch all drivers for this session.
   const driversRes = await axios.get<OpenF1DriverMsg[]>(
@@ -147,7 +151,7 @@ const fetchFromAPI = async (
   // Parse the session end timestamp for countdown calculations.
   const sessionEndTs = session.date_end ? new Date(session.date_end).getTime() : trimmed[trimmed.length - 1]?.timestamp || 0
 
-  return { messages: trimmed, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
+  return { messages: trimmed, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
@@ -200,12 +204,23 @@ const trimToSnapshot = (
 // Checks MongoDB cache first; fetches from OpenF1 API and caches if not found.
 const loadMessages = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; trackName: string; sessionEndTs: number }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number }> => {
   // Check MongoDB cache first.
   const cached = await DemoSession.findOne({ sessionKey })
   if (cached && cached.messages.length > 0) {
     console.log(`  Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
-    return { messages: cached.messages, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
+
+    // Extract circuit key from the document, or fall back to the cached session message
+    // for documents that predate the circuitKey field.
+    let circuitKey: number | null = cached.circuitKey || null
+    if (!circuitKey) {
+      const sessionMsg = cached.messages.find((m) => m.topic === "v1/sessions")
+      if (sessionMsg) {
+        circuitKey = (sessionMsg.data as Record<string, unknown>).circuit_key as number ?? null
+      }
+    }
+
+    return { messages: cached.messages, circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
   }
 
   // Not cached — fetch from OpenF1 API.
@@ -221,6 +236,7 @@ const loadMessages = async (
   // Save the trimmed snapshot as a single document.
   await DemoSession.create({
     sessionKey,
+    circuitKey: result.circuitKey ?? 0,
     trackName: result.trackName,
     sessionName: result.sessionName,
     driverCount: result.driverCount,
@@ -229,7 +245,7 @@ const loadMessages = async (
   })
   console.log(`  Saved demo session to database`)
 
-  return { messages: result.messages, trackName: result.trackName, sessionEndTs: result.sessionEndTs }
+  return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs }
 }
 
 // Starts a demo replay by loading cached data or fetching from the API.
@@ -237,10 +253,12 @@ export const startDemoReplay = async (
   sessionKey?: number,
   speed?: number,
 ): Promise<DemoStatus> => {
-  // Stop any existing replay.
-  if (replayActive) {
-    stopDemoReplay()
-  }
+  // Always stop any existing or initializing replay.
+  stopDemoReplay()
+
+  // Increment generation so any in-flight async work from a prior call aborts.
+  replayGeneration++
+  const thisGeneration = replayGeneration
 
   replaySessionKey = sessionKey || DEFAULT_SESSION_KEY
   replaySpeed = speed || 2
@@ -251,7 +269,7 @@ export const startDemoReplay = async (
   emitDemoPhase("fetching")
 
   try {
-    const { messages, trackName, sessionEndTs } = await loadMessages(replaySessionKey)
+    const { messages, circuitKey, trackName, sessionEndTs } = await loadMessages(replaySessionKey)
     replayTrackName = trackName
 
     // Find the first position message to determine the preamble boundary.
@@ -275,7 +293,13 @@ export const startDemoReplay = async (
     }
 
     // Initialize session directly — no OpenF1 API calls, loads trackmap from MongoDB.
-    await initDemoSession(replaySessionKey, trackName, drivers)
+    await initDemoSession(replaySessionKey, trackName, circuitKey, drivers)
+
+    // Abort if a newer replay was started while we were loading/initializing.
+    if (thisGeneration !== replayGeneration) {
+      console.log("⏹ Demo replay superseded by newer request — aborting")
+      return getDemoStatus()
+    }
 
     // Fast-forward through early session until multiple drivers are on track.
     const MIN_DRIVERS_ON_TRACK = 5
@@ -313,6 +337,13 @@ export const startDemoReplay = async (
 
     // Tick-based playback — check which messages should have been sent by now.
     replayTimer = setInterval(() => {
+      // Self-destruct if a newer replay has been started (orphaned timer guard).
+      if (thisGeneration !== replayGeneration) {
+        clearInterval(replayTimer!)
+        replayTimer = null
+        return
+      }
+
       if (!replayActive || replayIndex >= replayMessages.length) {
         console.log("🏁 Demo replay complete")
         stopDemoReplay(true)

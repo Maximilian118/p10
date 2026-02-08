@@ -14,6 +14,8 @@ import {
   ValidatedLap,
 } from "./types"
 import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } from "./trackmapBuilder"
+import { fetchTrackOutline } from "./multiviewerClient"
+import { computeTrackProgress, mapProgressToPoint } from "./trackProgress"
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -62,11 +64,12 @@ export const initSessionManager = (io: Server): void => {
           sessionType: activeSession.sessionType,
         })
         socket.emit(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
-        // Send the current track map path if we have one.
-        if (activeSession.baselinePath && activeSession.baselinePath.length > 0) {
+        // Send the best available track path (MultiViewer preferred, GPS fallback).
+        const displayPath = getDisplayPath()
+        if (displayPath && displayPath.length > 0) {
           socket.emit(OPENF1_EVENTS.TRACKMAP, {
             trackName: activeSession.trackName,
-            path: activeSession.baselinePath,
+            path: displayPath,
             pathVersion: activeSession.totalLapsProcessed,
             totalLapsProcessed: activeSession.totalLapsProcessed,
           })
@@ -93,6 +96,7 @@ export const getActiveTrackName = (): string | null => {
 export const initDemoSession = async (
   sessionKey: number,
   trackName: string,
+  circuitKey: number | null,
   drivers: Map<number, DriverInfo>,
 ): Promise<void> => {
   activeSession = {
@@ -109,6 +113,7 @@ export const initDemoSession = async (
     totalLapsProcessed: 0,
     lastUpdateLap: 0,
     baselinePath: null,
+    multiviewerPath: null,
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -119,20 +124,32 @@ export const initDemoSession = async (
       activeSession.totalLapsProcessed = existing.totalLapsProcessed
       activeSession.lastUpdateLap = existing.totalLapsProcessed
       console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
+
+      // Load cached MultiViewer outline if available.
+      if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
+        activeSession.multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
+        console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+      }
     }
   } catch (err) {
     console.error("⚠ Failed to load track map for demo:", err)
+  }
+
+  // Try to fetch MultiViewer outline if not cached.
+  if (!activeSession.multiviewerPath) {
+    await tryFetchMultiviewer(circuitKey, trackName)
   }
 
   startPositionBatching()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo" })
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 
-  // Emit existing trackmap if available.
-  if (activeSession.baselinePath && activeSession.baselinePath.length > 0) {
+  // Emit the best available track path (MultiViewer preferred, GPS fallback).
+  const displayPath = getDisplayPath()
+  if (displayPath && displayPath.length > 0) {
     emitToRoom(OPENF1_EVENTS.TRACKMAP, {
       trackName,
-      path: activeSession.baselinePath,
+      path: displayPath,
       pathVersion: activeSession.totalLapsProcessed,
       totalLapsProcessed: activeSession.totalLapsProcessed,
     })
@@ -196,8 +213,9 @@ const handleSessionMessage = async (msg: OpenF1SessionMsg): Promise<void> => {
 const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   console.log(`🏎️  New session detected: ${msg.session_name} (key: ${msg.session_key})`)
 
-  // Fetch meeting info for the track name.
+  // Fetch meeting info for the track name and circuit key.
   let trackName = msg.circuit_short_name || "Unknown"
+  let circuitKey: number | null = msg.circuit_key ?? null
   try {
     const token = await getOpenF1Token()
     const meetingRes = await axios.get<OpenF1Meeting[]>(
@@ -206,6 +224,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     )
     if (meetingRes.data.length > 0) {
       trackName = meetingRes.data[0].circuit_short_name || meetingRes.data[0].meeting_name
+      circuitKey = meetingRes.data[0].circuit_key ?? circuitKey
     }
   } catch (err) {
     console.error("⚠ Failed to fetch meeting info, using fallback track name:", err)
@@ -234,6 +253,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
 
   // Load existing track map from MongoDB.
   let baselinePath: { x: number; y: number }[] | null = null
+  let multiviewerPath: { x: number; y: number }[] | null = null
   let totalLapsProcessed = 0
   try {
     const existing = await Trackmap.findOne({ trackName })
@@ -241,6 +261,12 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
       totalLapsProcessed = existing.totalLapsProcessed
       console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${totalLapsProcessed} laps)`)
+
+      // Load cached MultiViewer outline if available.
+      if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
+        multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
+        console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+      }
     } else {
       console.log(`ℹ No existing track map for "${trackName}" — will generate from live data`)
     }
@@ -263,6 +289,12 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     totalLapsProcessed,
     lastUpdateLap: totalLapsProcessed,
     baselinePath,
+    multiviewerPath,
+  }
+
+  // Try to fetch MultiViewer outline if not cached.
+  if (!activeSession.multiviewerPath) {
+    await tryFetchMultiviewer(circuitKey, trackName)
   }
 
   // Start batched position emission.
@@ -278,11 +310,12 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   // Emit driver info.
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 
-  // Emit existing track map if we have one.
-  if (baselinePath && baselinePath.length > 0) {
+  // Emit the best available track path (MultiViewer preferred, GPS fallback).
+  const displayPath = getDisplayPath()
+  if (displayPath && displayPath.length > 0) {
     emitToRoom(OPENF1_EVENTS.TRACKMAP, {
       trackName,
-      path: baselinePath,
+      path: displayPath,
       pathVersion: totalLapsProcessed,
       totalLapsProcessed,
     })
@@ -427,10 +460,12 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
   activeSession.totalLapsProcessed = validatedLaps.length
   activeSession.lastUpdateLap = validatedLaps.length
 
-  // Emit the updated track map to all subscribers.
+  // Emit the best available track path. If we have a MultiViewer outline, keep using
+  // it for display; the GPS path is still maintained as the reference for position mapping.
+  const displayPath = getDisplayPath()
   emitToRoom(OPENF1_EVENTS.TRACKMAP, {
     trackName: activeSession.trackName,
-    path: newPath,
+    path: displayPath || newPath,
     pathVersion: validatedLaps.length,
     totalLapsProcessed: validatedLaps.length,
   })
@@ -499,14 +534,73 @@ const saveTrackMap = async (): Promise<void> => {
   }
 }
 
+// ─── MultiViewer Integration ─────────────────────────────────────
+
+// Returns the best available display path: MultiViewer if available, GPS fallback otherwise.
+const getDisplayPath = (): { x: number; y: number }[] | null => {
+  if (!activeSession) return null
+  return activeSession.multiviewerPath || activeSession.baselinePath
+}
+
+// Attempts to fetch a high-fidelity track outline from the MultiViewer API.
+// Uses the shared circuit key (identical between OpenF1 and MultiViewer).
+// On success, stores the path in the active session and caches it in MongoDB.
+const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string): Promise<void> => {
+  if (!activeSession) return
+
+  // No circuit key available — fall back to GPS-derived track.
+  if (circuitKey === null) {
+    console.log(`ℹ No circuit key for "${trackName}" — using GPS track`)
+    return
+  }
+
+  try {
+    const mvData = await fetchTrackOutline(circuitKey, new Date().getFullYear())
+    if (!mvData || mvData.path.length === 0) {
+      console.log(`ℹ MultiViewer returned no track data for "${trackName}" (key ${circuitKey}) — using GPS track`)
+      return
+    }
+
+    activeSession.multiviewerPath = mvData.path
+    console.log(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points)`)
+
+    // Cache the MultiViewer data in MongoDB for future sessions.
+    try {
+      await Trackmap.updateOne(
+        { trackName },
+        {
+          $set: {
+            multiviewerPath: mvData.path,
+            multiviewerCircuitKey: circuitKey,
+            updated_at: new Date().toISOString(),
+          },
+        },
+        { upsert: false },
+      )
+    } catch (cacheErr) {
+      console.error("⚠ Failed to cache MultiViewer data in MongoDB:", cacheErr)
+    }
+  } catch (err) {
+    console.error("⚠ MultiViewer track fetch failed, using GPS fallback:", err)
+  }
+}
+
 // ─── Position Batching ───────────────────────────────────────────
 
 // Starts a timer that emits batched car positions to the frontend at ~10fps.
+// When a MultiViewer track outline is active, car GPS positions are mapped
+// through track progress so they align with the display path.
 const startPositionBatching = (): void => {
   stopPositionBatching()
 
   positionBatchTimer = setInterval(() => {
     if (!activeSession || activeSession.currentPositions.size === 0) return
+
+    // Determine coordinate mapping: if MultiViewer is active and we have a GPS
+    // reference path, map car positions through track progress.
+    const displayPath = activeSession.multiviewerPath
+    const referencePath = activeSession.baselinePath
+    const shouldMap = displayPath && referencePath && displayPath !== referencePath
 
     // Build the position payload.
     const positions: CarPositionPayload[] = []
@@ -515,10 +609,21 @@ const startPositionBatching = (): void => {
       const driver = activeSession!.drivers.get(driverNumber)
       if (!driver) return
 
+      let displayX = pos.x
+      let displayY = pos.y
+
+      // Map GPS coordinates to MultiViewer coordinates via track progress.
+      if (shouldMap) {
+        const progress = computeTrackProgress(pos.x, pos.y, referencePath)
+        const mapped = mapProgressToPoint(progress, displayPath)
+        displayX = mapped.x
+        displayY = mapped.y
+      }
+
       positions.push({
         driverNumber,
-        x: pos.x,
-        y: pos.y,
+        x: displayX,
+        y: displayY,
         nameAcronym: driver.nameAcronym,
         fullName: driver.fullName,
         teamName: driver.teamName,

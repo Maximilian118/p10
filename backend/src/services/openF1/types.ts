@@ -42,6 +42,7 @@ export interface OpenF1SessionMsg {
   date_start: string | null
   date_end: string | null
   circuit_short_name: string | null
+  circuit_key: number | null
   _key: string
   _id: number
 }
@@ -123,4 +124,6 @@ export interface SessionState {
   totalLapsProcessed: number
   lastUpdateLap: number
   baselinePath: { x: number; y: number }[] | null
+  // MultiViewer high-fidelity track outline (null if unavailable — GPS path used as fallback).
+  multiviewerPath: { x: number; y: number }[] | null
 }

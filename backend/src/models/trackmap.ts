@@ -27,6 +27,8 @@ export interface TrackmapType {
   pathVersion: number              // Increments on each refinement
   totalLapsProcessed: number       // Number of fast laps that contributed to the path
   history: TrackmapHistoryEntry[]  // Archived versions from previous years
+  multiviewerPath: TrackmapPoint[] // Cached MultiViewer high-fidelity track outline
+  multiviewerCircuitKey: number | null // MultiViewer circuit key for cache invalidation
   created_at: string
   updated_at: string
   _doc: TrackmapType
@@ -62,6 +64,8 @@ const trackmapSchema = new mongoose.Schema<TrackmapType>({
   pathVersion: { type: Number, default: 0 },
   totalLapsProcessed: { type: Number, default: 0 },
   history: { type: [trackmapHistorySchema], default: [] },
+  multiviewerPath: { type: [trackmapPointSchema], default: [] },
+  multiviewerCircuitKey: { type: Number, default: null },
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })

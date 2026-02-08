@@ -193,8 +193,19 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
   // the transition is suppressed so dots don't slide from the SVG origin.
   const seenDrivers = useRef<Set<number>>(new Set())
 
+  // Negate Y to convert from math coordinates (Y-up) to SVG coordinates (Y-down).
+  const svgTrackPath = useMemo(
+    () => trackPath?.map((p) => ({ x: p.x, y: -p.y })) ?? null,
+    [trackPath],
+  )
+
+  const svgCarPositions = useMemo(
+    () => carPositions.map((c) => ({ ...c, y: -c.y })),
+    [carPositions],
+  )
+
   // No data state.
-  const hasData = trackPath && trackPath.length > 0
+  const hasData = svgTrackPath && svgTrackPath.length > 0
 
   // Fire the onTrackReady callback once when track data first arrives.
   useEffect(() => {
@@ -207,42 +218,42 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
   // Clean up seenDrivers when drivers leave so that re-appearing drivers
   // get the no-transition initial placement again.
   useEffect(() => {
-    const currentDrivers = new Set(carPositions.map((c) => c.driverNumber))
+    const currentDrivers = new Set(svgCarPositions.map((c) => c.driverNumber))
     seenDrivers.current.forEach((dn) => {
       if (!currentDrivers.has(dn)) seenDrivers.current.delete(dn)
     })
-  }, [carPositions])
+  }, [svgCarPositions])
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
-    () => (trackPath ? buildSvgPath(trackPath) : ""),
-    [trackPath],
+    () => (svgTrackPath ? buildSvgPath(svgTrackPath) : ""),
+    [svgTrackPath],
   )
 
   // Memoize the rotation angle from PCA.
   const rotationAngle = useMemo(
-    () => (trackPath ? computeRotationAngle(trackPath) : 0),
-    [trackPath],
+    () => (svgTrackPath ? computeRotationAngle(svgTrackPath) : 0),
+    [svgTrackPath],
   )
 
   // Memoize the centroid for rotation transforms.
   const centroid = useMemo(
-    () => (trackPath ? computeCentroid(trackPath) : { cx: 0, cy: 0 }),
-    [trackPath],
+    () => (svgTrackPath ? computeCentroid(svgTrackPath) : { cx: 0, cy: 0 }),
+    [svgTrackPath],
   )
 
   // Memoize the viewBox from the rotated track path bounds.
   const viewBox = useMemo(
-    () => (trackPath ? computeViewBox(trackPath, rotationAngle, centroid.cx, centroid.cy) : "0 0 100 100"),
-    [trackPath, rotationAngle, centroid],
+    () => (svgTrackPath ? computeViewBox(svgTrackPath, rotationAngle, centroid.cx, centroid.cy) : "0 0 100 100"),
+    [svgTrackPath, rotationAngle, centroid],
   )
 
   // Memoize the dot radius.
-  const dotRadius = useMemo(() => computeDotRadius(trackPath), [trackPath])
+  const dotRadius = useMemo(() => computeDotRadius(svgTrackPath), [svgTrackPath])
   const strokeWidth = dotRadius * 0.3
 
   // Track stroke width relative to dot size.
-  const trackStrokeWidth = dotRadius * 2
+  const trackStrokeWidth = dotRadius * 1.2
 
   const showNoSession = !demoMode && !sessionActive && !hasData
 
@@ -287,7 +298,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
             />
 
             {/* Car dots — positioned via CSS transform, animated via CSS transition */}
-            {carPositions.map((car) => {
+            {svgCarPositions.map((car) => {
               const isNew = !seenDrivers.current.has(car.driverNumber)
               if (isNew) seenDrivers.current.add(car.driverNumber)
               return (
