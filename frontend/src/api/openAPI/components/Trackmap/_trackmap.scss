@@ -33,11 +33,30 @@
     &--no-transition {
       transition: none;
     }
+
+    // Path-locked mode: JS rAF loop handles animation at 60fps.
+    // CSS transitions are disabled to prevent fighting the JS-driven updates.
+    &--path-locked {
+      transition: none;
+      will-change: transform;
+    }
   }
 
   // Car dot circle — handles interactive styles only.
   .car-dot {
     cursor: pointer;
+  }
+
+  // Corner number labels — non-interactive, subtly visible over the track.
+  .corner-label {
+    fill: rgba(255, 255, 255, 0.65);
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  // Sector boundary lines — non-interactive overlays.
+  .sector-line {
+    pointer-events: none;
   }
 
   // Status text shown when no data or connecting.

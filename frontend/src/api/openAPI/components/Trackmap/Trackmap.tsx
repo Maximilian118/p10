@@ -1,6 +1,8 @@
-import React, { useMemo, useEffect, useRef } from "react"
+import React, { useMemo, useEffect, useRef, useCallback } from "react"
 import useTrackmap from "../../useTrackmap"
+import usePathLockedPositions from "./usePathLockedPositions"
 import FillLoading from "../../../../components/utility/fillLoading/FillLoading"
+import { computeArcLengths, getPointAndTangentAtProgress } from "./trackPathUtils"
 import "./_trackmap.scss"
 
 interface TrackmapProps {
@@ -26,6 +28,7 @@ interface CarDotProps {
   dotRadius: number
   strokeWidth: number
   isNew: boolean
+  pathLocked: boolean
   onSelect?: (driver: {
     driverNumber: number
     nameAcronym: string
@@ -35,36 +38,44 @@ interface CarDotProps {
   }) => void
 }
 
-// Renders a single car dot positioned via CSS transform. The parent SCSS rule
-// applies `transition: transform 800ms linear` for GPU-accelerated smooth
-// interpolation between position updates (~3.7 Hz from OpenF1). The transition
-// duration is intentionally longer than the update interval so dots are always
-// mid-transition and never stop moving.
-const CarDot = React.memo<CarDotProps>(({
+// Renders a single car dot positioned via CSS transform.
+// In CSS mode: `transition: transform 800ms linear` handles smooth interpolation.
+// In path-locked mode: rAF loop writes transform directly to the DOM element via
+// the forwarded ref — React does not set style.transform (rAF is sole owner).
+const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
   driverNumber, x, y, teamColour, nameAcronym, fullName, teamName,
-  dotRadius, strokeWidth, isNew, onSelect,
-}) => (
-  <g
-    className={`car-dot-group${isNew ? " car-dot-group--no-transition" : ""}`}
-    style={{ transform: `translate(${x}px, ${y}px)` }}
-  >
-    <circle
-      r={dotRadius}
-      fill={`#${teamColour}`}
-      stroke="#ffffff"
-      strokeWidth={strokeWidth}
-      className="car-dot"
-      onClick={() => onSelect?.({
-        driverNumber, nameAcronym, fullName, teamName, teamColour,
-      })}
-    />
-  </g>
-), (prev, next) =>
+  dotRadius, strokeWidth, isNew, pathLocked, onSelect,
+}, ref) => {
+  // Build class name based on mode.
+  let className = "car-dot-group"
+  if (isNew) className += " car-dot-group--no-transition"
+  else if (pathLocked) className += " car-dot-group--path-locked"
+
+  return (
+    <g
+      ref={ref}
+      className={className}
+      style={pathLocked ? undefined : { transform: `translate(${x}px, ${y}px)` }}
+    >
+      <circle
+        r={dotRadius}
+        fill={`#${teamColour}`}
+        stroke="#ffffff"
+        strokeWidth={strokeWidth}
+        className="car-dot"
+        onClick={() => onSelect?.({
+          driverNumber, nameAcronym, fullName, teamName, teamColour,
+        })}
+      />
+    </g>
+  )
+}), (prev, next) =>
   prev.x === next.x
   && prev.y === next.y
   && prev.teamColour === next.teamColour
   && prev.dotRadius === next.dotRadius
   && prev.isNew === next.isNew
+  && prev.pathLocked === next.pathLocked
 )
 
 // Converts an array of {x, y} points into an SVG path string.
@@ -181,12 +192,17 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
   return Math.max(50, trackExtent * 0.015)
 }
 
+// computeArcLengths and getPointAndTangentAtProgress imported from trackPathUtils.
+
 // Renders a live F1 track map as SVG with car position dots.
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
 const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackReady }) => {
-  const { trackPath, carPositions, sessionActive, trackName, connectionStatus, demoPhase } = useTrackmap()
+  const {
+    trackPath, carPositions, sessionActive, trackName,
+    corners, sectorBoundaries, connectionStatus, demoPhase,
+  } = useTrackmap()
   const trackReadyFired = useRef(false)
 
   // Tracks which drivers have rendered at least once. On initial appearance
@@ -203,6 +219,29 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
     () => carPositions.map((c) => ({ ...c, y: -c.y })),
     [carPositions],
   )
+
+  // Detect path-locked mode: backend sends progress values when MultiViewer is active.
+  const hasProgress = carPositions.some((c) => c.progress !== undefined)
+
+  // Path-locked animation: rAF loop writes transforms directly to DOM elements.
+  // Returns a ref-registration callback (no React state — zero render overhead).
+  const { registerDot } = usePathLockedPositions(
+    hasProgress ? carPositions : [],
+    hasProgress ? svgTrackPath : null,
+  )
+
+  // Stable ref callback map — returns the same function reference for a given
+  // driver number across renders, preventing React from unregistering/re-registering
+  // DOM elements on every position update.
+  const dotRefCallbacks = useRef<Map<number, (el: SVGGElement | null) => void>>(new Map())
+  const getDotRef = useCallback((driverNumber: number) => {
+    let cb = dotRefCallbacks.current.get(driverNumber)
+    if (!cb) {
+      cb = (el: SVGGElement | null) => registerDot(driverNumber, el)
+      dotRefCallbacks.current.set(driverNumber, cb)
+    }
+    return cb
+  }, [registerDot])
 
   // No data state.
   const hasData = svgTrackPath && svgTrackPath.length > 0
@@ -255,6 +294,48 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
   // Track stroke width relative to dot size.
   const trackStrokeWidth = dotRadius * 1.2
 
+  // Y-negate corner positions to match SVG coordinate space (Y-down).
+  const svgCorners = useMemo(
+    () => corners?.map((c) => ({ number: c.number, x: c.trackPosition.x, y: -c.trackPosition.y })) ?? null,
+    [corners],
+  )
+
+  // Computes sector line endpoints perpendicular to the track at each boundary.
+  const sectorLineData = useMemo(() => {
+    if (!svgTrackPath || !sectorBoundaries) return []
+
+    const arcLengths = computeArcLengths(svgTrackPath)
+    const halfLen = trackStrokeWidth * 0.8
+
+    const boundaries = [
+      { progress: sectorBoundaries.startFinish, color: "#e53935", key: "start-finish" },
+      { progress: sectorBoundaries.sector1_2, color: "#000000", key: "sector-1-2" },
+      { progress: sectorBoundaries.sector2_3, color: "#000000", key: "sector-2-3" },
+    ]
+
+    return boundaries.reduce<{ x1: number; y1: number; x2: number; y2: number; color: string; key: string }[]>(
+      (lines, { progress, color, key }) => {
+        const result = getPointAndTangentAtProgress(svgTrackPath, arcLengths, progress)
+        if (!result) return lines
+
+        // Perpendicular direction (90° rotation of tangent).
+        const perpX = -result.tangent.dy
+        const perpY = result.tangent.dx
+
+        lines.push({
+          x1: result.point.x - perpX * halfLen,
+          y1: result.point.y - perpY * halfLen,
+          x2: result.point.x + perpX * halfLen,
+          y2: result.point.y + perpY * halfLen,
+          color,
+          key,
+        })
+        return lines
+      },
+      [],
+    )
+  }, [svgTrackPath, sectorBoundaries, trackStrokeWidth])
+
   const showNoSession = !demoMode && !sessionActive && !hasData
 
   // Demo mode: show spinner while backend is fetching data or waiting for track to build.
@@ -297,16 +378,48 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
               fill="none"
             />
 
-            {/* Car dots — positioned via CSS transform, animated via CSS transition */}
+            {/* Sector boundary lines — perpendicular to track at each boundary */}
+            {sectorLineData.map((line) => (
+              <line
+                key={line.key}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke={line.color}
+                strokeWidth={trackStrokeWidth * 0.2}
+                strokeLinecap="round"
+                className="sector-line"
+              />
+            ))}
+
+            {/* Corner number labels */}
+            {svgCorners?.map((corner) => (
+              <text
+                key={`corner-${corner.number}`}
+                x={corner.x}
+                y={corner.y}
+                transform={`rotate(${-rotationAngle}, ${corner.x}, ${corner.y})`}
+                className="corner-label"
+                fontSize={dotRadius * 0.8}
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                {corner.number}
+              </text>
+            ))}
+
+            {/* Car dots — path-locked (rAF via direct DOM) when progress available, CSS transitions otherwise */}
             {svgCarPositions.map((car) => {
               const isNew = !seenDrivers.current.has(car.driverNumber)
               if (isNew) seenDrivers.current.add(car.driverNumber)
               return (
                 <CarDot
                   key={car.driverNumber}
+                  ref={hasProgress ? getDotRef(car.driverNumber) : undefined}
                   driverNumber={car.driverNumber}
-                  x={car.x}
-                  y={car.y}
+                  x={hasProgress ? 0 : car.x}
+                  y={hasProgress ? 0 : car.y}
                   teamColour={car.teamColour}
                   nameAcronym={car.nameAcronym}
                   fullName={car.fullName}
@@ -314,6 +427,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
                   dotRadius={dotRadius}
                   strokeWidth={strokeWidth}
                   isNew={isNew}
+                  pathLocked={hasProgress}
                   onSelect={onDriverSelect}
                 />
               )

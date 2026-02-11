@@ -225,7 +225,7 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
         startIcon={<PlayCircleOutlineIcon />}
         disabled={!champ.series.hasAPI}
       >
-        Demo Mode
+        Demo
       </Button>
       <div className="switches">
         <MUISwitch

@@ -8,6 +8,19 @@ export interface TrackmapPoint {
   y: number
 }
 
+// Corner label from MultiViewer track data.
+export interface TrackmapCorner {
+  number: number
+  trackPosition: TrackmapPoint
+}
+
+// Sector boundary positions as track progress values (0-1).
+export interface TrackmapSectorBoundaries {
+  startFinish: number
+  sector1_2: number
+  sector2_3: number
+}
+
 // An archived version of a track map from a previous year.
 export interface TrackmapHistoryEntry {
   path: TrackmapPoint[]
@@ -29,6 +42,8 @@ export interface TrackmapType {
   history: TrackmapHistoryEntry[]  // Archived versions from previous years
   multiviewerPath: TrackmapPoint[] // Cached MultiViewer high-fidelity track outline
   multiviewerCircuitKey: number | null // MultiViewer circuit key for cache invalidation
+  corners: TrackmapCorner[]            // Cached MultiViewer corner labels
+  sectorBoundaries: TrackmapSectorBoundaries | null // Derived sector boundary progress values
   created_at: string
   updated_at: string
   _doc: TrackmapType
@@ -39,6 +54,25 @@ const trackmapPointSchema = new mongoose.Schema<TrackmapPoint>(
   {
     x: { type: Number, required: true },
     y: { type: Number, required: true },
+  },
+  { _id: false },
+)
+
+// Sub-schema for a MultiViewer corner label.
+const trackmapCornerSchema = new mongoose.Schema<TrackmapCorner>(
+  {
+    number: { type: Number, required: true },
+    trackPosition: { type: trackmapPointSchema, required: true },
+  },
+  { _id: false },
+)
+
+// Sub-schema for sector boundary progress values.
+const sectorBoundariesSchema = new mongoose.Schema<TrackmapSectorBoundaries>(
+  {
+    startFinish: { type: Number, required: true },
+    sector1_2: { type: Number, required: true },
+    sector2_3: { type: Number, required: true },
   },
   { _id: false },
 )
@@ -66,6 +100,8 @@ const trackmapSchema = new mongoose.Schema<TrackmapType>({
   history: { type: [trackmapHistorySchema], default: [] },
   multiviewerPath: { type: [trackmapPointSchema], default: [] },
   multiviewerCircuitKey: { type: Number, default: null },
+  corners: { type: [trackmapCornerSchema], default: [] },
+  sectorBoundaries: { type: sectorBoundariesSchema, default: null },
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })

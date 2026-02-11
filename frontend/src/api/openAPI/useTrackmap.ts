@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useContext } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
 import AppContext from "../../context"
 import { getTrackmap } from "./requests/trackmapRequests"
-import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo } from "./types"
+import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo, Corner, SectorBoundaries } from "./types"
 
 // Socket.IO event names (must match backend OPENF1_EVENTS).
 const EVENTS = {
@@ -24,6 +24,8 @@ export interface UseTrackmapResult {
   sessionActive: boolean
   trackName: string
   drivers: OpenF1DriverInfo[]
+  corners: Corner[] | null
+  sectorBoundaries: SectorBoundaries | null
   connectionStatus: TrackmapConnectionStatus
   demoPhase: DemoPhase
   demoRemainingMs: number
@@ -40,6 +42,8 @@ const useTrackmap = (): UseTrackmapResult => {
   const [sessionActive, setSessionActive] = useState(false)
   const [trackName, setTrackName] = useState("")
   const [drivers, setDrivers] = useState<OpenF1DriverInfo[]>([])
+  const [corners, setCorners] = useState<Corner[] | null>(null)
+  const [sectorBoundaries, setSectorBoundaries] = useState<SectorBoundaries | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
   const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
   const [demoRemainingMs, setDemoDurationMs] = useState(0)
@@ -82,6 +86,8 @@ const useTrackmap = (): UseTrackmapResult => {
         setTrackPath(data.path)
         setTrackName(data.trackName)
       }
+      setCorners(data.corners ?? null)
+      setSectorBoundaries(data.sectorBoundaries ?? null)
     }
 
     // Handle batched car position updates. CSS transitions on CarDot handle
@@ -129,6 +135,8 @@ const useTrackmap = (): UseTrackmapResult => {
     sessionActive,
     trackName,
     drivers,
+    corners,
+    sectorBoundaries,
     connectionStatus,
     demoPhase,
     demoRemainingMs,

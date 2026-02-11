@@ -89,10 +89,24 @@ export interface CarPositionPayload {
   driverNumber: number
   x: number
   y: number
+  progress?: number
   nameAcronym: string
   fullName: string
   teamName: string
   teamColour: string
+}
+
+// Corner label position from MultiViewer track data.
+export interface Corner {
+  number: number
+  trackPosition: { x: number; y: number }
+}
+
+// Sector boundary positions stored as track progress values (0-1).
+export interface SectorBoundaries {
+  startFinish: number
+  sector1_2: number
+  sector2_3: number
 }
 
 // Validated lap used for track map construction.
@@ -126,4 +140,13 @@ export interface SessionState {
   baselinePath: { x: number; y: number }[] | null
   // MultiViewer high-fidelity track outline (null if unavailable — GPS path used as fallback).
   multiviewerPath: { x: number; y: number }[] | null
+  // Corner positions from MultiViewer (null if unavailable or GPS-only map).
+  corners: Corner[] | null
+  // Computed sector boundary progress values (null until enough data is available).
+  sectorBoundaries: SectorBoundaries | null
+  // Whether this session is a demo replay (skips incremental track rebuilding).
+  isDemo: boolean
+  // Pre-computed arc-length tables for GPS and MultiViewer paths (cached to avoid per-tick recomputation).
+  baselineArcLengths: number[] | null
+  multiviewerArcLengths: number[] | null
 }

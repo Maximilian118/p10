@@ -1,6 +1,6 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
-import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, OPENF1_EVENTS } from "./sessionManager"
+import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, buildTrackFromDemoData, OPENF1_EVENTS } from "./sessionManager"
 import { OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo } from "./types"
 import DemoSession from "../../models/demoSession"
 
@@ -18,7 +18,7 @@ let replayMessages: { topic: string; data: unknown; timestamp: number }[] = []
 let replayIndex = 0
 let replayStartTime = 0
 let replayBaseTime = 0
-let replaySpeed = 2
+let replaySpeed = 4
 let replayActive = false
 let replaySessionKey = 0
 let replayTrackName = ""
@@ -155,7 +155,7 @@ const fetchFromAPI = async (
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
-const MAX_STORED_BYTES = 12 * 1024 * 1024
+const MAX_STORED_BYTES = 6 * 1024 * 1024
 
 // Trims a full message queue to a mid-session snapshot that fits in one document.
 // Discards location/lap data before the session midpoint, keeps session/driver preamble,
@@ -261,7 +261,7 @@ export const startDemoReplay = async (
   const thisGeneration = replayGeneration
 
   replaySessionKey = sessionKey || DEFAULT_SESSION_KEY
-  replaySpeed = speed || 2
+  replaySpeed = speed || 4
 
   console.log(`🎬 Starting demo replay for session ${replaySessionKey} at ${replaySpeed}x speed...`)
 
@@ -292,7 +292,12 @@ export const startDemoReplay = async (
       }
     }
 
-    // Initialize session directly — no OpenF1 API calls, loads trackmap from MongoDB.
+    // Build GPS track from the current demo's data. This ensures the GPS baseline
+    // in MongoDB matches the current session's coordinate system. Skips instantly
+    // if already built from the same session key.
+    await buildTrackFromDemoData(messages, trackName, replaySessionKey)
+
+    // Initialize session — loads trackmap from MongoDB (GPS path now matches current session).
     await initDemoSession(replaySessionKey, trackName, circuitKey, drivers)
 
     // Abort if a newer replay was started while we were loading/initializing.

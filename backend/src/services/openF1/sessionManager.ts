@@ -15,7 +15,8 @@ import {
 } from "./types"
 import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } from "./trackmapBuilder"
 import { fetchTrackOutline } from "./multiviewerClient"
-import { computeTrackProgress, mapProgressToPoint } from "./trackProgress"
+import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
+import { computeSectorBoundaries } from "./sectorBoundaries"
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -72,6 +73,8 @@ export const initSessionManager = (io: Server): void => {
             path: displayPath,
             pathVersion: activeSession.totalLapsProcessed,
             totalLapsProcessed: activeSession.totalLapsProcessed,
+            corners: activeSession.corners,
+            sectorBoundaries: activeSession.sectorBoundaries,
           })
         }
       } else {
@@ -114,6 +117,11 @@ export const initDemoSession = async (
     lastUpdateLap: 0,
     baselinePath: null,
     multiviewerPath: null,
+    corners: null,
+    sectorBoundaries: null,
+    isDemo: true,
+    baselineArcLengths: null,
+    multiviewerArcLengths: null,
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -121,6 +129,7 @@ export const initDemoSession = async (
     const existing = await Trackmap.findOne({ trackName })
     if (existing && existing.path.length > 0) {
       activeSession.baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
+      activeSession.baselineArcLengths = computeArcLengths(activeSession.baselinePath)
       activeSession.totalLapsProcessed = existing.totalLapsProcessed
       activeSession.lastUpdateLap = existing.totalLapsProcessed
       console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
@@ -128,7 +137,16 @@ export const initDemoSession = async (
       // Load cached MultiViewer outline if available.
       if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
         activeSession.multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
+        activeSession.multiviewerArcLengths = computeArcLengths(activeSession.multiviewerPath)
         console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+      }
+
+      // Load cached corners and sector boundaries.
+      if (existing.corners && existing.corners.length > 0) {
+        activeSession.corners = existing.corners.map((c) => ({ number: c.number, trackPosition: { x: c.trackPosition.x, y: c.trackPosition.y } }))
+      }
+      if (existing.sectorBoundaries) {
+        activeSession.sectorBoundaries = existing.sectorBoundaries
       }
     }
   } catch (err) {
@@ -152,6 +170,8 @@ export const initDemoSession = async (
       path: displayPath,
       pathVersion: activeSession.totalLapsProcessed,
       totalLapsProcessed: activeSession.totalLapsProcessed,
+      corners: activeSession.corners,
+      sectorBoundaries: activeSession.sectorBoundaries,
     })
   }
 }
@@ -254,6 +274,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   // Load existing track map from MongoDB.
   let baselinePath: { x: number; y: number }[] | null = null
   let multiviewerPath: { x: number; y: number }[] | null = null
+  let corners: { number: number; trackPosition: { x: number; y: number } }[] | null = null
+  let sectorBoundaries: { startFinish: number; sector1_2: number; sector2_3: number } | null = null
   let totalLapsProcessed = 0
   try {
     const existing = await Trackmap.findOne({ trackName })
@@ -266,6 +288,14 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
         multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
         console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+      }
+
+      // Load cached corners and sector boundaries.
+      if (existing.corners && existing.corners.length > 0) {
+        corners = existing.corners.map((c) => ({ number: c.number, trackPosition: { x: c.trackPosition.x, y: c.trackPosition.y } }))
+      }
+      if (existing.sectorBoundaries) {
+        sectorBoundaries = existing.sectorBoundaries
       }
     } else {
       console.log(`ℹ No existing track map for "${trackName}" — will generate from live data`)
@@ -290,6 +320,11 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     lastUpdateLap: totalLapsProcessed,
     baselinePath,
     multiviewerPath,
+    corners,
+    sectorBoundaries,
+    isDemo: false,
+    baselineArcLengths: baselinePath ? computeArcLengths(baselinePath) : null,
+    multiviewerArcLengths: multiviewerPath ? computeArcLengths(multiviewerPath) : null,
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -318,6 +353,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       path: displayPath,
       pathVersion: totalLapsProcessed,
       totalLapsProcessed,
+      corners: activeSession.corners,
+      sectorBoundaries: activeSession.sectorBoundaries,
     })
   }
 }
@@ -384,12 +421,15 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
     }
   }
 
-  // Check if we should rebuild the track map.
-  const allLaps = Array.from(activeSession.completedLaps.values())
-  const fastLaps = filterFastLaps(allLaps, activeSession.bestLapTime)
+  // Rebuild the track map incrementally (live sessions only).
+  // Demo sessions skip this — buildTrackFromDemoData handles it in one batch.
+  if (!activeSession.isDemo) {
+    const allLaps = Array.from(activeSession.completedLaps.values())
+    const fastLaps = filterFastLaps(allLaps, activeSession.bestLapTime)
 
-  if (fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)) {
-    await rebuildTrackMap(fastLaps)
+    if (fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)) {
+      await rebuildTrackMap(fastLaps)
+    }
   }
 }
 
@@ -455,10 +495,29 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     console.log(`✓ Initial track map generated for "${activeSession.trackName}" (${validatedLaps.length} fast laps)`)
   }
 
-  // Update session state.
+  // Update session state and recompute arc-length cache for the new path.
   activeSession.baselinePath = newPath
+  activeSession.baselineArcLengths = computeArcLengths(newPath)
   activeSession.totalLapsProcessed = validatedLaps.length
   activeSession.lastUpdateLap = validatedLaps.length
+
+  // Attempt to compute sector boundaries if not yet determined.
+  if (!activeSession.sectorBoundaries) {
+    const allLaps = Array.from(activeSession.completedLaps.values())
+    // Flatten positionsByDriverLap into a single positions array per driver.
+    const flatPositions = new Map<number, { x: number; y: number; date: string }[]>()
+    activeSession.positionsByDriverLap.forEach((lapMap, driverNum) => {
+      const all: { x: number; y: number; date: string }[] = []
+      lapMap.forEach((positions) => all.push(...positions))
+      all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      flatPositions.set(driverNum, all)
+    })
+    const boundaries = computeSectorBoundaries(allLaps, flatPositions, newPath)
+    if (boundaries) {
+      activeSession.sectorBoundaries = boundaries
+      console.log(`✓ Sector boundaries computed for "${activeSession.trackName}"`)
+    }
+  }
 
   // Emit the best available track path. If we have a MultiViewer outline, keep using
   // it for display; the GPS path is still maintained as the reference for position mapping.
@@ -468,6 +527,8 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     path: displayPath || newPath,
     pathVersion: validatedLaps.length,
     totalLapsProcessed: validatedLaps.length,
+    corners: activeSession.corners,
+    sectorBoundaries: activeSession.sectorBoundaries,
   })
 
   // Persist to MongoDB.
@@ -511,6 +572,7 @@ const saveTrackMap = async (): Promise<void> => {
         existing.meetingKeys.push(activeSession.meetingKey)
       }
 
+      existing.sectorBoundaries = activeSession.sectorBoundaries || existing.sectorBoundaries
       existing.updated_at = now
       await existing.save()
     } else {
@@ -523,6 +585,7 @@ const saveTrackMap = async (): Promise<void> => {
         path: activeSession.baselinePath,
         pathVersion: 1,
         totalLapsProcessed: activeSession.totalLapsProcessed,
+        sectorBoundaries: activeSession.sectorBoundaries,
         history: [],
         created_at: now,
         updated_at: now,
@@ -531,6 +594,174 @@ const saveTrackMap = async (): Promise<void> => {
     }
   } catch (err) {
     console.error("✗ Failed to save track map to database:", err)
+  }
+}
+
+// ─── Batch Track Building (Demo) ──────────────────────────────────
+
+// Builds a GPS track from historical demo session data in one batch calculation.
+// Extracts all v1/laps and v1/location messages, assigns positions to laps by
+// time window, filters fast laps, and runs the standard track-building pipeline.
+// Saves the result to MongoDB alongside the existing MultiViewer track (if any).
+export const buildTrackFromDemoData = async (
+  messages: { topic: string; data: unknown; timestamp: number }[],
+  trackName: string,
+  sessionKey: number,
+): Promise<void> => {
+  // Skip if the track already has a GPS path built from the SAME session.
+  // Different sessions for the same circuit use different GPS coordinate systems,
+  // so we must rebuild when the session key changes.
+  const existing = await Trackmap.findOne({ trackName })
+  if (existing && existing.latestSessionKey === sessionKey && existing.totalLapsProcessed >= 5) {
+    console.log(`ℹ GPS track for "${trackName}" already built from session ${sessionKey} — skipping batch build`)
+    return
+  }
+
+  // Extract all lap messages.
+  const allLaps: OpenF1LapMsg[] = messages
+    .filter((m) => m.topic === "v1/laps")
+    .map((m) => m.data as OpenF1LapMsg)
+
+  if (allLaps.length === 0) {
+    console.log(`ℹ No lap data in demo messages for "${trackName}" — skipping batch build`)
+    return
+  }
+
+  // Extract all location messages grouped by driver number.
+  const positionsByDriver = new Map<number, { x: number; y: number; date: string }[]>()
+  messages
+    .filter((m) => m.topic === "v1/location")
+    .forEach((m) => {
+      const loc = m.data as OpenF1LocationMsg
+      if (!positionsByDriver.has(loc.driver_number)) {
+        positionsByDriver.set(loc.driver_number, [])
+      }
+      positionsByDriver.get(loc.driver_number)!.push({ x: loc.x, y: loc.y, date: loc.date })
+    })
+
+  // Sort each driver's positions chronologically.
+  positionsByDriver.forEach((positions) => {
+    positions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  })
+
+  // Compute best lap time for fast-lap filtering.
+  let bestLapTime = 0
+  allLaps.forEach((lap) => {
+    if (lap.lap_duration && lap.lap_duration > 0) {
+      if (bestLapTime === 0 || lap.lap_duration < bestLapTime) {
+        bestLapTime = lap.lap_duration
+      }
+    }
+  })
+
+  // Filter to only fast, complete laps.
+  const fastLaps = filterFastLaps(allLaps, bestLapTime)
+  if (fastLaps.length === 0) {
+    console.log(`ℹ No fast laps found in demo data for "${trackName}" — skipping batch build`)
+    return
+  }
+
+  // Sort fast laps by driver and lap number for sequential time-window assignment.
+  const lapsByDriver = new Map<number, OpenF1LapMsg[]>()
+  fastLaps.forEach((lap) => {
+    if (!lapsByDriver.has(lap.driver_number)) {
+      lapsByDriver.set(lap.driver_number, [])
+    }
+    lapsByDriver.get(lap.driver_number)!.push(lap)
+  })
+  lapsByDriver.forEach((laps) => {
+    laps.sort((a, b) => a.lap_number - b.lap_number)
+  })
+
+  // Build validated laps by assigning positions to each lap's time window.
+  const validatedLaps: ValidatedLap[] = []
+
+  lapsByDriver.forEach((laps, driverNumber) => {
+    const driverPositions = positionsByDriver.get(driverNumber)
+    if (!driverPositions || driverPositions.length === 0) return
+
+    laps.forEach((lap) => {
+      if (!lap.date_start || !lap.lap_duration) return
+
+      // Compute the lap's time window.
+      const lapStartMs = new Date(lap.date_start).getTime()
+      const lapEndMs = lapStartMs + lap.lap_duration * 1000
+
+      // Filter positions that fall within this lap's time window.
+      const lapPositions = driverPositions.filter((p) => {
+        const posMs = new Date(p.date).getTime()
+        return posMs >= lapStartMs && posMs <= lapEndMs
+      })
+
+      // Require a minimum number of positions to form a useful lap trace.
+      if (lapPositions.length < 10) return
+
+      validatedLaps.push({
+        driverNumber,
+        lapNumber: lap.lap_number,
+        lapDuration: lap.lap_duration,
+        positions: lapPositions,
+      })
+    })
+  })
+
+  if (validatedLaps.length === 0) {
+    console.log(`ℹ No validated laps with sufficient positions for "${trackName}" — skipping batch build`)
+    return
+  }
+
+  // Run the standard track-building pipeline (outlier removal → best lap → downsample → smooth).
+  const gpsPath = buildTrackPath(validatedLaps)
+  if (gpsPath.length === 0) return
+
+  // Compute sector boundaries from the demo data.
+  const sectorBounds = computeSectorBoundaries(allLaps, positionsByDriver, gpsPath)
+  if (sectorBounds) {
+    console.log(`✓ Sector boundaries computed for "${trackName}" from demo data`)
+  }
+
+  // Save to MongoDB — upsert so it works whether or not a document already exists.
+  const now = new Date().toISOString()
+  if (existing) {
+    existing.path = gpsPath
+    existing.totalLapsProcessed = validatedLaps.length
+    existing.latestSessionKey = sessionKey
+    existing.pathVersion += 1
+    existing.sectorBoundaries = sectorBounds || existing.sectorBoundaries
+    existing.updated_at = now
+    await existing.save()
+  } else {
+    await Trackmap.create({
+      trackName,
+      previousTrackNames: [],
+      meetingKeys: [],
+      latestSessionKey: sessionKey,
+      path: gpsPath,
+      pathVersion: 1,
+      totalLapsProcessed: validatedLaps.length,
+      sectorBoundaries: sectorBounds,
+      history: [],
+      created_at: now,
+      updated_at: now,
+    })
+  }
+
+  console.log(`✓ Built GPS track from demo data for "${trackName}" (${validatedLaps.length} laps, ${gpsPath.length} points)`)
+
+  // Update the active session with sector boundaries and emit updated trackmap.
+  if (activeSession && activeSession.trackName === trackName && sectorBounds) {
+    activeSession.sectorBoundaries = sectorBounds
+    const displayPath = getDisplayPath()
+    if (displayPath && displayPath.length > 0) {
+      emitToRoom(OPENF1_EVENTS.TRACKMAP, {
+        trackName,
+        path: displayPath,
+        pathVersion: activeSession.totalLapsProcessed,
+        totalLapsProcessed: activeSession.totalLapsProcessed,
+        corners: activeSession.corners,
+        sectorBoundaries: activeSession.sectorBoundaries,
+      })
+    }
   }
 }
 
@@ -562,7 +793,9 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
     }
 
     activeSession.multiviewerPath = mvData.path
-    console.log(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points)`)
+    activeSession.multiviewerArcLengths = computeArcLengths(mvData.path)
+    activeSession.corners = mvData.corners.length > 0 ? mvData.corners : null
+    console.log(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
 
     // Cache the MultiViewer data in MongoDB for future sessions.
     try {
@@ -572,6 +805,7 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
           $set: {
             multiviewerPath: mvData.path,
             multiviewerCircuitKey: circuitKey,
+            corners: mvData.corners || [],
             updated_at: new Date().toISOString(),
           },
         },
@@ -602,6 +836,10 @@ const startPositionBatching = (): void => {
     const referencePath = activeSession.baselinePath
     const shouldMap = displayPath && referencePath && displayPath !== referencePath
 
+    // Pre-cached arc-length tables for the hot path.
+    const baselineArc = activeSession.baselineArcLengths || undefined
+    const multiviewerArc = activeSession.multiviewerArcLengths || undefined
+
     // Build the position payload.
     const positions: CarPositionPayload[] = []
 
@@ -611,11 +849,12 @@ const startPositionBatching = (): void => {
 
       let displayX = pos.x
       let displayY = pos.y
+      let progress: number | undefined
 
-      // Map GPS coordinates to MultiViewer coordinates via track progress.
+      // Map GPS coordinates to MultiViewer coordinates via arc-length track progress.
       if (shouldMap) {
-        const progress = computeTrackProgress(pos.x, pos.y, referencePath)
-        const mapped = mapProgressToPoint(progress, displayPath)
+        progress = computeTrackProgress(pos.x, pos.y, referencePath, baselineArc)
+        const mapped = mapProgressToPoint(progress, displayPath, multiviewerArc)
         displayX = mapped.x
         displayY = mapped.y
       }
@@ -624,6 +863,7 @@ const startPositionBatching = (): void => {
         driverNumber,
         x: displayX,
         y: displayY,
+        ...(progress !== undefined && { progress }),
         nameAcronym: driver.nameAcronym,
         fullName: driver.fullName,
         teamName: driver.teamName,
