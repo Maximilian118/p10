@@ -305,7 +305,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
     if (!svgTrackPath || !sectorBoundaries) return []
 
     const arcLengths = computeArcLengths(svgTrackPath)
-    const halfLen = trackStrokeWidth * 0.8
+    const halfLen = trackStrokeWidth * 1.2
 
     const boundaries = [
       { progress: sectorBoundaries.startFinish, color: "#e53935", key: "start-finish" },
@@ -387,7 +387,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
                 x2={line.x2}
                 y2={line.y2}
                 stroke={line.color}
-                strokeWidth={trackStrokeWidth * 0.2}
+                strokeWidth={trackStrokeWidth * 0.35}
                 strokeLinecap="round"
                 className="sector-line"
               />
