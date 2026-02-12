@@ -1,18 +1,15 @@
-import React, { useMemo, useEffect, useRef, useCallback } from "react"
+import React, { useMemo, useEffect, useRef, useCallback, useState } from "react"
 import useTrackmap from "../../useTrackmap"
 import usePathLockedPositions from "./usePathLockedPositions"
-import FillLoading from "../../../../components/utility/fillLoading/FillLoading"
-import { computeArcLengths, getPointAndTangentAtProgress } from "./trackPathUtils"
+
+import { computeArcLengths, getPointAndTangentAtProgress, getSubPath, buildOpenSvgPath } from "./trackPathUtils"
+import { DriverLiveState, SectorBoundaries } from "../../types"
 import "./_trackmap.scss"
 
 interface TrackmapProps {
-  onDriverSelect?: (driver: {
-    driverNumber: number
-    nameAcronym: string
-    fullName: string
-    teamName: string
-    teamColour: string
-  } | null) => void
+  selectedDriverNumber?: number | null
+  onDriverSelect?: (driver: { driverNumber: number } | null) => void
+  onDriverStatesUpdate?: (states: DriverLiveState[]) => void
   demoMode?: boolean
   onTrackReady?: () => void
 }
@@ -22,34 +19,28 @@ interface CarDotProps {
   x: number
   y: number
   teamColour: string
-  nameAcronym: string
-  fullName: string
-  teamName: string
   dotRadius: number
   strokeWidth: number
   isNew: boolean
   pathLocked: boolean
-  onSelect?: (driver: {
-    driverNumber: number
-    nameAcronym: string
-    fullName: string
-    teamName: string
-    teamColour: string
-  }) => void
+  hidden: boolean
+  onSelect?: (driverNumber: number) => void
 }
 
 // Renders a single car dot positioned via CSS transform.
 // In CSS mode: `transition: transform 800ms linear` handles smooth interpolation.
 // In path-locked mode: rAF loop writes transform directly to the DOM element via
 // the forwarded ref — React does not set style.transform (rAF is sole owner).
+// When hidden, the dot is invisible but stays in the DOM so rAF keeps updating it.
 const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
-  driverNumber, x, y, teamColour, nameAcronym, fullName, teamName,
-  dotRadius, strokeWidth, isNew, pathLocked, onSelect,
+  driverNumber, x, y, teamColour,
+  dotRadius, strokeWidth, isNew, pathLocked, hidden, onSelect,
 }, ref) => {
-  // Build class name based on mode.
+  // Build class name based on mode and visibility.
   let className = "car-dot-group"
   if (isNew) className += " car-dot-group--no-transition"
   else if (pathLocked) className += " car-dot-group--path-locked"
+  if (hidden) className += " car-dot-group--hidden"
 
   return (
     <g
@@ -63,9 +54,7 @@ const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
         stroke="#ffffff"
         strokeWidth={strokeWidth}
         className="car-dot"
-        onClick={() => onSelect?.({
-          driverNumber, nameAcronym, fullName, teamName, teamColour,
-        })}
+        onClick={() => onSelect?.(driverNumber)}
       />
     </g>
   )
@@ -76,6 +65,7 @@ const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
   && prev.dotRadius === next.dotRadius
   && prev.isNew === next.isNew
   && prev.pathLocked === next.pathLocked
+  && prev.hidden === next.hidden
 )
 
 // Converts an array of {x, y} points into an SVG path string.
@@ -192,16 +182,84 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
   return Math.max(50, trackExtent * 0.015)
 }
 
-// computeArcLengths and getPointAndTangentAtProgress imported from trackPathUtils.
+// Maps a mini-sector status value to its display color.
+const segmentColor = (value: number): string | null => {
+  switch (value) {
+    case 2048: return "#FDD835"  // yellow sector
+    case 2049: return "#43A047"  // green sector
+    case 2051: return "#8E24AA"  // purple sector
+    case 2064: return "#757575"  // pitlane
+    default: return null         // no overlay
+  }
+}
+
+// Computes forward distance from a base progress to a target on the circular 0-1 track.
+const forwardDistance = (base: number, target: number): number => {
+  const d = target - base
+  return d >= 0 ? d : d + 1.0
+}
+
+// Write-once buffer holding accepted segment values for the current visual lap.
+// Each slot is null until the car dot passes it, then stamped with the color value.
+interface AcceptedSegments {
+  sector1: (number | null)[]
+  sector2: (number | null)[]
+  sector3: (number | null)[]
+}
+
+// Stamps segment values into the write-once buffer for segments the car has passed.
+// A slot is stamped only if it is null (unvisited), the car's lapDist has reached
+// the segment's end, and the raw value is non-zero (data available). Returns true
+// if any slot was newly stamped.
+const acceptSegments = (
+  buffer: AcceptedSegments,
+  rawSegments: { sector1: number[]; sector2: number[]; sector3: number[] },
+  boundaries: SectorBoundaries,
+  lapDist: number,
+): boolean => {
+  let changed = false
+  const lapBase = boundaries.startFinish
+
+  const sectors: { key: keyof AcceptedSegments; start: number; end: number; segs: number[] }[] = [
+    { key: "sector1", start: boundaries.startFinish, end: boundaries.sector1_2, segs: rawSegments.sector1 },
+    { key: "sector2", start: boundaries.sector1_2, end: boundaries.sector2_3, segs: rawSegments.sector2 },
+    { key: "sector3", start: boundaries.sector2_3, end: boundaries.startFinish, segs: rawSegments.sector3 },
+  ]
+
+  sectors.forEach(({ key, start, end, segs }) => {
+    if (segs.length === 0) return
+    let sectorLen = end - start
+    if (sectorLen <= 0) sectorLen += 1.0
+    const miniLen = sectorLen / segs.length
+
+    segs.forEach((value, i) => {
+      if (buffer[key][i] !== null) return
+      if (value === 0) return
+
+      let segEnd = start + (i + 1) * miniLen
+      if (segEnd >= 1.0) segEnd -= 1.0
+      let segEndDist = forwardDistance(lapBase, segEnd)
+      // S3's last segment ends at startFinish — treat as full lap distance.
+      if (segEndDist < 0.001) segEndDist = 1.0
+
+      if (lapDist >= segEndDist) {
+        buffer[key][i] = value
+        changed = true
+      }
+    })
+  })
+
+  return changed
+}
 
 // Renders a live F1 track map as SVG with car position dots.
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackReady }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady }) => {
   const {
     trackPath, carPositions, sessionActive, trackName,
-    corners, sectorBoundaries, connectionStatus, demoPhase,
+    driverStates, corners, sectorBoundaries, connectionStatus, demoPhase,
   } = useTrackmap()
   const trackReadyFired = useRef(false)
 
@@ -225,10 +283,18 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
 
   // Path-locked animation: rAF loop writes transforms directly to DOM elements.
   // Returns a ref-registration callback (no React state — zero render overhead).
-  const { registerDot } = usePathLockedPositions(
+  const { registerDot, smoothedProgressRef } = usePathLockedPositions(
     hasProgress ? carPositions : [],
     hasProgress ? svgTrackPath : null,
   )
+
+  // Write-once segment buffer: each slot is null until the car dot passes it,
+  // then stamped with the color value. Clears on S/F crossing.
+  const [acceptedSegments, setAcceptedSegments] = useState<AcceptedSegments>(
+    { sector1: [], sector2: [], sector3: [] },
+  )
+  const prevSectorRef = useRef(-1)
+  const prevSelectedRef = useRef<number | null>(null)
 
   // Stable ref callback map — returns the same function reference for a given
   // driver number across renders, preventing React from unregistering/re-registering
@@ -243,6 +309,18 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
     return cb
   }, [registerDot])
 
+  // Forwards a car dot click to the parent as a driver selection event.
+  const handleCarClick = useCallback((driverNumber: number) => {
+    onDriverSelect?.({ driverNumber })
+  }, [onDriverSelect])
+
+  // Deselects the current driver when clicking the SVG background.
+  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if ((e.target as SVGElement).tagName === "svg") {
+      onDriverSelect?.(null)
+    }
+  }, [onDriverSelect])
+
   // No data state.
   const hasData = svgTrackPath && svgTrackPath.length > 0
 
@@ -254,6 +332,11 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
     }
   }, [hasData, onTrackReady])
 
+  // Forward driver live states to the parent component.
+  useEffect(() => {
+    onDriverStatesUpdate?.(driverStates)
+  }, [driverStates, onDriverStatesUpdate])
+
   // Clean up seenDrivers when drivers leave so that re-appearing drivers
   // get the no-transition initial placement again.
   useEffect(() => {
@@ -262,6 +345,79 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
       if (!currentDrivers.has(dn)) seenDrivers.current.delete(dn)
     })
   }, [svgCarPositions])
+
+  // Stamps segments into the write-once buffer as the car dot passes them.
+  // Clears the buffer exactly when the car dot crosses the start/finish line.
+  useEffect(() => {
+    const emptyBuf: AcceptedSegments = { sector1: [], sector2: [], sector3: [] }
+
+    // No driver selected — clear buffer.
+    if (!selectedDriverNumber || !sectorBoundaries) {
+      setAcceptedSegments(emptyBuf)
+      prevSectorRef.current = -1
+      return
+    }
+
+    // Find the selected driver's segment data.
+    const ds = driverStates.find((d) => d.driverNumber === selectedDriverNumber)
+    if (!ds) {
+      setAcceptedSegments(emptyBuf)
+      prevSectorRef.current = -1
+      return
+    }
+
+    const rawSegs = ds.segments
+
+    // Read the car dot's exact visual position (includes animation delay).
+    const cp = smoothedProgressRef.current?.get(selectedDriverNumber)
+      ?? carPositions.find((c) => c.driverNumber === selectedDriverNumber)?.progress
+    if (cp === undefined) return
+
+    // Determine which sector the car dot is currently in.
+    const lapDist = forwardDistance(sectorBoundaries.startFinish, cp)
+    const s1End = forwardDistance(sectorBoundaries.startFinish, sectorBoundaries.sector1_2)
+    const s2End = forwardDistance(sectorBoundaries.startFinish, sectorBoundaries.sector2_3)
+    let currentSector = 2
+    if (lapDist < s1End) currentSector = 0
+    else if (lapDist < s2End) currentSector = 1
+
+    // Detect driver change — reset buffer and sector tracking.
+    const driverChanged = selectedDriverNumber !== prevSelectedRef.current
+    if (driverChanged) {
+      prevSelectedRef.current = selectedDriverNumber
+      prevSectorRef.current = currentSector
+    }
+
+    // Detect S/F crossing: car dot transitioned from S3 to S1.
+    const crossedSF = !driverChanged && prevSectorRef.current === 2 && currentSector === 0
+    prevSectorRef.current = currentSector
+
+    // On S/F crossing or driver change, create a fresh buffer and stamp initial segments.
+    if (crossedSF || driverChanged) {
+      const fresh: AcceptedSegments = {
+        sector1: new Array(rawSegs.sector1.length).fill(null),
+        sector2: new Array(rawSegs.sector2.length).fill(null),
+        sector3: new Array(rawSegs.sector3.length).fill(null),
+      }
+      acceptSegments(fresh, rawSegs, sectorBoundaries, lapDist)
+      setAcceptedSegments(fresh)
+      return
+    }
+
+    // Normal tick — stamp newly-passed segments into the buffer.
+    setAcceptedSegments((prev) => {
+      const next: AcceptedSegments = {
+        sector1: prev.sector1.length === rawSegs.sector1.length ? [...prev.sector1] : new Array(rawSegs.sector1.length).fill(null),
+        sector2: prev.sector2.length === rawSegs.sector2.length ? [...prev.sector2] : new Array(rawSegs.sector2.length).fill(null),
+        sector3: prev.sector3.length === rawSegs.sector3.length ? [...prev.sector3] : new Array(rawSegs.sector3.length).fill(null),
+      }
+      const changed = acceptSegments(next, rawSegs, sectorBoundaries, lapDist)
+      const resized = prev.sector1.length !== rawSegs.sector1.length
+        || prev.sector2.length !== rawSegs.sector2.length
+        || prev.sector3.length !== rawSegs.sector3.length
+      return changed || resized ? next : prev
+    })
+  }, [driverStates, selectedDriverNumber, sectorBoundaries, carPositions])
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
@@ -336,16 +492,74 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
     )
   }, [svgTrackPath, sectorBoundaries, trackStrokeWidth])
 
-  const showNoSession = !demoMode && !sessionActive && !hasData
+  // Builds colored mini-sector segments and separator lines from the accepted buffer.
+  // Only stamped (non-null) segments are rendered — no distance checks needed here.
+  const miniSectorOverlay = useMemo(() => {
+    const empty = { coloredSegments: [] as { path: string; color: string }[], separatorLines: [] as { x1: number; y1: number; x2: number; y2: number; key: string }[] }
+    if (!selectedDriverNumber || !svgTrackPath || !sectorBoundaries) return empty
+    if (acceptedSegments.sector1.length === 0 && acceptedSegments.sector2.length === 0 && acceptedSegments.sector3.length === 0) return empty
 
-  // Demo mode: show spinner while backend is fetching data or waiting for track to build.
-  if (demoMode && (demoPhase === "fetching" || !hasData)) {
-    return (
-      <div className="trackmap">
-        <FillLoading />
-      </div>
-    )
-  }
+    const arcLengths = computeArcLengths(svgTrackPath)
+    const halfLen = trackStrokeWidth * 0.6
+    const coloredSegments: { path: string; color: string }[] = []
+    const separatorLines: { x1: number; y1: number; x2: number; y2: number; key: string }[] = []
+
+    // Define sector progress ranges using sector boundary positions.
+    const sectorRanges = [
+      { start: sectorBoundaries.startFinish, end: sectorBoundaries.sector1_2, segs: acceptedSegments.sector1, label: "s1" },
+      { start: sectorBoundaries.sector1_2, end: sectorBoundaries.sector2_3, segs: acceptedSegments.sector2, label: "s2" },
+      { start: sectorBoundaries.sector2_3, end: sectorBoundaries.startFinish, segs: acceptedSegments.sector3, label: "s3" },
+    ]
+
+    sectorRanges.forEach(({ start, end, segs, label }) => {
+      if (segs.length === 0) return
+
+      // Compute sector length in progress units (handling wrap-around for sector 3).
+      let sectorLength = end - start
+      if (sectorLength <= 0) sectorLength += 1.0
+      const miniSectorLength = sectorLength / segs.length
+
+      segs.forEach((value, i) => {
+        let segStart = start + i * miniSectorLength
+        let segEnd = start + (i + 1) * miniSectorLength
+
+        // Normalize to 0-1 range.
+        if (segStart >= 1.0) segStart -= 1.0
+        if (segEnd > 1.0) segEnd -= 1.0
+
+        // Add a separator line at each internal mini-sector boundary.
+        if (i > 0) {
+          const result = getPointAndTangentAtProgress(svgTrackPath, arcLengths, segStart)
+          if (result) {
+            const perpX = -result.tangent.dy
+            const perpY = result.tangent.dx
+            separatorLines.push({
+              x1: result.point.x - perpX * halfLen,
+              y1: result.point.y - perpY * halfLen,
+              x2: result.point.x + perpX * halfLen,
+              y2: result.point.y + perpY * halfLen,
+              key: `${label}-sep-${i}`,
+            })
+          }
+        }
+
+        // Only render stamped (non-null) segments with a valid color.
+        if (value === null) return
+        const color = segmentColor(value)
+        if (!color) return
+
+        const subPath = getSubPath(svgTrackPath, arcLengths, segStart, segEnd)
+        const pathString = buildOpenSvgPath(subPath)
+        if (pathString) {
+          coloredSegments.push({ path: pathString, color })
+        }
+      })
+    })
+
+    return { coloredSegments, separatorLines }
+  }, [selectedDriverNumber, svgTrackPath, sectorBoundaries, acceptedSegments, trackStrokeWidth])
+
+  const showNoSession = !demoMode && !sessionActive && !hasData
 
   // Determine the title to display (hidden in demo mode — shown in the header instead).
   const displayTitle = demoMode ? null : trackName
@@ -365,6 +579,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
           className="trackmap-svg"
           viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
+          onClick={handleSvgClick}
         >
           {/* Rotated group — all content uses original coordinates */}
           <g transform={rotateTransform}>
@@ -378,6 +593,20 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
               fill="none"
             />
 
+            {/* Mini-sector colored segments — only segments the car has passed */}
+            {miniSectorOverlay.coloredSegments.map((seg, i) => (
+              <path
+                key={`mini-seg-${i}`}
+                d={seg.path}
+                stroke={seg.color}
+                strokeWidth={trackStrokeWidth}
+                strokeLinejoin="miter"
+                strokeLinecap="butt"
+                fill="none"
+                className="mini-sector-segment"
+              />
+            ))}
+
             {/* Sector boundary lines — perpendicular to track at each boundary */}
             {sectorLineData.map((line) => (
               <line
@@ -390,6 +619,21 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
                 strokeWidth={trackStrokeWidth * 0.35}
                 strokeLinecap="round"
                 className="sector-line"
+              />
+            ))}
+
+            {/* Mini-sector separator lines — thin perpendicular marks between segments */}
+            {miniSectorOverlay.separatorLines.map((line) => (
+              <line
+                key={line.key}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="#ffffff"
+                strokeWidth={trackStrokeWidth * 0.15}
+                strokeLinecap="round"
+                className="mini-sector-separator"
               />
             ))}
 
@@ -409,7 +653,8 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
               </text>
             ))}
 
-            {/* Car dots — path-locked (rAF via direct DOM) when progress available, CSS transitions otherwise */}
+            {/* Car dots — non-selected cars are hidden via CSS (not removed from DOM)
+                so rAF animation keeps running and avoids snap-back on re-show. */}
             {svgCarPositions.map((car) => {
               const isNew = !seenDrivers.current.has(car.driverNumber)
               if (isNew) seenDrivers.current.add(car.driverNumber)
@@ -421,14 +666,12 @@ const Trackmap: React.FC<TrackmapProps> = ({ onDriverSelect, demoMode, onTrackRe
                   x={hasProgress ? 0 : car.x}
                   y={hasProgress ? 0 : car.y}
                   teamColour={car.teamColour}
-                  nameAcronym={car.nameAcronym}
-                  fullName={car.fullName}
-                  teamName={car.teamName}
                   dotRadius={dotRadius}
                   strokeWidth={strokeWidth}
                   isNew={isNew}
                   pathLocked={hasProgress}
-                  onSelect={onDriverSelect}
+                  hidden={!!selectedDriverNumber && car.driverNumber !== selectedDriverNumber}
+                  onSelect={handleCarClick}
                 />
               )
             })}

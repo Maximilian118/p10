@@ -1,0 +1,19 @@
+@use '../../../../../../../scss/mixins';
+@use '../../../../../../../scss/variables';
+
+.f1-driver-card {
+  width: 100%;
+  padding: 6px 20px;
+  box-sizing: border-box;
+  margin-bottom: 2px;
+  @include mixins.flexbox-start;
+  background: white;
+  cursor: pointer;
+  transition: all variables.$trans-speed;
+
+  // Highlighted state when this driver is selected in driver view.
+  &--selected {
+    background: rgba(25, 118, 210, 0.12);
+    box-shadow: inset 3px 0 0 #1976d2;
+  }
+}

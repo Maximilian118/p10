@@ -28,6 +28,10 @@ export interface OpenF1LapMsg {
   i2_speed: number | null
   st_speed: number | null
   date_start: string | null
+  // Mini-sector segment status arrays (values 0-2064 representing timing status for color coding).
+  segments_sector_1: number[] | null
+  segments_sector_2: number[] | null
+  segments_sector_3: number[] | null
   _key: string
   _id: number
 }
@@ -61,6 +65,117 @@ export interface OpenF1DriverMsg {
   _id: number
 }
 
+// Car telemetry from the v1/car_data MQTT topic (~3.7Hz per driver).
+export interface OpenF1CarDataMsg {
+  meeting_key: number
+  session_key: number
+  driver_number: number
+  date: string
+  brake: number
+  drs: number
+  n_gear: number
+  rpm: number
+  speed: number
+  throttle: number
+  _key: string
+  _id: number
+}
+
+// Interval data from the v1/intervals MQTT topic (~4s updates during races).
+export interface OpenF1IntervalMsg {
+  meeting_key: number
+  session_key: number
+  driver_number: number
+  date: string
+  gap_to_leader: number | string | null
+  interval: number | string | null
+  _key: string
+  _id: number
+}
+
+// Pit lane activity from the v1/pit MQTT topic.
+export interface OpenF1PitMsg {
+  meeting_key: number
+  session_key: number
+  driver_number: number
+  date: string
+  lap_number: number
+  pit_duration: number | null
+  stop_duration: number | null
+  lane_duration: number | null
+  _key: string
+  _id: number
+}
+
+// Stint data from the v1/stints MQTT topic.
+export interface OpenF1StintMsg {
+  meeting_key: number
+  session_key: number
+  driver_number: number
+  compound: string
+  stint_number: number
+  lap_start: number
+  lap_end: number | null
+  tyre_age_at_start: number
+  _key: string
+  _id: number
+}
+
+// Race position from the v1/position MQTT topic.
+export interface OpenF1PositionMsg {
+  meeting_key: number
+  session_key: number
+  driver_number: number
+  date: string
+  position: number
+  _key: string
+  _id: number
+}
+
+// Race control messages from the v1/race_control MQTT topic.
+export interface OpenF1RaceControlMsg {
+  meeting_key: number
+  session_key: number
+  date: string
+  category: string
+  message: string
+  flag: string | null
+  scope: string | null
+  sector: number | null
+  driver_number: number | null
+  lap_number: number | null
+  _key: string
+  _id: number
+}
+
+// Weather data from the v1/weather MQTT topic (~1 min updates).
+export interface OpenF1WeatherMsg {
+  meeting_key: number
+  session_key: number
+  date: string
+  air_temperature: number
+  track_temperature: number
+  humidity: number
+  pressure: number
+  rainfall: number
+  wind_speed: number
+  wind_direction: number
+  _key: string
+  _id: number
+}
+
+// Overtake data from the v1/overtakes MQTT topic (race sessions only).
+export interface OpenF1OvertakeMsg {
+  meeting_key: number
+  session_key: number
+  date: string
+  overtaking_driver_number: number
+  overtaken_driver_number: number
+  position: number
+  _key: string
+  _id: number
+}
+
 // Meeting info from the REST /v1/meetings endpoint.
 export interface OpenF1Meeting {
   meeting_key: number
@@ -82,6 +197,7 @@ export interface DriverInfo {
   fullName: string
   teamName: string
   teamColour: string
+  headshotUrl: string | null
 }
 
 // A single car position for Socket.IO relay to frontend.
@@ -117,12 +233,127 @@ export interface ValidatedLap {
   positions: { x: number; y: number; date: string }[]
 }
 
+// ─── Aggregated State Types (emitted to frontend via Socket.IO) ──
+
+// Per-driver live state snapshot emitted as an array every ~1s.
+export interface DriverLiveState {
+  driverNumber: number
+  nameAcronym: string
+  fullName: string
+  teamName: string
+  teamColour: string
+  headshotUrl: string | null
+
+  // Position & Intervals
+  position: number | null
+  gapToLeader: number | string | null
+  interval: number | string | null
+
+  // Lap Data
+  currentLapNumber: number
+  lastLapTime: number | null
+  bestLapTime: number | null
+
+  // Sector times from the latest completed lap.
+  sectorTimes: { s1: number | null; s2: number | null; s3: number | null }
+
+  // Mini-sector segment status arrays for color coding.
+  segments: {
+    sector1: number[]
+    sector2: number[]
+    sector3: number[]
+  }
+
+  // Tyre & Pit
+  tyreCompound: string | null
+  tyreAge: number
+  inPit: boolean
+  pitStops: number
+  isPitOutLap: boolean
+
+  // Telemetry snapshot (latest values).
+  speed: number
+  drs: number
+  gear: number
+
+  // Speed trap values from the latest completed lap.
+  i1Speed: number | null
+  i2Speed: number | null
+  stSpeed: number | null
+}
+
+// Session-wide live state emitted on change.
+export interface SessionLiveState {
+  weather: {
+    airTemperature: number
+    trackTemperature: number
+    humidity: number
+    rainfall: boolean
+    windSpeed: number
+    windDirection: number
+    pressure: number
+  } | null
+  raceControlMessages: RaceControlEvent[]
+  overtakes: OvertakeEvent[]
+}
+
+// A single race control event for the session timeline.
+export interface RaceControlEvent {
+  date: string
+  category: string
+  message: string
+  flag: string | null
+  scope: string | null
+  sector: number | null
+  driverNumber: number | null
+  lapNumber: number | null
+}
+
+// A single overtake event.
+export interface OvertakeEvent {
+  date: string
+  overtakingDriverNumber: number
+  overtakenDriverNumber: number
+  position: number
+}
+
+// ─── Internal Sub-State Types ────────────────────────────────────
+
+// Interval data tracked per driver.
+export interface DriverIntervalState {
+  gapToLeader: number | string | null
+  interval: number | string | null
+}
+
+// Current stint data tracked per driver.
+export interface DriverStintState {
+  compound: string
+  stintNumber: number
+  lapStart: number
+  tyreAgeAtStart: number
+}
+
+// Pit stop data tracked per driver.
+export interface DriverPitState {
+  count: number
+  lastDuration: number | null
+  inPit: boolean
+}
+
+// Latest telemetry snapshot per driver.
+export interface DriverCarDataState {
+  speed: number
+  drs: number
+  gear: number
+}
+
 // Current state of an active session being tracked.
 export interface SessionState {
   sessionKey: number
   meetingKey: number
   trackName: string
   sessionType: string
+  sessionName: string
   drivers: Map<number, DriverInfo>
   // Position data per driver per lap: Map<driverNumber, Map<lapNumber, positions[]>>
   positionsByDriverLap: Map<number, Map<number, { x: number; y: number; date: string }[]>>
@@ -149,4 +380,24 @@ export interface SessionState {
   // Pre-computed arc-length tables for GPS and MultiViewer paths (cached to avoid per-tick recomputation).
   baselineArcLengths: number[] | null
   multiviewerArcLengths: number[] | null
+
+  // ─── Live data state (populated by new MQTT topics) ─────────
+  // Race position per driver.
+  driverPositions: Map<number, number>
+  // Interval/gap data per driver.
+  driverIntervals: Map<number, DriverIntervalState>
+  // Current stint per driver.
+  driverStints: Map<number, DriverStintState>
+  // Pit stop tracking per driver.
+  driverPitStops: Map<number, DriverPitState>
+  // Latest car telemetry per driver.
+  driverCarData: Map<number, DriverCarDataState>
+  // Best lap time per driver.
+  driverBestLap: Map<number, number>
+  // Current weather conditions.
+  weather: SessionLiveState["weather"]
+  // Race control messages accumulated during the session.
+  raceControlMessages: RaceControlEvent[]
+  // Overtake events accumulated during the session.
+  overtakes: OvertakeEvent[]
 }

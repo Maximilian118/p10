@@ -47,4 +47,87 @@ export interface OpenF1DriverInfo {
   fullName: string
   teamName: string
   teamColour: string
+  headshotUrl: string | null
+}
+
+// Per-driver live state snapshot received from the backend every ~1s.
+export interface DriverLiveState {
+  driverNumber: number
+  nameAcronym: string
+  fullName: string
+  teamName: string
+  teamColour: string
+  headshotUrl: string | null
+
+  // Position & Intervals
+  position: number | null
+  gapToLeader: number | string | null
+  interval: number | string | null
+
+  // Lap Data
+  currentLapNumber: number
+  lastLapTime: number | null
+  bestLapTime: number | null
+
+  // Sector times from the latest completed lap.
+  sectorTimes: { s1: number | null; s2: number | null; s3: number | null }
+
+  // Mini-sector segment status arrays for color coding.
+  segments: {
+    sector1: number[]
+    sector2: number[]
+    sector3: number[]
+  }
+
+  // Tyre & Pit
+  tyreCompound: string | null
+  tyreAge: number
+  inPit: boolean
+  pitStops: number
+  isPitOutLap: boolean
+
+  // Telemetry snapshot.
+  speed: number
+  drs: number
+  gear: number
+
+  // Speed trap values from the latest completed lap.
+  i1Speed: number | null
+  i2Speed: number | null
+  stSpeed: number | null
+}
+
+// A single race control event.
+export interface RaceControlEvent {
+  date: string
+  category: string
+  message: string
+  flag: string | null
+  scope: string | null
+  sector: number | null
+  driverNumber: number | null
+  lapNumber: number | null
+}
+
+// A single overtake event.
+export interface OvertakeEvent {
+  date: string
+  overtakingDriverNumber: number
+  overtakenDriverNumber: number
+  position: number
+}
+
+// Session-wide live state received from the backend on change.
+export interface SessionLiveState {
+  weather: {
+    airTemperature: number
+    trackTemperature: number
+    humidity: number
+    rainfall: boolean
+    windSpeed: number
+    windDirection: number
+    pressure: number
+  } | null
+  raceControlMessages: RaceControlEvent[]
+  overtakes: OvertakeEvent[]
 }

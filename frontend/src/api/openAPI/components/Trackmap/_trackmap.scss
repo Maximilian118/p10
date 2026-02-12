@@ -40,6 +40,12 @@
       transition: none;
       will-change: transform;
     }
+
+    // Hidden state — invisible but stays in DOM so rAF keeps animating.
+    &--hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
   }
 
   // Car dot circle — handles interactive styles only.
@@ -56,6 +62,17 @@
 
   // Sector boundary lines — non-interactive overlays.
   .sector-line {
+    pointer-events: none;
+  }
+
+  // Mini-sector colored segments — overlay on track when a driver is selected.
+  .mini-sector-segment {
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  // Mini-sector separator lines — thin marks between mini-sector boundaries.
+  .mini-sector-separator {
     pointer-events: none;
   }
 

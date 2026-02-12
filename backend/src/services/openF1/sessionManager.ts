@@ -7,9 +7,18 @@ import {
   OpenF1LapMsg,
   OpenF1SessionMsg,
   OpenF1DriverMsg,
+  OpenF1CarDataMsg,
+  OpenF1IntervalMsg,
+  OpenF1PitMsg,
+  OpenF1StintMsg,
+  OpenF1PositionMsg,
+  OpenF1RaceControlMsg,
+  OpenF1WeatherMsg,
+  OpenF1OvertakeMsg,
   OpenF1Meeting,
   SessionState,
   DriverInfo,
+  DriverLiveState,
   CarPositionPayload,
   ValidatedLap,
 } from "./types"
@@ -17,11 +26,16 @@ import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } f
 import { fetchTrackOutline } from "./multiviewerClient"
 import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
 import { computeSectorBoundaries } from "./sectorBoundaries"
+import { startPolling, stopPolling, markMqttReceived, onPolledMessage } from "./restPoller"
+import { saveF1Session } from "../../models/f1Session"
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
 // Minimum interval between position batch emissions (ms).
 const POSITION_BATCH_INTERVAL = 100
+
+// Interval between aggregated driver state emissions (ms).
+const DRIVER_STATE_BATCH_INTERVAL = 1000
 
 // Socket.IO event names for OpenF1 data.
 export const OPENF1_EVENTS = {
@@ -29,6 +43,9 @@ export const OPENF1_EVENTS = {
   POSITIONS: "openf1:positions",
   SESSION: "openf1:session",
   DRIVERS: "openf1:drivers",
+  DRIVER_STATES: "openf1:driver-states",
+  SESSION_STATE: "openf1:session-state",
+  RACE_CONTROL: "openf1:race-control",
   DEMO_STATUS: "openf1:demo-status",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
@@ -42,6 +59,9 @@ let ioServer: Server | null = null
 
 // Timer for batched position emissions.
 let positionBatchTimer: ReturnType<typeof setInterval> | null = null
+
+// Timer for aggregated driver state emissions.
+let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
 
 // Room name for clients receiving OpenF1 live data.
 const OPENF1_ROOM = "openf1:live"
@@ -77,6 +97,17 @@ export const initSessionManager = (io: Server): void => {
             sectorBoundaries: activeSession.sectorBoundaries,
           })
         }
+        // Send current driver live states snapshot.
+        const driverStates = buildDriverStates()
+        if (driverStates.length > 0) {
+          socket.emit(OPENF1_EVENTS.DRIVER_STATES, driverStates)
+        }
+        // Send current session-wide state (weather, race control, overtakes).
+        socket.emit(OPENF1_EVENTS.SESSION_STATE, {
+          weather: activeSession.weather,
+          raceControlMessages: activeSession.raceControlMessages,
+          overtakes: activeSession.overtakes,
+        })
       } else {
         socket.emit(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
       }
@@ -107,6 +138,7 @@ export const initDemoSession = async (
     meetingKey: 0,
     trackName,
     sessionType: "Demo",
+    sessionName: "Demo",
     drivers,
     positionsByDriverLap: new Map(),
     currentPositions: new Map(),
@@ -122,6 +154,15 @@ export const initDemoSession = async (
     isDemo: true,
     baselineArcLengths: null,
     multiviewerArcLengths: null,
+    driverPositions: new Map(),
+    driverIntervals: new Map(),
+    driverStints: new Map(),
+    driverPitStops: new Map(),
+    driverCarData: new Map(),
+    driverBestLap: new Map(),
+    weather: null,
+    raceControlMessages: [],
+    overtakes: [],
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -159,6 +200,7 @@ export const initDemoSession = async (
   }
 
   startPositionBatching()
+  startDriverStateBatching()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo" })
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 
@@ -179,6 +221,7 @@ export const initDemoSession = async (
 // Cleans up a demo session and notifies the frontend.
 export const endDemoSession = (): void => {
   stopPositionBatching()
+  stopDriverStateBatching()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
   activeSession = null
 }
@@ -189,23 +232,54 @@ export const endDemoSession = (): void => {
 export const handleMqttMessage = (topic: string, payload: Buffer): void => {
   try {
     const data = JSON.parse(payload.toString())
-
-    switch (topic) {
-      case "v1/sessions":
-        handleSessionMessage(data as OpenF1SessionMsg)
-        break
-      case "v1/location":
-        handleLocationMessage(data as OpenF1LocationMsg)
-        break
-      case "v1/laps":
-        handleLapMessage(data as OpenF1LapMsg)
-        break
-      case "v1/drivers":
-        handleDriverMessage(data as OpenF1DriverMsg)
-        break
-    }
+    routeMessage(topic, data)
   } catch (err) {
     console.error(`✗ Failed to parse MQTT message on ${topic}:`, err)
+  }
+}
+
+// Routes a parsed message (from MQTT or REST poller) to the appropriate handler.
+const routeMessage = (topic: string, data: unknown): void => {
+  // Notify the REST poller that this topic is active on MQTT.
+  markMqttReceived(topic)
+
+  switch (topic) {
+    case "v1/sessions":
+      handleSessionMessage(data as OpenF1SessionMsg)
+      break
+    case "v1/location":
+      handleLocationMessage(data as OpenF1LocationMsg)
+      break
+    case "v1/laps":
+      handleLapMessage(data as OpenF1LapMsg)
+      break
+    case "v1/drivers":
+      handleDriverMessage(data as OpenF1DriverMsg)
+      break
+    case "v1/car_data":
+      handleCarDataMessage(data as OpenF1CarDataMsg)
+      break
+    case "v1/intervals":
+      handleIntervalMessage(data as OpenF1IntervalMsg)
+      break
+    case "v1/pit":
+      handlePitMessage(data as OpenF1PitMsg)
+      break
+    case "v1/stints":
+      handleStintMessage(data as OpenF1StintMsg)
+      break
+    case "v1/position":
+      handlePositionMessage(data as OpenF1PositionMsg)
+      break
+    case "v1/race_control":
+      handleRaceControlMessage(data as OpenF1RaceControlMsg)
+      break
+    case "v1/weather":
+      handleWeatherMessage(data as OpenF1WeatherMsg)
+      break
+    case "v1/overtakes":
+      handleOvertakeMessage(data as OpenF1OvertakeMsg)
+      break
   }
 }
 
@@ -265,6 +339,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
         fullName: d.full_name,
         teamName: d.team_name,
         teamColour: d.team_colour,
+        headshotUrl: d.headshot_url || null,
       })
     })
   } catch (err) {
@@ -310,6 +385,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     meetingKey: msg.meeting_key,
     trackName,
     sessionType: msg.session_type || msg.session_name,
+    sessionName: msg.session_name,
     drivers,
     positionsByDriverLap: new Map(),
     currentPositions: new Map(),
@@ -325,6 +401,15 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     isDemo: false,
     baselineArcLengths: baselinePath ? computeArcLengths(baselinePath) : null,
     multiviewerArcLengths: multiviewerPath ? computeArcLengths(multiviewerPath) : null,
+    driverPositions: new Map(),
+    driverIntervals: new Map(),
+    driverStints: new Map(),
+    driverPitStops: new Map(),
+    driverCarData: new Map(),
+    driverBestLap: new Map(),
+    weather: null,
+    raceControlMessages: [],
+    overtakes: [],
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -332,8 +417,11 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     await tryFetchMultiviewer(circuitKey, trackName)
   }
 
-  // Start batched position emission.
+  // Start batched emissions and REST polling fallback.
   startPositionBatching()
+  startDriverStateBatching()
+  onPolledMessage((topic, data) => routeMessage(topic, data))
+  startPolling(msg.session_key)
 
   // Emit session start to all subscribers.
   emitToRoom(OPENF1_EVENTS.SESSION, {
@@ -359,7 +447,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   }
 }
 
-// Ends the current session and persists the final track map.
+// Ends the current session and persists the final track map and session data.
 const endSession = async (): Promise<void> => {
   if (!activeSession) return
 
@@ -368,8 +456,13 @@ const endSession = async (): Promise<void> => {
   // Save final track map to MongoDB.
   await saveTrackMap()
 
-  // Stop position batching.
+  // Persist aggregated session data to MongoDB (30-day TTL).
+  await saveF1Session(activeSession)
+
+  // Stop all batching and polling.
   stopPositionBatching()
+  stopDriverStateBatching()
+  stopPolling()
 
   // Notify frontend.
   emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
@@ -414,10 +507,16 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   const lapKey = `${msg.driver_number}-${msg.lap_number}`
   activeSession.completedLaps.set(lapKey, msg)
 
-  // Update best lap time.
+  // Update session best lap time.
   if (msg.lap_duration && msg.lap_duration > 0) {
     if (activeSession.bestLapTime === 0 || msg.lap_duration < activeSession.bestLapTime) {
       activeSession.bestLapTime = msg.lap_duration
+    }
+
+    // Update per-driver best lap time.
+    const currentBest = activeSession.driverBestLap.get(msg.driver_number)
+    if (!currentBest || msg.lap_duration < currentBest) {
+      activeSession.driverBestLap.set(msg.driver_number, msg.lap_duration)
     }
   }
 
@@ -445,12 +544,145 @@ const handleDriverMessage = (msg: OpenF1DriverMsg): void => {
     fullName: msg.full_name,
     teamName: msg.team_name,
     teamColour: msg.team_colour,
+    headshotUrl: msg.headshot_url || null,
   }
 
   activeSession.drivers.set(msg.driver_number, driverInfo)
 
   // Emit updated driver list.
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
+}
+
+// ─── Car Data (Telemetry) ─────────────────────────────────────────
+
+// Handles a car_data message (telemetry snapshot: speed, DRS, gear).
+const handleCarDataMessage = (msg: OpenF1CarDataMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.driverCarData.set(msg.driver_number, {
+    speed: msg.speed,
+    drs: msg.drs,
+    gear: msg.n_gear,
+  })
+}
+
+// ─── Intervals ────────────────────────────────────────────────────
+
+// Handles an interval message (gap to leader and interval to car ahead).
+const handleIntervalMessage = (msg: OpenF1IntervalMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.driverIntervals.set(msg.driver_number, {
+    gapToLeader: msg.gap_to_leader,
+    interval: msg.interval,
+  })
+}
+
+// ─── Pit Stops ────────────────────────────────────────────────────
+
+// Handles a pit message (driver entered/exited pit lane).
+const handlePitMessage = (msg: OpenF1PitMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  const existing = activeSession.driverPitStops.get(msg.driver_number)
+  activeSession.driverPitStops.set(msg.driver_number, {
+    count: (existing?.count ?? 0) + 1,
+    lastDuration: msg.pit_duration,
+    inPit: true,
+  })
+
+  // Mark driver as out of pits once the pit event has a duration (i.e. the stop is complete).
+  // We'll rely on stint messages or position updates to clear the inPit flag more accurately.
+}
+
+// ─── Stints ───────────────────────────────────────────────────────
+
+// Handles a stint message (tyre compound and stint tracking).
+const handleStintMessage = (msg: OpenF1StintMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.driverStints.set(msg.driver_number, {
+    compound: msg.compound,
+    stintNumber: msg.stint_number,
+    lapStart: msg.lap_start,
+    tyreAgeAtStart: msg.tyre_age_at_start,
+  })
+
+  // A new stint means the driver has left the pits.
+  const pitState = activeSession.driverPitStops.get(msg.driver_number)
+  if (pitState) {
+    pitState.inPit = false
+  }
+}
+
+// ─── Race Position ────────────────────────────────────────────────
+
+// Handles a position message (driver's race position update).
+const handlePositionMessage = (msg: OpenF1PositionMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.driverPositions.set(msg.driver_number, msg.position)
+}
+
+// ─── Race Control ─────────────────────────────────────────────────
+
+// Handles a race control message (flags, safety car, incidents).
+const handleRaceControlMessage = (msg: OpenF1RaceControlMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  const event = {
+    date: msg.date,
+    category: msg.category,
+    message: msg.message,
+    flag: msg.flag,
+    scope: msg.scope,
+    sector: msg.sector,
+    driverNumber: msg.driver_number,
+    lapNumber: msg.lap_number,
+  }
+
+  activeSession.raceControlMessages.push(event)
+
+  // Emit immediately for real-time display.
+  emitToRoom(OPENF1_EVENTS.RACE_CONTROL, event)
+}
+
+// ─── Weather ──────────────────────────────────────────────────────
+
+// Handles a weather message (track conditions update).
+const handleWeatherMessage = (msg: OpenF1WeatherMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.weather = {
+    airTemperature: msg.air_temperature,
+    trackTemperature: msg.track_temperature,
+    humidity: msg.humidity,
+    rainfall: msg.rainfall > 0,
+    windSpeed: msg.wind_speed,
+    windDirection: msg.wind_direction,
+    pressure: msg.pressure,
+  }
+
+  // Emit session state update immediately.
+  emitToRoom(OPENF1_EVENTS.SESSION_STATE, {
+    weather: activeSession.weather,
+    raceControlMessages: activeSession.raceControlMessages,
+    overtakes: activeSession.overtakes,
+  })
+}
+
+// ─── Overtakes ────────────────────────────────────────────────────
+
+// Handles an overtake message (position exchange event).
+const handleOvertakeMessage = (msg: OpenF1OvertakeMsg): void => {
+  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+
+  activeSession.overtakes.push({
+    date: msg.date,
+    overtakingDriverNumber: msg.overtaking_driver_number,
+    overtakenDriverNumber: msg.overtaken_driver_number,
+    position: msg.position,
+  })
 }
 
 // ─── Track Map Rebuilding ────────────────────────────────────────
@@ -816,6 +1048,109 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
     }
   } catch (err) {
     console.error("⚠ MultiViewer track fetch failed, using GPS fallback:", err)
+  }
+}
+
+// ─── Driver State Aggregation & Batching ─────────────────────────
+
+// Builds an array of DriverLiveState snapshots from the current session state.
+const buildDriverStates = (): DriverLiveState[] => {
+  if (!activeSession) return []
+
+  const states: DriverLiveState[] = []
+
+  activeSession.drivers.forEach((driver, driverNumber) => {
+    const currentLap = activeSession!.currentLapByDriver.get(driverNumber) || 0
+
+    // Find the latest completed lap with timing data.
+    const latestLapKey = `${driverNumber}-${currentLap > 0 ? currentLap - 1 : 0}`
+    const prevLapKey = `${driverNumber}-${currentLap > 1 ? currentLap - 2 : 0}`
+    const latestLap = activeSession!.completedLaps.get(latestLapKey) || activeSession!.completedLaps.get(prevLapKey)
+
+    // Look up the current in-progress lap for live mini-sector segments.
+    const currentLapKey = `${driverNumber}-${currentLap}`
+    const currentLapData = activeSession!.completedLaps.get(currentLapKey)
+
+    const intervalState = activeSession!.driverIntervals.get(driverNumber)
+    const stintState = activeSession!.driverStints.get(driverNumber)
+    const pitState = activeSession!.driverPitStops.get(driverNumber)
+    const carData = activeSession!.driverCarData.get(driverNumber)
+    const position = activeSession!.driverPositions.get(driverNumber) ?? null
+    const bestLap = activeSession!.driverBestLap.get(driverNumber) ?? null
+
+    // Calculate tyre age from stint data and current lap.
+    const tyreAge = stintState
+      ? Math.max(0, currentLap - stintState.lapStart) + stintState.tyreAgeAtStart
+      : 0
+
+    states.push({
+      driverNumber,
+      nameAcronym: driver.nameAcronym,
+      fullName: driver.fullName,
+      teamName: driver.teamName,
+      teamColour: driver.teamColour,
+      headshotUrl: driver.headshotUrl,
+
+      position,
+      gapToLeader: intervalState?.gapToLeader ?? null,
+      interval: intervalState?.interval ?? null,
+
+      currentLapNumber: currentLap,
+      lastLapTime: latestLap?.lap_duration ?? null,
+      bestLapTime: bestLap,
+
+      sectorTimes: {
+        s1: latestLap?.duration_sector_1 ?? null,
+        s2: latestLap?.duration_sector_2 ?? null,
+        s3: latestLap?.duration_sector_3 ?? null,
+      },
+
+      // Use current in-progress lap for live segment updates (progressively filled
+      // as the car crosses each mini-sector). Falls back to empty when lap just started.
+      segments: {
+        sector1: currentLapData?.segments_sector_1 ?? [],
+        sector2: currentLapData?.segments_sector_2 ?? [],
+        sector3: currentLapData?.segments_sector_3 ?? [],
+      },
+
+      tyreCompound: stintState?.compound ?? null,
+      tyreAge,
+      inPit: pitState?.inPit ?? false,
+      pitStops: pitState?.count ?? 0,
+      isPitOutLap: latestLap?.is_pit_out_lap ?? false,
+
+      speed: carData?.speed ?? 0,
+      drs: carData?.drs ?? 0,
+      gear: carData?.gear ?? 0,
+
+      i1Speed: latestLap?.i1_speed ?? null,
+      i2Speed: latestLap?.i2_speed ?? null,
+      stSpeed: latestLap?.st_speed ?? null,
+    })
+  })
+
+  return states
+}
+
+// Starts a timer that emits aggregated driver state snapshots every ~1s.
+const startDriverStateBatching = (): void => {
+  stopDriverStateBatching()
+
+  driverStateBatchTimer = setInterval(() => {
+    if (!activeSession || activeSession.drivers.size === 0) return
+
+    const states = buildDriverStates()
+    if (states.length > 0) {
+      emitToRoom(OPENF1_EVENTS.DRIVER_STATES, states)
+    }
+  }, DRIVER_STATE_BATCH_INTERVAL)
+}
+
+// Stops the driver state batching timer.
+const stopDriverStateBatching = (): void => {
+  if (driverStateBatchTimer) {
+    clearInterval(driverStateBatchTimer)
+    driverStateBatchTimer = null
   }
 }
 

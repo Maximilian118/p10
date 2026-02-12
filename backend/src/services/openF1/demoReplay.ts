@@ -1,7 +1,11 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
 import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, buildTrackFromDemoData, OPENF1_EVENTS } from "./sessionManager"
-import { OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo } from "./types"
+import {
+  OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo,
+  OpenF1CarDataMsg, OpenF1IntervalMsg, OpenF1PitMsg, OpenF1StintMsg,
+  OpenF1PositionMsg, OpenF1RaceControlMsg, OpenF1WeatherMsg,
+} from "./types"
 import DemoSession from "../../models/demoSession"
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
@@ -11,6 +15,10 @@ const DEFAULT_SESSION_KEY = 9158
 
 // Interval between replay ticks (ms).
 const REPLAY_TICK_INTERVAL = 50
+
+// Minimum gap between sampled car_data messages per driver (ms).
+// OpenF1 sends car_data at ~3.7Hz; we sample to ~1Hz for demo storage.
+const CAR_DATA_SAMPLE_INTERVAL_MS = 1000
 
 // Replay state.
 let replayTimer: ReturnType<typeof setInterval> | null = null
@@ -86,17 +94,72 @@ const fetchFromAPI = async (
     { headers: authHeaders },
   )
 
-  // Fetch position data per driver (avoids massive single request).
-  const allPositions: OpenF1LocationMsg[] = []
+  // Fetch location (GPS) data per driver (avoids massive single request).
+  const allLocations: OpenF1LocationMsg[] = []
   for (const driverNum of driverNumbers) {
-    const posRes = await axios.get<OpenF1LocationMsg[]>(
+    const locRes = await axios.get<OpenF1LocationMsg[]>(
       `${OPENF1_API_BASE}/location?session_key=${sessionKey}&driver_number=${driverNum}`,
       { headers: authHeaders },
     )
-    allPositions.push(...posRes.data)
+    allLocations.push(...locRes.data)
   }
 
-  console.log(`  Fetched ${lapsRes.data.length} laps, ${allPositions.length} positions`)
+  // Fetch interval data (gap to leader + interval to car ahead).
+  const intervalsRes = await axios.get<OpenF1IntervalMsg[]>(
+    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch race position data.
+  const positionRes = await axios.get<OpenF1PositionMsg[]>(
+    `${OPENF1_API_BASE}/position?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch stint data (tyre compound info).
+  const stintsRes = await axios.get<OpenF1StintMsg[]>(
+    `${OPENF1_API_BASE}/stints?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch pit stop data.
+  const pitRes = await axios.get<OpenF1PitMsg[]>(
+    `${OPENF1_API_BASE}/pit?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch race control messages (flags, safety car, etc).
+  const raceControlRes = await axios.get<OpenF1RaceControlMsg[]>(
+    `${OPENF1_API_BASE}/race_control?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch weather data.
+  const weatherRes = await axios.get<OpenF1WeatherMsg[]>(
+    `${OPENF1_API_BASE}/weather?session_key=${sessionKey}`,
+    { headers: authHeaders },
+  )
+
+  // Fetch car telemetry per driver and sample to ~1Hz to manage data size.
+  const allCarData: OpenF1CarDataMsg[] = []
+  for (const driverNum of driverNumbers) {
+    const carDataRes = await axios.get<OpenF1CarDataMsg[]>(
+      `${OPENF1_API_BASE}/car_data?session_key=${sessionKey}&driver_number=${driverNum}`,
+      { headers: authHeaders },
+    )
+
+    // Sample to ~1Hz: keep one message per CAR_DATA_SAMPLE_INTERVAL_MS.
+    let lastKeptTs = 0
+    carDataRes.data.forEach((cd) => {
+      const ts = new Date(cd.date).getTime()
+      if (ts - lastKeptTs >= CAR_DATA_SAMPLE_INTERVAL_MS) {
+        allCarData.push(cd)
+        lastKeptTs = ts
+      }
+    })
+  }
+
+  console.log(`  Fetched ${lapsRes.data.length} laps, ${allLocations.length} locations, ${intervalsRes.data.length} intervals, ${positionRes.data.length} positions, ${stintsRes.data.length} stints, ${pitRes.data.length} pits, ${raceControlRes.data.length} race_control, ${weatherRes.data.length} weather, ${allCarData.length} car_data (sampled)`)
 
   // Build a unified chronological message queue.
   const messages: { topic: string; data: unknown; timestamp: number }[] = []
@@ -129,11 +192,65 @@ const fetchFromAPI = async (
     }
   })
 
-  // Add position messages.
-  allPositions.forEach((pos: OpenF1LocationMsg) => {
-    const ts = new Date(pos.date).getTime()
+  // Add location (GPS) messages.
+  allLocations.forEach((loc: OpenF1LocationMsg) => {
+    const ts = new Date(loc.date).getTime()
     if (ts > 0) {
-      messages.push({ topic: "v1/location", data: pos, timestamp: ts })
+      messages.push({ topic: "v1/location", data: loc, timestamp: ts })
+    }
+  })
+
+  // Add interval messages.
+  intervalsRes.data.forEach((interval: OpenF1IntervalMsg) => {
+    const ts = interval.date ? new Date(interval.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/intervals", data: interval, timestamp: ts })
+    }
+  })
+
+  // Add race position messages.
+  positionRes.data.forEach((pos: OpenF1PositionMsg) => {
+    const ts = pos.date ? new Date(pos.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/position", data: pos, timestamp: ts })
+    }
+  })
+
+  // Add stint messages (no date field — use session start + stint_number ordering).
+  const sessionStartTs = new Date(session.date_start || Date.now()).getTime()
+  stintsRes.data.forEach((stint: OpenF1StintMsg) => {
+    messages.push({ topic: "v1/stints", data: stint, timestamp: sessionStartTs + stint.stint_number * 100 + stint.lap_start })
+  })
+
+  // Add pit messages.
+  pitRes.data.forEach((pit: OpenF1PitMsg) => {
+    const ts = pit.date ? new Date(pit.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/pit", data: pit, timestamp: ts })
+    }
+  })
+
+  // Add race control messages.
+  raceControlRes.data.forEach((rc: OpenF1RaceControlMsg) => {
+    const ts = rc.date ? new Date(rc.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/race_control", data: rc, timestamp: ts })
+    }
+  })
+
+  // Add weather messages.
+  weatherRes.data.forEach((w: OpenF1WeatherMsg) => {
+    const ts = w.date ? new Date(w.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/weather", data: w, timestamp: ts })
+    }
+  })
+
+  // Add sampled car_data messages.
+  allCarData.forEach((cd: OpenF1CarDataMsg) => {
+    const ts = cd.date ? new Date(cd.date).getTime() : 0
+    if (ts > 0) {
+      messages.push({ topic: "v1/car_data", data: cd, timestamp: ts })
     }
   })
 
@@ -157,9 +274,16 @@ const fetchFromAPI = async (
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
 const MAX_STORED_BYTES = 6 * 1024 * 1024
 
+// Topics that form the "preamble" — kept regardless of timestamp.
+const PREAMBLE_TOPICS = new Set(["v1/sessions", "v1/drivers"])
+
+// Stateful topics where we preserve the latest record per driver before the midpoint,
+// so the snapshot starts with correct initial state (e.g. tyre compound, position).
+const STATEFUL_TOPICS = new Set(["v1/stints", "v1/position"])
+
 // Trims a full message queue to a mid-session snapshot that fits in one document.
-// Discards location/lap data before the session midpoint, keeps session/driver preamble,
-// then truncates from the end if the result still exceeds the safe storage limit.
+// Keeps session/driver preamble + latest stateful records per driver before midpoint,
+// then includes all data from the midpoint onwards. Truncates from the end if needed.
 const trimToSnapshot = (
   messages: { topic: string; data: unknown; timestamp: number }[],
 ): { topic: string; data: unknown; timestamp: number }[] => {
@@ -171,23 +295,50 @@ const trimToSnapshot = (
   const midTs = firstTs + (lastTs - firstTs) / 2
 
   // Keep session/driver messages (preamble) regardless of timestamp.
-  const preamble = messages.filter((m) => m.topic === "v1/sessions" || m.topic === "v1/drivers")
+  const preamble = messages.filter((m) => PREAMBLE_TOPICS.has(m.topic))
 
-  // Keep location/lap messages from the midpoint onwards.
+  // Extract the latest stateful record per driver before midpoint for each stateful topic.
+  // This ensures tyre compound, position, etc. are available at snapshot start.
+  const statefulPreamble: { topic: string; data: unknown; timestamp: number }[] = []
+
+  STATEFUL_TOPICS.forEach((topic) => {
+    const latestByDriver = new Map<number, { topic: string; data: unknown; timestamp: number }>()
+    messages.forEach((m) => {
+      if (m.topic === topic && m.timestamp < midTs) {
+        const driverNumber = (m.data as Record<string, unknown>).driver_number as number
+        const existing = latestByDriver.get(driverNumber)
+        if (!existing || m.timestamp > existing.timestamp) {
+          latestByDriver.set(driverNumber, m)
+        }
+      }
+    })
+    latestByDriver.forEach((msg) => statefulPreamble.push(msg))
+  })
+
+  // Keep the latest weather record before midpoint so weather is available at start.
+  const weatherBefore = messages.filter((m) => m.topic === "v1/weather" && m.timestamp < midTs)
+  if (weatherBefore.length > 0) {
+    statefulPreamble.push(weatherBefore[weatherBefore.length - 1])
+  }
+
+  // Keep all non-preamble, non-stateful-preamble messages from the midpoint onwards.
   let dataMessages = messages.filter((m) =>
-    m.topic !== "v1/sessions" && m.topic !== "v1/drivers" && m.timestamp >= midTs,
+    !PREAMBLE_TOPICS.has(m.topic) && m.timestamp >= midTs,
   )
 
   // Truncate from the end if the combined data exceeds the safe storage limit.
-  let combined = [...preamble, ...dataMessages]
+  let combined = [...preamble, ...statefulPreamble, ...dataMessages]
   let byteSize = Buffer.byteLength(JSON.stringify(combined))
 
   while (byteSize > MAX_STORED_BYTES && dataMessages.length > 0) {
     // Trim 20% off the end each iteration.
     dataMessages = dataMessages.slice(0, Math.floor(dataMessages.length * 0.8))
-    combined = [...preamble, ...dataMessages]
+    combined = [...preamble, ...statefulPreamble, ...dataMessages]
     byteSize = Buffer.byteLength(JSON.stringify(combined))
   }
+
+  // Re-sort to maintain chronological order after merging preamble sections.
+  combined.sort((a, b) => a.timestamp - b.timestamp)
 
   // Log the snapshot window duration.
   if (dataMessages.length > 0) {
@@ -208,19 +359,31 @@ const loadMessages = async (
   // Check MongoDB cache first.
   const cached = await DemoSession.findOne({ sessionKey })
   if (cached && cached.messages.length > 0) {
-    console.log(`  Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
+    // Check if cached data includes the expanded topics (car_data, position, etc.).
+    // If not, the cache predates the full data expansion and needs a re-fetch.
+    // Uses v1/car_data as the indicator since it's present for all session types
+    // (intervals are only available during races, not practice/qualifying).
+    const hasExpandedTopics = cached.messages.some((m) => m.topic === "v1/car_data")
 
-    // Extract circuit key from the document, or fall back to the cached session message
-    // for documents that predate the circuitKey field.
-    let circuitKey: number | null = cached.circuitKey || null
-    if (!circuitKey) {
-      const sessionMsg = cached.messages.find((m) => m.topic === "v1/sessions")
-      if (sessionMsg) {
-        circuitKey = (sessionMsg.data as Record<string, unknown>).circuit_key as number ?? null
+    if (hasExpandedTopics) {
+      console.log(`  Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
+
+      // Extract circuit key from the document, or fall back to the cached session message
+      // for documents that predate the circuitKey field.
+      let circuitKey: number | null = cached.circuitKey || null
+      if (!circuitKey) {
+        const sessionMsg = cached.messages.find((m) => m.topic === "v1/sessions")
+        if (sessionMsg) {
+          circuitKey = (sessionMsg.data as Record<string, unknown>).circuit_key as number ?? null
+        }
       }
+
+      return { messages: cached.messages, circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
     }
 
-    return { messages: cached.messages, circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
+    // Stale cache — delete and re-fetch with all topics.
+    console.log("  Stale cache (missing expanded topics) — re-fetching from API...")
+    await DemoSession.deleteOne({ sessionKey })
   }
 
   // Not cached — fetch from OpenF1 API.
@@ -288,6 +451,7 @@ export const startDemoReplay = async (
           fullName: d.full_name,
           teamName: d.team_name,
           teamColour: d.team_colour,
+          headshotUrl: d.headshot_url || null,
         })
       }
     }

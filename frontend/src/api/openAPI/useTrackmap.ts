@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useContext } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
 import AppContext from "../../context"
 import { getTrackmap } from "./requests/trackmapRequests"
-import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo, Corner, SectorBoundaries } from "./types"
+import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo, DriverLiveState, SessionLiveState, RaceControlEvent, Corner, SectorBoundaries } from "./types"
 
 // Socket.IO event names (must match backend OPENF1_EVENTS).
 const EVENTS = {
@@ -10,6 +10,9 @@ const EVENTS = {
   POSITIONS: "openf1:positions",
   SESSION: "openf1:session",
   DRIVERS: "openf1:drivers",
+  DRIVER_STATES: "openf1:driver-states",
+  SESSION_STATE: "openf1:session-state",
+  RACE_CONTROL: "openf1:race-control",
   DEMO_STATUS: "openf1:demo-status",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
@@ -24,6 +27,8 @@ export interface UseTrackmapResult {
   sessionActive: boolean
   trackName: string
   drivers: OpenF1DriverInfo[]
+  driverStates: DriverLiveState[]
+  sessionState: SessionLiveState | null
   corners: Corner[] | null
   sectorBoundaries: SectorBoundaries | null
   connectionStatus: TrackmapConnectionStatus
@@ -48,6 +53,8 @@ const useTrackmap = (): UseTrackmapResult => {
   const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
   const [demoRemainingMs, setDemoDurationMs] = useState(0)
   const [demoStartedAt, setDemoStartedAt] = useState(0)
+  const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
+  const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
 
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
@@ -102,6 +109,24 @@ const useTrackmap = (): UseTrackmapResult => {
       setDrivers(driverList)
     }
 
+    // Handle aggregated driver live state snapshots.
+    const handleDriverStates = (states: DriverLiveState[]) => {
+      setDriverStates(states)
+    }
+
+    // Handle session-wide state updates (weather, race control, overtakes).
+    const handleSessionState = (state: SessionLiveState) => {
+      setSessionState(state)
+    }
+
+    // Handle individual race control events (append to existing session state).
+    const handleRaceControl = (event: RaceControlEvent) => {
+      setSessionState((prev) => {
+        if (!prev) return { weather: null, raceControlMessages: [event], overtakes: [] }
+        return { ...prev, raceControlMessages: [...prev.raceControlMessages, event] }
+      })
+    }
+
     // Handle demo mode phase updates.
     const handleDemoStatus = (data: { phase: DemoPhase; remainingMs?: number }) => {
       setDemoPhase(data.phase)
@@ -116,6 +141,9 @@ const useTrackmap = (): UseTrackmapResult => {
     socket.on(EVENTS.TRACKMAP, handleTrackmap)
     socket.on(EVENTS.POSITIONS, handlePositions)
     socket.on(EVENTS.DRIVERS, handleDrivers)
+    socket.on(EVENTS.DRIVER_STATES, handleDriverStates)
+    socket.on(EVENTS.SESSION_STATE, handleSessionState)
+    socket.on(EVENTS.RACE_CONTROL, handleRaceControl)
     socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
 
     // Cleanup: leave the room and remove listeners.
@@ -125,6 +153,9 @@ const useTrackmap = (): UseTrackmapResult => {
       socket.off(EVENTS.TRACKMAP, handleTrackmap)
       socket.off(EVENTS.POSITIONS, handlePositions)
       socket.off(EVENTS.DRIVERS, handleDrivers)
+      socket.off(EVENTS.DRIVER_STATES, handleDriverStates)
+      socket.off(EVENTS.SESSION_STATE, handleSessionState)
+      socket.off(EVENTS.RACE_CONTROL, handleRaceControl)
       socket.off(EVENTS.DEMO_STATUS, handleDemoStatus)
     }
   }, [])
@@ -135,6 +166,8 @@ const useTrackmap = (): UseTrackmapResult => {
     sessionActive,
     trackName,
     drivers,
+    driverStates,
+    sessionState,
     corners,
     sectorBoundaries,
     connectionStatus,

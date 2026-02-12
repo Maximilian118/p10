@@ -9,6 +9,14 @@ const TOPICS = [
   "v1/laps",
   "v1/sessions",
   "v1/drivers",
+  "v1/car_data",
+  "v1/intervals",
+  "v1/pit",
+  "v1/stints",
+  "v1/position",
+  "v1/race_control",
+  "v1/weather",
+  "v1/overtakes",
 ]
 
 // Singleton MQTT client instance.

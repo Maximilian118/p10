@@ -62,3 +62,49 @@ export const getPointAtProgress = (
   const result = getPointAndTangentAtProgress(path, arcLengths, progress)
   return result ? result.point : null
 }
+
+// Extracts a sub-path between two progress values (0-1) along the track.
+// Handles wrap-around when endProgress < startProgress (e.g. sector 3 crossing start/finish).
+export const getSubPath = (
+  path: { x: number; y: number }[],
+  arcLengths: number[],
+  startProgress: number,
+  endProgress: number,
+): { x: number; y: number }[] => {
+  // If wrapping (end < start), split into two segments: [start → 1.0] + [0.0 → end].
+  if (endProgress < startProgress) {
+    return [
+      ...getSubPath(path, arcLengths, startProgress, 1.0),
+      ...getSubPath(path, arcLengths, 0.0, endProgress),
+    ]
+  }
+
+  const totalLength = arcLengths[arcLengths.length - 1]
+  const startDist = startProgress * totalLength
+  const endDist = endProgress * totalLength
+  const result: { x: number; y: number }[] = []
+
+  // Add interpolated start point.
+  const startPt = getPointAtProgress(path, arcLengths, startProgress)
+  if (startPt) result.push(startPt)
+
+  // Add all intermediate path points between start and end distances.
+  for (let i = 0; i < path.length; i++) {
+    if (arcLengths[i] > startDist && arcLengths[i] < endDist) {
+      result.push(path[i])
+    }
+  }
+
+  // Add interpolated end point.
+  const endPt = getPointAtProgress(path, arcLengths, endProgress)
+  if (endPt) result.push(endPt)
+
+  return result
+}
+
+// Builds an open SVG path string from a list of points (no Z closure).
+export const buildOpenSvgPath = (points: { x: number; y: number }[]): string => {
+  if (points.length === 0) return ""
+  const [first, ...rest] = points
+  return `M ${first.x},${first.y} ${rest.map((p) => `L ${p.x},${p.y}`).join(" ")}`
+}

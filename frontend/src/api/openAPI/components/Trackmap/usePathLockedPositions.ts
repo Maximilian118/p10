@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useMemo } from "react"
+import { useRef, useEffect, useCallback, useMemo, MutableRefObject } from "react"
 import { CarPosition } from "../../types"
 import { computeArcLengths, getPointAtProgress } from "./trackPathUtils"
 
@@ -46,7 +46,10 @@ const SMOOTH_TAU = 250
 const usePathLockedPositions = (
   carPositions: CarPosition[],
   svgTrackPath: { x: number; y: number }[] | null,
-): { registerDot: (driverNumber: number, element: SVGGElement | null) => void } => {
+): {
+  registerDot: (driverNumber: number, element: SVGGElement | null) => void
+  smoothedProgressRef: MutableRefObject<Map<number, number>>
+} => {
   // Precompute cumulative arc lengths for progress-to-point mapping.
   const arcLengths = useMemo(
     () => (svgTrackPath && svgTrackPath.length > 1 ? computeArcLengths(svgTrackPath) : null),
@@ -171,7 +174,7 @@ const usePathLockedPositions = (
     return () => cancelAnimationFrame(rafRef.current)
   }, [svgTrackPath, arcLengths])
 
-  return { registerDot }
+  return { registerDot, smoothedProgressRef: smoothedRef }
 }
 
 export default usePathLockedPositions
