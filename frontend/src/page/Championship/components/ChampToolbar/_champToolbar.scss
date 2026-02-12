@@ -18,3 +18,12 @@
     }
   }
 }
+
+// Non-clickable DEMO indicator button in the toolbar during demo mode.
+.demo-toolbar-badge {
+  background-color: rgba(255, 152, 0, 0.85) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px;
+  pointer-events: none;
+}

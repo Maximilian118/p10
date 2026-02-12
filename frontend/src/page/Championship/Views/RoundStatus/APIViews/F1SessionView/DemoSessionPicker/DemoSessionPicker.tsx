@@ -2,6 +2,7 @@ import React from "react"
 import Button from "@mui/material/Button"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import "./_demoSessionPicker.scss"
+import { DemoSession } from "../../types"
 
 // Session info for each demo option.
 interface DemoSessionOption {
@@ -12,7 +13,7 @@ interface DemoSessionOption {
 }
 
 interface DemoSessionPickerProps {
-  onSessionSelect: (session: { key: number; label: string }) => void
+  onSelect: (session: DemoSession) => void
 }
 
 // Notable F1 sessions available for demo replay (variety of session types).
@@ -32,7 +33,7 @@ const buildLabel = (s: DemoSessionOption): string =>
   `${s.circuit} - ${s.year % 100} - ${s.session}`
 
 // Displays a list of historical F1 sessions for the user to choose from.
-const DemoSessionPicker: React.FC<DemoSessionPickerProps> = ({ onSessionSelect }) => {
+const DemoSessionPicker: React.FC<DemoSessionPickerProps> = ({ onSelect }) => {
   return (
     <div className="demo-picker">
       <p className="f1-session-title">F1 Demo Session</p>
@@ -44,7 +45,7 @@ const DemoSessionPicker: React.FC<DemoSessionPickerProps> = ({ onSessionSelect }
             variant="contained"
             className="demo-picker__session-btn"
             startIcon={<SportsMotorsportsIcon />}
-            onClick={() => onSessionSelect({ key: session.key, label: buildLabel(session) })}
+            onClick={() => onSelect({ key: session.key, label: buildLabel(session) })}
           >
             {buildLabel(session)}
           </Button>

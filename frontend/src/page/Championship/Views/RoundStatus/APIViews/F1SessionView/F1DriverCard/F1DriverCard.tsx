@@ -21,7 +21,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
 
   return (
     <div className={className} onClick={onClick}>
-      {imageUrl && <ImageIcon src={imageUrl} size="medium" />}
+      {imageUrl && <ImageIcon src={imageUrl} size="medium" background/>}
     </div>
   )
 }

@@ -9,6 +9,8 @@ import { updateChampPP } from "../../../../shared/requests/champRequests"
 import { useNavigate } from "react-router-dom"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import ChampBannerStats from "../ChampBannerStats/ChampBannerStats"
+import SessionStats from "../SessionStats/SessionStats"
+import { SessionBannerData } from "../../../../api/openAPI/useSessionBanner"
 import { buildChampBannerStats } from "../../champUtility"
 
 // Shrink state from useScrollShrink hook.
@@ -36,6 +38,7 @@ interface champBannerEditableType<T, U> {
   bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
   shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
+  sessionBanner?: SessionBannerData // When provided, renders SessionStats instead of ChampBannerStats.
 }
 
 // Props for read-only championship banner (when user is not adjudicator).
@@ -46,6 +49,7 @@ interface champBannerReadOnlyType {
   bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
   shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
+  sessionBanner?: SessionBannerData // When provided, renders SessionStats instead of ChampBannerStats.
 }
 
 type champBannerType<T, U> = champBannerEditableType<T, U> | champBannerReadOnlyType
@@ -58,7 +62,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ, onBannerClick, bannerRef, shrinkState, viewedRoundNumber } = props
+    const { champ, onBannerClick, bannerRef, shrinkState, viewedRoundNumber, sessionBanner } = props
     return (
       <div className="champ-banner" ref={bannerRef}>
         <div className="champ-banner-icon-container" onClick={onBannerClick}>
@@ -68,14 +72,16 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
+          {sessionBanner
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </div>
       </div>
     )
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, bannerRef, shrinkState, viewedRoundNumber } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, bannerRef, shrinkState, viewedRoundNumber, sessionBanner } = props
 
   // Is the "Are you sure" check dispalying or not?
   const isNormalView = !form.icon && !form.profile_picture
@@ -94,7 +100,9 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
+          {sessionBanner
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </>
       )
     }
@@ -106,7 +114,9 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
           <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
             <p>{champ.name}</p>
           </div>
-          <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />
+          {sessionBanner
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </>
       )
     } else {

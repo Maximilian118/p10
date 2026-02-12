@@ -9,51 +9,12 @@
   overflow: hidden;
   position: relative;
 
-  // Demo badge pill (used inline in the header or standalone).
-  .demo-badge {
-    background: rgba(255, 152, 0, 0.85);
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 3px 10px;
-    border-radius: 12px;
-  }
-
   .f1-session-title {
     margin-bottom: 5px;
-  }
 
-  // 3-column demo header: countdown | title | badge.
-  .f1-session-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 0 5% 5px;
-    box-sizing: border-box;
-
-    &__countdown {
-      flex: 1;
-      text-align: left;
-      font-size: 0.75rem;
-      color: #1976d2;
-      font-variant-numeric: tabular-nums;
-    }
-
-    &__title {
-      flex: 0 0 auto;
-      text-align: center;
-
-      &--ended {
-        color: #f44336;
-      }
-    }
-
-    &__badge {
-      flex: 1;
-      display: flex;
-      justify-content: flex-end;
+    // Red text when the demo replay has ended.
+    &--ended {
+      color: #f44336;
     }
   }
 

@@ -40,10 +40,10 @@ import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
-import { getAPIView } from "./Views/RoundStatus/APIViews"
-import F1SessionView from "./Views/RoundStatus/APIViews/F1SessionView/F1SessionView"
-import DemoSessionPicker from "./Views/DemoSessionPicker/DemoSessionPicker"
+import { getSeriesConfig } from "./Views/RoundStatus/APIViews"
+import type { DemoSession } from "./Views/RoundStatus/APIViews"
 import { startDemo, stopDemo } from "../../api/openAPI/requests/demoRequests"
+import { useSessionBanner } from "../../api/openAPI/useSessionBanner"
 import Confirm from "../../components/utility/confirm/Confirm"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import BlockIcon from "@mui/icons-material/Block"
@@ -252,8 +252,8 @@ const Championship: React.FC = () => {
   // Protests data for the championship.
   const [ protests, setProtests ] = useState<ProtestType[]>([])
 
-  // Selected demo session (null = show picker, set = show F1SessionView).
-  const [ demoSession, setDemoSession ] = useState<{ key: number; label: string } | null>(null)
+  // Selected demo session (null = show picker, set = show session view).
+  const [ demoSession, setDemoSession ] = useState<DemoSession | null>(null)
 
   // Create protest state.
   const [ showCreateProtest, setShowCreateProtest ] = useState(false)
@@ -476,7 +476,7 @@ const Championship: React.FC = () => {
       // Handle demo mode back navigation.
       if (view === "demoMode") {
         if (demoSession) {
-          // Back from F1SessionView → return to session picker.
+          // Back from session view → return to session picker.
           stopDemo(user, setUser, setBackendErr)
           setDemoSession(null)
           return
@@ -877,6 +877,25 @@ const Championship: React.FC = () => {
     [viewedRound, champ?.competitors, champ?.banned, champ?.kicked]
   )
 
+  // Series-specific configuration (View component, DemoPicker, etc.).
+  const seriesConfig = useMemo(
+    () => champ?.series?.hasAPI ? getSeriesConfig(champ.series.shortName) : null,
+    [champ?.series]
+  )
+
+  // Detect whether the current view is an active API session (live or demo).
+  const isAPISessionView = useMemo(() => {
+    if (!champ) return false
+    const isLive = roundStatusView === "betting_closed" && !!seriesConfig
+    const isDemo = view === "demoMode" && !!demoSession
+    return isLive || isDemo
+  }, [champ, roundStatusView, seriesConfig, view, demoSession])
+
+  const isDemoMode = view === "demoMode" && !!demoSession
+
+  // Session banner data (flag state, countdown, ended state) for ChampBanner.
+  const sessionBanner = useSessionBanner(isAPISessionView, isDemoMode)
+
   // Render loading state.
   if (loading) {
     return (
@@ -919,6 +938,9 @@ const Championship: React.FC = () => {
   const viewedRoundNumber = activeRoundIndex >= 0
     ? activeRoundIndex + 1  // Show active round number when a round is in progress.
     : (completedRoundsCount > 0 ? viewedIndex + 1 : 0)  // Show viewed completed round.
+
+  // Pass session banner data to ChampBanner only when in F1 session view.
+  const sessionBannerData = isAPISessionView ? sessionBanner : undefined
 
   // Grouped toolbar props for form views.
   const settingsToolbarProps: FormToolbarProps = {
@@ -1035,6 +1057,7 @@ const Championship: React.FC = () => {
             bannerRef={bannerRef}
             shrinkState={shrinkState}
             viewedRoundNumber={viewedRoundNumber}
+            sessionBanner={sessionBannerData}
           />
         ) : (
           <ChampBanner<formType, formErrType>
@@ -1052,10 +1075,11 @@ const Championship: React.FC = () => {
             bannerRef={bannerRef}
             shrinkState={shrinkState}
             viewedRoundNumber={viewedRoundNumber}
+            sessionBanner={sessionBannerData}
           />
         )
       ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} bannerRef={bannerRef} shrinkState={shrinkState} viewedRoundNumber={viewedRoundNumber} />
+        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} bannerRef={bannerRef} shrinkState={shrinkState} viewedRoundNumber={viewedRoundNumber} sessionBanner={sessionBannerData} />
       )}
 
       {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
@@ -1099,10 +1123,9 @@ const Championship: React.FC = () => {
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_closed" && activeRound && (() => {
-          const APIViewComponent = champ.series.hasAPI ? getAPIView(champ.series.shortName) : null
-          if (APIViewComponent) {
+          if (seriesConfig) {
             return (
-              <APIViewComponent
+              <seriesConfig.View
                 round={activeRound}
                 isAdjudicator={isAdjudicator}
                 onAdvance={() => handleAdvanceStatus("results")}
@@ -1536,12 +1559,12 @@ const Championship: React.FC = () => {
           />
         )}
 
-        {/* Demo mode - session picker or replay */}
-        {view === "demoMode" && !demoSession && (
-          <DemoSessionPicker onSessionSelect={setDemoSession} />
+        {/* Demo mode - session picker or replay (uses series-specific components) */}
+        {view === "demoMode" && !demoSession && seriesConfig?.DemoPicker && (
+          <seriesConfig.DemoPicker onSelect={setDemoSession} />
         )}
-        {view === "demoMode" && demoSession && (
-          <F1SessionView demoMode sessionLabel={demoSession.label} />
+        {view === "demoMode" && demoSession && seriesConfig && (
+          <seriesConfig.View demoMode sessionLabel={demoSession.label} demoEnded={sessionBanner.demoEnded} />
         )}
 
         {/* Invite full confirmation - adjudicator trying to invite when championship is full */}

@@ -400,4 +400,6 @@ export interface SessionState {
   raceControlMessages: RaceControlEvent[]
   // Overtake events accumulated during the session.
   overtakes: OvertakeEvent[]
+  // Expected session end timestamp (ms epoch) — used for fallback countdown when SignalR is unavailable.
+  dateEndTs: number
 }

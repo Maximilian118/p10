@@ -28,6 +28,7 @@ import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./t
 import { computeSectorBoundaries } from "./sectorBoundaries"
 import { startPolling, stopPolling, markMqttReceived, onPolledMessage } from "./restPoller"
 import { saveF1Session } from "../../models/f1Session"
+import { connectLiveTiming, disconnectLiveTiming, getLatestClock } from "./f1LiveTiming"
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -47,6 +48,7 @@ export const OPENF1_EVENTS = {
   SESSION_STATE: "openf1:session-state",
   RACE_CONTROL: "openf1:race-control",
   DEMO_STATUS: "openf1:demo-status",
+  CLOCK: "session:clock",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
@@ -62,6 +64,9 @@ let positionBatchTimer: ReturnType<typeof setInterval> | null = null
 
 // Timer for aggregated driver state emissions.
 let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
+
+// Timer for fallback countdown clock (activates when SignalR is unavailable).
+let fallbackClockTimer: ReturnType<typeof setInterval> | null = null
 
 // Room name for clients receiving OpenF1 live data.
 const OPENF1_ROOM = "openf1:live"
@@ -108,6 +113,11 @@ export const initSessionManager = (io: Server): void => {
           raceControlMessages: activeSession.raceControlMessages,
           overtakes: activeSession.overtakes,
         })
+        // Send latest clock state if available.
+        const clock = getLatestClock()
+        if (clock) {
+          socket.emit(OPENF1_EVENTS.CLOCK, clock)
+        }
       } else {
         socket.emit(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
       }
@@ -163,6 +173,7 @@ export const initDemoSession = async (
     weather: null,
     raceControlMessages: [],
     overtakes: [],
+    dateEndTs: 0,
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -203,12 +214,16 @@ export const initDemoSession = async (
   startDriverStateBatching()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo" })
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
+}
 
-  // Emit the best available track path (MultiViewer preferred, GPS fallback).
+// Emits the current trackmap to all clients. Called after fast-forward
+// processing in startDemoReplay() so data is ready when the spinner stops.
+export const emitDemoTrackmap = (): void => {
+  if (!activeSession) return
   const displayPath = getDisplayPath()
   if (displayPath && displayPath.length > 0) {
     emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-      trackName,
+      trackName: activeSession.trackName,
       path: displayPath,
       pathVersion: activeSession.totalLapsProcessed,
       totalLapsProcessed: activeSession.totalLapsProcessed,
@@ -410,6 +425,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     weather: null,
     raceControlMessages: [],
     overtakes: [],
+    dateEndTs: msg.date_end ? new Date(msg.date_end).getTime() : 0,
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -417,11 +433,13 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     await tryFetchMultiviewer(circuitKey, trackName)
   }
 
-  // Start batched emissions and REST polling fallback.
+  // Start batched emissions, REST polling fallback, and live timing clock.
   startPositionBatching()
   startDriverStateBatching()
   onPolledMessage((topic, data) => routeMessage(topic, data))
   startPolling(msg.session_key)
+  connectLiveTiming()
+  startFallbackClock()
 
   // Emit session start to all subscribers.
   emitToRoom(OPENF1_EVENTS.SESSION, {
@@ -459,10 +477,12 @@ const endSession = async (): Promise<void> => {
   // Persist aggregated session data to MongoDB (30-day TTL).
   await saveF1Session(activeSession)
 
-  // Stop all batching and polling.
+  // Stop all batching, polling, live timing connection, and fallback clock.
   stopPositionBatching()
   stopDriverStateBatching()
   stopPolling()
+  disconnectLiveTiming()
+  stopFallbackClock()
 
   // Notify frontend.
   emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
@@ -1151,6 +1171,55 @@ const stopDriverStateBatching = (): void => {
   if (driverStateBatchTimer) {
     clearInterval(driverStateBatchTimer)
     driverStateBatchTimer = null
+  }
+}
+
+// ─── Fallback Clock ──────────────────────────────────────────────
+
+// How often the fallback clock emits (ms).
+const FALLBACK_CLOCK_INTERVAL = 5000
+
+// Maximum age of SignalR clock data before fallback activates (ms).
+const SIGNALR_STALE_THRESHOLD = 15000
+
+// Starts a periodic fallback clock that emits computed countdown events
+// when the F1 Live Timing SignalR connection hasn't delivered data recently.
+// Uses session date_end and race control flags to compute remaining time.
+const startFallbackClock = (): void => {
+  stopFallbackClock()
+
+  fallbackClockTimer = setInterval(() => {
+    if (!activeSession || activeSession.isDemo || !activeSession.dateEndTs) return
+
+    // If SignalR has delivered a clock update recently, defer to it.
+    const signalRClock = getLatestClock()
+    if (signalRClock && (Date.now() - signalRClock.serverTs) < SIGNALR_STALE_THRESHOLD) return
+
+    // Derive running state from the latest race control flag.
+    const rcMessages = activeSession.raceControlMessages
+    let running = true
+    for (let i = rcMessages.length - 1; i >= 0; i--) {
+      if (rcMessages[i].flag === "RED") { running = false; break }
+      if (rcMessages[i].flag === "GREEN") break
+    }
+
+    // Compute remaining time from session date_end.
+    const remainingMs = Math.max(0, activeSession.dateEndTs - Date.now())
+
+    emitToRoom(OPENF1_EVENTS.CLOCK, {
+      remainingMs,
+      running,
+      serverTs: Date.now(),
+      speed: 1,
+    })
+  }, FALLBACK_CLOCK_INTERVAL)
+}
+
+// Stops the fallback clock timer.
+const stopFallbackClock = (): void => {
+  if (fallbackClockTimer) {
+    clearInterval(fallbackClockTimer)
+    fallbackClockTimer = null
   }
 }
 

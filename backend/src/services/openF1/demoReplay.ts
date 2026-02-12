@@ -1,6 +1,6 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
-import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, buildTrackFromDemoData, OPENF1_EVENTS } from "./sessionManager"
+import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, emitDemoTrackmap, buildTrackFromDemoData, OPENF1_EVENTS } from "./sessionManager"
 import {
   OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo,
   OpenF1CarDataMsg, OpenF1IntervalMsg, OpenF1PitMsg, OpenF1StintMsg,
@@ -53,6 +53,114 @@ export const getDemoStatus = (): DemoStatus => ({
 // Emits a demo phase update to all connected clients.
 const emitDemoPhase = (phase: "fetching" | "ready" | "stopped" | "ended"): void => {
   emitToRoom(OPENF1_EVENTS.DEMO_STATUS, { phase })
+}
+
+// Generates synthetic clock events from the full (pre-trim) message queue.
+// Scans race_control messages for RED/GREEN flag transitions to compute pause periods,
+// then produces clock events at start, each flag transition, and periodically (~5s) while running.
+// These events are later replayed as session:clock to drive the frontend countdown.
+const generateSyntheticClock = (
+  messages: { topic: string; data: unknown; timestamp: number }[],
+  sessionEndTs: number,
+): { topic: string; data: { remainingMs: number; running: boolean }; timestamp: number }[] => {
+  const clockEvents: { topic: string; data: { remainingMs: number; running: boolean }; timestamp: number }[] = []
+
+  // Extract race control flag events (RED/GREEN) from the full dataset.
+  const flagEvents: { ts: number; flag: string }[] = []
+  for (const msg of messages) {
+    if (msg.topic === "v1/race_control") {
+      const rc = msg.data as { flag?: string | null }
+      if (rc.flag === "RED" || rc.flag === "GREEN") {
+        flagEvents.push({ ts: msg.timestamp, flag: rc.flag })
+      }
+    }
+  }
+
+  const firstDataTs = messages[0]?.timestamp || 0
+  if (!firstDataTs || !sessionEndTs || sessionEndTs <= firstDataTs) return clockEvents
+
+  // Compute total stoppage time by pairing RED→GREEN transitions.
+  let totalStoppage = 0
+  let redStart: number | null = null
+  for (const fe of flagEvents) {
+    if (fe.flag === "RED") {
+      redStart = fe.ts
+    } else if (fe.flag === "GREEN" && redStart !== null) {
+      totalStoppage += fe.ts - redStart
+      redStart = null
+    }
+  }
+
+  // Total racing time is the session duration minus all completed pause periods.
+  const totalRacingTime = (sessionEndTs - firstDataTs) - totalStoppage
+
+  // Walk through the session timeline generating clock events.
+  let running = true
+  let accumulatedStoppage = 0
+  let currentRedStart: number | null = null
+  let flagIdx = 0
+  const PERIODIC_INTERVAL = 5000
+
+  // Helper: compute remaining time at a given timestamp.
+  const computeRemaining = (ts: number): number => {
+    const racingElapsed = (ts - firstDataTs) - accumulatedStoppage
+    return Math.max(0, totalRacingTime - racingElapsed)
+  }
+
+  // Emit initial clock event at the start of data.
+  clockEvents.push({
+    topic: "synthetic:clock",
+    data: { remainingMs: totalRacingTime, running: true },
+    timestamp: firstDataTs,
+  })
+
+  // Generate events across the session timeline in PERIODIC_INTERVAL steps.
+  let t = firstDataTs + PERIODIC_INTERVAL
+  while (t <= sessionEndTs) {
+    // Process any flag transitions that occur before or at time t.
+    while (flagIdx < flagEvents.length && flagEvents[flagIdx].ts <= t) {
+      const fe = flagEvents[flagIdx]
+      if (fe.flag === "RED" && running) {
+        running = false
+        currentRedStart = fe.ts
+        clockEvents.push({
+          topic: "synthetic:clock",
+          data: { remainingMs: computeRemaining(fe.ts), running: false },
+          timestamp: fe.ts,
+        })
+      } else if (fe.flag === "GREEN" && !running && currentRedStart !== null) {
+        accumulatedStoppage += fe.ts - currentRedStart
+        currentRedStart = null
+        running = true
+        clockEvents.push({
+          topic: "synthetic:clock",
+          data: { remainingMs: computeRemaining(fe.ts), running: true },
+          timestamp: fe.ts,
+        })
+      }
+      flagIdx++
+    }
+
+    // Emit periodic clock event while running.
+    if (running) {
+      clockEvents.push({
+        topic: "synthetic:clock",
+        data: { remainingMs: computeRemaining(t), running: true },
+        timestamp: t,
+      })
+    }
+
+    t += PERIODIC_INTERVAL
+  }
+
+  // Emit a final clock event at session end.
+  clockEvents.push({
+    topic: "synthetic:clock",
+    data: { remainingMs: 0, running: false },
+    timestamp: sessionEndTs,
+  })
+
+  return clockEvents
 }
 
 // Fetches all session data from the OpenF1 REST API and builds the message queue.
@@ -259,16 +367,42 @@ const fetchFromAPI = async (
 
   console.log(`  ${messages.length} total messages before trimming`)
 
+  // Parse the session end timestamp before trimming (needed for synthetic clock generation).
+  const sessionEndTs = session.date_end ? new Date(session.date_end).getTime() : messages[messages.length - 1]?.timestamp || 0
+
+  // Generate synthetic clock events from the FULL dataset before trimming.
+  // This ensures red flag stoppages from early in the session are captured.
+  const syntheticClock = generateSyntheticClock(messages, sessionEndTs)
+  console.log(`  ${syntheticClock.length} synthetic clock events generated`)
+
   // Trim to a mid-session snapshot: discard location/lap data before the 50% mark,
   // then cap to fit in a single MongoDB document (12MB limit with buffer).
   const trimmed = trimToSnapshot(messages)
 
-  console.log(`  ${trimmed.length} messages after trimming to mid-session snapshot`)
+  // Filter synthetic clock events to the trimmed data window so the replay
+  // doesn't extend past the last visible data message.
+  const dataMessages = trimmed.filter(m => !PREAMBLE_TOPICS.has(m.topic))
+  const lastDataTs = dataMessages.length > 0 ? dataMessages[dataMessages.length - 1].timestamp : 0
+  const clockInRange = syntheticClock.filter(e => e.timestamp <= lastDataTs)
 
-  // Parse the session end timestamp for countdown calculations.
-  const sessionEndTs = session.date_end ? new Date(session.date_end).getTime() : trimmed[trimmed.length - 1]?.timestamp || 0
+  // Append a final clock event at the end of the trimmed window (running=false)
+  // so the frontend freezes the countdown when the demo data runs out.
+  if (clockInRange.length > 0) {
+    const lastClock = clockInRange[clockInRange.length - 1]
+    clockInRange.push({
+      topic: "synthetic:clock",
+      data: { remainingMs: lastClock.data.remainingMs, running: false },
+      timestamp: lastDataTs,
+    })
+  }
 
-  return { messages: trimmed, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
+  // Merge filtered clock events into the trimmed snapshot and re-sort.
+  const withClock = [...trimmed, ...clockInRange]
+  withClock.sort((a, b) => a.timestamp - b.timestamp)
+
+  console.log(`  ${withClock.length} messages after trimming + synthetic clock (${clockInRange.length} clock events)`)
+
+  return { messages: withClock, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
@@ -359,13 +493,12 @@ const loadMessages = async (
   // Check MongoDB cache first.
   const cached = await DemoSession.findOne({ sessionKey })
   if (cached && cached.messages.length > 0) {
-    // Check if cached data includes the expanded topics (car_data, position, etc.).
-    // If not, the cache predates the full data expansion and needs a re-fetch.
-    // Uses v1/car_data as the indicator since it's present for all session types
-    // (intervals are only available during races, not practice/qualifying).
+    // Check if cached data includes the expanded topics (car_data, position, etc.)
+    // and synthetic clock events. If missing, the cache is stale and needs a re-fetch.
     const hasExpandedTopics = cached.messages.some((m) => m.topic === "v1/car_data")
+    const hasSyntheticClock = cached.messages.some((m) => m.topic === "synthetic:clock")
 
-    if (hasExpandedTopics) {
+    if (hasExpandedTopics && hasSyntheticClock) {
       console.log(`  Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
 
       // Extract circuit key from the document, or fall back to the cached session message
@@ -381,8 +514,8 @@ const loadMessages = async (
       return { messages: cached.messages, circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
     }
 
-    // Stale cache — delete and re-fetch with all topics.
-    console.log("  Stale cache (missing expanded topics) — re-fetching from API...")
+    // Stale cache — delete and re-fetch with all topics + synthetic clock.
+    console.log("  Stale cache (missing expanded topics or synthetic clock) — re-fetching from API...")
     await DemoSession.deleteOne({ sessionKey })
   }
 
@@ -432,7 +565,7 @@ export const startDemoReplay = async (
   emitDemoPhase("fetching")
 
   try {
-    const { messages, circuitKey, trackName, sessionEndTs } = await loadMessages(replaySessionKey)
+    const { messages, circuitKey, trackName } = await loadMessages(replaySessionKey)
     replayTrackName = trackName
 
     // Find the first position message to determine the preamble boundary.
@@ -487,9 +620,25 @@ export const startDemoReplay = async (
     }
 
     // Process all fast-forwarded messages (positions + laps) immediately.
+    // Track the latest synthetic clock event so we can emit it for initial state.
+    let latestFastForwardClock: { remainingMs: number; running: boolean } | null = null
     for (let i = preambleEnd; i < fastForwardEnd; i++) {
       const msg = messages[i]
-      handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+      if (msg.topic === "synthetic:clock") {
+        latestFastForwardClock = msg.data as { remainingMs: number; running: boolean }
+      } else {
+        handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+      }
+    }
+
+    // Emit the latest clock state from the fast-forwarded period so the frontend
+    // starts with the correct countdown value.
+    if (latestFastForwardClock) {
+      emitToRoom(OPENF1_EVENTS.CLOCK, {
+        ...latestFastForwardClock,
+        serverTs: Date.now(),
+        speed: replaySpeed,
+      })
     }
 
     // Start replay from the point where cars are on track.
@@ -499,10 +648,12 @@ export const startDemoReplay = async (
     replayStartTime = Date.now()
     replayActive = true
 
-    // Calculate real-time remaining until session end (checkered flag).
-    const remainingSessionMs = sessionEndTs - replayBaseTime
-    const remainingMs = remainingSessionMs / replaySpeed
-    emitToRoom(OPENF1_EVENTS.DEMO_STATUS, { phase: "ready", remainingMs })
+    // Emit the trackmap now that fast-forwarded data is populated.
+    // This is what stops the frontend spinner — delayed until data is ready.
+    emitDemoTrackmap()
+
+    // Notify frontend that replay is ready (clock is now driven by synthetic:clock events).
+    emitDemoPhase("ready")
 
     // Tick-based playback — check which messages should have been sent by now.
     replayTimer = setInterval(() => {
@@ -527,8 +678,19 @@ export const startDemoReplay = async (
       // Feed all messages up to the current session time.
       while (replayIndex < replayMessages.length && replayMessages[replayIndex].timestamp <= currentSessionTime) {
         const msg = replayMessages[replayIndex]
-        const payload = Buffer.from(JSON.stringify(msg.data))
-        handleMqttMessage(msg.topic, payload)
+
+        // Synthetic clock events are emitted directly as session:clock.
+        if (msg.topic === "synthetic:clock") {
+          const clockData = msg.data as { remainingMs: number; running: boolean }
+          emitToRoom(OPENF1_EVENTS.CLOCK, {
+            ...clockData,
+            serverTs: Date.now(),
+            speed: replaySpeed,
+          })
+        } else {
+          handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+        }
+
         replayIndex++
       }
     }, REPLAY_TICK_INTERVAL)

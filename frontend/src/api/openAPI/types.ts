@@ -117,6 +117,16 @@ export interface OvertakeEvent {
   position: number
 }
 
+// Generic session clock update — series-agnostic.
+// Live: sourced from F1 Live Timing ExtrapolatedClock (speed=1).
+// Demo: sourced from stored synthetic clock events (speed=replaySpeed).
+export interface SessionClock {
+  remainingMs: number  // session time remaining (ms)
+  running: boolean     // is the clock actively counting down?
+  serverTs: number     // when this update was emitted (ms epoch)
+  speed: number        // playback speed (1 for live, >1 for accelerated demo)
+}
+
 // Session-wide live state received from the backend on change.
 export interface SessionLiveState {
   weather: {

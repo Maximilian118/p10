@@ -1,0 +1,7 @@
+// Countdown timer display — tabular-nums ensures digits don't shift as values change.
+.session-countdown {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}

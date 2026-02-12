@@ -6,7 +6,10 @@ export const demoModeStrategy: ToolbarStrategy = {
   getConfig(context: ToolbarContext): ToolbarConfig {
     return {
       leftButtons: [createBackButton(context.onBack)],
-      rightButtons: [],
+      rightButtons: [{
+        label: "DEMO",
+        className: "demo-toolbar-badge",
+      }],
     }
   },
 

@@ -1,14 +1,13 @@
-import F1SessionView from "./F1SessionView/F1SessionView"
+import { f1Config } from "./F1SessionView/config"
+import { SeriesConfig } from "./types"
 
-// Returns the appropriate API view component based on series shortName.
-// Returns null if no API view is available for the series.
-export const getAPIView = (shortName?: string) => {
+export type { APIViewProps, DemoSession, SeriesConfig } from "./types"
+
+// Returns the series configuration for the given shortName, or null.
+// Adding a new series: create its config and add a case here.
+export const getSeriesConfig = (shortName?: string): SeriesConfig | null => {
   switch (shortName) {
-    case "F1":
-      return F1SessionView
-    default:
-      return null
+    case "F1": return f1Config
+    default: return null
   }
 }
-
-export { F1SessionView }
