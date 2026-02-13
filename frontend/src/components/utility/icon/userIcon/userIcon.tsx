@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { CSSProperties, useEffect, useState } from "react"
 import { userType } from "../../../../shared/localStorage"
 import { getInitials } from "../../../../shared/utility"
 import './_userIcon.scss'
@@ -8,7 +8,7 @@ import { shouldShowImageError } from "../utility/iconUtility"
 
 interface userIconType {
   user: userType,
-  style?: object
+  style?: CSSProperties
 }
 
 const UserIcon: React.FC<userIconType> = ({ user, style }) => {

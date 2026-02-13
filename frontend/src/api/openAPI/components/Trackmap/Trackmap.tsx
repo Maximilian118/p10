@@ -477,20 +477,20 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       { progress: sectorBoundaries.sector2_3, color: "#000000", key: "sector-2-3" },
     ]
 
-    return boundaries.reduce<{ x1: number; y1: number; x2: number; y2: number; color: string; key: string }[]>(
+    const result = boundaries.reduce<{ x1: number; y1: number; x2: number; y2: number; color: string; key: string }[]>(
       (lines, { progress, color, key }) => {
-        const result = getPointAndTangentAtProgress(svgTrackPath, arcLengths, progress)
-        if (!result) return lines
+        const pt = getPointAndTangentAtProgress(svgTrackPath, arcLengths, progress)
+        if (!pt) return lines
 
         // Perpendicular direction (90° rotation of tangent).
-        const perpX = -result.tangent.dy
-        const perpY = result.tangent.dx
+        const perpX = -pt.tangent.dy
+        const perpY = pt.tangent.dx
 
         lines.push({
-          x1: result.point.x - perpX * halfLen,
-          y1: result.point.y - perpY * halfLen,
-          x2: result.point.x + perpX * halfLen,
-          y2: result.point.y + perpY * halfLen,
+          x1: pt.point.x - perpX * halfLen,
+          y1: pt.point.y - perpY * halfLen,
+          x2: pt.point.x + perpX * halfLen,
+          y2: pt.point.y + perpY * halfLen,
           color,
           key,
         })
@@ -498,6 +498,15 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       },
       [],
     )
+
+    // Log sector line rendering status for diagnostics.
+    if (result.length > 0) {
+      console.log(`[Trackmap] Sector lines: ${result.length} rendered`)
+    } else {
+      console.log("[Trackmap] Sector lines: sectorBoundaries present but 0 lines rendered")
+    }
+
+    return result
   }, [svgTrackPath, sectorBoundaries, trackStrokeWidth])
 
   // Builds colored mini-sector segments and separator lines from the accepted buffer.

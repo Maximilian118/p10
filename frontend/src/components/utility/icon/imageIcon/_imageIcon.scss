@@ -10,6 +10,20 @@
   }
 }
 
+// Colored circle fallback shown when no headshot image is available.
+.image-icon-fallback {
+  width: 100%;
+  height: 100%;
+  @include mixins.flexbox;
+  position: absolute;
+
+  span {
+    font-family: 'formula1-bold', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
 .image-icon-background {
   background: white;
 }

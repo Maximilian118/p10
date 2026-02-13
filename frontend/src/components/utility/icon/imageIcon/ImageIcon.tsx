@@ -11,13 +11,26 @@ interface iconType {
   style?: React.CSSProperties
   onClick?: (e: SyntheticEvent) => void
   background?: boolean
+  fallBack?: {
+    text: number | string,
+    textColor: string,
+    backgroundColor: string,
+  }
 }
 
-const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick, background }) => {
+const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick, background, fallBack }) => {
   const [ error, setError ] = useState<boolean>(false)
 
-  // Renders image or error fallback if src is missing/invalid.
+  // Renders image, colored number fallback, or error state.
   const iconContent = (error: boolean, src: string) => {
+    // Render colored number fallback when no valid image and fallback provided.
+    if (shouldShowImageError(src, error) && fallBack) {
+      return (
+        <div className="image-icon-fallback" style={{ backgroundColor: fallBack.backgroundColor, color: fallBack.textColor }}>
+          <span>{fallBack.text}</span>
+        </div>
+      )
+    }
     if (shouldShowImageError(src, error)) {
       return <ImageError />
     }

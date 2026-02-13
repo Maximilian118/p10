@@ -27,6 +27,8 @@ const driverSchema = `
     body: String
     name: String!
     driverID: String!
+    driverNumber: Int
+    driverNumberHistory: [Int]
     teams: [Team]
     series: [Series!]
     stats: Stats!

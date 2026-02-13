@@ -9,6 +9,8 @@ export interface driverType {
   body: string
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}`
+  driverNumber?: number
+  driverNumberHistory?: number[]
   teams: ObjectId[]
   series: ObjectId[]
   official?: boolean // True = Only admins can modify/delete this driver
@@ -65,6 +67,8 @@ const driverSchema = new mongoose.Schema<driverType>({
   body: { type: String, default: "" }, // Body image ~1MB in AWS S3 (optional).
   name: { type: String, required: true }, // Name of the driver.
   driverID: { type: String, required: true },
+  driverNumber: { type: Number, default: null }, // Current car number (auto-populated from OpenF1).
+  driverNumberHistory: { type: [Number], default: [] }, // Previous car numbers in chronological order.
   teams: [{ type: mongoose.Schema.ObjectId, ref: "Team" }], // Teams that this driver currently races for.
   series: [{ type: mongoose.Schema.ObjectId, ref: "Series" }], // Series that this driver belongs to.
   stats: {

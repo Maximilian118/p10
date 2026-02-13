@@ -58,11 +58,6 @@ body {
         z-index: 1000;
         background: white;
         margin-bottom: 2px;
-
-        .nav-left, .nav-right {
-          height: 100%;
-          @include mixins.flexbox;
-        }
       }
 
       .content-container {

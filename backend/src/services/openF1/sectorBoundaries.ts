@@ -7,6 +7,9 @@
 
 import { OpenF1LapMsg } from "./types"
 import { computeTrackProgress } from "./trackProgress"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("Sectors")
 
 // Sector boundary positions stored as track progress values (0–1).
 export interface SectorBoundaries {
@@ -103,19 +106,45 @@ export const computeSectorBoundaries = (
   positionsByDriver: Map<number, { x: number; y: number; date: string }[]>,
   referencePath: { x: number; y: number }[],
 ): SectorBoundaries | null => {
-  if (referencePath.length < 10) return null
+  if (referencePath.length < 10) {
+    log.info(`Reference path too short: ${referencePath.length} points (need 10)`)
+    return null
+  }
 
   const startFinishProgresses: number[] = []
   const s1_2Progresses: number[] = []
   const s2_3Progresses: number[] = []
 
+  // Diagnostic counters for understanding data availability.
+  let totalLaps = 0
+  let skippedIncomplete = 0
+  let skippedPitOut = 0
+  let skippedNoGps = 0
+  let skippedFewGps = 0
+  let interpolationMisses = 0
+
   // For each lap with complete sector data, derive boundary timestamps and positions.
   for (const lap of laps) {
-    if (!lap.date_start || !lap.duration_sector_1 || !lap.duration_sector_2 || !lap.duration_sector_3) continue
-    if (lap.is_pit_out_lap) continue
+    totalLaps++
+
+    if (!lap.date_start || !lap.duration_sector_1 || !lap.duration_sector_2 || !lap.duration_sector_3) {
+      skippedIncomplete++
+      continue
+    }
+    if (lap.is_pit_out_lap) {
+      skippedPitOut++
+      continue
+    }
 
     const driverPositions = positionsByDriver.get(lap.driver_number)
-    if (!driverPositions || driverPositions.length < 10) continue
+    if (!driverPositions) {
+      skippedNoGps++
+      continue
+    }
+    if (driverPositions.length < 10) {
+      skippedFewGps++
+      continue
+    }
 
     const lapStartMs = new Date(lap.date_start).getTime()
     const s1EndMs = lapStartMs + lap.duration_sector_1 * 1000
@@ -125,6 +154,11 @@ export const computeSectorBoundaries = (
     const startPos = interpolatePosition(lapStartMs, driverPositions)
     const s1_2Pos = interpolatePosition(s1EndMs, driverPositions)
     const s2_3Pos = interpolatePosition(s2EndMs, driverPositions)
+
+    // Track interpolation misses.
+    if (!startPos || !s1_2Pos || !s2_3Pos) {
+      interpolationMisses++
+    }
 
     // Map each position to track progress.
     if (startPos) {
@@ -138,10 +172,21 @@ export const computeSectorBoundaries = (
     }
   }
 
+  // Log filtering summary and crossing counts for diagnostics.
+  log.info(
+    `Sector analysis: ${totalLaps} laps — ${skippedIncomplete} incomplete, ${skippedPitOut} pit-out, ` +
+    `${skippedNoGps} no GPS, ${skippedFewGps} few GPS, ${interpolationMisses} interpolation miss`,
+  )
+  log.info(
+    `Crossings: S/F=${startFinishProgresses.length}, S1/S2=${s1_2Progresses.length}, ` +
+    `S2/S3=${s2_3Progresses.length} (need ${MIN_CROSSINGS} each)`,
+  )
+
   // Require minimum crossings for reliability.
   if (startFinishProgresses.length < MIN_CROSSINGS
     || s1_2Progresses.length < MIN_CROSSINGS
     || s2_3Progresses.length < MIN_CROSSINGS) {
+    log.info("Insufficient crossings — cannot compute sectors")
     return null
   }
 

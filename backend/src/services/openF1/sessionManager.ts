@@ -1,6 +1,7 @@
 import { Server } from "socket.io"
 import axios from "axios"
 import Trackmap from "../../models/trackmap"
+import Driver from "../../models/driver"
 import { getOpenF1Token } from "./auth"
 import {
   OpenF1LocationMsg,
@@ -382,6 +383,75 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
         headshotUrl: d.headshot_url || null,
       })
     })
+
+    // If some drivers have null fields, try meeting-level query as fallback.
+    // Other sessions in the same meeting (e.g. Day 1, Day 2) may have full data.
+    const nullCount = Array.from(drivers.values()).filter((d) => !d.nameAcronym).length
+    if (nullCount > 0) {
+      log.info(`${nullCount}/${drivers.size} drivers missing data — trying meeting-level query (meeting_key=${msg.meeting_key})`)
+      const meetingRes = await axios.get<OpenF1DriverMsg[]>(
+        `${OPENF1_API_BASE}/drivers?meeting_key=${msg.meeting_key}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      let filled = 0
+      meetingRes.data.forEach((d: OpenF1DriverMsg) => {
+        if (!d.name_acronym) return
+        const existing = drivers.get(d.driver_number)
+        if (existing && !existing.nameAcronym) {
+          drivers.set(d.driver_number, {
+            driverNumber: d.driver_number,
+            nameAcronym: d.name_acronym,
+            fullName: d.full_name,
+            teamName: d.team_name,
+            teamColour: d.team_colour,
+            headshotUrl: d.headshot_url || null,
+          })
+          filled++
+        }
+      })
+      log.info(`Meeting-level query: ${meetingRes.data.length} records, filled ${filled}/${nullCount} missing drivers`)
+    }
+
+    // Log final driver data summary.
+    const complete = Array.from(drivers.values()).filter((d) => d.nameAcronym).length
+    log.info(`Fetched ${drivers.size} drivers (${complete} with full data, ${drivers.size - complete} incomplete)`)
+
+    // Cross-reference OpenF1 drivers with DB drivers by matching nameAcronym to driverID.
+    // Updates DB driver numbers and uses DB icon as headshot fallback (level 3).
+    const acronyms = Array.from(drivers.values())
+      .filter((d) => d.nameAcronym)
+      .map((d) => d.nameAcronym)
+    if (acronyms.length > 0) {
+      const dbDrivers = await Driver.find({ driverID: { $in: acronyms } })
+      const dbDriverMap = new Map<string, typeof dbDrivers[number]>(dbDrivers.map((d) => [d.driverID, d]))
+      let numberUpdates = 0
+      let iconFallbacks = 0
+
+      for (const [driverNumber, info] of drivers) {
+        if (!info.nameAcronym) continue
+        const dbDriver = dbDriverMap.get(info.nameAcronym)
+        if (!dbDriver) continue
+
+        // Auto-populate driver number on DB document if changed.
+        if (dbDriver.driverNumber !== driverNumber) {
+          if (dbDriver.driverNumber != null) {
+            dbDriver.driverNumberHistory = [...(dbDriver.driverNumberHistory || []), dbDriver.driverNumber]
+          }
+          dbDriver.driverNumber = driverNumber
+          await dbDriver.save()
+          numberUpdates++
+        }
+
+        // Fallback level 3: use DB driver icon when OpenF1 has no headshot
+        // (levels 1-2 are session_key and meeting_key queries above).
+        if (!info.headshotUrl && dbDriver.icon) {
+          info.headshotUrl = dbDriver.icon
+          iconFallbacks++
+        }
+      }
+
+      log.info(`DB cross-ref: ${dbDrivers.length} matched, ${numberUpdates} numbers updated, ${iconFallbacks} icon fallbacks`)
+    }
   } catch (err) {
     log.error("⚠ Failed to fetch drivers for session:", err)
   }
@@ -560,6 +630,37 @@ const logSessionReport = (expectedSessionKey: number): void => {
     lines.push(` Track map: Pending (building from live data)`)
   }
 
+  // Sector boundaries status.
+  if (activeSession.sectorBoundaries) {
+    const sb = activeSession.sectorBoundaries
+    lines.push(` Sectors: Available (S/F: ${sb.startFinish.toFixed(3)}, S1/S2: ${sb.sector1_2.toFixed(3)}, S2/S3: ${sb.sector2_3.toFixed(3)})`)
+  } else {
+    // Show data counts to diagnose why sectors haven't been computed.
+    const allLaps = Array.from(activeSession.completedLaps.values())
+    const sectorLaps = allLaps.filter(
+      (l) => l.duration_sector_1 && l.duration_sector_2 && l.duration_sector_3 && !l.is_pit_out_lap,
+    ).length
+    const driversWithGps = activeSession.positionsByDriverLap.size
+    const hasRefPath = activeSession.baselinePath && activeSession.baselinePath.length >= 10
+    lines.push(
+      ` Sectors: Pending (${allLaps.length} laps, ${sectorLaps} with sectors, ${driversWithGps} drivers w/ GPS${hasRefPath ? "" : ", NO ref path"})`,
+    )
+  }
+
+  // Corner labels status.
+  if (activeSession.corners && activeSession.corners.length > 0) {
+    lines.push(` Corners: ${activeSession.corners.length} labels from MultiViewer`)
+  } else {
+    lines.push(` Corners: None`)
+  }
+
+  // Driver data vs position data comparison.
+  const posDrivers = activeSession.currentPositions.size
+  const infoDrivers = activeSession.drivers.size
+  lines.push(
+    ` Drivers: ${infoDrivers} with info, ${posDrivers} with positions${posDrivers > infoDrivers ? ` (${posDrivers - infoDrivers} missing info!)` : ""}`,
+  )
+
   lines.push(divider)
   lines.push("")
 
@@ -630,6 +731,9 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   const lapKey = `${msg.driver_number}-${msg.lap_number}`
   activeSession.completedLaps.set(lapKey, msg)
 
+  // Log lap data state for diagnosing sector computation issues.
+  log.verbose(`Lap: #${msg.driver_number} L${msg.lap_number} — sectors: ${msg.duration_sector_1 ? "S1" : "–"}/${msg.duration_sector_2 ? "S2" : "–"}/${msg.duration_sector_3 ? "S3" : "–"}, duration: ${msg.lap_duration || "–"}, pit-out: ${msg.is_pit_out_lap}`)
+
   // Update session best lap time.
   if (msg.lap_duration && msg.lap_duration > 0) {
     if (activeSession.bestLapTime === 0 || msg.lap_duration < activeSession.bestLapTime) {
@@ -648,6 +752,9 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   if (!activeSession.isDemo) {
     const allLaps = Array.from(activeSession.completedLaps.values())
     const fastLaps = filterFastLaps(allLaps, activeSession.bestLapTime)
+
+    // Log fast lap filtering result for sector pipeline diagnostics.
+    log.verbose(`Laps: ${allLaps.length} total, ${fastLaps.length} fast, shouldUpdate: ${fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)}`)
 
     if (fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)) {
       await rebuildTrackMap(fastLaps)
@@ -671,6 +778,9 @@ const handleDriverMessage = (msg: OpenF1DriverMsg): void => {
   }
 
   activeSession.drivers.set(msg.driver_number, driverInfo)
+
+  // Log driver data arrival via MQTT for diagnostics.
+  log.info(`Driver MQTT update: #${msg.driver_number} acronym=${msg.name_acronym}, name=${msg.full_name}, team=${msg.team_name}, colour=${msg.team_colour}, headshot=${msg.headshot_url ? "yes" : "null"}`)
 
   // Emit updated driver list.
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
@@ -832,6 +942,9 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     })
   }
 
+  // Log validated laps breakdown for sector pipeline diagnostics.
+  log.verbose(`Rebuild: ${fastLaps.length} fast laps → ${validatedLaps.length} with GPS data`)
+
   if (validatedLaps.length === 0) return
 
   // Build the new track path.
@@ -867,6 +980,10 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
       all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       flatPositions.set(driverNum, all)
     })
+
+    // Log sector computation attempt for diagnostics.
+    log.info(`Attempting sector computation: ${allLaps.length} laps, ${flatPositions.size} drivers with GPS, refPath: ${newPath.length} points`)
+
     const boundaries = computeSectorBoundaries(allLaps, flatPositions, newPath)
     if (boundaries) {
       activeSession.sectorBoundaries = boundaries
@@ -931,13 +1048,15 @@ const saveTrackMap = async (): Promise<void> => {
       existing.updated_at = now
       await existing.save()
     } else {
-      // Create new track map entry.
+      // Create new track map entry (includes MultiViewer data if available).
       await Trackmap.create({
         trackName: activeSession.trackName,
         previousTrackNames: [],
         meetingKeys: [activeSession.meetingKey],
         latestSessionKey: activeSession.sessionKey,
         path: activeSession.baselinePath,
+        multiviewerPath: activeSession.multiviewerPath || [],
+        corners: activeSession.corners || [],
         pathVersion: 1,
         totalLapsProcessed: activeSession.totalLapsProcessed,
         sectorBoundaries: activeSession.sectorBoundaries,
@@ -1153,6 +1272,7 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
     mvLog.info(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
 
     // Cache the MultiViewer data in MongoDB for future sessions.
+    // Uses upsert so brand-new tracks get a document immediately.
     try {
       await Trackmap.updateOne(
         { trackName },
@@ -1163,8 +1283,11 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
             corners: mvData.corners || [],
             updated_at: new Date().toISOString(),
           },
+          $setOnInsert: {
+            created_at: new Date().toISOString(),
+          },
         },
-        { upsert: false },
+        { upsert: true },
       )
     } catch (cacheErr) {
       mvLog.error("⚠ Failed to cache MultiViewer data in MongoDB:", cacheErr)
@@ -1349,10 +1472,14 @@ const startPositionBatching = (): void => {
 
     // Build the position payload.
     const positions: CarPositionPayload[] = []
+    const missingDrivers: number[] = []
 
     activeSession.currentPositions.forEach((pos, driverNumber) => {
       const driver = activeSession!.drivers.get(driverNumber)
-      if (!driver) return
+      if (!driver) {
+        missingDrivers.push(driverNumber)
+        return
+      }
 
       let displayX = pos.x
       let displayY = pos.y
@@ -1377,6 +1504,11 @@ const startPositionBatching = (): void => {
         teamColour: driver.teamColour,
       })
     })
+
+    // Log when positions are skipped due to missing driver info.
+    if (missingDrivers.length > 0) {
+      log.verbose(`Position batch: ${missingDrivers.length} drivers skipped (no info): ${missingDrivers.join(", ")}`)
+    }
 
     if (positions.length > 0) {
       emitToRoom(OPENF1_EVENTS.POSITIONS, positions)

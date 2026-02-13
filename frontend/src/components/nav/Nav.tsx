@@ -116,7 +116,7 @@ const Nav: React.FC<navType> = ({ user }) => {
             onClick={() => handleNotificationsClicked()} 
             count={notificationsCount}
           />
-          <UserIcon user={user} style={{ margin: "0 20px 0 10px" }}/>
+          <UserIcon user={user} style={{ marginLeft: 10 }}/>
         </div>
       </nav>
       <div className={`nav-drawer ${drawerOpen ? "nav-drawer-open" : ""}`}>

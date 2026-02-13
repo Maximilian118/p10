@@ -11,7 +11,17 @@
 
   nav {
     .nav-left {
-      padding-left: 10px;
+      flex: 1;
+      box-sizing: border-box;
+      @include mixins.flexbox-start;
+      padding: 0 10px;
+    }
+
+    .nav-right {
+      flex: 1;
+      box-sizing: border-box;
+      @include mixins.flexbox-end;
+      padding-right: 20px;
     }
 
     .server-msg {
@@ -28,8 +38,8 @@
 
     // Compact button shown in nav center when a live F1 session is active.
     .watch-live-btn {
-      color: variables.$f1-red;
-      border: 1px solid variables.$f1-red;
+      color: variables.$mui-blue;
+      border: 1px solid variables.$mui-blue;
       font-family: 'formula1-regular', sans-serif;
       font-size: 11px;
       text-transform: none;
@@ -38,7 +48,7 @@
       transition: variables.$trans-speed;
 
       &:hover {
-        background: variables.$f1-red;
+        background: variables.$mui-blue;
         color: white;
       }
     }

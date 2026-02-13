@@ -133,6 +133,8 @@ export interface driverType {
   body: string
   name: string
   driverID: `${Uppercase<string>}${Uppercase<string>}${Uppercase<string>}` | ""
+  driverNumber?: number
+  driverNumberHistory?: number[]
   teams: teamType[]
   series: seriesType[]
   official?: boolean
