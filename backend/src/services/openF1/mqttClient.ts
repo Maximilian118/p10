@@ -1,5 +1,8 @@
 import mqtt, { MqttClient } from "mqtt"
 import { getOpenF1Token, clearOpenF1Token } from "./auth"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OpenF1")
 
 const OPENF1_WS_URL = "wss://mqtt.openf1.org:8084/mqtt"
 
@@ -21,6 +24,12 @@ const TOPICS = [
 
 // Singleton MQTT client instance.
 let client: MqttClient | null = null
+
+// Tracks which topics have been successfully subscribed.
+const subscribedTopics = new Set<string>()
+
+// Returns which MQTT topics are currently subscribed.
+export const getSubscribedTopics = (): ReadonlySet<string> => subscribedTopics
 
 // Message handler registered by the session manager.
 let messageHandler: ((topic: string, payload: Buffer) => void) | null = null
@@ -49,12 +58,29 @@ export const connectMqtt = async (): Promise<void> => {
   })
 
   client.on("connect", () => {
-    console.log("✓ Connected to OpenF1 MQTT broker")
-    // Subscribe to all topics.
+    log.info("Connected to MQTT broker")
+    subscribedTopics.clear()
+
+    // Subscribe to all topics and log a single summary when all results are in.
+    let completed = 0
+    const failed: string[] = []
+
     TOPICS.forEach((topic) => {
       client!.subscribe(topic, (err) => {
+        completed++
         if (err) {
-          console.error(`✗ Failed to subscribe to ${topic}:`, err.message)
+          failed.push(topic.replace("v1/", ""))
+        } else {
+          subscribedTopics.add(topic)
+        }
+
+        // Log a single summary line once all subscription callbacks have fired.
+        if (completed === TOPICS.length) {
+          if (failed.length === 0) {
+            log.info(`Subscribed to all ${TOPICS.length} topics`)
+          } else {
+            log.info(`Subscribed to ${TOPICS.length - failed.length}/${TOPICS.length} topics (failed: ${failed.join(", ")})`)
+          }
         }
       })
     })
@@ -67,15 +93,15 @@ export const connectMqtt = async (): Promise<void> => {
   })
 
   client.on("error", (err) => {
-    console.error("✗ OpenF1 MQTT error:", err.message)
+    log.error(" ✗ MQTT error:", err.message)
   })
 
   client.on("close", () => {
-    console.log("⚠ OpenF1 MQTT connection closed")
+    log.info(" ⚠ MQTT connection closed")
   })
 
   client.on("reconnect", () => {
-    console.log("↻ OpenF1 MQTT reconnecting...")
+    log.info(" ↻ MQTT reconnecting...")
     // Refresh token on reconnection in case it expired.
     getOpenF1Token()
       .then((newToken) => {
@@ -84,7 +110,7 @@ export const connectMqtt = async (): Promise<void> => {
         }
       })
       .catch((err) => {
-        console.error("✗ Failed to refresh OpenF1 token on reconnect:", err.message)
+        log.error(" ✗ Failed to refresh token on reconnect:", err.message)
         clearOpenF1Token()
       })
   })
@@ -95,7 +121,8 @@ export const disconnectMqtt = (): void => {
   if (client) {
     client.end(true)
     client = null
-    console.log("✓ Disconnected from OpenF1 MQTT broker")
+    subscribedTopics.clear()
+    log.info("Disconnected from MQTT broker")
   }
 }
 

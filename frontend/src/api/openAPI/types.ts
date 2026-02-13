@@ -38,6 +38,7 @@ export interface OpenF1SessionStatus {
   active: boolean
   trackName: string
   sessionType: string
+  sessionName: string
 }
 
 // Driver info from the backend.

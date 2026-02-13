@@ -12,6 +12,7 @@ interface TrackmapProps {
   onDriverStatesUpdate?: (states: DriverLiveState[]) => void
   demoMode?: boolean
   onTrackReady?: () => void
+  onSessionInfo?: (info: { trackName: string; sessionName: string }) => void
 }
 
 interface CarDotProps {
@@ -256,9 +257,9 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo }) => {
   const {
-    trackPath, carPositions, sessionActive, trackName,
+    trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, corners, sectorBoundaries, connectionStatus, demoPhase,
   } = useTrackmap()
   const trackReadyFired = useRef(false)
@@ -331,6 +332,13 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       onTrackReady?.()
     }
   }, [hasData, onTrackReady])
+
+  // Forward session info (track name + session name) to the parent component.
+  useEffect(() => {
+    if (trackName) {
+      onSessionInfo?.({ trackName, sessionName })
+    }
+  }, [trackName, sessionName, onSessionInfo])
 
   // Forward driver live states to the parent component.
   useEffect(() => {
@@ -561,19 +569,11 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
 
   const showNoSession = !demoMode && !sessionActive && !hasData
 
-  // Determine the title to display (hidden in demo mode — shown in the header instead).
-  const displayTitle = demoMode ? null : trackName
-
   // SVG group transform string for the PCA rotation.
   const rotateTransform = `rotate(${rotationAngle}, ${centroid.cx}, ${centroid.cy})`
 
   return (
     <div className="trackmap">
-      {/* Track name header (live mode only) */}
-      {displayTitle && (
-        <p className="trackmap-title">{displayTitle}</p>
-      )}
-
       {hasData && (
         <svg
           className="trackmap-svg"

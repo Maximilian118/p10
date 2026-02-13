@@ -3,9 +3,9 @@ import jwt, { JwtPayload } from "jsonwebtoken"
 import Champ, { RoundStatus } from "../models/champ"
 import User from "../models/user"
 import { placeBetAtomic } from "./betHandler"
+import { createLogger } from "../shared/logger"
 
-// Verbose socket logging is opt-in via env variable.
-const verboseLogs = process.env.VERBOSE_SOCKET_LOGS === "true"
+const log = createLogger("Socket")
 
 // Socket event names - centralized for consistency.
 export const SOCKET_EVENTS = {
@@ -129,13 +129,13 @@ export const initializeSocket = (io: Server): void => {
         const isBanned = champ.banned?.some((b) => b.toString() === socket.data.userId)
         if (isBanned) {
           socket.emit(SOCKET_EVENTS.ERROR, { message: "You are banned from this championship" })
-          if (verboseLogs) console.log(`${socket.data.userName} tried to join room: ${champ.name} but is banned`)
+          log.verbose(`${socket.data.userName} tried to join room: ${champ.name} but is banned`)
           return
         }
 
         // Join the room.
         socket.join(roomName)
-        if (verboseLogs) console.log(`${socket.data.userName} joined room: ${champ.name}`)
+        log.verbose(`${socket.data.userName} joined room: ${champ.name}`)
 
         // Emit current round state to the joining socket.
         // Find the first non-completed round (includes "waiting" for reconnection sync).
@@ -149,10 +149,10 @@ export const initializeSocket = (io: Server): void => {
             timestamp: round.statusChangedAt || new Date().toISOString(),
           }
           socket.emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
-          if (verboseLogs) console.log(`Sent initial state to ${socket.data.userName}: round ${currentRoundIndex + 1} status "${round.status}"`)
+          log.verbose(`Sent initial state to ${socket.data.userName}: round ${currentRoundIndex + 1} status "${round.status}"`)
         }
       } catch (err) {
-        console.error(`Error fetching initial state for ${champId}:`, err)
+        log.error(`Error fetching initial state for ${champId}:`, err)
       }
     })
 
@@ -162,12 +162,12 @@ export const initializeSocket = (io: Server): void => {
       const roomName = `championship:${champId}`
       socket.leave(roomName)
       // Fetch champ name for readable logging (development only).
-      if (verboseLogs) {
+      if (log.isLevelEnabled("verbose")) {
         try {
           const champ = await Champ.findById(champId).select("name")
-          console.log(`${socket.data.userName} left room: ${champ?.name || champId}`)
+          log.verbose(`${socket.data.userName} left room: ${champ?.name || champId}`)
         } catch {
-          console.log(`${socket.data.userName} left room: ${champId}`)
+          log.verbose(`${socket.data.userName} left room: ${champId}`)
         }
       }
     })
@@ -201,12 +201,12 @@ export const initializeSocket = (io: Server): void => {
               driverId,
               reason: "not_authorized",
             } as BetRejectedPayload)
-            if (verboseLogs) console.log(`Socket bet rejected: ${socket.data.userName} not authorized to place bets for others`)
+            log.verbose(`Bet rejected: ${socket.data.userName} not authorized to place bets for others`)
             return
           }
           targetUserId = competitorId
         } catch (err) {
-          console.error(`Error verifying adjudicator:`, err)
+          log.error(`Error verifying adjudicator:`, err)
           socket.emit(SOCKET_EVENTS.BET_REJECTED, {
             champId,
             roundIndex,
@@ -242,7 +242,7 @@ export const initializeSocket = (io: Server): void => {
             timestamp,
           } as BetPlacedPayload)
 
-          if (verboseLogs) console.log(`Bet placed: round ${roundIndex + 1} - user ${targetUserId} bet on driver ${driverId}${competitorId ? ` (by adjudicator ${socket.data.userName})` : ""}`)
+          log.verbose(`Bet placed: round ${roundIndex + 1} - user ${targetUserId} bet on driver ${driverId}${competitorId ? ` (by adjudicator ${socket.data.userName})` : ""}`)
         } else {
           socket.emit(SOCKET_EVENTS.BET_REJECTED, {
             champId,
@@ -252,10 +252,10 @@ export const initializeSocket = (io: Server): void => {
             takenBy: result.takenBy,
           } as BetRejectedPayload)
 
-          if (verboseLogs) console.log(`Bet rejected: round ${roundIndex + 1} - user ${targetUserId} tried driver ${driverId}, reason: ${result.reason}`)
+          log.verbose(`Bet rejected: round ${roundIndex + 1} - user ${targetUserId} tried driver ${driverId}, reason: ${result.reason}`)
         }
       } catch (err) {
-        console.error(`Error placing bet via socket:`, err)
+        log.error(`Error placing bet via socket:`, err)
         socket.emit(SOCKET_EVENTS.BET_REJECTED, {
           champId,
           roundIndex,
@@ -266,18 +266,18 @@ export const initializeSocket = (io: Server): void => {
     })
 
     socket.on("disconnect", () => {
-      if (verboseLogs) console.log(`Socket disconnected: ${socket.id} (user: ${socket.data.userName})`)
+      log.verbose(`Disconnected: ${socket.id} (user: ${socket.data.userName})`)
     })
 
     // Fetch user name for readable logging AFTER all listeners are registered.
     // This prevents race conditions where events arrive before listeners are set up.
-    if (verboseLogs) {
+    if (log.isLevelEnabled("verbose")) {
       User.findById(socket.data.userId).select("name").then((user) => {
         socket.data.userName = user?.name || socket.data.userId
-        console.log(`Socket connected: ${socket.id} (user: ${socket.data.userName}) - joined ${userRoom}`)
+        log.verbose(`Connected: ${socket.id} (user: ${socket.data.userName}) - joined ${userRoom}`)
       }).catch(() => {
         socket.data.userName = socket.data.userId
-        console.log(`Socket connected: ${socket.id} (user: ${socket.data.userId}) - joined ${userRoom}`)
+        log.verbose(`Connected: ${socket.id} (user: ${socket.data.userId}) - joined ${userRoom}`)
       })
     }
   })
@@ -303,14 +303,12 @@ export const broadcastRoundStatusChange = (
 
   // Log room occupancy for monitoring.
   io.in(roomName).fetchSockets().then((sockets) => {
-    console.log(`[Socket] Broadcasting to ${roomName}: ${sockets.length} sockets in room, status=${newStatus}`)
-    if (verboseLogs) {
-      sockets.forEach((s) => console.log(`  - Socket ${s.id}, userId=${s.data.userId}`))
-    }
+    log.info(`Broadcasting to ${roomName}: ${sockets.length} sockets in room, status=${newStatus}`)
+    sockets.forEach((s) => log.verbose(`  - Socket ${s.id}, userId=${s.data.userId}`))
   })
 
   io.to(roomName).emit(SOCKET_EVENTS.ROUND_STATUS_CHANGED, payload)
-  if (verboseLogs) console.log(`Broadcasted status change: round ${roundIndex + 1} -> "${newStatus}"`)
+  log.verbose(`Broadcasted status change: round ${roundIndex + 1} -> "${newStatus}"`)
 }
 
 // Broadcasts bet placed event to all users in a championship room.
@@ -331,6 +329,6 @@ export const broadcastBetPlaced = (
     timestamp: new Date().toISOString(),
   }
   io.to(`championship:${champId}`).emit(SOCKET_EVENTS.BET_PLACED, payload)
-  if (verboseLogs) console.log(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
+  log.verbose(`Broadcasted bet: round ${roundIndex + 1} - competitor ${competitorId} bet on driver ${driverId}`)
 }
 

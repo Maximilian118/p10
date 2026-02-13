@@ -11,6 +11,9 @@ import {
 } from "../models/notification"
 import { io } from "../app"
 import { SOCKET_EVENTS } from "../socket/socketHandler"
+import { createLogger } from "./logger"
+
+const log = createLogger("Notifications")
 
 // Maximum notifications per user (oldest are dropped when exceeded).
 const MAX_NOTIFICATIONS = 100
@@ -28,7 +31,7 @@ if (process.env.RESEND_API_KEY) {
 // Returns true if email was sent successfully, false otherwise.
 const sendEmail = async (options: { to: string; subject: string; text: string }): Promise<boolean> => {
   if (!resend) {
-    console.warn(`📧 Email not sent (Resend not configured): ${options.subject} → ${options.to}`)
+    log.warn(`📧 Email not sent (Resend not configured): ${options.subject} → ${options.to}`)
     return false
   }
   try {
@@ -36,10 +39,10 @@ const sendEmail = async (options: { to: string; subject: string; text: string })
       from: process.env.RESEND_FROM_EMAIL || "noreply@p10-game.com",
       ...options,
     })
-    console.log(`📧 Email sent: ${options.subject} → ${options.to}`)
+    log.info(`📧 Email sent: ${options.subject} → ${options.to}`)
     return true
   } catch (err) {
-    console.error("📧 Failed to send email:", err)
+    log.error("📧 Failed to send email:", err)
     return false
   }
 }
@@ -119,7 +122,7 @@ export async function sendNotification(options: SendNotificationOptions): Promis
 
     // Validate notification type.
     if (!NOTIFICATION_TYPES.includes(type)) {
-      console.error(`sendNotification: Invalid notification type: ${type}`)
+      log.error(`sendNotification: Invalid notification type: ${type}`)
       return
     }
 
@@ -200,7 +203,7 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     // Check for duplicate notification.
     const existingUser = await User.findOne(duplicateFilter)
     if (existingUser) {
-      console.log(`🔔 Skipping duplicate notification: ${type} for user ${userId}`)
+      log.info(`🔔 Skipping duplicate notification: ${type} for user ${userId}`)
       return
     }
 
@@ -229,11 +232,11 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     )
 
     if (!updatedUser) {
-      console.error(`sendNotification: User not found: ${userId}`)
+      log.error(`sendNotification: User not found: ${userId}`)
       return
     }
 
-    console.log(`🔔 Notification sent to ${updatedUser.name}: ${title}`)
+    log.info(`🔔 Notification sent to ${updatedUser.name}: ${title}`)
 
     // Push notification via WebSocket for real-time delivery.
     // JSON round-trip converts ObjectIds to strings for clean frontend delivery.
@@ -255,7 +258,7 @@ export async function sendNotification(options: SendNotificationOptions): Promis
       })
     }
   } catch (err) {
-    console.error("sendNotification error:", err)
+    log.error("sendNotification error:", err)
   }
 }
 
@@ -296,7 +299,7 @@ export async function sendNotificationToMany(
 
   // Validate notification type.
   if (!NOTIFICATION_TYPES.includes(type)) {
-    console.error(`sendNotificationToMany: Invalid notification type: ${type}`)
+    log.error(`sendNotificationToMany: Invalid notification type: ${type}`)
     return
   }
 
@@ -366,7 +369,7 @@ export async function sendNotificationToMany(
 
   // Single bulk write operation for all users.
   const result = await User.bulkWrite(bulkOps)
-  console.log(`🔔 Bulk notification sent to ${result.modifiedCount} users: ${title}`)
+  log.info(`🔔 Bulk notification sent to ${result.modifiedCount} users: ${title}`)
 
   // Push each user's full notification via WebSocket (includes _id and all fields).
   // JSON round-trip converts ObjectIds to strings for clean frontend delivery.
@@ -395,6 +398,6 @@ export async function sendNotificationToMany(
           text: `${description}\n\nVisit P10 to view this notification.`,
         })
       )
-    ).catch((err) => console.error("sendNotificationToMany email error:", err))
+    ).catch((err) => log.error("sendNotificationToMany email error:", err))
   }
 }

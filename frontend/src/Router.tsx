@@ -28,6 +28,7 @@ import CreateTeam from "./page/CreateTeam/CreateTeam"
 import VerifyEmail from "./page/VerifyEmail/VerifyEmail"
 import Notifications from "./page/Notifications/Notifications"
 import Email from "./page/Email/Email"
+import WatchLive from "./page/WatchLive/WatchLive"
 
 interface routerType {
   user: userType,
@@ -56,6 +57,7 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/teams" Component={Teams}/>
     <Route path="/team/:id" Component={Team}/>
     <Route path="/create-team" Component={CreateTeam}/>
+    <Route path="/watch-live" Component={WatchLive}/>
   </Routes>
 ) : (
   <Routes>

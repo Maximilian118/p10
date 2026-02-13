@@ -28,6 +28,9 @@ import {
   cancelTimer,
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("ChampResolver")
 import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
 import badgeResolvers from "./badgeResolvers"
 
@@ -326,8 +329,8 @@ const champResolvers = {
         if (currentRound && currentRound.competitors.length > 0) {
           unpopulatedChamp.competitors = currentRound.competitors.map((c) => c.competitor)
           await unpopulatedChamp.save()
-          console.log(
-            `[getChampById] Migrated ${unpopulatedChamp.competitors.length} competitors for championship ${_id}`,
+          log.info(
+            `Migrated ${unpopulatedChamp.competitors.length} competitors for championship ${_id}`,
           )
         }
       }
@@ -1982,8 +1985,8 @@ const champResolvers = {
         // Broadcast completed status (skip showing results).
         broadcastRoundStatusChange(io, _id, roundIndex, "completed")
 
-        console.log(
-          `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
+        log.info(
+          `Championship ${_id} round ${roundIndex + 1}: ` +
             `Positions submitted, skipping results -> completed`,
         )
       } else {
@@ -1994,8 +1997,8 @@ const champResolvers = {
           teams: populatedRound.teams,
         })
 
-        console.log(
-          `[submitDriverPositions] Championship ${_id} round ${roundIndex + 1}: ` +
+        log.info(
+          `Championship ${_id} round ${roundIndex + 1}: ` +
             `Positions submitted, transitioning to results`,
         )
 

@@ -26,9 +26,14 @@ import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } f
 import { fetchTrackOutline } from "./multiviewerClient"
 import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
 import { computeSectorBoundaries } from "./sectorBoundaries"
-import { startPolling, stopPolling, markMqttReceived, onPolledMessage } from "./restPoller"
+import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./restPoller"
 import { saveF1Session } from "../../models/f1Session"
-import { connectLiveTiming, disconnectLiveTiming, getLatestClock } from "./f1LiveTiming"
+import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus } from "./f1LiveTiming"
+import { isMqttConnected, getSubscribedTopics } from "./mqttClient"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OpenF1")
+const mvLog = createLogger("MultiViewer")
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -51,6 +56,7 @@ export const OPENF1_EVENTS = {
   CLOCK: "session:clock",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
+  LIVE_SESSION: "f1:live-session",
 } as const
 
 // Current active session state (null when no session is active).
@@ -68,8 +74,18 @@ let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
 // Timer for fallback countdown clock (activates when SignalR is unavailable).
 let fallbackClockTimer: ReturnType<typeof setInterval> | null = null
 
+// Timer for periodic session polling (catches sessions missed by MQTT).
+let sessionPollTimer: ReturnType<typeof setInterval> | null = null
+
+// Interval between periodic session polls (ms).
+const SESSION_POLL_INTERVAL = 60_000
+
 // Room name for clients receiving OpenF1 live data.
 const OPENF1_ROOM = "openf1:live"
+
+// Delay before emitting the capability report (ms).
+// Slightly longer than the MQTT grace period so REST polling decisions are finalized.
+const CAPABILITY_REPORT_DELAY = 17000
 
 // ─── Initialization ──────────────────────────────────────────────
 
@@ -78,8 +94,11 @@ const OPENF1_ROOM = "openf1:live"
 export const initSessionManager = (io: Server): void => {
   ioServer = io
 
-  // Register room management for the openf1:live room.
+  // Register room management and live session status for all clients.
   io.on("connection", (socket) => {
+    // Send current live session status to every connecting client (for nav button).
+    socket.emit(OPENF1_EVENTS.LIVE_SESSION, getActiveSessionInfo())
+
     socket.on(OPENF1_EVENTS.SUBSCRIBE, () => {
       socket.join(OPENF1_ROOM)
       // Send current session state and track map to the new subscriber.
@@ -88,6 +107,7 @@ export const initSessionManager = (io: Server): void => {
           active: true,
           trackName: activeSession.trackName,
           sessionType: activeSession.sessionType,
+          sessionName: activeSession.sessionName,
         })
         socket.emit(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
         // Send the best available track path (MultiViewer preferred, GPS fallback).
@@ -119,7 +139,7 @@ export const initSessionManager = (io: Server): void => {
           socket.emit(OPENF1_EVENTS.CLOCK, clock)
         }
       } else {
-        socket.emit(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
+        socket.emit(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
       }
     })
 
@@ -184,13 +204,13 @@ export const initDemoSession = async (
       activeSession.baselineArcLengths = computeArcLengths(activeSession.baselinePath)
       activeSession.totalLapsProcessed = existing.totalLapsProcessed
       activeSession.lastUpdateLap = existing.totalLapsProcessed
-      console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
+      log.info(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
 
       // Load cached MultiViewer outline if available.
       if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
         activeSession.multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
         activeSession.multiviewerArcLengths = computeArcLengths(activeSession.multiviewerPath)
-        console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+        mvLog.info(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
       }
 
       // Load cached corners and sector boundaries.
@@ -202,7 +222,7 @@ export const initDemoSession = async (
       }
     }
   } catch (err) {
-    console.error("⚠ Failed to load track map for demo:", err)
+    log.error("⚠ Failed to load track map for demo:", err)
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -212,7 +232,7 @@ export const initDemoSession = async (
 
   startPositionBatching()
   startDriverStateBatching()
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo" })
+  emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo", sessionName: "Demo" })
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 }
 
@@ -237,7 +257,7 @@ export const emitDemoTrackmap = (): void => {
 export const endDemoSession = (): void => {
   stopPositionBatching()
   stopDriverStateBatching()
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
+  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
   activeSession = null
 }
 
@@ -249,7 +269,7 @@ export const handleMqttMessage = (topic: string, payload: Buffer): void => {
     const data = JSON.parse(payload.toString())
     routeMessage(topic, data)
   } catch (err) {
-    console.error(`✗ Failed to parse MQTT message on ${topic}:`, err)
+    log.error(`✗ Failed to parse MQTT message on ${topic}:`, err)
   }
 }
 
@@ -305,22 +325,27 @@ const routeMessage = (topic: string, data: unknown): void => {
 const handleSessionMessage = async (msg: OpenF1SessionMsg): Promise<void> => {
   // If we already have an active session for this session_key, ignore duplicate.
   if (activeSession && activeSession.sessionKey === msg.session_key) {
-    // Check if session has ended.
-    if (msg.status === "Finalised" || msg.status === "Ended") {
+    // Check if session has ended based on time.
+    if (msg.date_end && Date.now() > new Date(msg.date_end).getTime()) {
       await endSession()
     }
     return
   }
 
-  // New session detected — only start tracking for active statuses.
-  if (msg.status === "Started" || msg.status === "Active") {
+  // Determine if this session is currently in progress based on time window.
+  const now = Date.now()
+  const start = msg.date_start ? new Date(msg.date_start).getTime() : 0
+  const end = msg.date_end ? new Date(msg.date_end).getTime() : 0
+  const isInProgress = msg.date_start && msg.date_end && now >= start && now <= end
+
+  if (isInProgress) {
     await startSession(msg)
   }
 }
 
 // Starts tracking a new session.
 const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
-  console.log(`🏎️  New session detected: ${msg.session_name} (key: ${msg.session_key})`)
+  log.info(`🏎️ New session detected: ${msg.session_name} (key: ${msg.session_key})`)
 
   // Fetch meeting info for the track name and circuit key.
   let trackName = msg.circuit_short_name || "Unknown"
@@ -336,7 +361,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       circuitKey = meetingRes.data[0].circuit_key ?? circuitKey
     }
   } catch (err) {
-    console.error("⚠ Failed to fetch meeting info, using fallback track name:", err)
+    log.error("⚠ Failed to fetch meeting info, using fallback track name:", err)
   }
 
   // Fetch driver list for this session.
@@ -358,7 +383,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       })
     })
   } catch (err) {
-    console.error("⚠ Failed to fetch drivers for session:", err)
+    log.error("⚠ Failed to fetch drivers for session:", err)
   }
 
   // Load existing track map from MongoDB.
@@ -372,12 +397,12 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     if (existing && existing.path.length > 0) {
       baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
       totalLapsProcessed = existing.totalLapsProcessed
-      console.log(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${totalLapsProcessed} laps)`)
+      log.info(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${totalLapsProcessed} laps)`)
 
       // Load cached MultiViewer outline if available.
       if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
         multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
-        console.log(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
+        mvLog.info(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
       }
 
       // Load cached corners and sector boundaries.
@@ -388,10 +413,10 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
         sectorBoundaries = existing.sectorBoundaries
       }
     } else {
-      console.log(`ℹ No existing track map for "${trackName}" — will generate from live data`)
+      log.info(`ℹ No existing track map for "${trackName}" — will generate from live data`)
     }
   } catch (err) {
-    console.error("⚠ Failed to load track map from DB:", err)
+    log.error("⚠ Failed to load track map from DB:", err)
   }
 
   // Initialize session state.
@@ -441,12 +466,20 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   connectLiveTiming()
   startFallbackClock()
 
+  // Schedule the consolidated capability report after all data sources have settled.
+  const reportSessionKey = activeSession.sessionKey
+  setTimeout(() => logSessionReport(reportSessionKey), CAPABILITY_REPORT_DELAY)
+
   // Emit session start to all subscribers.
   emitToRoom(OPENF1_EVENTS.SESSION, {
     active: true,
     trackName,
     sessionType: activeSession.sessionType,
+    sessionName: activeSession.sessionName,
   })
+
+  // Broadcast live session status to all connected clients (nav button).
+  broadcastLiveSession()
 
   // Emit driver info.
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
@@ -465,11 +498,80 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   }
 }
 
+// Emits a consolidated session capability report showing the status of all data sources.
+// Runs after the MQTT grace period so all connection statuses have settled.
+const logSessionReport = (expectedSessionKey: number): void => {
+  // Guard: session may have ended or changed before the report fires.
+  if (!activeSession || activeSession.sessionKey !== expectedSessionKey) return
+
+  const mqttConnected = isMqttConnected()
+  const subscribed = getSubscribedTopics()
+  const { mqttActive, restPolling, eventBased } = getPollingStatus()
+  const liveTiming = getLiveTimingStatus()
+  const hasMultiviewer = !!activeSession.multiviewerPath
+  const hasGpsTrack = !!activeSession.baselinePath
+
+  const divider = "=".repeat(56)
+  const separator = "\u2500".repeat(56)
+
+  const lines: string[] = [
+    "",
+    divider,
+    ` SESSION: ${activeSession.sessionName} @ ${activeSession.trackName}`,
+    ` Drivers: ${activeSession.drivers.size} | Key: ${activeSession.sessionKey}`,
+    separator,
+  ]
+
+  // MQTT status.
+  if (mqttConnected) {
+    lines.push(` MQTT: Connected (${subscribed.size} subscriptions)`)
+    if (mqttActive.length > 0) {
+      lines.push(`   Delivering: ${mqttActive.join(", ")}`)
+    }
+  } else {
+    lines.push(` MQTT: Disconnected`)
+  }
+
+  // REST polling fallback.
+  if (restPolling.length > 0) {
+    lines.push(` REST fallback: ${restPolling.join(", ")}`)
+  }
+
+  // Event-based topics that haven't received data yet (normal).
+  if (eventBased.length > 0) {
+    lines.push(` Awaiting events: ${eventBased.join(", ")}`)
+  }
+
+  // Live Timing (SignalR clock) status.
+  if (liveTiming.status === "connected") {
+    lines.push(` LiveTiming: Connected (ExtrapolatedClock)`)
+  } else if (liveTiming.error) {
+    lines.push(` LiveTiming: Unavailable (${liveTiming.error}) \u2014 using fallback clock`)
+  } else {
+    lines.push(` LiveTiming: Connecting...`)
+  }
+
+  // Track map source.
+  if (hasMultiviewer) {
+    lines.push(` Track map: MultiViewer outline`)
+  } else if (hasGpsTrack) {
+    lines.push(` Track map: GPS-derived (${activeSession.baselinePath!.length} points)`)
+  } else {
+    lines.push(` Track map: Pending (building from live data)`)
+  }
+
+  lines.push(divider)
+  lines.push("")
+
+  // Emit each line through the logger as a single block.
+  lines.forEach((line) => log.info(line))
+}
+
 // Ends the current session and persists the final track map and session data.
 const endSession = async (): Promise<void> => {
   if (!activeSession) return
 
-  console.log(`🏁 Session ended: ${activeSession.trackName}`)
+  log.info(`🏁 Session ended: ${activeSession.trackName}`)
 
   // Save final track map to MongoDB.
   await saveTrackMap()
@@ -484,8 +586,9 @@ const endSession = async (): Promise<void> => {
   disconnectLiveTiming()
   stopFallbackClock()
 
-  // Notify frontend.
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "" })
+  // Notify subscribers and broadcast session end to all clients.
+  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
+  broadcastLiveSession()
 
   activeSession = null
 }
@@ -739,12 +842,12 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
   if (activeSession.baselinePath && activeSession.baselinePath.length > 0) {
     if (!hasTrackLayoutChanged(activeSession.baselinePath, newPath)) {
       // Track layout hasn't changed much — use the new refined path.
-      console.log(`↻ Track map refined for "${activeSession.trackName}" (${validatedLaps.length} fast laps)`)
+      log.info(`↻ Track map refined for "${activeSession.trackName}" (${validatedLaps.length} fast laps)`)
     } else {
-      console.log(`⚠ Track layout change detected for "${activeSession.trackName}" — regenerating`)
+      log.info(`⚠ Track layout change detected for "${activeSession.trackName}" — regenerating`)
     }
   } else {
-    console.log(`✓ Initial track map generated for "${activeSession.trackName}" (${validatedLaps.length} fast laps)`)
+    log.info(`✓ Initial track map generated for "${activeSession.trackName}" (${validatedLaps.length} fast laps)`)
   }
 
   // Update session state and recompute arc-length cache for the new path.
@@ -767,7 +870,7 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     const boundaries = computeSectorBoundaries(allLaps, flatPositions, newPath)
     if (boundaries) {
       activeSession.sectorBoundaries = boundaries
-      console.log(`✓ Sector boundaries computed for "${activeSession.trackName}"`)
+      log.info(`✓ Sector boundaries computed for "${activeSession.trackName}"`)
     }
   }
 
@@ -811,7 +914,7 @@ const saveTrackMap = async (): Promise<void> => {
           year: lastUpdatedYear,
           archivedAt: now,
         })
-        console.log(`📦 Archived ${activeSession.trackName} track map from ${lastUpdatedYear}`)
+        log.info(`📦 Archived ${activeSession.trackName} track map from ${lastUpdatedYear}`)
       }
 
       // Update with new data.
@@ -842,10 +945,10 @@ const saveTrackMap = async (): Promise<void> => {
         created_at: now,
         updated_at: now,
       })
-      console.log(`✓ Saved new track map for "${activeSession.trackName}" to database`)
+      log.info(`✓ Saved new track map for "${activeSession.trackName}" to database`)
     }
   } catch (err) {
-    console.error("✗ Failed to save track map to database:", err)
+    log.error("✗ Failed to save track map to database:", err)
   }
 }
 
@@ -865,7 +968,7 @@ export const buildTrackFromDemoData = async (
   // so we must rebuild when the session key changes.
   const existing = await Trackmap.findOne({ trackName })
   if (existing && existing.latestSessionKey === sessionKey && existing.totalLapsProcessed >= 5) {
-    console.log(`ℹ GPS track for "${trackName}" already built from session ${sessionKey} — skipping batch build`)
+    log.info(`ℹ GPS track for "${trackName}" already built from session ${sessionKey} — skipping batch build`)
     return
   }
 
@@ -875,7 +978,7 @@ export const buildTrackFromDemoData = async (
     .map((m) => m.data as OpenF1LapMsg)
 
   if (allLaps.length === 0) {
-    console.log(`ℹ No lap data in demo messages for "${trackName}" — skipping batch build`)
+    log.info(`ℹ No lap data in demo messages for "${trackName}" — skipping batch build`)
     return
   }
 
@@ -909,7 +1012,7 @@ export const buildTrackFromDemoData = async (
   // Filter to only fast, complete laps.
   const fastLaps = filterFastLaps(allLaps, bestLapTime)
   if (fastLaps.length === 0) {
-    console.log(`ℹ No fast laps found in demo data for "${trackName}" — skipping batch build`)
+    log.info(`ℹ No fast laps found in demo data for "${trackName}" — skipping batch build`)
     return
   }
 
@@ -958,7 +1061,7 @@ export const buildTrackFromDemoData = async (
   })
 
   if (validatedLaps.length === 0) {
-    console.log(`ℹ No validated laps with sufficient positions for "${trackName}" — skipping batch build`)
+    log.info(`ℹ No validated laps with sufficient positions for "${trackName}" — skipping batch build`)
     return
   }
 
@@ -969,7 +1072,7 @@ export const buildTrackFromDemoData = async (
   // Compute sector boundaries from the demo data.
   const sectorBounds = computeSectorBoundaries(allLaps, positionsByDriver, gpsPath)
   if (sectorBounds) {
-    console.log(`✓ Sector boundaries computed for "${trackName}" from demo data`)
+    log.info(`✓ Sector boundaries computed for "${trackName}" from demo data`)
   }
 
   // Save to MongoDB — upsert so it works whether or not a document already exists.
@@ -998,7 +1101,7 @@ export const buildTrackFromDemoData = async (
     })
   }
 
-  console.log(`✓ Built GPS track from demo data for "${trackName}" (${validatedLaps.length} laps, ${gpsPath.length} points)`)
+  log.info(`✓ Built GPS track from demo data for "${trackName}" (${validatedLaps.length} laps, ${gpsPath.length} points)`)
 
   // Update the active session with sector boundaries and emit updated trackmap.
   if (activeSession && activeSession.trackName === trackName && sectorBounds) {
@@ -1033,21 +1136,21 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
 
   // No circuit key available — fall back to GPS-derived track.
   if (circuitKey === null) {
-    console.log(`ℹ No circuit key for "${trackName}" — using GPS track`)
+    log.info(`ℹ No circuit key for "${trackName}" — using GPS track`)
     return
   }
 
   try {
     const mvData = await fetchTrackOutline(circuitKey, new Date().getFullYear())
     if (!mvData || mvData.path.length === 0) {
-      console.log(`ℹ MultiViewer returned no track data for "${trackName}" (key ${circuitKey}) — using GPS track`)
+      mvLog.info(`ℹ MultiViewer returned no track data for "${trackName}" (key ${circuitKey}) — using GPS track`)
       return
     }
 
     activeSession.multiviewerPath = mvData.path
     activeSession.multiviewerArcLengths = computeArcLengths(mvData.path)
     activeSession.corners = mvData.corners.length > 0 ? mvData.corners : null
-    console.log(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
+    mvLog.info(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
 
     // Cache the MultiViewer data in MongoDB for future sessions.
     try {
@@ -1064,10 +1167,10 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
         { upsert: false },
       )
     } catch (cacheErr) {
-      console.error("⚠ Failed to cache MultiViewer data in MongoDB:", cacheErr)
+      mvLog.error("⚠ Failed to cache MultiViewer data in MongoDB:", cacheErr)
     }
   } catch (err) {
-    console.error("⚠ MultiViewer track fetch failed, using GPS fallback:", err)
+    mvLog.error("⚠ MultiViewer track fetch failed, using GPS fallback:", err)
   }
 }
 
@@ -1298,9 +1401,42 @@ export const emitToRoom = (event: string, data: unknown): void => {
   }
 }
 
+// Returns the current live session info for broadcasting to all clients.
+export const getActiveSessionInfo = (): { active: boolean; sessionType: string; trackName: string } => {
+  if (activeSession && !activeSession.isDemo) {
+    return { active: true, sessionType: activeSession.sessionType, trackName: activeSession.trackName }
+  }
+  return { active: false, sessionType: "", trackName: "" }
+}
+
+// Broadcasts live session status to ALL connected clients (not just openf1:live room).
+const broadcastLiveSession = (): void => {
+  if (ioServer) {
+    ioServer.emit(OPENF1_EVENTS.LIVE_SESSION, getActiveSessionInfo())
+  }
+}
+
+// ─── Session Polling ─────────────────────────────────────────────
+
+// Starts periodic polling for active sessions via REST API.
+// Catches sessions that MQTT may have missed (e.g. broker reconnect timing).
+export const startSessionPolling = (): void => {
+  if (sessionPollTimer) return
+  sessionPollTimer = setInterval(async () => {
+    // If we have an active live session, check if its time window has passed.
+    if (activeSession && !activeSession.isDemo) {
+      if (activeSession.dateEndTs > 0 && Date.now() > activeSession.dateEndTs) {
+        await endSession()
+      }
+      return
+    }
+    await checkForActiveSession()
+  }, SESSION_POLL_INTERVAL)
+}
+
 // ─── Startup Recovery ────────────────────────────────────────────
 
-// Checks for any currently active session on startup (in case backend restarted mid-session).
+// Checks for any currently active session (used on startup and by periodic polling).
 export const checkForActiveSession = async (): Promise<void> => {
   try {
     const token = await getOpenF1Token()
@@ -1309,19 +1445,23 @@ export const checkForActiveSession = async (): Promise<void> => {
       { headers: { Authorization: `Bearer ${token}` } },
     )
 
-    // Find the most recent session that isn't finalised.
-    const activeSessions = sessionsRes.data.filter(
-      (s: OpenF1SessionMsg) => s.status === "Started" || s.status === "Active",
-    )
+    // Find sessions that are currently in progress based on time window.
+    const now = Date.now()
+    const activeSessions = sessionsRes.data.filter((s: OpenF1SessionMsg) => {
+      if (!s.date_start || !s.date_end) return false
+      const start = new Date(s.date_start).getTime()
+      const end = new Date(s.date_end).getTime()
+      return now >= start && now <= end
+    })
 
     if (activeSessions.length > 0) {
       const latest = activeSessions[activeSessions.length - 1]
-      console.log(`↻ Found active session on startup: ${latest.session_name}`)
+      log.info(`↻ Found active session: ${latest.session_name}`)
       await startSession(latest)
-    } else {
-      console.log("ℹ No active OpenF1 session found on startup")
+    } else if (!activeSession) {
+      log.info("ℹ No active session found")
     }
   } catch (err) {
-    console.error("⚠ Failed to check for active OpenF1 sessions on startup:", err)
+    log.error("⚠ Failed to check for active sessions:", err)
   }
 }

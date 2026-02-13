@@ -1,4 +1,7 @@
 import axios from "axios"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OpenF1")
 
 const OPENF1_TOKEN_URL = "https://api.openf1.org/token"
 
@@ -43,7 +46,7 @@ export const getOpenF1Token = async (): Promise<string> => {
   const expiresInMs = (parseInt(expires_in, 10) || 3600) * 1000
   tokenExpiresAt = now + expiresInMs - 5 * 60 * 1000
 
-  console.log("✓ OpenF1 token acquired (expires in ~55min)")
+  log.info("✓ Token acquired (expires in ~55min)")
   return cachedToken as string
 }
 

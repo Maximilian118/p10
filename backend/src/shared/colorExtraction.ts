@@ -1,4 +1,7 @@
 import sharp from "sharp"
+import { createLogger } from "./logger"
+
+const log = createLogger("ColorExtraction")
 
 // Default fallback color if extraction fails.
 const DEFAULT_COLOR = "#1a1a2e"
@@ -53,8 +56,8 @@ export const extractDominantColor = async (imageUrl: string): Promise<string> =>
 
     return dominantColor
   } catch (error) {
-    console.error("Color extraction failed for URL:", imageUrl)
-    console.error("Error:", error)
+    log.error(`Color extraction failed for URL: ${imageUrl}`)
+    log.error("Error:", error)
     return DEFAULT_COLOR
   }
 }

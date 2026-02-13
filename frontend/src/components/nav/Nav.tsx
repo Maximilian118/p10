@@ -6,11 +6,14 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
 import GroupsIcon from "@mui/icons-material/Groups"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
-import { IconButton } from "@mui/material"
+import { IconButton, Button } from "@mui/material"
 import { useNavigate, useLocation } from "react-router-dom"
 import "./_nav.scss"
 import BadgeIcon from "../utility/icon/badgeIcon/BadgeIcon"
 import useConnectionStatus from "../../shared/hooks/useConnectionStatus"
+import useLiveSession from "../../shared/hooks/useLiveSession"
+import { useSessionBanner } from "../../api/openAPI/useSessionBanner"
+import SessionStats from "../../page/Championship/components/SessionStats/SessionStats"
 
 interface navType {
   user: userType,
@@ -30,6 +33,9 @@ const Nav: React.FC<navType> = ({ user }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const serverMsg = useConnectionStatus()
+  const liveSession = useLiveSession()
+  const isOnWatchLive = location.pathname === "/watch-live"
+  const sessionBanner = useSessionBanner(isOnWatchLive, false)
 
   // Close drawer when clicking outside.
   useEffect(() => {
@@ -87,7 +93,23 @@ const Nav: React.FC<navType> = ({ user }) => {
             {drawerOpen ? <Close /> : <MenuIcon />}
           </IconButton>
         </div>
-        {serverMsg && <p className="server-msg">{serverMsg}</p>}
+        {/* Priority: server msg > session clock (on /watch-live) > watch live button > nothing */}
+        {serverMsg
+          ? <p className="server-msg">{serverMsg}</p>
+          : isOnWatchLive && liveSession.active
+            ? <div className="nav-session-stats">
+                <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} size={16} />
+              </div>
+            : liveSession.active && (
+                <Button
+                  className="watch-live-btn"
+                  size="small"
+                  onClick={() => navigate("/watch-live")}
+                >
+                  Watch {liveSession.shortName}
+                </Button>
+              )
+        }
         <div className="nav-right">
           <BadgeIcon 
             svg={notificationsCount === 0 ? NotificationsNone : Notifications}

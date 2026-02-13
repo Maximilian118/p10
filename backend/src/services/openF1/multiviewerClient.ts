@@ -1,4 +1,7 @@
 import axios from "axios"
+import { createLogger } from "../../shared/logger"
+
+const mvLog = createLogger("MultiViewer")
 
 const MULTIVIEWER_API_BASE = "https://api.multiviewer.app/api/v1"
 
@@ -52,7 +55,7 @@ export const fetchTrackOutline = async (
       marshalSectors: data.marshalSectors || [],
     }
   } catch (err) {
-    console.error(`⚠ Failed to fetch MultiViewer track outline for circuit ${circuitKey}:`, err)
+    mvLog.error(`⚠ Failed to fetch track outline for circuit ${circuitKey}:`, err)
     return null
   }
 }

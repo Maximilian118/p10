@@ -3,6 +3,7 @@ import "./_sessionCountdown.scss"
 
 interface SessionCountdownProps {
   remainingMs: number
+  size?: number
 }
 
 // Formats milliseconds as HH:MM:SS.
@@ -16,8 +17,13 @@ const formatCountdown = (ms: number): string => {
 
 // Displays a countdown timer formatted as HH:MM:SS.
 // Pure display component — receives remaining time in ms, renders formatted time.
-const SessionCountdown: React.FC<SessionCountdownProps> = ({ remainingMs }) => {
-  return <span className="session-countdown">{formatCountdown(remainingMs)}</span>
+// Optional size prop overrides the default font size (px).
+const SessionCountdown: React.FC<SessionCountdownProps> = ({ remainingMs, size }) => {
+  return (
+    <span className="session-countdown" style={size ? { fontSize: size } : undefined}>
+      {formatCountdown(remainingMs)}
+    </span>
+  )
 }
 
 export default SessionCountdown

@@ -1,7 +1,10 @@
 import mongoose from "mongoose"
 import dotenv from "dotenv"
+import { createLogger } from "../shared/logger"
 
 dotenv.config()
+
+const log = createLogger("Migration")
 
 // Migration script: Converts series.url to series.icon + series.profile_picture.
 // Copies the existing url value into both icon and profile_picture fields,
@@ -11,7 +14,7 @@ const migrateSeriesUrl = async () => {
 
   try {
     await mongoose.connect(MONGODB_URI)
-    console.log("Connected to MongoDB")
+    log.info("Connected to MongoDB")
 
     const db = mongoose.connection.db
     if (!db) {
@@ -21,7 +24,7 @@ const migrateSeriesUrl = async () => {
 
     // Find all series documents that still have the url field.
     const seriesWithUrl = await collection.find({ url: { $exists: true } }).toArray()
-    console.log(`Found ${seriesWithUrl.length} series documents with 'url' field`)
+    log.info(`Found ${seriesWithUrl.length} series documents with 'url' field`)
 
     let updated = 0
     for (const series of seriesWithUrl) {
@@ -36,15 +39,15 @@ const migrateSeriesUrl = async () => {
         },
       )
       updated++
-      console.log(`Migrated: ${series.name} (${series._id})`)
+      log.info(`Migrated: ${series.name} (${series._id})`)
     }
 
-    console.log(`Migration complete. Updated ${updated} documents.`)
+    log.info(`Migration complete. Updated ${updated} documents.`)
   } catch (err) {
-    console.error("Migration failed:", err)
+    log.error("Migration failed:", err)
   } finally {
     await mongoose.disconnect()
-    console.log("Disconnected from MongoDB")
+    log.info("Disconnected from MongoDB")
   }
 }
 

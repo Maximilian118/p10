@@ -4,13 +4,16 @@
   width: 100%;
   @include mixins.flexbox-start-column;
   flex-grow: 1;
-  padding-top: 20px;
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
 
+  .fill-loading {
+    margin-bottom: 70px;
+  }
+
   .f1-session-title {
-    margin-bottom: 5px;
+    margin: 20px 0 5px;
 
     // Red text when the demo replay has ended.
     &--ended {

@@ -7,6 +7,9 @@ import mongoose from "mongoose"
 import helmet from "helmet"
 import depthLimit from "graphql-depth-limit"
 import { formatErrHandler } from "./shared/utility"
+import { createLogger } from "./shared/logger"
+
+const log = createLogger("App")
 
 // Import Graphql Schema and Resolvers.
 import Schema from "./graphql/schemas/schemas"
@@ -102,12 +105,12 @@ const connectionType = isAtlas ? "MongoDB Atlas" : "Local MongoDB"
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
-    console.log(`✓ Connected to ${connectionType}`)
+    log.info(`✓ Connected to ${connectionType}`)
     const PORT = process.env.PORT || 3001
     const HOST = process.env.HOST || "localhost"
     // Use httpServer.listen instead of app.listen for Socket.io support.
     httpServer.listen(Number(PORT), HOST, () => {
-      console.log(`✓ Server started on ${HOST}:${PORT}`)
+      log.info(`✓ Server started on ${HOST}:${PORT}`)
       // Recover any rounds stuck in timed statuses from before the restart.
       recoverStuckRounds(io)
       // Initialize OpenF1 MQTT service for live F1 session data.
@@ -115,6 +118,6 @@ mongoose
     })
   })
   .catch((err: unknown) => {
-    console.log(`✗ Failed to connect to ${connectionType}`)
-    console.log("  Error:", err instanceof Error ? err.message : err)
+    log.error(`✗ Failed to connect to ${connectionType}`)
+    log.error("  Error:", err instanceof Error ? err.message : err)
   })

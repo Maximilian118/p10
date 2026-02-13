@@ -8,6 +8,12 @@ import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
 import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
 import { sendNotification } from "../../shared/notifications"
+import { createLogger } from "../../shared/logger"
+
+const pointsLog = createLogger("DriverPoints")
+const teamPointsLog = createLogger("TeamPoints")
+const badgeLog = createLogger("AwardBadges")
+const resultsLog = createLogger("ResultsHandler")
 
 // Calculates the sum of all adjustments for a competitor/driver/team entry.
 export const sumAdjustments = (adjustment?: PointsAdjustment[]): number => {
@@ -402,8 +408,8 @@ export const calculateCompetitorPoints = (
     }
   })
 
-  console.log(
-    `[calculateCompetitorPoints] Calculated points for ${round.competitors.length} competitors. ` +
+  pointsLog.info(
+    `Calculated points for ${round.competitors.length} competitors. ` +
       `Winner: ${round.winner?.toString() || "none"}, RunnerUp: ${
         round.runnerUp?.toString() || "none"
       }`,
@@ -497,7 +503,7 @@ export const calculateDriverPoints = (
     if (original) original.positionDrivers = idx + 1
   })
 
-  console.log(`[calculateDriverPoints] Calculated points for ${round.drivers.length} drivers`)
+  pointsLog.info(`Calculated points for ${round.drivers.length} drivers`)
 }
 
 /**
@@ -540,7 +546,7 @@ export const calculateTeamPoints = (round: Round): void => {
     if (original) original.positionConstructors = idx + 1
   })
 
-  console.log(`[calculateTeamPoints] Calculated points for ${round.teams.length} teams`)
+  teamPointsLog.info(`Calculated points for ${round.teams.length} teams`)
 }
 
 /**
@@ -749,8 +755,8 @@ const updateDriverStats = async (
   // This requires reading current data and computing new value.
   await updateDriverFormScores(currentRound)
 
-  console.log(
-    `[updateDriverStats] Updated stats for ${currentRound.drivers.length} drivers` +
+  pointsLog.info(
+    `Updated stats for ${currentRound.drivers.length} drivers` +
       (isChampEnd ? " (championship end)" : ""),
   )
 }
@@ -883,7 +889,7 @@ const awardBadges = async (
       // Get checker function for this badge.
       const checker = badgeCheckerRegistry.get(badge.awardedHow)
       if (!checker) {
-        console.warn(`[awardBadges] No evaluator registered for badge criteria: "${badge.awardedHow}"`)
+        badgeLog.warn(`No evaluator registered for badge criteria: "${badge.awardedHow}"`)
         continue
       }
 
@@ -917,8 +923,8 @@ const awardBadges = async (
         })
         newlyAwarded.add(awardKey)
 
-        console.log(
-          `[awardBadges] Awarded "${badge.awardedHow}" to competitor ${competitorEntry.competitor}`,
+        badgeLog.info(
+          `Awarded "${badge.awardedHow}" to competitor ${competitorEntry.competitor}`,
         )
       }
     }
@@ -998,19 +1004,19 @@ const awardBadges = async (
       )
     )
 
-    console.log(`[awardBadges] Batch saved ${badgeAwards.length} badge awards`)
+    badgeLog.info(`Batch saved ${badgeAwards.length} badge awards`)
   }
 }
 
 export const resultsHandler = async (champId: string, roundIndex: number): Promise<void> => {
   const champ = await Champ.findById(champId)
   if (!champ) {
-    console.error(`[resultsHandler] Championship ${champId} not found`)
+    resultsLog.error(`Championship ${champId} not found`)
     return
   }
 
   if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
-    console.error(`[resultsHandler] Invalid round index ${roundIndex} for championship ${champId}`)
+    resultsLog.error(`Invalid round index ${roundIndex} for championship ${champId}`)
     return
   }
 
@@ -1021,16 +1027,16 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // ============================================================================
   // Guard 1: Only process rounds in "results" status.
   if (currentRound.status !== "results") {
-    console.warn(
-      `[resultsHandler] Skipping - round ${roundIndex + 1} has status "${currentRound.status}", expected "results"`,
+    resultsLog.warn(
+      `Skipping - round ${roundIndex + 1} has status "${currentRound.status}", expected "results"`,
     )
     return
   }
 
   // Guard 2: Prevent double execution using the resultsProcessed flag.
   if (currentRound.resultsProcessed) {
-    console.log(
-      `[resultsHandler] Skipping - round ${roundIndex + 1} already processed`,
+    resultsLog.info(
+      `Skipping - round ${roundIndex + 1} already processed`,
     )
     return
   }
@@ -1040,7 +1046,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   currentRound.resultsProcessed = true
   champ.markModified("rounds")
   await champ.save()
-  console.log(`[resultsHandler] Acquired lock for round ${roundIndex + 1}`)
+  resultsLog.info(`Acquired lock for round ${roundIndex + 1}`)
 
   // ============================================================================
   // STEP 1: POPULATE NEXT ROUND WITH COMPETITORS
@@ -1099,8 +1105,8 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
       }
     })
 
-    console.log(
-      `[resultsHandler] Populated ${nextRound.competitors.length} competitors to round ${
+    resultsLog.info(
+      `Populated ${nextRound.competitors.length} competitors to round ${
         roundIndex + 2
       }`,
     )
@@ -1112,7 +1118,7 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // Calculate points for each competitor based on their bet and the driver's actual position.
   // This also sets round.winner and round.runnerUp, and recalculates standings.
   if (!champ.pointsStructure?.length) {
-    console.error(`[resultsHandler] No points structure defined for championship ${champId}`)
+    resultsLog.error(`No points structure defined for championship ${champId}`)
     return
   }
   calculateCompetitorPoints(currentRound, champ.pointsStructure)
@@ -1280,8 +1286,8 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   champ.updated_at = moment().format()
   await champ.save()
 
-  console.log(
-    `[resultsHandler] Completed processing results for championship ${champId}, round ${
+  resultsLog.info(
+    `Completed processing results for championship ${champId}, round ${
       roundIndex + 1
     }`,
   )
@@ -1324,8 +1330,8 @@ export const checkRoundExpiry = async (champ: ChampDocument): Promise<boolean> =
   if (hoursSinceChange < ROUND_EXPIRY_MS) return false
 
   // Round has expired - reset to waiting and clear bets.
-  console.log(
-    `[checkRoundExpiry] Round ${activeRoundIndex + 1} expired after 24h, resetting to waiting`,
+  resultsLog.info(
+    `Round ${activeRoundIndex + 1} expired after 24h, resetting to waiting`,
   )
 
   round.status = "waiting"

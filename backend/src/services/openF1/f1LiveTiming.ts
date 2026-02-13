@@ -1,19 +1,34 @@
 import axios from "axios"
 import WebSocket from "ws"
 import { emitToRoom, OPENF1_EVENTS } from "./sessionManager"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OfficialLiveTiming")
 
 const SIGNALR_BASE = "https://livetiming.formula1.com"
 const SIGNALR_HUB = "Streaming"
 
-// Reconnection parameters.
-const INITIAL_RETRY_MS = 2000
-const MAX_RETRY_MS = 30000
+// Flat retry interval when SignalR is unavailable (ms).
+const RETRY_INTERVAL_MS = 60000
+
+// Maximum number of connection attempts before giving up.
+const MAX_RETRIES = 3
 
 // Connection state.
 let ws: WebSocket | null = null
 let retryTimeout: ReturnType<typeof setTimeout> | null = null
-let retryDelay = INITIAL_RETRY_MS
 let shouldReconnect = false
+let retryCount = 0
+
+// Tracks the current connection state for the session capability report.
+let connectionStatus: "connected" | "connecting" | "unavailable" = "connecting"
+let lastError: string | null = null
+
+// Returns the current live timing connection status.
+export const getLiveTimingStatus = (): { status: string; error: string | null } => ({
+  status: connectionStatus,
+  error: lastError,
+})
 
 // Latest clock state — cached so new clients can get it immediately.
 let latestClock: { remainingMs: number; running: boolean; serverTs: number; speed: number } | null = null
@@ -96,8 +111,10 @@ const connect = async (): Promise<void> => {
     })
 
     ws.on("open", () => {
-      console.log("✓ Connected to F1 Live Timing SignalR")
-      retryDelay = INITIAL_RETRY_MS
+      log.info("✓ Connected to SignalR")
+      connectionStatus = "connected"
+      lastError = null
+      retryCount = 0
 
       // Step 3: Subscribe to ExtrapolatedClock topic.
       const subscribeMsg = JSON.stringify({
@@ -114,39 +131,55 @@ const connect = async (): Promise<void> => {
     })
 
     ws.on("close", () => {
-      console.log("⚠ F1 Live Timing connection closed")
+      log.info("⚠ Connection closed")
+      connectionStatus = "connecting"
       ws = null
       scheduleReconnect()
     })
 
     ws.on("error", (err) => {
-      console.error("✗ F1 Live Timing WebSocket error:", err.message)
+      log.error("✗ WebSocket error:", err.message)
       ws?.close()
     })
-  } catch (err) {
-    console.error("✗ Failed to connect to F1 Live Timing:", (err as Error).message)
+  } catch (err: unknown) {
+    retryCount++
+    const gaveUp = retryCount >= MAX_RETRIES
+    const suffix = gaveUp ? `(giving up after ${MAX_RETRIES} attempts)` : "(retrying in 60s)"
+
+    // Concise one-liner per failure. 403 during pre-season testing is expected, not an error.
+    if (axios.isAxiosError(err) && err.response) {
+      const { status, statusText, data } = err.response
+      const body = typeof data === "string" ? data.substring(0, 100) : JSON.stringify(data).substring(0, 100)
+      lastError = `${status} ${statusText}`
+      log.warn(`Negotiate failed: ${status} ${statusText} — "${body}" ${suffix}`)
+    } else {
+      lastError = (err as Error).message
+      log.warn(`Connection failed: ${(err as Error).message} ${suffix}`)
+    }
+    connectionStatus = "unavailable"
     ws = null
-    scheduleReconnect()
+    if (!gaveUp) scheduleReconnect()
   }
 }
 
-// Schedules a reconnection attempt with exponential backoff.
+// Schedules a reconnection attempt after a flat 60-second delay.
 const scheduleReconnect = () => {
   if (!shouldReconnect) return
   if (retryTimeout) return
 
-  console.log(`  Reconnecting to F1 Live Timing in ${retryDelay / 1000}s...`)
   retryTimeout = setTimeout(() => {
     retryTimeout = null
-    retryDelay = Math.min(retryDelay * 2, MAX_RETRY_MS)
     connect()
-  }, retryDelay)
+  }, RETRY_INTERVAL_MS)
 }
 
 // Starts the F1 Live Timing connection. Called when a live session begins.
 export const connectLiveTiming = (): void => {
   shouldReconnect = true
+  retryCount = 0
   latestClock = null
+  connectionStatus = "connecting"
+  lastError = null
   connect()
 }
 
@@ -154,6 +187,8 @@ export const connectLiveTiming = (): void => {
 export const disconnectLiveTiming = (): void => {
   shouldReconnect = false
   latestClock = null
+  connectionStatus = "connecting"
+  lastError = null
 
   if (retryTimeout) {
     clearTimeout(retryTimeout)
@@ -165,5 +200,5 @@ export const disconnectLiveTiming = (): void => {
     ws = null
   }
 
-  console.log("✓ Disconnected from F1 Live Timing")
+  log.info("✓ Disconnected")
 }

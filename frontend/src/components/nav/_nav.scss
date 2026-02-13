@@ -18,6 +18,31 @@
       color: variables.$f1-red;
     }
 
+    // Session clock shown in nav center when viewing the /watch-live page.
+    .nav-session-stats {
+      .session-stats {
+        margin-bottom: 0;
+        width: auto;
+      }
+    }
+
+    // Compact button shown in nav center when a live F1 session is active.
+    .watch-live-btn {
+      color: variables.$f1-red;
+      border: 1px solid variables.$f1-red;
+      font-family: 'formula1-regular', sans-serif;
+      font-size: 11px;
+      text-transform: none;
+      padding: 2px 12px;
+      min-width: unset;
+      transition: variables.$trans-speed;
+
+      &:hover {
+        background: variables.$f1-red;
+        color: white;
+      }
+    }
+
     .nav-icon {
       color: variables.$colour-4;
       transition: variables.$trans-speed;

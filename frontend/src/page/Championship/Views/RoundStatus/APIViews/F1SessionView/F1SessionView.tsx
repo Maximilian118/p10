@@ -29,6 +29,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const [driverView, setDriverView] = useState<DriverLiveState | null>(null)
   const [trackReady, setTrackReady] = useState(false)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
+  const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
 
   const advButton = !demoMode && isAdjudicator && onAdvance
 
@@ -77,9 +78,13 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
       {/* Main content — hidden while loading but Trackmap stays mounted
           so its useTrackmap hook keeps the data pipeline active. */}
       <div className="f1-session-content" style={!trackReady ? { display: "none" } : undefined}>
-        {/* Session title — switches to "End of Demo" in red when the replay finishes */}
+        {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
         <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
-          {demoEnded ? "End of Demo" : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
+          {demoEnded
+            ? "End of Demo"
+            : sessionInfo
+              ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
+              : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
         </p>
 
         {/* Live track map with car positions */}
@@ -90,6 +95,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             onDriverStatesUpdate={handleDriverStatesUpdate}
             demoMode={demoMode}
             onTrackReady={handleTrackReady}
+            onSessionInfo={setSessionInfo}
           />
         </div>
 

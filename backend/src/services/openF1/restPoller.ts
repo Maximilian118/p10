@@ -1,5 +1,8 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OpenF1")
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -17,7 +20,15 @@ const POLL_INTERVALS: Record<string, number> = {
 
 // Grace period before starting REST polling for a topic (ms).
 // If MQTT delivers data within this window, polling is skipped.
-const MQTT_GRACE_PERIOD = 10000
+const MQTT_GRACE_PERIOD = 15000
+
+// Continuous data topics — should always have MQTT data flowing during a session.
+// Absence of data for these topics after the grace period is noteworthy.
+const CONTINUOUS_TOPICS = new Set(["car_data", "intervals", "position", "weather"])
+
+// Event-driven topics — only produce data when events occur (pit stops, overtakes, etc.).
+// Having no MQTT data for these early in a session is normal behavior.
+const EVENT_TOPICS = new Set(["pit", "stints", "race_control", "overtakes"])
 
 // Tracks which topics have received MQTT messages (polling is skipped for these).
 const mqttReceived = new Set<string>()
@@ -33,6 +44,16 @@ export const onPolledMessage = (handler: (topic: string, data: unknown) => void)
   messageHandler = handler
 }
 
+// Returns the current data source status for each endpoint.
+export const getPollingStatus = (): { mqttActive: string[]; restPolling: string[]; eventBased: string[] } => {
+  const active = Array.from(mqttReceived)
+  const polling = Array.from(pollingTimers.keys())
+  const awaiting = Array.from(EVENT_TOPICS).filter(
+    (t) => !mqttReceived.has(t) && !pollingTimers.has(t),
+  )
+  return { mqttActive: active, restPolling: polling, eventBased: awaiting }
+}
+
 // Marks a topic as having received MQTT data (disables REST polling for it).
 export const markMqttReceived = (topic: string): void => {
   // Extract the endpoint name from the topic (e.g. "v1/intervals" → "intervals").
@@ -44,7 +65,7 @@ export const markMqttReceived = (topic: string): void => {
   if (timer) {
     clearInterval(timer)
     pollingTimers.delete(endpoint)
-    console.log(`↻ Stopped REST polling for ${endpoint} (MQTT active)`)
+    log.info(`↻ Stopped REST polling for ${endpoint} (MQTT active)`)
   }
 }
 
@@ -59,7 +80,13 @@ export const startPolling = (sessionKey: number): void => {
       if (mqttReceived.has(endpoint)) return
       if (pollingTimers.has(endpoint)) return
 
-      console.log(`⚠ No MQTT data for ${endpoint} after ${MQTT_GRACE_PERIOD / 1000}s — starting REST polling`)
+      // Only log visibly for continuous data topics.
+      // Event-based topics naturally have no data until an event occurs.
+      if (CONTINUOUS_TOPICS.has(endpoint)) {
+        log.info(`No MQTT data for ${endpoint} — starting REST polling`)
+      } else {
+        log.verbose(`REST polling ready for ${endpoint} (event-based, awaiting first event)`)
+      }
       startEndpointPolling(endpoint, sessionKey)
     }, MQTT_GRACE_PERIOD)
   })

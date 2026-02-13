@@ -7,6 +7,9 @@ import {
   OpenF1PositionMsg, OpenF1RaceControlMsg, OpenF1WeatherMsg,
 } from "./types"
 import DemoSession from "../../models/demoSession"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("OpenF1")
 
 const OPENF1_API_BASE = "https://api.openf1.org/v1"
 
@@ -183,7 +186,7 @@ const fetchFromAPI = async (
   const session = sessionRes.data[0]
   const trackName = session.circuit_short_name || session.session_name
   const circuitKey = session.circuit_key ?? null
-  console.log(`  Track: ${trackName}, Session: ${session.session_name}, Circuit Key: ${circuitKey}`)
+  log.info(`Track: ${trackName}, Session: ${session.session_name}, Circuit Key: ${circuitKey}`)
 
   // Fetch all drivers for this session.
   const driversRes = await axios.get<OpenF1DriverMsg[]>(
@@ -194,7 +197,7 @@ const fetchFromAPI = async (
   const allDrivers = driversRes.data
   const driverNumbers = allDrivers.map((d: OpenF1DriverMsg) => d.driver_number)
 
-  console.log(`  Fetching data for ${driverNumbers.length} drivers: ${driverNumbers.join(", ")}`)
+  log.info(`Fetching data for ${driverNumbers.length} drivers: ${driverNumbers.join(", ")}`)
 
   // Fetch lap data for all drivers.
   const lapsRes = await axios.get<OpenF1LapMsg[]>(
@@ -267,7 +270,7 @@ const fetchFromAPI = async (
     })
   }
 
-  console.log(`  Fetched ${lapsRes.data.length} laps, ${allLocations.length} locations, ${intervalsRes.data.length} intervals, ${positionRes.data.length} positions, ${stintsRes.data.length} stints, ${pitRes.data.length} pits, ${raceControlRes.data.length} race_control, ${weatherRes.data.length} weather, ${allCarData.length} car_data (sampled)`)
+  log.info(`Fetched ${lapsRes.data.length} laps, ${allLocations.length} locations, ${intervalsRes.data.length} intervals, ${positionRes.data.length} positions, ${stintsRes.data.length} stints, ${pitRes.data.length} pits, ${raceControlRes.data.length} race_control, ${weatherRes.data.length} weather, ${allCarData.length} car_data (sampled)`)
 
   // Build a unified chronological message queue.
   const messages: { topic: string; data: unknown; timestamp: number }[] = []
@@ -365,7 +368,7 @@ const fetchFromAPI = async (
   // Sort chronologically.
   messages.sort((a, b) => a.timestamp - b.timestamp)
 
-  console.log(`  ${messages.length} total messages before trimming`)
+  log.info(`${messages.length} total messages before trimming`)
 
   // Parse the session end timestamp before trimming (needed for synthetic clock generation).
   const sessionEndTs = session.date_end ? new Date(session.date_end).getTime() : messages[messages.length - 1]?.timestamp || 0
@@ -373,7 +376,7 @@ const fetchFromAPI = async (
   // Generate synthetic clock events from the FULL dataset before trimming.
   // This ensures red flag stoppages from early in the session are captured.
   const syntheticClock = generateSyntheticClock(messages, sessionEndTs)
-  console.log(`  ${syntheticClock.length} synthetic clock events generated`)
+  log.info(`${syntheticClock.length} synthetic clock events generated`)
 
   // Trim to a mid-session snapshot: discard location/lap data before the 50% mark,
   // then cap to fit in a single MongoDB document (12MB limit with buffer).
@@ -400,7 +403,7 @@ const fetchFromAPI = async (
   const withClock = [...trimmed, ...clockInRange]
   withClock.sort((a, b) => a.timestamp - b.timestamp)
 
-  console.log(`  ${withClock.length} messages after trimming + synthetic clock (${clockInRange.length} clock events)`)
+  log.info(`${withClock.length} messages after trimming + synthetic clock (${clockInRange.length} clock events)`)
 
   return { messages: withClock, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
 }
@@ -479,7 +482,7 @@ const trimToSnapshot = (
     const windowStart = dataMessages[0].timestamp
     const windowEnd = dataMessages[dataMessages.length - 1].timestamp
     const durationMins = ((windowEnd - windowStart) / 60000).toFixed(1)
-    console.log(`  Snapshot window: ${durationMins} mins of session data (~${(byteSize / 1024 / 1024).toFixed(1)}MB)`)
+    log.info(`Snapshot window: ${durationMins} mins of session data (~${(byteSize / 1024 / 1024).toFixed(1)}MB)`)
   }
 
   return combined
@@ -499,7 +502,7 @@ const loadMessages = async (
     const hasSyntheticClock = cached.messages.some((m) => m.topic === "synthetic:clock")
 
     if (hasExpandedTopics && hasSyntheticClock) {
-      console.log(`  Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
+      log.info(`Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
 
       // Extract circuit key from the document, or fall back to the cached session message
       // for documents that predate the circuitKey field.
@@ -515,19 +518,19 @@ const loadMessages = async (
     }
 
     // Stale cache — delete and re-fetch with all topics + synthetic clock.
-    console.log("  Stale cache (missing expanded topics or synthetic clock) — re-fetching from API...")
+    log.info("Stale cache (missing expanded topics or synthetic clock) — re-fetching from API...")
     await DemoSession.deleteOne({ sessionKey })
   }
 
   // Not cached — fetch from OpenF1 API.
-  console.log("  No cache found, fetching from OpenF1 API...")
+  log.info("No cache found, fetching from OpenF1 API...")
   const result = await fetchFromAPI(sessionKey)
 
   if (result.messages.length === 0) {
     throw new Error("No replay messages generated")
   }
 
-  console.log(`  ${result.messages.length} messages queued for replay`)
+  log.info(`${result.messages.length} messages queued for replay`)
 
   // Save the trimmed snapshot as a single document.
   await DemoSession.create({
@@ -539,7 +542,7 @@ const loadMessages = async (
     sessionEndTs: result.sessionEndTs,
     messages: result.messages,
   })
-  console.log(`  Saved demo session to database`)
+  log.info("Saved demo session to database")
 
   return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs }
 }
@@ -559,7 +562,7 @@ export const startDemoReplay = async (
   replaySessionKey = sessionKey || DEFAULT_SESSION_KEY
   replaySpeed = speed || 4
 
-  console.log(`🎬 Starting demo replay for session ${replaySessionKey} at ${replaySpeed}x speed...`)
+  log.info(`Starting demo replay for session ${replaySessionKey} at ${replaySpeed}x speed...`)
 
   // Notify frontend that data is being fetched.
   emitDemoPhase("fetching")
@@ -599,7 +602,7 @@ export const startDemoReplay = async (
 
     // Abort if a newer replay was started while we were loading/initializing.
     if (thisGeneration !== replayGeneration) {
-      console.log("⏹ Demo replay superseded by newer request — aborting")
+      log.info("Demo replay superseded by newer request — aborting")
       return getDemoStatus()
     }
 
@@ -665,7 +668,7 @@ export const startDemoReplay = async (
       }
 
       if (!replayActive || replayIndex >= replayMessages.length) {
-        console.log("🏁 Demo replay complete")
+        log.info("Demo replay complete")
         stopDemoReplay(true)
         return
       }
@@ -697,7 +700,7 @@ export const startDemoReplay = async (
 
     return getDemoStatus()
   } catch (err) {
-    console.error("✗ Failed to start demo replay:", err)
+    log.error("Failed to start demo replay:", err)
     replayActive = false
     emitDemoPhase("stopped")
     throw err
@@ -724,6 +727,6 @@ export const stopDemoReplay = (natural = false): DemoStatus => {
   // Notify frontend — "ended" for natural completion, "stopped" for user-initiated.
   emitDemoPhase(natural ? "ended" : "stopped")
 
-  console.log(natural ? "🏁 Demo replay ended" : "⏹ Demo replay stopped")
+  log.info(natural ? "Demo replay ended" : "Demo replay stopped")
   return getDemoStatus()
 }

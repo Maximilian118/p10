@@ -2,6 +2,9 @@ import jwt, { JwtPayload } from "jsonwebtoken"
 import User from "../models/user"
 import { signTokens } from "../shared/utility"
 import { Request, Response, NextFunction } from "express"
+import { createLogger } from "../shared/logger"
+
+const log = createLogger("Auth")
 
 export interface AuthRequest extends Request {
   tokens: string[]
@@ -29,7 +32,7 @@ const auth = async (req: AuthRequest, res: Response, next: NextFunction): Promis
     const verifiedToken = jwt.verify(accessToken, `${process.env.ACCESS_TOKEN_SECRET}`)
 
     if (typeof verifiedToken === "string") {
-      console.error("Error: Invalid accessToken")
+      log.error("Invalid accessToken")
       res.status(401)
       return next()
     }
@@ -61,7 +64,7 @@ const auth = async (req: AuthRequest, res: Response, next: NextFunction): Promis
   }
 
   if (typeof verifiedRefreshToken === "string") {
-    console.error("Error: Invalid refreshToken")
+    log.error("Invalid refreshToken")
     res.status(401)
     return next()
   }

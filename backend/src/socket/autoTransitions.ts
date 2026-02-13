@@ -4,6 +4,9 @@ import { broadcastRoundStatusChange } from "./socketHandler"
 import { resultsHandler } from "../graphql/resolvers/resolverUtility"
 import { champPopulation } from "../shared/population"
 import moment from "moment"
+import { createLogger } from "../shared/logger"
+
+const log = createLogger("AutoTransitions")
 
 // Store active timers per championship to allow cancellation.
 // Key format: `${champId}:${roundIndex}`
@@ -58,12 +61,12 @@ const scheduleAutoTransition = (
   const timer = setTimeout(async () => {
     // Always remove timer from map when it fires, regardless of success/failure.
     activeTimers.delete(key)
-    console.log(`[autoTransitions] Timer fired for ${key}, transitioning to ${targetStatus}`)
+    log.info(` Timer fired for ${key}, transitioning to ${targetStatus}`)
 
     try {
       await transitionRoundStatus(io, champId, roundIndex, targetStatus)
     } catch (err) {
-      console.error(`Failed to auto-transition ${key} to ${targetStatus}:`, err)
+      log.error(`Failed to auto-transition ${key} to ${targetStatus}:`, err)
     }
   }, delayMs)
 
@@ -79,7 +82,7 @@ export const scheduleCountdownTransition = (
 ): void => {
   const randomDelay = randomiseRoundStartTime() * 1000
   const totalDelay = COUNTDOWN_DURATION + randomDelay
-  console.log(`[autoTransitions] Scheduling countdown transition: randomDelay=${randomDelay}ms, totalDelay=${totalDelay}ms`)
+  log.info(` Scheduling countdown transition: randomDelay=${randomDelay}ms, totalDelay=${totalDelay}ms`)
   scheduleAutoTransition(io, champId, roundIndex, "betting_open", totalDelay)
 }
 
@@ -110,11 +113,11 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
           if (elapsedMs < COUNTDOWN_DURATION) {
             // Still within countdown duration — re-schedule timer for remaining time.
             const remainingMs = COUNTDOWN_DURATION - elapsedMs
-            console.log(`[autoTransitions] Re-scheduling countdown timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
+            log.info(` Re-scheduling countdown timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
             scheduleAutoTransition(io, champ._id.toString(), i, "betting_open", remainingMs)
           } else {
             // Countdown expired — reset to waiting so adjudicator can restart cleanly.
-            console.log(`[autoTransitions] Countdown expired, resetting to waiting: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            log.info(` Countdown expired, resetting to waiting: champ=${champ._id} (${champ.name}), round=${i + 1}`)
             champ.rounds[i].status = "waiting"
             champ.rounds[i].statusChangedAt = null
             champ.updated_at = moment().format()
@@ -126,7 +129,7 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
         // Betting open/closed: reset to waiting so adjudicator can restart cleanly.
         // These statuses require user interaction, so continuing after a disruption isn't ideal.
         if (status === "betting_open" || status === "betting_closed") {
-          console.log(`[autoTransitions] Recovering stuck ${status}: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+          log.info(` Recovering stuck ${status}: champ=${champ._id} (${champ.name}), round=${i + 1}`)
           champ.rounds[i].status = "waiting"
           champ.rounds[i].statusChangedAt = null
           champ.updated_at = moment().format()
@@ -139,23 +142,23 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
           const elapsedMs = moment().diff(moment(round.statusChangedAt))
           if (elapsedMs > RESULTS_DURATION + 60000) {
             // More than 6 minutes elapsed — transition immediately to completed.
-            console.log(`[autoTransitions] Recovering stuck results: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            log.info(` Recovering stuck results: champ=${champ._id} (${champ.name}), round=${i + 1}`)
             await transitionRoundStatus(io, champ._id.toString(), i, "completed")
           } else if (elapsedMs < RESULTS_DURATION) {
             // Still within results duration — re-schedule timer for remaining time.
             const remainingMs = RESULTS_DURATION - elapsedMs
-            console.log(`[autoTransitions] Re-scheduling results timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
+            log.info(` Re-scheduling results timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
             scheduleAutoTransition(io, champ._id.toString(), i, "completed", remainingMs)
           } else {
             // Between 5-6 minutes — transition to completed now (grace period expired).
-            console.log(`[autoTransitions] Results grace period expired: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+            log.info(` Results grace period expired: champ=${champ._id} (${champ.name}), round=${i + 1}`)
             await transitionRoundStatus(io, champ._id.toString(), i, "completed")
           }
         }
       }
     }
   } catch (err) {
-    console.error("[autoTransitions] Failed to recover stuck rounds:", err)
+    log.error("Failed to recover stuck rounds:", err)
   }
 }
 
@@ -168,12 +171,12 @@ const transitionRoundStatus = async (
 ): Promise<void> => {
   const champ = await Champ.findById(champId)
   if (!champ) {
-    console.error(`Championship ${champId} not found for auto-transition`)
+    log.error(`Championship ${champId} not found for auto-transition`)
     return
   }
 
   if (roundIndex < 0 || roundIndex >= champ.rounds.length) {
-    console.error(`Invalid round index ${roundIndex} for championship ${champId}`)
+    log.error(`Invalid round index ${roundIndex} for championship ${champId}`)
     return
   }
 

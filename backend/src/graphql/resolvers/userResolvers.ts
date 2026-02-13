@@ -10,19 +10,22 @@ import Series from "../../models/series"
 import { comparePass, hashPass, signTokens } from "../../shared/utility"
 import generator from "generate-password"
 import { Resend } from "resend"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("UserResolver")
 
 // Initialize Resend email client (optional - app works without it).
 let resend: Resend | null = null
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY)
 } else {
-  console.warn("⚠️  RESEND_API_KEY not set - email functionality disabled")
+  log.warn("⚠️  RESEND_API_KEY not set - email functionality disabled")
 }
 
 // Helper to send emails safely (logs warning if Resend not configured).
 const sendEmail = async (options: { to: string; subject: string; text: string }) => {
   if (!resend) {
-    console.warn(`📧 Email not sent (Resend not configured): ${options.subject} → ${options.to}`)
+    log.warn(`📧 Email not sent (Resend not configured): ${options.subject} → ${options.to}`)
     return
   }
   try {
@@ -31,7 +34,7 @@ const sendEmail = async (options: { to: string; subject: string; text: string })
       ...options,
     })
   } catch (err) {
-    console.error("📧 Failed to send email:", err)
+    log.error("📧 Failed to send email:", err)
   }
 }
 

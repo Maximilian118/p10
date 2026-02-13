@@ -20,6 +20,9 @@ import moment from "moment"
 import badgeRewardOutcomes, { findDesc } from "../../shared/badgeOutcomes"
 import { clientS3, deleteS3 } from "../../shared/utility"
 import { sendNotification } from "../../shared/notifications"
+import { createLogger } from "../../shared/logger"
+
+const log = createLogger("BadgeResolver")
 
 const badgeResolvers = {
   newBadge: async (args: { badgeInput: badgeType }, req: AuthRequest): Promise<badgeType> => {
@@ -474,11 +477,11 @@ const badgeResolvers = {
         badgeSnapshot: snapshot,
       })
 
-      console.log(`[awardBadge] Awarded "${awardedHow}" to user ${userId} in championship ${champId}`)
+      log.info(`Awarded "${awardedHow}" to user ${userId} in championship ${champId}`)
 
       return { success: true, badge: snapshot, tokens: req.tokens }
     } catch (err) {
-      console.error("[awardBadge] Error:", err)
+      log.error("Error:", err)
       throw err
     }
   },

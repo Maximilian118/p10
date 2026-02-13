@@ -1,5 +1,8 @@
 import mongoose from "mongoose"
 import { SessionState } from "../services/openF1/types"
+import { createLogger } from "../shared/logger"
+
+const log = createLogger("F1Session")
 
 // Lap summary for a single driver-lap within a session.
 interface LapSummary {
@@ -215,9 +218,9 @@ export const saveF1Session = async (session: SessionState): Promise<void> => {
       { upsert: true, new: true },
     )
 
-    console.log(`✓ Saved F1 session data for "${session.trackName}" (${driverSummaries.length} drivers, expires ${thirtyDaysFromNow.toISOString()})`)
+    log.info(`✓ Saved F1 session data for "${session.trackName}" (${driverSummaries.length} drivers, expires ${thirtyDaysFromNow.toISOString()})`)
   } catch (err) {
-    console.error("✗ Failed to save F1 session data:", err)
+    log.error("✗ Failed to save F1 session data:", err)
   }
 }
 

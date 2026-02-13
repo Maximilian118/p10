@@ -26,6 +26,7 @@ export interface UseTrackmapResult {
   carPositions: CarPosition[]
   sessionActive: boolean
   trackName: string
+  sessionName: string
   drivers: OpenF1DriverInfo[]
   driverStates: DriverLiveState[]
   sessionState: SessionLiveState | null
@@ -46,6 +47,7 @@ const useTrackmap = (): UseTrackmapResult => {
   const [carPositions, setCarPositions] = useState<CarPosition[]>([])
   const [sessionActive, setSessionActive] = useState(false)
   const [trackName, setTrackName] = useState("")
+  const [sessionName, setSessionName] = useState("")
   const [drivers, setDrivers] = useState<OpenF1DriverInfo[]>([])
   const [corners, setCorners] = useState<Corner[] | null>(null)
   const [sectorBoundaries, setSectorBoundaries] = useState<SectorBoundaries | null>(null)
@@ -84,6 +86,7 @@ const useTrackmap = (): UseTrackmapResult => {
     const handleSession = (data: OpenF1SessionStatus) => {
       setSessionActive(data.active)
       setTrackName(data.trackName)
+      setSessionName(data.sessionName || "")
       setConnectionStatus(data.active ? "connected" : "no_session")
     }
 
@@ -165,6 +168,7 @@ const useTrackmap = (): UseTrackmapResult => {
     carPositions,
     sessionActive,
     trackName,
+    sessionName,
     drivers,
     driverStates,
     sessionState,
