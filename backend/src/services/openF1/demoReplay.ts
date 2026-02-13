@@ -199,63 +199,84 @@ const fetchFromAPI = async (
 
   log.info(`Fetching data for ${driverNumbers.length} drivers: ${driverNumbers.join(", ")}`)
 
-  // Fetch lap data for all drivers.
+  // Fetch all laps first — needed to find the activity midpoint for windowed fetching.
   const lapsRes = await axios.get<OpenF1LapMsg[]>(
     `${OPENF1_API_BASE}/laps?session_key=${sessionKey}`,
     { headers: authHeaders },
   )
 
-  // Fetch location (GPS) data per driver (avoids massive single request).
+  // Find the activity midpoint from lap timestamps — the busiest part of the session.
+  // All other endpoints are fetched only within a tight window around this point,
+  // giving the demo a true slice of the live session with fast API responses.
+  const lapTimestamps = lapsRes.data
+    .filter((l: OpenF1LapMsg) => l.date_start)
+    .map((l: OpenF1LapMsg) => new Date(l.date_start!).getTime())
+    .sort((a: number, b: number) => a - b)
+
+  const activityMidpointMs = lapTimestamps.length > 0
+    ? lapTimestamps[Math.floor(lapTimestamps.length / 2)]
+    : new Date(session.date_start || Date.now()).getTime()
+
+  // 2 min buffer before + 10 min after = ~8 min of data (2 min at 4x speed).
+  const windowStartMs = activityMidpointMs - 2 * 60 * 1000
+  const windowEndMs = activityMidpointMs + 10 * 60 * 1000
+  const windowStartISO = new Date(windowStartMs).toISOString()
+  const windowEndISO = new Date(windowEndMs).toISOString()
+  const dateFilter = `&date>=${windowStartISO}&date<=${windowEndISO}`
+
+  log.info(`Activity window: ${windowStartISO} → ${windowEndISO} (from ${lapTimestamps.length} laps)`)
+
+  // Fetch location (GPS) data per driver within the activity window.
   const allLocations: OpenF1LocationMsg[] = []
   for (const driverNum of driverNumbers) {
     const locRes = await axios.get<OpenF1LocationMsg[]>(
-      `${OPENF1_API_BASE}/location?session_key=${sessionKey}&driver_number=${driverNum}`,
+      `${OPENF1_API_BASE}/location?session_key=${sessionKey}&driver_number=${driverNum}${dateFilter}`,
       { headers: authHeaders },
     )
     allLocations.push(...locRes.data)
   }
 
-  // Fetch interval data (gap to leader + interval to car ahead).
+  // Fetch interval data within the activity window.
   const intervalsRes = await axios.get<OpenF1IntervalMsg[]>(
-    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}`,
+    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}${dateFilter}`,
     { headers: authHeaders },
   )
 
-  // Fetch race position data.
+  // Fetch race position data within the activity window.
   const positionRes = await axios.get<OpenF1PositionMsg[]>(
-    `${OPENF1_API_BASE}/position?session_key=${sessionKey}`,
+    `${OPENF1_API_BASE}/position?session_key=${sessionKey}${dateFilter}`,
     { headers: authHeaders },
   )
 
-  // Fetch stint data (tyre compound info).
+  // Fetch stint data (no date field in API — fetched in full, filtered later).
   const stintsRes = await axios.get<OpenF1StintMsg[]>(
     `${OPENF1_API_BASE}/stints?session_key=${sessionKey}`,
     { headers: authHeaders },
   )
 
-  // Fetch pit stop data.
+  // Fetch pit stop data within the activity window.
   const pitRes = await axios.get<OpenF1PitMsg[]>(
-    `${OPENF1_API_BASE}/pit?session_key=${sessionKey}`,
+    `${OPENF1_API_BASE}/pit?session_key=${sessionKey}${dateFilter}`,
     { headers: authHeaders },
   )
 
-  // Fetch race control messages (flags, safety car, etc).
+  // Fetch race control messages within the activity window.
   const raceControlRes = await axios.get<OpenF1RaceControlMsg[]>(
-    `${OPENF1_API_BASE}/race_control?session_key=${sessionKey}`,
+    `${OPENF1_API_BASE}/race_control?session_key=${sessionKey}${dateFilter}`,
     { headers: authHeaders },
   )
 
-  // Fetch weather data.
+  // Fetch weather data within the activity window.
   const weatherRes = await axios.get<OpenF1WeatherMsg[]>(
-    `${OPENF1_API_BASE}/weather?session_key=${sessionKey}`,
+    `${OPENF1_API_BASE}/weather?session_key=${sessionKey}${dateFilter}`,
     { headers: authHeaders },
   )
 
-  // Fetch car telemetry per driver and sample to ~1Hz to manage data size.
+  // Fetch car telemetry per driver within the activity window, sampled to ~1Hz.
   const allCarData: OpenF1CarDataMsg[] = []
   for (const driverNum of driverNumbers) {
     const carDataRes = await axios.get<OpenF1CarDataMsg[]>(
-      `${OPENF1_API_BASE}/car_data?session_key=${sessionKey}&driver_number=${driverNum}`,
+      `${OPENF1_API_BASE}/car_data?session_key=${sessionKey}&driver_number=${driverNum}${dateFilter}`,
       { headers: authHeaders },
     )
 
@@ -275,7 +296,7 @@ const fetchFromAPI = async (
   // Build a unified chronological message queue.
   const messages: { topic: string; data: unknown; timestamp: number }[] = []
 
-  // Add a session start message first.
+  // Add a session start message at the window start (preamble).
   const sessionStartMsg: OpenF1SessionMsg = {
     ...session,
     status: "Started",
@@ -283,22 +304,22 @@ const fetchFromAPI = async (
   messages.push({
     topic: "v1/sessions",
     data: sessionStartMsg,
-    timestamp: new Date(session.date_start || Date.now()).getTime(),
+    timestamp: windowStartMs - 200,
   })
 
-  // Add driver messages (inject early so drivers are registered).
+  // Add driver messages just after session start (preamble).
   allDrivers.forEach((driver: OpenF1DriverMsg) => {
     messages.push({
       topic: "v1/drivers",
       data: driver,
-      timestamp: new Date(session.date_start || Date.now()).getTime() + 100,
+      timestamp: windowStartMs - 100,
     })
   })
 
-  // Add lap messages.
+  // Add lap messages (filtered to the activity window).
   lapsRes.data.forEach((lap: OpenF1LapMsg) => {
     const ts = lap.date_start ? new Date(lap.date_start).getTime() : 0
-    if (ts > 0) {
+    if (ts >= windowStartMs && ts <= windowEndMs) {
       messages.push({ topic: "v1/laps", data: lap, timestamp: ts })
     }
   })
@@ -327,10 +348,9 @@ const fetchFromAPI = async (
     }
   })
 
-  // Add stint messages (no date field — use session start + stint_number ordering).
-  const sessionStartTs = new Date(session.date_start || Date.now()).getTime()
+  // Add stint messages (no date field — inject at window start so latest per-driver is available).
   stintsRes.data.forEach((stint: OpenF1StintMsg) => {
-    messages.push({ topic: "v1/stints", data: stint, timestamp: sessionStartTs + stint.stint_number * 100 + stint.lap_start })
+    messages.push({ topic: "v1/stints", data: stint, timestamp: windowStartMs + stint.stint_number * 100 + stint.lap_start })
   })
 
   // Add pit messages.
@@ -368,28 +388,25 @@ const fetchFromAPI = async (
   // Sort chronologically.
   messages.sort((a, b) => a.timestamp - b.timestamp)
 
-  log.info(`${messages.length} total messages before trimming`)
+  log.info(`${messages.length} total messages in activity window`)
 
-  // Parse the session end timestamp before trimming (needed for synthetic clock generation).
-  const sessionEndTs = session.date_end ? new Date(session.date_end).getTime() : messages[messages.length - 1]?.timestamp || 0
+  // Use the window end as the session end for synthetic clock generation.
+  const sessionEndTs = windowEndMs
 
-  // Generate synthetic clock events from the FULL dataset before trimming.
-  // This ensures red flag stoppages from early in the session are captured.
+  // Generate synthetic clock events covering just the activity window.
   const syntheticClock = generateSyntheticClock(messages, sessionEndTs)
   log.info(`${syntheticClock.length} synthetic clock events generated`)
 
-  // Trim to a mid-session snapshot: discard location/lap data before the 50% mark,
-  // then cap to fit in a single MongoDB document (12MB limit with buffer).
-  const trimmed = trimToSnapshot(messages)
+  // Safety trim — cap to fit in a single MongoDB document (6MB limit).
+  // Data is already windowed so this should rarely truncate.
+  const trimmed = trimToSnapshot(messages, activityMidpointMs)
 
-  // Filter synthetic clock events to the trimmed data window so the replay
-  // doesn't extend past the last visible data message.
+  // Find the last data timestamp in the trimmed window.
   const dataMessages = trimmed.filter(m => !PREAMBLE_TOPICS.has(m.topic))
   const lastDataTs = dataMessages.length > 0 ? dataMessages[dataMessages.length - 1].timestamp : 0
   const clockInRange = syntheticClock.filter(e => e.timestamp <= lastDataTs)
 
-  // Append a final clock event at the end of the trimmed window (running=false)
-  // so the frontend freezes the countdown when the demo data runs out.
+  // Append a final clock event at the end so the frontend freezes when data runs out.
   if (clockInRange.length > 0) {
     const lastClock = clockInRange[clockInRange.length - 1]
     clockInRange.push({
@@ -399,11 +416,11 @@ const fetchFromAPI = async (
     })
   }
 
-  // Merge filtered clock events into the trimmed snapshot and re-sort.
+  // Merge clock events into the data and re-sort.
   const withClock = [...trimmed, ...clockInRange]
   withClock.sort((a, b) => a.timestamp - b.timestamp)
 
-  log.info(`${withClock.length} messages after trimming + synthetic clock (${clockInRange.length} clock events)`)
+  log.info(`${withClock.length} messages after trim + synthetic clock (${clockInRange.length} clock events)`)
 
   return { messages: withClock, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
 }
@@ -421,15 +438,17 @@ const STATEFUL_TOPICS = new Set(["v1/stints", "v1/position"])
 // Trims a full message queue to a mid-session snapshot that fits in one document.
 // Keeps session/driver preamble + latest stateful records per driver before midpoint,
 // then includes all data from the midpoint onwards. Truncates from the end if needed.
+// For long sessions, pass midpointOverride to align the trim with the activity window.
 const trimToSnapshot = (
   messages: { topic: string; data: unknown; timestamp: number }[],
+  midpointOverride?: number,
 ): { topic: string; data: unknown; timestamp: number }[] => {
   if (messages.length === 0) return messages
 
-  // Compute the session midpoint timestamp.
+  // Use override if provided (long sessions), otherwise compute from message range.
   const firstTs = messages[0].timestamp
   const lastTs = messages[messages.length - 1].timestamp
-  const midTs = firstTs + (lastTs - firstTs) / 2
+  const midTs = midpointOverride ?? firstTs + (lastTs - firstTs) / 2
 
   // Keep session/driver messages (preamble) regardless of timestamp.
   const preamble = messages.filter((m) => PREAMBLE_TOPICS.has(m.topic))

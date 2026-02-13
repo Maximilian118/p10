@@ -1569,7 +1569,8 @@ export const startSessionPolling = (): void => {
 // ─── Startup Recovery ────────────────────────────────────────────
 
 // Checks for any currently active session (used on startup and by periodic polling).
-export const checkForActiveSession = async (): Promise<void> => {
+// Returns true if a session was found and started.
+export const checkForActiveSession = async (): Promise<boolean> => {
   try {
     const token = await getOpenF1Token()
     const sessionsRes = await axios.get<OpenF1SessionMsg[]>(
@@ -1588,12 +1589,13 @@ export const checkForActiveSession = async (): Promise<void> => {
 
     if (activeSessions.length > 0) {
       const latest = activeSessions[activeSessions.length - 1]
-      log.info(`↻ Found active session: ${latest.session_name}`)
+      log.info(`🏎️ Found active session: ${latest.session_name}`)
       await startSession(latest)
-    } else if (!activeSession) {
-      log.info("ℹ No active session found")
+      return true
     }
+    return false
   } catch (err) {
     log.error("⚠ Failed to check for active sessions:", err)
+    return false
   }
 }

@@ -25,7 +25,8 @@ export const initializeOpenF1Service = async (io: Server): Promise<void> => {
     await connectMqtt()
 
     // Check if there's already an active session (backend restart recovery).
-    await checkForActiveSession()
+    const sessionFound = await checkForActiveSession()
+    if (!sessionFound) log.info("ℹ No active session detected")
 
     // Start periodic polling to catch sessions MQTT may miss.
     startSessionPolling()

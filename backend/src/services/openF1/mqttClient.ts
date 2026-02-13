@@ -58,7 +58,7 @@ export const connectMqtt = async (): Promise<void> => {
   })
 
   client.on("connect", () => {
-    log.info("Connected to MQTT broker")
+    log.info("✓ Connected to MQTT broker")
     subscribedTopics.clear()
 
     // Subscribe to all topics and log a single summary when all results are in.
@@ -74,13 +74,9 @@ export const connectMqtt = async (): Promise<void> => {
           subscribedTopics.add(topic)
         }
 
-        // Log a single summary line once all subscription callbacks have fired.
-        if (completed === TOPICS.length) {
-          if (failed.length === 0) {
-            log.info(`Subscribed to all ${TOPICS.length} topics`)
-          } else {
-            log.info(`Subscribed to ${TOPICS.length - failed.length}/${TOPICS.length} topics (failed: ${failed.join(", ")})`)
-          }
+        // Log only if some subscriptions failed.
+        if (completed === TOPICS.length && failed.length > 0) {
+          log.info(`Subscribed to ${TOPICS.length - failed.length}/${TOPICS.length} topics (failed: ${failed.join(", ")})`)
         }
       })
     })

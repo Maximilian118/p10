@@ -61,7 +61,6 @@ const useTrackmap = (): UseTrackmapResult => {
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
     const data = await getTrackmap(user, setUser)
-    console.log(`[Trackmap] GraphQL: path=${data?.path?.length || 0} pts, trackName=${data?.trackName || "none"}`)
     if (data && data.path && data.path.length > 0) {
       setTrackPath(data.path)
       setTrackName(data.trackName)
@@ -93,7 +92,6 @@ const useTrackmap = (): UseTrackmapResult => {
 
     // Handle track map updates from the backend.
     const handleTrackmap = (data: TrackmapData) => {
-      console.log(`[Trackmap] Received: path=${data.path?.length || 0} pts, corners=${data.corners?.length || 0}, sectors=${data.sectorBoundaries ? "YES" : "null"}`)
       if (data.path && data.path.length > 0) {
         setTrackPath(data.path)
         setTrackName(data.trackName)
@@ -105,15 +103,7 @@ const useTrackmap = (): UseTrackmapResult => {
     // Handle batched car position updates. CSS transitions on CarDot handle
     // smooth interpolation, so React re-renders at 10 Hz are fine — React.memo
     // on each CarDot ensures only dots with changed positions actually re-render.
-    let lastPositionLog = 0
     const handlePositions = (positions: CarPosition[]) => {
-      // Log position batch colour stats every 5 seconds to avoid spam.
-      const now = Date.now()
-      if (now - lastPositionLog > 5000) {
-        const withColour = positions.filter((p) => p.teamColour && p.teamColour !== "000000").length
-        console.log(`[Trackmap] Positions: ${positions.length} cars, ${withColour} with team colour`)
-        lastPositionLog = now
-      }
       setCarPositions(positions)
     }
 

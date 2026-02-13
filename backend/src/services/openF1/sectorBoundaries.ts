@@ -155,7 +155,6 @@ export const computeSectorBoundaries = (
     const s1_2Pos = interpolatePosition(s1EndMs, driverPositions)
     const s2_3Pos = interpolatePosition(s2EndMs, driverPositions)
 
-    // Track interpolation misses.
     if (!startPos || !s1_2Pos || !s2_3Pos) {
       interpolationMisses++
     }

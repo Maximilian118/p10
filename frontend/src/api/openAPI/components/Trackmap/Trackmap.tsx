@@ -499,13 +499,6 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       [],
     )
 
-    // Log sector line rendering status for diagnostics.
-    if (result.length > 0) {
-      console.log(`[Trackmap] Sector lines: ${result.length} rendered`)
-    } else {
-      console.log("[Trackmap] Sector lines: sectorBoundaries present but 0 lines rendered")
-    }
-
     return result
   }, [svgTrackPath, sectorBoundaries, trackStrokeWidth])
 
