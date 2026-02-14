@@ -1,4 +1,5 @@
 @use '../../../../scss/mixins';
+@use '../../../../scss/variables';
 
 .trackmap {
   width: 100%;
@@ -66,6 +67,11 @@
 
   // Mini-sector separator lines — thin marks between mini-sector boundaries.
   .mini-sector-separator {
+    pointer-events: none;
+  }
+
+  // Pit building — offset line rendered on the pit lane side of the track.
+  .pit-building {
     pointer-events: none;
   }
 

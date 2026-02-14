@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef, useCallback, useState } from "react"
 import useTrackmap from "../../useTrackmap"
 import usePathLockedPositions from "./usePathLockedPositions"
 
-import { computeArcLengths, getPointAndTangentAtProgress, getSubPath, buildOpenSvgPath } from "./trackPathUtils"
+import { computeArcLengths, getPointAndTangentAtProgress, getSubPath, buildOpenSvgPath, computeSignedArea } from "./trackPathUtils"
 import { DriverLiveState, SectorBoundaries } from "../../types"
 import "./_trackmap.scss"
 
@@ -260,7 +260,7 @@ const acceptSegments = (
 const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
-    driverStates, corners, sectorBoundaries, connectionStatus, demoPhase,
+    driverStates, corners, sectorBoundaries, pitLaneProfile, connectionStatus,
   } = useTrackmap()
   const trackReadyFired = useRef(false)
 
@@ -425,7 +425,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
         || prev.sector3.length !== rawSegs.sector3.length
       return changed || resized ? next : prev
     })
-  }, [driverStates, selectedDriverNumber, sectorBoundaries, carPositions])
+  }, [driverStates, selectedDriverNumber, sectorBoundaries, carPositions, smoothedProgressRef])
 
   // Memoize the SVG path string.
   const svgPathString = useMemo(
@@ -569,6 +569,57 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     return { coloredSegments, separatorLines }
   }, [selectedDriverNumber, svgTrackPath, sectorBoundaries, acceptedSegments, trackStrokeWidth])
 
+  // Minimum pit side confidence required to render the pit building.
+  const MIN_PIT_SIDE_CONFIDENCE = 0.7
+
+  // Computes the pit building SVG path — a line parallel to the track on the correct side.
+  const pitBuildingPath = useMemo(() => {
+    if (!svgTrackPath || !pitLaneProfile
+        || pitLaneProfile.samplesCollected < 3
+        || pitLaneProfile.pitSideConfidence < MIN_PIT_SIDE_CONFIDENCE) return null
+    const arcLengths = computeArcLengths(svgTrackPath)
+    const { entryProgress, exitProgress } = pitLaneProfile
+    let { pitSide } = pitLaneProfile
+
+    // Defensive winding check: if the display path winds in the opposite direction
+    // from the reference path used to compute pitSide, flip the pit side.
+    // Y-negation in svgTrackPath flips the signed area sign, so
+    // referenceWindingCW=true (CW in Y-up) → positive signed area after Y-negate.
+    if (pitLaneProfile.referenceWindingCW !== undefined) {
+      const displayWindingCW = computeSignedArea(svgTrackPath) > 0
+      if (displayWindingCW !== pitLaneProfile.referenceWindingCW) {
+        pitSide = -pitSide
+      }
+    }
+
+    const offsetDist = dotRadius * 1.8
+    const steps = 40
+
+    // Compute progress range (handle wrap-around if exit < entry).
+    let progressRange = exitProgress - entryProgress
+    if (progressRange <= 0) progressRange += 1.0
+
+    // Pit lanes are at most ~40% of a circuit. If longer, entry/exit progress values
+    // are going the wrong way around the track (common near start/finish line).
+    if (progressRange > 0.4) return null
+
+    const points: { x: number; y: number }[] = []
+    for (let i = 0; i <= steps; i++) {
+      let p = entryProgress + (i / steps) * progressRange
+      if (p > 1) p -= 1
+      const pt = getPointAndTangentAtProgress(svgTrackPath, arcLengths, p)
+      if (!pt) continue
+      // Perpendicular offset (same pattern as sector boundary lines).
+      const perpX = -pt.tangent.dy
+      const perpY = pt.tangent.dx
+      points.push({
+        x: pt.point.x + pitSide * offsetDist * perpX,
+        y: pt.point.y + pitSide * offsetDist * perpY,
+      })
+    }
+    return buildOpenSvgPath(points)
+  }, [svgTrackPath, pitLaneProfile, dotRadius])
+
   const showNoSession = !demoMode && !sessionActive && !hasData
 
   // SVG group transform string for the PCA rotation.
@@ -594,6 +645,19 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
               strokeLinecap="round"
               fill="none"
             />
+
+            {/* Pit building — offset line following the track on the pit lane side */}
+            {pitBuildingPath && (
+              <path
+                d={pitBuildingPath}
+                stroke="#3a3a4a"
+                strokeWidth={trackStrokeWidth / 1.4}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                fill="none"
+                className="pit-building"
+              />
+            )}
 
             {/* Mini-sector colored segments — only segments the car has passed */}
             {miniSectorOverlay.coloredSegments.map((seg, i) => (

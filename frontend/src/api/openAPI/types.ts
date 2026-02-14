@@ -11,6 +11,19 @@ export interface SectorBoundaries {
   sector2_3: number
 }
 
+// Telemetry-derived pit lane profile for rendering the pit building and detecting pit exits.
+export interface PitLaneProfile {
+  exitSpeed: number
+  pitLaneMaxSpeed: number
+  pitLaneSpeedLimit: number
+  samplesCollected: number
+  entryProgress: number
+  exitProgress: number
+  pitSide: number
+  pitSideConfidence: number     // 0-1 agreement ratio across all GPS readings
+  referenceWindingCW?: boolean  // Winding direction of the path used to compute pitSide
+}
+
 // Track map path data received from the backend.
 export interface TrackmapData {
   trackName: string
@@ -19,6 +32,7 @@ export interface TrackmapData {
   totalLapsProcessed: number
   corners?: Corner[]
   sectorBoundaries?: SectorBoundaries | null
+  pitLaneProfile?: PitLaneProfile | null
 }
 
 // Live car position received from backend Socket.IO.

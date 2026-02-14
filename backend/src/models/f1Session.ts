@@ -482,7 +482,7 @@ export const finalizeF1Session = async (sessionKey: number, session: SessionStat
 // Loads cached demo replay messages from the unified F1Session model.
 export const loadDemoSession = async (
   sessionKey: number,
-): Promise<{ messages: ReplayMessage[]; circuitKey: number | null; trackName: string; sessionEndTs: number } | null> => {
+): Promise<{ messages: ReplayMessage[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string } | null> => {
   const doc = await F1Session.findOne({ sessionKey, type: "demo" })
   if (!doc || doc.replayMessages.length === 0) return null
 
@@ -491,6 +491,7 @@ export const loadDemoSession = async (
     circuitKey: doc.circuitKey,
     trackName: doc.trackName,
     sessionEndTs: doc.replayEndTs,
+    sessionType: doc.sessionType,
   }
 }
 

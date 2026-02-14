@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useContext } from "react"
+import { useState, useEffect, useCallback, useContext, useRef } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
 import AppContext from "../../context"
 import { getTrackmap } from "./requests/trackmapRequests"
-import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo, DriverLiveState, SessionLiveState, RaceControlEvent, Corner, SectorBoundaries } from "./types"
+import { TrackmapData, CarPosition, OpenF1SessionStatus, OpenF1DriverInfo, DriverLiveState, SessionLiveState, RaceControlEvent, Corner, SectorBoundaries, PitLaneProfile } from "./types"
 
 // Socket.IO event names (must match backend OPENF1_EVENTS).
 const EVENTS = {
@@ -32,10 +32,8 @@ export interface UseTrackmapResult {
   sessionState: SessionLiveState | null
   corners: Corner[] | null
   sectorBoundaries: SectorBoundaries | null
+  pitLaneProfile: PitLaneProfile | null
   connectionStatus: TrackmapConnectionStatus
-  demoPhase: DemoPhase
-  demoRemainingMs: number
-  demoStartedAt: number
 }
 
 // Hook that provides live F1 track map data and car positions.
@@ -51,12 +49,12 @@ const useTrackmap = (): UseTrackmapResult => {
   const [drivers, setDrivers] = useState<OpenF1DriverInfo[]>([])
   const [corners, setCorners] = useState<Corner[] | null>(null)
   const [sectorBoundaries, setSectorBoundaries] = useState<SectorBoundaries | null>(null)
+  const [pitLaneProfile, setPitLaneProfile] = useState<PitLaneProfile | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
-  const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
-  const [demoRemainingMs, setDemoDurationMs] = useState(0)
-  const [demoStartedAt, setDemoStartedAt] = useState(0)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
+  // Throttle timestamp for debug logging.
+  const lastLogRef = useRef<number>(0)
 
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
@@ -98,6 +96,7 @@ const useTrackmap = (): UseTrackmapResult => {
       }
       setCorners(data.corners ?? null)
       setSectorBoundaries(data.sectorBoundaries ?? null)
+      setPitLaneProfile(data.pitLaneProfile ?? null)
     }
 
     // Handle batched car position updates. CSS transitions on CarDot handle
@@ -115,6 +114,21 @@ const useTrackmap = (): UseTrackmapResult => {
     // Handle aggregated driver live state snapshots.
     const handleDriverStates = (states: DriverLiveState[]) => {
       setDriverStates(states)
+
+      // Debug: log tyre/pit state for all drivers every 5 seconds.
+      const now = Date.now()
+      if (!lastLogRef.current || now - lastLogRef.current > 5000) {
+        lastLogRef.current = now
+        console.table(states.map(s => ({
+          driver: s.nameAcronym,
+          lap: s.currentLapNumber,
+          tyreAge: s.tyreAge,
+          compound: s.tyreCompound,
+          pitStops: s.pitStops,
+          inPit: s.inPit,
+          retired: s.retired,
+        })))
+      }
     }
 
     // Handle session-wide state updates (weather, race control, overtakes).
@@ -130,16 +144,6 @@ const useTrackmap = (): UseTrackmapResult => {
       })
     }
 
-    // Handle demo mode phase updates.
-    const handleDemoStatus = (data: { phase: DemoPhase; remainingMs?: number }) => {
-      setDemoPhase(data.phase)
-      // Capture the remaining session time and start timestamp when demo is ready.
-      if (data.phase === "ready" && data.remainingMs) {
-        setDemoDurationMs(data.remainingMs)
-        setDemoStartedAt(Date.now())
-      }
-    }
-
     socket.on(EVENTS.SESSION, handleSession)
     socket.on(EVENTS.TRACKMAP, handleTrackmap)
     socket.on(EVENTS.POSITIONS, handlePositions)
@@ -147,8 +151,6 @@ const useTrackmap = (): UseTrackmapResult => {
     socket.on(EVENTS.DRIVER_STATES, handleDriverStates)
     socket.on(EVENTS.SESSION_STATE, handleSessionState)
     socket.on(EVENTS.RACE_CONTROL, handleRaceControl)
-    socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
-
     // Cleanup: leave the room and remove listeners.
     return () => {
       socket.emit(EVENTS.UNSUBSCRIBE)
@@ -159,7 +161,6 @@ const useTrackmap = (): UseTrackmapResult => {
       socket.off(EVENTS.DRIVER_STATES, handleDriverStates)
       socket.off(EVENTS.SESSION_STATE, handleSessionState)
       socket.off(EVENTS.RACE_CONTROL, handleRaceControl)
-      socket.off(EVENTS.DEMO_STATUS, handleDemoStatus)
     }
   }, [])
 
@@ -174,10 +175,8 @@ const useTrackmap = (): UseTrackmapResult => {
     sessionState,
     corners,
     sectorBoundaries,
+    pitLaneProfile,
     connectionStatus,
-    demoPhase,
-    demoRemainingMs,
-    demoStartedAt,
   }
 }
 

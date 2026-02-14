@@ -108,3 +108,16 @@ export const buildOpenSvgPath = (points: { x: number; y: number }[]): string => 
   const [first, ...rest] = points
   return `M ${first.x},${first.y} ${rest.map((p) => `L ${p.x},${p.y}`).join(" ")}`
 }
+
+// Computes the signed area of a polygon using the shoelace formula.
+// Positive = counter-clockwise, Negative = clockwise (in the path's coordinate space).
+export const computeSignedArea = (path: { x: number; y: number }[]): number => {
+  let area = 0
+  const n = path.length
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n
+    area += path[i].x * path[j].y
+    area -= path[j].x * path[i].y
+  }
+  return area / 2
+}

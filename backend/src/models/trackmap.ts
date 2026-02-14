@@ -1,6 +1,7 @@
 import mongoose from "mongoose"
 import moment from "moment"
 import { ObjectId } from "mongodb"
+import { PitLaneProfile } from "../services/openF1/types"
 
 // A single 2D coordinate point on the track.
 export interface TrackmapPoint {
@@ -44,6 +45,7 @@ export interface TrackmapType {
   multiviewerCircuitKey: number | null // MultiViewer circuit key for cache invalidation
   corners: TrackmapCorner[]            // Cached MultiViewer corner labels
   sectorBoundaries: TrackmapSectorBoundaries | null // Derived sector boundary progress values
+  pitLaneProfile: PitLaneProfile | null              // Telemetry-derived pit lane profile for exit detection + rendering
   created_at: string
   updated_at: string
   _doc: TrackmapType
@@ -77,6 +79,22 @@ const sectorBoundariesSchema = new mongoose.Schema<TrackmapSectorBoundaries>(
   { _id: false },
 )
 
+// Sub-schema for pit lane profile data derived from telemetry.
+const pitLaneProfileSchema = new mongoose.Schema<PitLaneProfile>(
+  {
+    exitSpeed: { type: Number, required: true },
+    pitLaneMaxSpeed: { type: Number, required: true },
+    pitLaneSpeedLimit: { type: Number, required: true },
+    samplesCollected: { type: Number, required: true },
+    entryProgress: { type: Number, required: true },
+    exitProgress: { type: Number, required: true },
+    pitSide: { type: Number, required: true },
+    pitSideConfidence: { type: Number, default: 0 },
+    referenceWindingCW: { type: Boolean, default: true },
+  },
+  { _id: false },
+)
+
 // Sub-schema for archived historical track map versions.
 const trackmapHistorySchema = new mongoose.Schema<TrackmapHistoryEntry>(
   {
@@ -102,6 +120,7 @@ const trackmapSchema = new mongoose.Schema<TrackmapType>({
   multiviewerCircuitKey: { type: Number, default: null },
   corners: { type: [trackmapCornerSchema], default: [] },
   sectorBoundaries: { type: sectorBoundariesSchema, default: null },
+  pitLaneProfile: { type: pitLaneProfileSchema, default: null },
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })

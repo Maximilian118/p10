@@ -364,11 +364,42 @@ export interface DriverStintState {
   source?: "openf1" | "signalr"
 }
 
+// Maximum pit stop samples before the profile is considered settled and stops updating.
+// 15 samples provides strong statistical confidence for median-based calculations.
+export const MAX_PIT_SAMPLES = 15
+
+// A single pit stop observation used for progressive profile building.
+export interface PitStopSample {
+  entryProgress: number
+  exitProgress: number
+  exitSpeed: number
+  pitSideVote: number         // +1 = right, -1 = left (majority for this sample)
+  pitSideRightWeight: number  // distance-weighted vote total on right side of track
+  pitSideLeftWeight: number   // distance-weighted vote total on left side of track
+}
+
+// Telemetry-derived profile for detecting pit lane exits and rendering the pit building.
+// Built from observed speed/GPS data of cars entering and leaving the pit lane.
+export interface PitLaneProfile {
+  exitSpeed: number           // Median speed (km/h) at pit exit transition
+  pitLaneMaxSpeed: number     // Max observed speed in pit lane
+  pitLaneSpeedLimit: number   // Detected pit lane speed limit (60 or 80 km/h typically)
+  samplesCollected: number    // Number of pit observations (confidence indicator)
+  entryProgress: number       // Track progress (0-1) where pit lane entry starts
+  exitProgress: number        // Track progress (0-1) where pit lane exit ends
+  pitSide: number             // +1 = right of track direction, -1 = left
+  pitSideConfidence: number   // 0-1 agreement ratio across all GPS readings
+  referenceWindingCW: boolean // Winding direction of the path used to compute pitSide
+}
+
 // Pit stop data tracked per driver.
 export interface DriverPitState {
   count: number
   lastDuration: number | null
   inPit: boolean
+  entryPosition: { x: number; y: number } | null  // GPS at pit entry, consumed at exit
+  pitEntryLeaderLap: number | null  // Leader's lap when this driver entered the pit (for timeout DNF)
+  pitLanePositions: { x: number; y: number; speed: number }[]  // GPS positions + speed accumulated during pit stay
 }
 
 // Latest telemetry snapshot per driver.
@@ -465,6 +496,24 @@ export interface SessionState {
   teamRadio: TeamRadioEvent[]
   // Session data events (DRS zones, flags, etc.).
   sessionData: SessionDataEvent[]
+
+  // ─── Pit Lane Profile ──────────────────────────────────────────
+  // Telemetry-derived pit lane profile (loaded from DB or built during session).
+  pitLaneProfile: PitLaneProfile | null
+  // Raw speed samples at pit exits for progressive profile building.
+  pitExitObservations: number[]
+  // Speed readings while cars are in pit lane (for detecting the pit lane speed limit).
+  pitLaneSpeeds: number[]
+  // Accumulated pit stop observations for progressive profile building.
+  pitStopSamples: PitStopSample[]
+
+  // ─── Timeout DNF Detection ─────────────────────────────────────
+  // Whether this session is a Race or Sprint (timeout DNFs only apply to race sessions).
+  isRaceSession: boolean
+  // Drivers whose DNF was inferred from prolonged pit stays or track stalls (reversible).
+  timeoutDNFDrivers: Set<number>
+  // On-track stall tracking: driverNumber → leader's lap when the car was first observed stationary.
+  trackStalls: Map<number, number>
 
   // ─── Session Recording (live → demo) ──────────────────────────
   // Buffered messages for recording live sessions as replayable demos.

@@ -16,7 +16,11 @@ import {
   CarPositionPayload,
   ValidatedLap,
   RaceControlEvent,
+  PitLaneProfile,
+  DriverPitState,
+  MAX_PIT_SAMPLES,
 } from "./types"
+import { computePitSideVote, buildProfileFromSamples, PIT_SPEED_MARGIN, MIN_PIT_PROGRESS_RANGE, computeInfieldSide } from "./pitLaneUtils"
 import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } from "./trackmapBuilder"
 import { fetchTrackOutline } from "./multiviewerClient"
 import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
@@ -38,6 +42,24 @@ const POSITION_BATCH_INTERVAL = 100
 
 // Interval between aggregated driver state emissions (ms).
 const DRIVER_STATE_BATCH_INTERVAL = 1000
+
+// Default pit lane speed limit (km/h) — most F1 circuits use 80, street circuits use 60.
+const DEFAULT_PIT_LANE_LIMIT = 80
+// Margin above detected/default pit lane speed limit for exit threshold (km/h).
+const FALLBACK_EXIT_MARGIN = 15
+
+// Number of laps (relative to leader) a car must be stationary in pit before assuming DNF.
+const PIT_TIMEOUT_LAPS = 2
+// Speed threshold (km/h) below which a car on track is considered stationary.
+const TRACK_STALL_SPEED = 5
+// Number of leader laps a car must be stationary on track before assuming DNF.
+const TRACK_STALL_LAPS = 1
+
+// Returns true if the session type is a Race or Sprint (where timeout DNF detection applies).
+const checkIsRaceSession = (sessionType: string): boolean => {
+  const lower = sessionType.toLowerCase()
+  return lower.includes("race") || lower === "sprint"
+}
 
 // Socket.IO event names for OpenF1 data.
 export const OPENF1_EVENTS = {
@@ -125,6 +147,7 @@ export const initSessionManager = (io: Server): void => {
             totalLapsProcessed: activeSession.totalLapsProcessed,
             corners: activeSession.corners,
             sectorBoundaries: activeSession.sectorBoundaries,
+            pitLaneProfile: activeSession.pitLaneProfile,
           })
         }
         // Send current driver live states snapshot.
@@ -167,13 +190,14 @@ export const initDemoSession = async (
   trackName: string,
   circuitKey: number | null,
   drivers: Map<number, DriverInfo>,
+  sessionType?: string,
 ): Promise<void> => {
   activeSession = {
     sessionKey,
     meetingKey: 0,
     trackName,
-    sessionType: "Demo",
-    sessionName: "Demo",
+    sessionType: sessionType || "Demo",
+    sessionName: sessionType || "Demo",
     drivers,
     positionsByDriverLap: new Map(),
     currentPositions: new Map(),
@@ -214,6 +238,13 @@ export const initDemoSession = async (
     sessionData: [],
     recordedMessages: [],
     isRecording: false,
+    pitLaneProfile: null,
+    pitExitObservations: [],
+    pitLaneSpeeds: [],
+    pitStopSamples: [],
+    isRaceSession: checkIsRaceSession(sessionType || "Demo"),
+    timeoutDNFDrivers: new Set(),
+    trackStalls: new Map(),
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -239,6 +270,11 @@ export const initDemoSession = async (
       }
       if (existing.sectorBoundaries) {
         activeSession.sectorBoundaries = existing.sectorBoundaries
+      }
+      // Load cached pit lane profile.
+      if (existing.pitLaneProfile) {
+        activeSession.pitLaneProfile = existing.pitLaneProfile
+        log.info(`✓ Loaded pit lane profile for "${trackName}" (${existing.pitLaneProfile.samplesCollected} samples, limit: ${existing.pitLaneProfile.pitLaneSpeedLimit} km/h)`)
       }
     }
   } catch (err) {
@@ -269,7 +305,16 @@ export const emitDemoTrackmap = (): void => {
       totalLapsProcessed: activeSession.totalLapsProcessed,
       corners: activeSession.corners,
       sectorBoundaries: activeSession.sectorBoundaries,
+      pitLaneProfile: activeSession.pitLaneProfile,
     })
+  }
+}
+
+// Sets the pit lane profile on the active session (called by demoReplay after building it).
+export const setActivePitLaneProfile = (profile: PitLaneProfile): void => {
+  if (activeSession) {
+    activeSession.pitLaneProfile = profile
+    log.info(`✓ Pit lane profile set: entry=${profile.entryProgress.toFixed(3)}, exit=${profile.exitProgress.toFixed(3)}, side=${profile.pitSide > 0 ? "right" : "left"}, limit=${profile.pitLaneSpeedLimit} km/h (${profile.samplesCollected} samples)`)
   }
 }
 
@@ -416,6 +461,13 @@ const handleLocationEvent = (event: InternalEvent): void => {
     y: d.y as number,
   })
 
+  // Accumulate GPS positions + speed during pit stays for pit side detection and tight boundary detection.
+  const pitState = activeSession.driverPitStops.get(event.driverNumber)
+  if (pitState?.inPit) {
+    const currentSpeed = activeSession.driverCarData.get(event.driverNumber)?.speed ?? 0
+    pitState.pitLanePositions.push({ x: d.x as number, y: d.y as number, speed: currentSpeed })
+  }
+
   // Store position in the per-driver-per-lap history.
   const currentLap = activeSession.currentLapByDriver.get(event.driverNumber) || 1
 
@@ -465,16 +517,230 @@ const handleLapEvent = (event: InternalEvent): void => {
   handleLapMessage(lapMsg)
 }
 
+// Detects the pit lane speed limit from observed pit lane speeds.
+// Buckets speeds into 5 km/h bins and returns the center of the most populated bin.
+const detectSpeedLimit = (speeds: number[]): number => {
+  if (speeds.length === 0) return DEFAULT_PIT_LANE_LIMIT
+  const binSize = 5
+  const bins = new Map<number, number>()
+  for (const s of speeds) {
+    const bin = Math.round(s / binSize) * binSize
+    bins.set(bin, (bins.get(bin) ?? 0) + 1)
+  }
+  let bestBin = DEFAULT_PIT_LANE_LIMIT
+  let bestCount = 0
+  bins.forEach((count, bin) => {
+    if (count > bestCount) {
+      bestCount = count
+      bestBin = bin
+    }
+  })
+  return bestBin
+}
+
+// Returns the speed threshold above which a car is considered to have left the pit lane.
+// Uses a 4-tier cascade: full profile → partial profile → live detection → default.
+const getPitExitThreshold = (session: SessionState): number => {
+  const profile = session.pitLaneProfile
+  // Full profile: use midpoint between pit lane max and exit speed.
+  if (profile && profile.samplesCollected >= 3) {
+    return (profile.pitLaneMaxSpeed + profile.exitSpeed) / 2
+  }
+  // Partial data: detected speed limit + margin.
+  if (profile?.pitLaneSpeedLimit) {
+    return profile.pitLaneSpeedLimit + FALLBACK_EXIT_MARGIN
+  }
+  // Live detection: if we've collected pit lane speeds, detect the limit from those.
+  if (session.pitLaneSpeeds.length >= 5) {
+    return detectSpeedLimit(session.pitLaneSpeeds) + FALLBACK_EXIT_MARGIN
+  }
+  // Zero data: conservative default.
+  return DEFAULT_PIT_LANE_LIMIT + FALLBACK_EXIT_MARGIN
+}
+
 // Handles a normalized car data (telemetry) event.
+// Also clears the inPit flag when car speed exceeds the pit exit threshold.
 const handleCarDataEvent = (event: InternalEvent): void => {
   if (!activeSession || !event.driverNumber) return
   const d = event.data
+  const speed = (d.speed as number) ?? 0
 
   activeSession.driverCarData.set(event.driverNumber, {
-    speed: (d.speed as number) ?? 0,
+    speed,
     drs: (d.drs as number) ?? 0,
     gear: (d.gear as number) ?? 0,
   })
+
+  // Track pit lane data and clear pit flag when car exits the pit lane.
+  const pitState = activeSession.driverPitStops.get(event.driverNumber)
+  if (pitState?.inPit) {
+    // Collect pit lane speeds for limit detection (moving but in pit lane).
+    // Capped at 500 — more than enough for accurate speed limit histogram binning.
+    if (speed > 20 && speed < 120 && activeSession.pitLaneSpeeds.length < 500) {
+      activeSession.pitLaneSpeeds.push(speed)
+    }
+    // Clear pit flag when speed exceeds exit threshold (driver is on track).
+    if (speed > getPitExitThreshold(activeSession)) {
+      pitState.inPit = false
+      pitState.pitEntryLeaderLap = null
+      activeSession.pitExitObservations.push(speed)
+      // Collect a pit stop sample for progressive profile building.
+      collectPitStopSample(event.driverNumber, speed, pitState)
+
+      // Reverse timeout-based DNF if the car has rejoined the race.
+      if (activeSession.timeoutDNFDrivers.has(event.driverNumber)) {
+        activeSession.dnfs = activeSession.dnfs.filter(d => d.driverNumber !== event.driverNumber)
+        activeSession.timeoutDNFDrivers.delete(event.driverNumber)
+        log.info(`✓ Timeout DNF reversed: driver #${event.driverNumber} has exited the pit lane`)
+      }
+    }
+  }
+
+  // Track on-track stalls (stationary but NOT in pit) for DNF detection.
+  // Skip during red flags when all cars are stationary, and non-race sessions.
+  if (!pitState?.inPit && activeSession.isRaceSession && !activeSession._activeRedFlag) {
+    if (speed <= TRACK_STALL_SPEED) {
+      // Car is stationary on track — record leader's lap if not already tracked.
+      if (!activeSession.trackStalls.has(event.driverNumber)
+          && !activeSession.dnfs.some(d => d.driverNumber === event.driverNumber)) {
+        const maxLap = Math.max(0, ...Array.from(activeSession.currentLapByDriver.values()))
+        activeSession.trackStalls.set(event.driverNumber, maxLap)
+      }
+    } else if (activeSession.trackStalls.has(event.driverNumber)) {
+      // Car is moving again — clear stall tracking and reverse DNF if applicable.
+      activeSession.trackStalls.delete(event.driverNumber)
+      if (activeSession.timeoutDNFDrivers.has(event.driverNumber)) {
+        activeSession.dnfs = activeSession.dnfs.filter(d => d.driverNumber !== event.driverNumber)
+        activeSession.timeoutDNFDrivers.delete(event.driverNumber)
+        log.info(`✓ Track stall DNF reversed: driver #${event.driverNumber} is moving again`)
+      }
+    }
+  }
+}
+
+// Collects a PitStopSample when a driver exits the pit lane.
+// Uses speed-aware GPS positions to find tighter entry/exit boundaries at the pit lane speed limit.
+const collectPitStopSample = (
+  driverNumber: number,
+  exitSpeed: number,
+  pitState: DriverPitState,
+): void => {
+  if (!activeSession || !activeSession.baselinePath || !activeSession.baselineArcLengths) return
+  if (!pitState.entryPosition) return
+
+  const exitGps = activeSession.currentPositions.get(driverNumber)
+  if (!exitGps) return
+
+  // Determine pit lane speed limit for tight boundary detection.
+  const speedLimit = activeSession.pitLaneProfile?.pitLaneSpeedLimit
+    ?? (activeSession.pitLaneSpeeds.length >= 5
+      ? detectSpeedLimit(activeSession.pitLaneSpeeds)
+      : DEFAULT_PIT_LANE_LIMIT)
+  const tightLimit = speedLimit + PIT_SPEED_MARGIN
+
+  // Find tighter entry/exit GPS: positions where speed is at the pit lane limit (not braking/accelerating).
+  const atLimitPositions = pitState.pitLanePositions.filter(p => p.speed > 10 && p.speed <= tightLimit)
+  const tightEntryGps = atLimitPositions.length > 0 ? atLimitPositions[0] : null
+  const tightExitGps = atLimitPositions.length > 0 ? atLimitPositions[atLimitPositions.length - 1] : null
+
+  // Compute track progress (0-1) using tight GPS if available, falling back to raw entry/exit.
+  const entryGps = tightEntryGps ?? pitState.entryPosition
+  const exitGpsForProgress = tightExitGps ?? exitGps
+
+  const rawEntryProgress = computeTrackProgress(
+    entryGps.x, entryGps.y,
+    activeSession.baselinePath, activeSession.baselineArcLengths,
+  )
+  const rawExitProgress = computeTrackProgress(
+    exitGpsForProgress.x, exitGpsForProgress.y,
+    activeSession.baselinePath, activeSession.baselineArcLengths,
+  )
+
+  // Skip samples where entry/exit are too close — sparse data in practice/qualifying produces noise.
+  let sampleRange = rawExitProgress - rawEntryProgress
+  if (sampleRange <= 0) sampleRange += 1.0
+  if (sampleRange < MIN_PIT_PROGRESS_RANGE) {
+    pitState.entryPosition = null
+    pitState.pitLanePositions = []
+    return
+  }
+
+  // Pass pit lane GPS with speed data for distance-weighted pit side voting.
+  // Speed filtering excludes positions where the car is still at racing speed (entry/exit transitions).
+  const positionsForVote: { x: number; y: number; speed?: number }[] = pitState.pitLanePositions.length > 0
+    ? pitState.pitLanePositions
+    : [pitState.entryPosition, exitGps].filter(Boolean).map(p => ({ x: p!.x, y: p!.y }))
+
+  // Compute distance-weighted pit side vote. Positions deeper in the pit lane carry more weight.
+  const voteResult = computePitSideVote(positionsForVote, activeSession.baselinePath, speedLimit)
+
+  // Clear the entry position and accumulated GPS so they are not reused.
+  pitState.entryPosition = null
+  pitState.pitLanePositions = []
+
+  // Only include pit stops with clear agreement (>60% one side).
+  // Ambiguous votes from noisy GPS would pollute the aggregate side decision.
+  const totalW = voteResult.rightWeight + voteResult.leftWeight
+  const clearVote = totalW > 0 && Math.max(voteResult.rightWeight, voteResult.leftWeight) / totalW >= 0.6
+
+  activeSession.pitStopSamples.push({
+    entryProgress: rawEntryProgress, exitProgress: rawExitProgress, exitSpeed,
+    pitSideVote: voteResult.side,
+    pitSideRightWeight: clearVote ? voteResult.rightWeight : 0,
+    pitSideLeftWeight: clearVote ? voteResult.leftWeight : 0,
+  })
+
+  log.info(`Pit sample #${activeSession.pitStopSamples.length} collected for driver #${driverNumber}: entry=${rawEntryProgress.toFixed(3)}, exit=${rawExitProgress.toFixed(3)}, speed=${exitSpeed.toFixed(0)}, side=${voteResult.side > 0 ? "R" : "L"} (R=${voteResult.rightWeight.toFixed(1)}/L=${voteResult.leftWeight.toFixed(1)} from ${voteResult.totalPoints}/${positionsForVote.length} GPS points, ${atLimitPositions.length} at-limit)`)
+
+  // Rebuild profile when we have enough new samples.
+  maybeRebuildPitProfile()
+}
+
+// Rebuilds the pit lane profile from accumulated samples when enough data exists.
+// Triggers at 3+ total samples and emits updated trackmap to the frontend.
+const maybeRebuildPitProfile = (): void => {
+  if (!activeSession || !activeSession.baselinePath) return
+
+  const newSamples = activeSession.pitStopSamples.length
+
+  // Need at least 3 observations for a meaningful profile.
+  if (newSamples < 3) return
+
+  // Compute the infield side heuristic at the midpoint of the pit lane.
+  // The pit lane is virtually always on the infield side (same side as the track centroid).
+  const arcLens = activeSession.baselineArcLengths ?? computeArcLengths(activeSession.baselinePath)
+  const samples = activeSession.pitStopSamples
+  const midEntry = samples.reduce((s, p) => s + p.entryProgress, 0) / samples.length
+  const midExit = samples.reduce((s, p) => s + p.exitProgress, 0) / samples.length
+  const pitMidProgress = midExit < midEntry
+    ? ((midEntry + midExit + 1) / 2) % 1.0
+    : (midEntry + midExit) / 2
+  const infieldSide = computeInfieldSide(activeSession.baselinePath, arcLens, pitMidProgress)
+
+  const profile = buildProfileFromSamples(
+    activeSession.pitStopSamples,
+    activeSession.pitLaneSpeeds,
+    activeSession.baselinePath,
+    infieldSide,
+  )
+  if (!profile) return
+
+  activeSession.pitLaneProfile = profile
+  log.info(`✓ Pit lane profile rebuilt: entry=${profile.entryProgress.toFixed(3)}, exit=${profile.exitProgress.toFixed(3)}, side=${profile.pitSide > 0 ? "right" : "left"}, limit=${profile.pitLaneSpeedLimit} km/h (${profile.samplesCollected} samples)`)
+
+  // Emit updated trackmap so the frontend can render/update the pit building.
+  const displayPath = getDisplayPath()
+  if (displayPath && displayPath.length > 0) {
+    emitToRoom(OPENF1_EVENTS.TRACKMAP, {
+      trackName: activeSession.trackName,
+      path: displayPath,
+      pathVersion: activeSession.totalLapsProcessed,
+      totalLapsProcessed: activeSession.totalLapsProcessed,
+      corners: activeSession.corners,
+      sectorBoundaries: activeSession.sectorBoundaries,
+      pitLaneProfile: activeSession.pitLaneProfile,
+    })
+  }
 }
 
 // Handles a normalized interval/timing event.
@@ -511,17 +777,37 @@ const handleIntervalEvent = (event: InternalEvent): void => {
   }
 }
 
-// Handles a normalized pit event. Updates pit count and tracks history.
+// Handles a normalized pit event. Updates pit count, tracks history,
+// and captures entry GPS for progressive pit lane profile building.
 const handlePitEvent = (event: InternalEvent): void => {
   if (!activeSession || !event.driverNumber) return
   const d = event.data
 
   const existing = activeSession.driverPitStops.get(event.driverNumber)
-  activeSession.driverPitStops.set(event.driverNumber, {
+
+  // Record the leader's current lap for timeout-based DNF detection.
+  const maxLap = Math.max(0, ...Array.from(activeSession.currentLapByDriver.values()))
+
+  const pitState: DriverPitState = {
     count: (existing?.count ?? 0) + 1,
     lastDuration: (d.pitDuration as number) ?? null,
     inPit: true,
-  })
+    entryPosition: null,
+    pitEntryLeaderLap: maxLap,
+    pitLanePositions: [],
+  }
+
+  // Capture GPS position at pit entry for progressive pit lane profile building.
+  const currentSamples = activeSession.pitLaneProfile?.samplesCollected ?? 0
+  const pendingSamples = activeSession.pitStopSamples.length
+  if (currentSamples + pendingSamples < MAX_PIT_SAMPLES && activeSession.baselinePath) {
+    const gps = activeSession.currentPositions.get(event.driverNumber)
+    if (gps) {
+      pitState.entryPosition = { x: gps.x, y: gps.y }
+    }
+  }
+
+  activeSession.driverPitStops.set(event.driverNumber, pitState)
 
   // Append to pit stop history for progressive saves.
   const pitHistory = activeSession.driverPitStopHistory.get(event.driverNumber) ?? []
@@ -531,6 +817,60 @@ const handlePitEvent = (event: InternalEvent): void => {
     date: new Date(event.timestamp).toISOString(),
   })
   activeSession.driverPitStopHistory.set(event.driverNumber, pitHistory)
+}
+
+// Checks all in-pit drivers for timeout-based DNF detection.
+// If a car has been in the pit for PIT_TIMEOUT_LAPS or more (relative to the leader),
+// it is assumed to have retired. Only applies to Race/Sprint sessions.
+const checkPitTimeoutDNFs = (): void => {
+  if (!activeSession || !activeSession.isRaceSession) return
+
+  const maxLap = Math.max(0, ...Array.from(activeSession.currentLapByDriver.values()))
+
+  activeSession.driverPitStops.forEach((pitState, driverNumber) => {
+    if (!pitState.inPit || pitState.pitEntryLeaderLap === null) return
+
+    // Skip if already marked as DNF (race control or timeout).
+    if (activeSession!.dnfs.some(d => d.driverNumber === driverNumber)) return
+
+    // If the leader has completed 2+ laps since this driver entered the pit, mark as DNF.
+    if (maxLap - pitState.pitEntryLeaderLap >= PIT_TIMEOUT_LAPS) {
+      activeSession!.dnfs.push({
+        driverNumber,
+        lap: pitState.pitEntryLeaderLap,
+        reason: "Assumed retired (stationary in pit lane)",
+        date: new Date().toISOString(),
+      })
+      activeSession!.timeoutDNFDrivers.add(driverNumber)
+      log.info(`⚠ Timeout DNF: driver #${driverNumber} has been in pit for ${maxLap - pitState.pitEntryLeaderLap} laps (entered on leader lap ${pitState.pitEntryLeaderLap}, now lap ${maxLap})`)
+    }
+  })
+}
+
+// Checks all on-track stalled drivers for timeout-based DNF detection.
+// If a car has been stationary on track for TRACK_STALL_LAPS or more (relative to the leader),
+// it is assumed to have retired. Only applies to Race/Sprint sessions.
+const checkTrackStallDNFs = (): void => {
+  if (!activeSession || !activeSession.isRaceSession) return
+
+  const maxLap = Math.max(0, ...Array.from(activeSession.currentLapByDriver.values()))
+
+  activeSession.trackStalls.forEach((stallLeaderLap, driverNumber) => {
+    // Skip if already marked as DNF (race control or timeout).
+    if (activeSession!.dnfs.some(d => d.driverNumber === driverNumber)) return
+
+    // If the leader has completed 1+ laps since this driver stalled, mark as DNF.
+    if (maxLap - stallLeaderLap >= TRACK_STALL_LAPS) {
+      activeSession!.dnfs.push({
+        driverNumber,
+        lap: stallLeaderLap,
+        reason: "Assumed retired (stationary on track)",
+        date: new Date().toISOString(),
+      })
+      activeSession!.timeoutDNFDrivers.add(driverNumber)
+      log.info(`⚠ Track stall DNF: driver #${driverNumber} stationary on track for ${maxLap - stallLeaderLap} laps (stalled at leader lap ${stallLeaderLap}, now lap ${maxLap})`)
+    }
+  })
 }
 
 // Handles a normalized stint event from any source.
@@ -580,11 +920,6 @@ const handleStintEvent = (event: InternalEvent): void => {
     Object.assign(lastHistoryStint, stintData)
   }
 
-  // A new stint means the driver has left the pits.
-  const pitState = activeSession.driverPitStops.get(event.driverNumber)
-  if (pitState) {
-    pitState.inPit = false
-  }
 }
 
 // Handles a normalized position event (driver's race position).
@@ -773,14 +1108,35 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
 
   // DNF detection from retirement/stopped messages.
   if (rc.driverNumber && (msgUpper.includes("RETIRED") || msgUpper.includes("STOPPED"))) {
-    const alreadyRecorded = activeSession.dnfs.some((d) => d.driverNumber === rc.driverNumber)
-    if (!alreadyRecorded) {
+    // If this driver already had a timeout DNF, upgrade it to a race control DNF
+    // (replace the timeout entry with the official reason, make it permanent).
+    const existingIdx = activeSession.dnfs.findIndex((d) => d.driverNumber === rc.driverNumber)
+    if (existingIdx >= 0) {
+      activeSession.dnfs[existingIdx] = {
+        driverNumber: rc.driverNumber,
+        lap: rc.lapNumber,
+        reason: rc.message,
+        date: rc.date,
+      }
+    } else {
       activeSession.dnfs.push({
         driverNumber: rc.driverNumber,
         lap: rc.lapNumber,
         reason: rc.message,
         date: rc.date,
       })
+    }
+    // Remove from timeout/stall tracking — race control DNFs are permanent (never reversed).
+    activeSession.timeoutDNFDrivers.delete(rc.driverNumber)
+    activeSession.trackStalls.delete(rc.driverNumber)
+    // Clear pit state for retired drivers so the PIT badge disappears
+    // and the orphaned entry GPS position is cleaned up.
+    const pitState = activeSession.driverPitStops.get(rc.driverNumber)
+    if (pitState) {
+      pitState.inPit = false
+      pitState.entryPosition = null
+      pitState.pitEntryLeaderLap = null
+      pitState.pitLanePositions = []
     }
   }
 }
@@ -970,6 +1326,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   let multiviewerPath: { x: number; y: number }[] | null = null
   let corners: { number: number; trackPosition: { x: number; y: number } }[] | null = null
   let sectorBoundaries: { startFinish: number; sector1_2: number; sector2_3: number } | null = null
+  let pitLaneProfile: PitLaneProfile | null = null
   let totalLapsProcessed = 0
   try {
     const existing = await Trackmap.findOne({ trackName })
@@ -990,6 +1347,10 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       }
       if (existing.sectorBoundaries) {
         sectorBoundaries = existing.sectorBoundaries
+      }
+      if (existing.pitLaneProfile) {
+        pitLaneProfile = existing.pitLaneProfile
+        log.info(`✓ Loaded pit lane profile for "${trackName}" (${existing.pitLaneProfile.samplesCollected} samples, limit: ${existing.pitLaneProfile.pitLaneSpeedLimit} km/h)`)
       }
     } else {
       log.info(`ℹ No existing track map for "${trackName}" — will generate from live data`)
@@ -1045,6 +1406,13 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     sessionData: [],
     recordedMessages: [],
     isRecording: true,
+    pitLaneProfile,
+    pitExitObservations: [],
+    pitLaneSpeeds: [],
+    pitStopSamples: [],
+    isRaceSession: checkIsRaceSession(msg.session_type || msg.session_name),
+    timeoutDNFDrivers: new Set(),
+    trackStalls: new Map(),
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -1103,6 +1471,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       totalLapsProcessed,
       corners: activeSession.corners,
       sectorBoundaries: activeSession.sectorBoundaries,
+      pitLaneProfile: activeSession.pitLaneProfile,
     })
   }
 }
@@ -1291,6 +1660,11 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   // Update the driver's current lap number.
   activeSession.currentLapByDriver.set(msg.driver_number, msg.lap_number)
 
+  // Check for timeout-based DNFs on every lap completion (any driver's lap may push
+  // the leader count past the threshold for another driver sitting in the pit or stalled on track).
+  checkPitTimeoutDNFs()
+  checkTrackStallDNFs()
+
   // Store/update the lap data, keyed by driver+lap to deduplicate progressive MQTT updates.
   const lapKey = `${msg.driver_number}-${msg.lap_number}`
   activeSession.completedLaps.set(lapKey, msg)
@@ -1408,6 +1782,7 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     totalLapsProcessed: validatedLaps.length,
     corners: activeSession.corners,
     sectorBoundaries: activeSession.sectorBoundaries,
+    pitLaneProfile: activeSession.pitLaneProfile,
   })
 
   // Persist to MongoDB.
@@ -1452,6 +1827,7 @@ const saveTrackMap = async (): Promise<void> => {
       }
 
       existing.sectorBoundaries = activeSession.sectorBoundaries || existing.sectorBoundaries
+      existing.pitLaneProfile = activeSession.pitLaneProfile || existing.pitLaneProfile
       existing.updated_at = now
       await existing.save()
     } else {
@@ -1467,6 +1843,7 @@ const saveTrackMap = async (): Promise<void> => {
         pathVersion: 1,
         totalLapsProcessed: activeSession.totalLapsProcessed,
         sectorBoundaries: activeSession.sectorBoundaries,
+        pitLaneProfile: activeSession.pitLaneProfile,
         history: [],
         created_at: now,
         updated_at: now,
@@ -1641,6 +2018,7 @@ export const buildTrackFromDemoData = async (
         totalLapsProcessed: activeSession.totalLapsProcessed,
         corners: activeSession.corners,
         sectorBoundaries: activeSession.sectorBoundaries,
+        pitLaneProfile: activeSession.pitLaneProfile,
       })
     }
   }

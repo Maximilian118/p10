@@ -26,8 +26,8 @@ const TyreLaps: React.FC<TyreLapsProps> = ({ lapsOld, lastPit, inPits, DNS, DNF,
     <div className="tyre-laps">
       {status || (
         <>
-          <h4 className="laps-old" style={{ fontSize: lastPit ? 10 : 12 }}>{`L ${lapsOld}`}</h4>
-          {lastPit && <h5 className="last-pit">{`PIT ${lastPit}`}</h5>}
+          <h4 className="laps-old">{`L ${lapsOld}`}</h4>
+          <h5 className="last-pit">{lastPit !== undefined ? `PIT ${lastPit}` : "NO PIT"}</h5>
         </>
       )}
     </div>
