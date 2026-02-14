@@ -8,7 +8,6 @@ $colour-3: #9E9E9E;
 $colour-4: #89898E;
 $colour-6: #5B5B61;
 $colour-9: #2C2C34;
-$pirelli-red: #ef242d;
 $f1-red: #E10600;
 $f1-red-hover: #cf0600;
 $empty: rgba($color: #000000, $alpha: 0.04);
@@ -47,3 +46,11 @@ $rarity-mythic: #FFC000; // Mythic
 
 // transitions
 $trans-speed: 0.2s ease;
+
+// Pirelli F1 tyre compound colours
+$pirelli-red: #ef242d;       // Soft
+$pirelli-yellow: #FFC72C;    // Medium
+$pirelli-white: #FFFFFF;     // Hard
+$pirelli-green: #43B02A;     // Intermediate
+$pirelli-blue: #0067AD;      // Wet
+$pirelli-gray: #888888;      // C-compound fallback (no allocation)

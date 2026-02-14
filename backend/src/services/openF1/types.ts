@@ -317,6 +317,27 @@ export interface OvertakeEvent {
   position: number
 }
 
+// Team radio message captured from SignalR.
+export interface TeamRadioEvent {
+  date: string
+  driverNumber: number
+  audioUrl: string
+}
+
+// Session data event from SignalR (e.g. DRS enabled/disabled).
+export interface SessionDataEvent {
+  date: string
+  key: string
+  value: string | number | boolean
+}
+
+// Individual pit stop record for history tracking.
+export interface PitStopHistoryEntry {
+  lap: number
+  duration: number | null
+  date: string
+}
+
 // ─── Internal Sub-State Types ────────────────────────────────────
 
 // Interval data tracked per driver.
@@ -330,7 +351,16 @@ export interface DriverStintState {
   compound: string
   stintNumber: number
   lapStart: number
+  // Last lap of this stint (set when a new stint starts, closing the previous one).
+  lapEnd?: number
   tyreAgeAtStart: number
+  // SignalR provides TotalLaps directly (the actual running tyre age).
+  // When set, overrides the computed age from (currentLap - lapStart + tyreAgeAtStart).
+  totalLaps?: number
+  // Whether this stint uses new tyres (from SignalR TimingAppData "New" field).
+  isNew?: boolean
+  // Tracks the data source so SignalR updates take priority over OpenF1 MQTT.
+  source?: "openf1" | "signalr"
 }
 
 // Pit stop data tracked per driver.
@@ -402,4 +432,42 @@ export interface SessionState {
   overtakes: OvertakeEvent[]
   // Expected session end timestamp (ms epoch) — used for fallback countdown when SignalR is unavailable.
   dateEndTs: number
+
+  // ─── Rich metadata tracking (populated progressively) ─────────
+  // Safety car periods detected from race control messages.
+  safetyCarPeriods: { type: "SC" | "VSC"; startLap: number; startTime: string; endLap: number; endTime: string }[]
+  // Red flag periods detected from race control messages.
+  redFlagPeriods: { startTime: string; endTime: string; reason: string | null }[]
+  // DNF incidents detected from race control messages.
+  dnfs: { driverNumber: number; lap: number | null; reason: string | null; date: string }[]
+  // Weather history — periodic snapshots captured during the session.
+  weatherHistory: { date: string; airTemp: number; trackTemp: number; humidity: number; rainfall: boolean; windSpeed: number; windDirection: number; pressure: number }[]
+  // Total laps in race (from LapCount topic).
+  totalLaps: number | null
+  // Active safety car/red flag state for tracking open periods.
+  _activeSC: { type: "SC" | "VSC"; startLap: number; startTime: string } | null
+  _activeRedFlag: { startTime: string; reason: string | null } | null
+  _lastWeatherSnapshot: number
+
+  // ─── Grid Position ──────────────────────────────────────────
+  // Grid position per driver (from TimingAppData GridPos field).
+  driverGridPositions: Map<number, number>
+
+  // ─── Stint & Pit Stop History ────────────────────────────────
+  // Full stint history per driver (all stints, not just the current one).
+  driverStintHistory: Map<number, DriverStintState[]>
+  // Full pit stop history per driver (individual pit stop events with lap and duration).
+  driverPitStopHistory: Map<number, PitStopHistoryEntry[]>
+
+  // ─── Team Radio & Session Data ─────────────────────────────────
+  // Team radio messages captured during the session.
+  teamRadio: TeamRadioEvent[]
+  // Session data events (DRS zones, flags, etc.).
+  sessionData: SessionDataEvent[]
+
+  // ─── Session Recording (live → demo) ──────────────────────────
+  // Buffered messages for recording live sessions as replayable demos.
+  recordedMessages: { topic: string; data: unknown; timestamp: number }[]
+  // Whether recording is active for this session.
+  isRecording: boolean
 }

@@ -6,7 +6,9 @@ import {
   OpenF1CarDataMsg, OpenF1IntervalMsg, OpenF1PitMsg, OpenF1StintMsg,
   OpenF1PositionMsg, OpenF1RaceControlMsg, OpenF1WeatherMsg,
 } from "./types"
-import DemoSession from "../../models/demoSession"
+import { loadDemoSession, saveDemoSession, deleteDemoSession, ReplayMessage } from "../../models/f1Session"
+import { resolveSessionPath, fetchStaticSession } from "./staticFileClient"
+import { convertStaticToOpenF1 } from "./staticFileConverter"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("OpenF1")
@@ -169,7 +171,7 @@ const generateSyntheticClock = (
 // Fetches all session data from the OpenF1 REST API and builds the message queue.
 const fetchFromAPI = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionName: string; driverCount: number; sessionEndTs: number }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionType: string; sessionName: string; driverCount: number; sessionEndTs: number }> => {
   const token = await getOpenF1Token()
   const authHeaders = { Authorization: `Bearer ${token}` }
 
@@ -422,7 +424,7 @@ const fetchFromAPI = async (
 
   log.info(`${withClock.length} messages after trim + synthetic clock (${clockInRange.length} clock events)`)
 
-  return { messages: withClock, circuitKey, trackName, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
+  return { messages: withClock, circuitKey, trackName, sessionType: session.session_type || session.session_name, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
@@ -508,41 +510,125 @@ const trimToSnapshot = (
 }
 
 // Loads or fetches the message queue for a given session.
-// Checks MongoDB cache first; fetches from OpenF1 API and caches if not found.
+// Checks the unified F1Session cache first; fetches from OpenF1 API and caches if not found.
 const loadMessages = async (
   sessionKey: number,
 ): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number }> => {
-  // Check MongoDB cache first.
-  const cached = await DemoSession.findOne({ sessionKey })
-  if (cached && cached.messages.length > 0) {
-    // Check if cached data includes the expanded topics (car_data, position, etc.)
+  // Check unified F1Session cache first.
+  const cached = await loadDemoSession(sessionKey)
+  if (cached) {
+    const msgs = cached.messages as { topic: string; data: unknown; timestamp: number }[]
+
+    // Check if cached data includes the expanded topics (car_data, stints, etc.)
     // and synthetic clock events. If missing, the cache is stale and needs a re-fetch.
-    const hasExpandedTopics = cached.messages.some((m) => m.topic === "v1/car_data")
-    const hasSyntheticClock = cached.messages.some((m) => m.topic === "synthetic:clock")
+    const hasExpandedTopics = msgs.some((m) => m.topic === "v1/car_data")
+    const hasSyntheticClock = msgs.some((m) => m.topic === "synthetic:clock")
+    const hasStints = msgs.some((m) => m.topic === "v1/stints")
 
-    if (hasExpandedTopics && hasSyntheticClock) {
-      log.info(`Loaded ${cached.messages.length} messages from cache (${cached.driverCount} drivers)`)
-
-      // Extract circuit key from the document, or fall back to the cached session message
-      // for documents that predate the circuitKey field.
-      let circuitKey: number | null = cached.circuitKey || null
-      if (!circuitKey) {
-        const sessionMsg = cached.messages.find((m) => m.topic === "v1/sessions")
-        if (sessionMsg) {
-          circuitKey = (sessionMsg.data as Record<string, unknown>).circuit_key as number ?? null
-        }
-      }
-
-      return { messages: cached.messages, circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
+    if (hasExpandedTopics && hasSyntheticClock && hasStints) {
+      log.info(`Loaded ${msgs.length} messages from cache`)
+      return { messages: msgs, circuitKey: cached.circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs }
     }
 
-    // Stale cache — delete and re-fetch with all topics + synthetic clock.
-    log.info("Stale cache (missing expanded topics or synthetic clock) — re-fetching from API...")
-    await DemoSession.deleteOne({ sessionKey })
+    // Stale cache — delete and re-fetch with all topics.
+    log.info("Stale cache (missing expanded topics, synthetic clock, or stints) — re-fetching from API...")
+    await deleteDemoSession(sessionKey)
   }
 
-  // Not cached — fetch from OpenF1 API.
-  log.info("No cache found, fetching from OpenF1 API...")
+  // Fetch lightweight session metadata from OpenF1 for path resolution and preamble.
+  const token = await getOpenF1Token()
+  const sessionRes = await axios.get<OpenF1SessionMsg[]>(
+    `${OPENF1_API_BASE}/sessions?session_key=${sessionKey}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  const sessionMeta = sessionRes.data.length > 0 ? sessionRes.data[0] : null
+
+  // Try F1 static files first (richer data, free for historical sessions).
+  if (sessionMeta) {
+    const currentYear = new Date().getFullYear()
+    const staticPath = await resolveSessionPath(
+      sessionKey, currentYear,
+      sessionMeta.date_start ?? undefined, sessionMeta.session_name,
+    )
+
+    if (staticPath) {
+      log.info(`Trying static files: ${staticPath}`)
+      const staticMessages = await fetchStaticSession(staticPath)
+
+      if (staticMessages && staticMessages.length > 0) {
+        const meetingKey = sessionMeta.meeting_key ?? 0
+        const circuitKey = sessionMeta.circuit_key ?? null
+        const trackName = sessionMeta.circuit_short_name || sessionMeta.session_name
+
+        // Convert SignalR-format static messages to OpenF1 replay format.
+        const converted = convertStaticToOpenF1(staticMessages, sessionKey, meetingKey)
+
+        if (converted.length > 0) {
+          log.info(`Converted ${converted.length} messages from static files`)
+
+          // Inject session preamble message so the replay has session context.
+          const firstTs = converted[0].timestamp
+          const sessionPreamble: OpenF1SessionMsg = { ...sessionMeta, status: "Started" }
+          converted.unshift({ topic: "v1/sessions", data: sessionPreamble, timestamp: firstTs - 200 })
+
+          // Find the activity midpoint for windowed trimming.
+          const lastTs = converted[converted.length - 1].timestamp
+          const midTs = firstTs + (lastTs - firstTs) / 2
+          const sessionEndTs = lastTs
+
+          // Generate synthetic clock events from the full converted data.
+          const syntheticClock = generateSyntheticClock(converted, sessionEndTs)
+          log.info(`${syntheticClock.length} synthetic clock events generated`)
+
+          // Trim to fit within a single MongoDB document.
+          const trimmed = trimToSnapshot(converted, midTs)
+
+          // Filter clock events to match the trimmed data range.
+          const dataMessages = trimmed.filter(m => !PREAMBLE_TOPICS.has(m.topic))
+          const lastDataTs = dataMessages.length > 0 ? dataMessages[dataMessages.length - 1].timestamp : 0
+          const clockInRange = syntheticClock.filter(e => e.timestamp <= lastDataTs)
+
+          // Append a final clock event so the frontend freezes when data runs out.
+          if (clockInRange.length > 0) {
+            const lastClock = clockInRange[clockInRange.length - 1]
+            clockInRange.push({
+              topic: "synthetic:clock",
+              data: { remainingMs: lastClock.data.remainingMs, running: false },
+              timestamp: lastDataTs,
+            })
+          }
+
+          // Merge clock events into the data and re-sort.
+          const withClock = [...trimmed, ...clockInRange]
+          withClock.sort((a, b) => a.timestamp - b.timestamp)
+
+          log.info(`${withClock.length} messages after trim + synthetic clock`)
+
+          // Count unique drivers for the cache record.
+          const driverNumbers = new Set<number>()
+          for (const msg of withClock) {
+            if (msg.topic === "v1/drivers") {
+              const d = msg.data as { driver_number?: number }
+              if (d.driver_number) driverNumbers.add(d.driver_number)
+            }
+          }
+
+          // Save to the unified F1Session cache.
+          await saveDemoSession(
+            sessionKey, meetingKey, circuitKey, trackName,
+            sessionMeta.session_type ?? sessionMeta.session_name, sessionMeta.session_name,
+            driverNumbers.size, sessionEndTs,
+            withClock as ReplayMessage[],
+          )
+
+          return { messages: withClock, circuitKey, trackName, sessionEndTs }
+        }
+      }
+    }
+  }
+
+  // Fetch from OpenF1 REST API (fallback when static files unavailable).
+  log.info("Fetching from OpenF1 API...")
   const result = await fetchFromAPI(sessionKey)
 
   if (result.messages.length === 0) {
@@ -551,17 +637,21 @@ const loadMessages = async (
 
   log.info(`${result.messages.length} messages queued for replay`)
 
-  // Save the trimmed snapshot as a single document.
-  await DemoSession.create({
+  // Save to the unified F1Session model.
+  const sessionMsg = result.messages.find((m) => m.topic === "v1/sessions")
+  const meetingKey = sessionMsg ? (sessionMsg.data as Record<string, unknown>).meeting_key as number : 0
+
+  await saveDemoSession(
     sessionKey,
-    circuitKey: result.circuitKey ?? 0,
-    trackName: result.trackName,
-    sessionName: result.sessionName,
-    driverCount: result.driverCount,
-    sessionEndTs: result.sessionEndTs,
-    messages: result.messages,
-  })
-  log.info("Saved demo session to database")
+    meetingKey,
+    result.circuitKey,
+    result.trackName,
+    result.sessionType,
+    result.sessionName,
+    result.driverCount,
+    result.sessionEndTs,
+    result.messages as ReplayMessage[],
+  )
 
   return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs }
 }
@@ -618,6 +708,16 @@ export const startDemoReplay = async (
 
     // Initialize session — loads trackmap from MongoDB (GPS path now matches current session).
     await initDemoSession(replaySessionKey, trackName, circuitKey, drivers)
+
+    // Process stateful preamble messages (stints, positions, weather, etc.) that sit
+    // between driver entries and the first location message. These must be fed through
+    // handleMqttMessage so sessionManager has correct initial state (tyre compounds, etc.).
+    for (let i = 0; i < preambleEnd; i++) {
+      const msg = messages[i]
+      if (!PREAMBLE_TOPICS.has(msg.topic) && msg.topic !== "synthetic:clock") {
+        handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+      }
+    }
 
     // Abort if a newer replay was started while we were loading/initializing.
     if (thisGeneration !== replayGeneration) {

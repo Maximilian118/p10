@@ -8,29 +8,24 @@ import {
   OpenF1LapMsg,
   OpenF1SessionMsg,
   OpenF1DriverMsg,
-  OpenF1CarDataMsg,
-  OpenF1IntervalMsg,
-  OpenF1PitMsg,
-  OpenF1StintMsg,
-  OpenF1PositionMsg,
-  OpenF1RaceControlMsg,
-  OpenF1WeatherMsg,
-  OpenF1OvertakeMsg,
   OpenF1Meeting,
   SessionState,
   DriverInfo,
+  DriverStintState,
   DriverLiveState,
   CarPositionPayload,
   ValidatedLap,
+  RaceControlEvent,
 } from "./types"
 import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } from "./trackmapBuilder"
 import { fetchTrackOutline } from "./multiviewerClient"
 import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
 import { computeSectorBoundaries } from "./sectorBoundaries"
-import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./restPoller"
-import { saveF1Session } from "../../models/f1Session"
-import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus } from "./f1LiveTiming"
-import { isMqttConnected, getSubscribedTopics } from "./mqttClient"
+import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./openf1Client"
+import { createF1Session, updateF1Session, finalizeF1Session, saveDemoSession, ReplayMessage } from "../../models/f1Session"
+import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus, getSignalRTopicTimestamps } from "./signalrClient"
+import { isMqttConnected, getSubscribedTopics } from "./openf1Client"
+import { InternalEvent, normalizeOpenF1Message } from "./normalizer"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("OpenF1")
@@ -75,8 +70,17 @@ let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
 // Timer for fallback countdown clock (activates when SignalR is unavailable).
 let fallbackClockTimer: ReturnType<typeof setInterval> | null = null
 
+// Timer for progressive database persistence (flushes every 30s during live sessions).
+let progressiveSaveTimer: ReturnType<typeof setInterval> | null = null
+
 // Timer for periodic session polling (catches sessions missed by MQTT).
 let sessionPollTimer: ReturnType<typeof setInterval> | null = null
+
+// Interval between progressive database saves (ms).
+const PROGRESSIVE_SAVE_INTERVAL = 30_000
+
+// Minimum interval between weather snapshots (ms) — captures every 5 minutes.
+const WEATHER_SNAPSHOT_INTERVAL = 5 * 60 * 1000
 
 // Interval between periodic session polls (ms).
 const SESSION_POLL_INTERVAL = 60_000
@@ -195,6 +199,21 @@ export const initDemoSession = async (
     raceControlMessages: [],
     overtakes: [],
     dateEndTs: 0,
+    safetyCarPeriods: [],
+    redFlagPeriods: [],
+    dnfs: [],
+    weatherHistory: [],
+    totalLaps: null,
+    _activeSC: null,
+    _activeRedFlag: null,
+    _lastWeatherSnapshot: 0,
+    driverGridPositions: new Map(),
+    driverStintHistory: new Map(),
+    driverPitStopHistory: new Map(),
+    teamRadio: [],
+    sessionData: [],
+    recordedMessages: [],
+    isRecording: false,
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -262,60 +281,550 @@ export const endDemoSession = (): void => {
   activeSession = null
 }
 
-// ─── MQTT Message Routing ────────────────────────────────────────
+// ─── Source Priority ──────────────────────────────────────────────
 
-// Routes an incoming MQTT message to the appropriate handler based on topic.
-export const handleMqttMessage = (topic: string, payload: Buffer): void => {
-  try {
-    const data = JSON.parse(payload.toString())
-    routeMessage(topic, data)
-  } catch (err) {
-    log.error(`✗ Failed to parse MQTT message on ${topic}:`, err)
+// SignalR topics that overlap with OpenF1. When SignalR has recently delivered
+// data for a topic, OpenF1 data for the same type is skipped.
+const SIGNALR_TOPIC_FOR_EVENT_TYPE: Record<string, string> = {
+  stint: "TimingAppData",
+  interval: "TimingData",
+  weather: "WeatherData",
+  race_control: "RaceControlMessages",
+}
+
+// How recently SignalR must have delivered data to suppress OpenF1 for that topic (ms).
+const SIGNALR_FRESHNESS_THRESHOLD = 15000
+
+// Returns true if SignalR has recently delivered data for the given event type.
+const isSignalRFresh = (eventType: string): boolean => {
+  const signalrTopic = SIGNALR_TOPIC_FOR_EVENT_TYPE[eventType]
+  if (!signalrTopic) return false
+  const lastSeen = getSignalRTopicTimestamps().get(signalrTopic)
+  return !!lastSeen && (Date.now() - lastSeen) < SIGNALR_FRESHNESS_THRESHOLD
+}
+
+// ─── Normalized Event Handler ────────────────────────────────────
+
+// Handles a normalized internal event from any source (SignalR, OpenF1, or demo).
+// Applies source priority: SignalR data suppresses OpenF1 for overlapping topics.
+export const handleEvent = (event: InternalEvent): void => {
+  // For OpenF1 events on topics where SignalR is active, skip the update.
+  if (event.source === "openf1" && isSignalRFresh(event.type)) return
+
+  // Route to the appropriate handler based on event type.
+  switch (event.type) {
+    case "session":
+      handleSessionEvent(event)
+      break
+    case "drivers":
+      handleDriverEvent(event)
+      break
+    case "location":
+      handleLocationEvent(event)
+      break
+    case "lap":
+      handleLapEvent(event)
+      break
+    case "car_data":
+      handleCarDataEvent(event)
+      break
+    case "interval":
+      handleIntervalEvent(event)
+      break
+    case "pit":
+      handlePitEvent(event)
+      break
+    case "stint":
+      handleStintEvent(event)
+      break
+    case "position":
+      handlePositionEvent(event)
+      break
+    case "race_control":
+      handleRaceControlEvent(event)
+      break
+    case "weather":
+      handleWeatherEvent(event)
+      break
+    case "overtake":
+      handleOvertakeEvent(event)
+      break
+    case "clock":
+      handleClockEvent(event)
+      break
+    case "lapcount":
+      handleLapCountEvent(event)
+      break
+    case "team_radio":
+      handleTeamRadioEvent(event)
+      break
+    case "session_data":
+      handleSessionDataEvent(event)
+      break
   }
 }
 
-// Routes a parsed message (from MQTT or REST poller) to the appropriate handler.
-const routeMessage = (topic: string, data: unknown): void => {
-  // Notify the REST poller that this topic is active on MQTT.
-  markMqttReceived(topic)
+// ─── Normalized Event Handlers ──────────────────────────────────
 
-  switch (topic) {
-    case "v1/sessions":
-      handleSessionMessage(data as OpenF1SessionMsg)
-      break
-    case "v1/location":
-      handleLocationMessage(data as OpenF1LocationMsg)
-      break
-    case "v1/laps":
-      handleLapMessage(data as OpenF1LapMsg)
-      break
-    case "v1/drivers":
-      handleDriverMessage(data as OpenF1DriverMsg)
-      break
-    case "v1/car_data":
-      handleCarDataMessage(data as OpenF1CarDataMsg)
-      break
-    case "v1/intervals":
-      handleIntervalMessage(data as OpenF1IntervalMsg)
-      break
-    case "v1/pit":
-      handlePitMessage(data as OpenF1PitMsg)
-      break
-    case "v1/stints":
-      handleStintMessage(data as OpenF1StintMsg)
-      break
-    case "v1/position":
-      handlePositionMessage(data as OpenF1PositionMsg)
-      break
-    case "v1/race_control":
-      handleRaceControlMessage(data as OpenF1RaceControlMsg)
-      break
-    case "v1/weather":
-      handleWeatherMessage(data as OpenF1WeatherMsg)
-      break
-    case "v1/overtakes":
-      handleOvertakeMessage(data as OpenF1OvertakeMsg)
-      break
+// Handles a normalized session event. Delegates to the existing async handler.
+const handleSessionEvent = (event: InternalEvent): void => {
+  const d = event.data
+  const msg: OpenF1SessionMsg = {
+    meeting_key: d.meetingKey as number,
+    session_key: d.sessionKey as number,
+    session_name: (d.sessionName as string) ?? "",
+    session_type: (d.sessionType as string) ?? "",
+    status: (d.status as string) ?? "",
+    date_start: (d.dateStart as string) ?? null,
+    date_end: (d.dateEnd as string) ?? null,
+    circuit_short_name: (d.circuitShortName as string) ?? null,
+    circuit_key: (d.circuitKey as number) ?? null,
+    _key: "",
+    _id: 0,
+  }
+  handleSessionMessage(msg)
+}
+
+// Handles a normalized driver event. Updates the session driver map.
+const handleDriverEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  const driverInfo: DriverInfo = {
+    driverNumber: event.driverNumber,
+    nameAcronym: (d.nameAcronym as string) ?? "",
+    fullName: (d.fullName as string) ?? "",
+    teamName: (d.teamName as string) ?? "",
+    teamColour: (d.teamColour as string) ?? "",
+    headshotUrl: (d.headshotUrl as string) ?? null,
+  }
+
+  // Only update if we have meaningful data (avoid overwriting with empty strings from partial updates).
+  if (driverInfo.nameAcronym || driverInfo.fullName) {
+    activeSession.drivers.set(event.driverNumber, driverInfo)
+    emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
+  }
+}
+
+// Handles a normalized location event (car GPS position).
+const handleLocationEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  activeSession.currentPositions.set(event.driverNumber, {
+    x: d.x as number,
+    y: d.y as number,
+  })
+
+  // Store position in the per-driver-per-lap history.
+  const currentLap = activeSession.currentLapByDriver.get(event.driverNumber) || 1
+
+  if (!activeSession.positionsByDriverLap.has(event.driverNumber)) {
+    activeSession.positionsByDriverLap.set(event.driverNumber, new Map())
+  }
+
+  const driverLaps = activeSession.positionsByDriverLap.get(event.driverNumber)!
+  if (!driverLaps.has(currentLap)) {
+    driverLaps.set(currentLap, [])
+  }
+
+  driverLaps.get(currentLap)!.push({
+    x: d.x as number,
+    y: d.y as number,
+    date: (d.date as string) ?? new Date(event.timestamp).toISOString(),
+  })
+}
+
+// Handles a normalized lap event. Reconstructs the OpenF1LapMsg shape
+// for storage in completedLaps (read by buildDriverStates and rebuildTrackMap).
+const handleLapEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  const lapMsg: OpenF1LapMsg = {
+    meeting_key: activeSession.meetingKey,
+    session_key: activeSession.sessionKey,
+    driver_number: event.driverNumber,
+    lap_number: (d.lapNumber as number) ?? 0,
+    lap_duration: (d.lapDuration as number) ?? null,
+    duration_sector_1: (d.s1 as number) ?? null,
+    duration_sector_2: (d.s2 as number) ?? null,
+    duration_sector_3: (d.s3 as number) ?? null,
+    is_pit_out_lap: (d.isPitOutLap as boolean) ?? false,
+    i1_speed: (d.i1Speed as number) ?? null,
+    i2_speed: (d.i2Speed as number) ?? null,
+    st_speed: (d.stSpeed as number) ?? null,
+    date_start: (d.dateStart as string) ?? null,
+    segments_sector_1: (d.segmentsSector1 as number[]) ?? null,
+    segments_sector_2: (d.segmentsSector2 as number[]) ?? null,
+    segments_sector_3: (d.segmentsSector3 as number[]) ?? null,
+    _key: "",
+    _id: 0,
+  }
+
+  handleLapMessage(lapMsg)
+}
+
+// Handles a normalized car data (telemetry) event.
+const handleCarDataEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  activeSession.driverCarData.set(event.driverNumber, {
+    speed: (d.speed as number) ?? 0,
+    drs: (d.drs as number) ?? 0,
+    gear: (d.gear as number) ?? 0,
+  })
+}
+
+// Handles a normalized interval/timing event.
+// Also processes NumberOfLaps, InPit, Retired, and Stopped flags from SignalR TimingData.
+const handleIntervalEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+
+  const data = event.data
+  if (data.gapToLeader !== undefined || data.interval !== undefined) {
+    activeSession.driverIntervals.set(event.driverNumber, {
+      gapToLeader: (data.gapToLeader as number | string) ?? activeSession.driverIntervals.get(event.driverNumber)?.gapToLeader ?? null,
+      interval: (data.interval as number | string) ?? activeSession.driverIntervals.get(event.driverNumber)?.interval ?? null,
+    })
+  }
+  if (data.position !== undefined) {
+    activeSession.driverPositions.set(event.driverNumber, data.position as number)
+  }
+
+  // Update current lap from NumberOfLaps (SignalR arrives faster than v1/laps REST polling).
+  if (data.numberOfLaps !== undefined) {
+    const lapNum = data.numberOfLaps as number
+    const existing = activeSession.currentLapByDriver.get(event.driverNumber) ?? 0
+    if (lapNum > existing) {
+      activeSession.currentLapByDriver.set(event.driverNumber, lapNum)
+    }
+  }
+
+  // Update pit status from TimingData InPit flag.
+  if (data.inPit !== undefined) {
+    const pitState = activeSession.driverPitStops.get(event.driverNumber)
+    if (pitState) {
+      pitState.inPit = data.inPit as boolean
+    }
+  }
+}
+
+// Handles a normalized pit event. Updates pit count and tracks history.
+const handlePitEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  const existing = activeSession.driverPitStops.get(event.driverNumber)
+  activeSession.driverPitStops.set(event.driverNumber, {
+    count: (existing?.count ?? 0) + 1,
+    lastDuration: (d.pitDuration as number) ?? null,
+    inPit: true,
+  })
+
+  // Append to pit stop history for progressive saves.
+  const pitHistory = activeSession.driverPitStopHistory.get(event.driverNumber) ?? []
+  pitHistory.push({
+    lap: (d.lapNumber as number) ?? activeSession.currentLapByDriver.get(event.driverNumber) ?? 0,
+    duration: (d.pitDuration as number) ?? null,
+    date: new Date(event.timestamp).toISOString(),
+  })
+  activeSession.driverPitStopHistory.set(event.driverNumber, pitHistory)
+}
+
+// Handles a normalized stint event from any source.
+// SignalR stints take priority over OpenF1 for the same driver.
+// Tracks full stint history for progressive saves.
+const handleStintEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  const d = event.data
+
+  const existing = activeSession.driverStints.get(event.driverNumber)
+
+  // If OpenF1 event and SignalR is already providing stint data for this driver, skip.
+  if (event.source === "openf1" && existing?.source === "signalr") return
+
+  const stintData: DriverStintState = {
+    compound: (d.compound as string) ?? existing?.compound ?? "",
+    stintNumber: (d.stintNumber as number) ?? existing?.stintNumber ?? 1,
+    lapStart: (d.lapStart as number) ?? existing?.lapStart ?? 0,
+    tyreAgeAtStart: (d.tyreAgeAtStart as number) ?? existing?.tyreAgeAtStart ?? 0,
+    isNew: d.isNew !== undefined ? (d.isNew as boolean) : existing?.isNew,
+    source: event.source === "signalr" ? "signalr" : "openf1",
+  }
+
+  // SignalR provides totalLaps directly (the actual running tyre age).
+  if (event.source === "signalr" && d.totalLaps !== undefined) {
+    stintData.totalLaps = d.totalLaps as number
+  }
+
+  activeSession.driverStints.set(event.driverNumber, stintData)
+
+  // Track full stint history — append when a new stint number appears.
+  const history = activeSession.driverStintHistory.get(event.driverNumber) ?? []
+  const lastHistoryStint = history.length > 0 ? history[history.length - 1] : null
+
+  // Close previous stint's lap end when a new stint starts.
+  if (lastHistoryStint && stintData.stintNumber > lastHistoryStint.stintNumber) {
+    const currentLap = activeSession.currentLapByDriver.get(event.driverNumber) ?? 0
+    lastHistoryStint.lapEnd = currentLap > 0 ? currentLap - 1 : lastHistoryStint.lapStart
+  }
+
+  // Only append if this is a genuinely new stint (not a re-emission of the same stint).
+  if (!lastHistoryStint || stintData.stintNumber > lastHistoryStint.stintNumber) {
+    history.push({ ...stintData })
+    activeSession.driverStintHistory.set(event.driverNumber, history)
+  } else if (lastHistoryStint.stintNumber === stintData.stintNumber) {
+    // Update the current stint entry with new data (e.g. compound arrived later).
+    Object.assign(lastHistoryStint, stintData)
+  }
+
+  // A new stint means the driver has left the pits.
+  const pitState = activeSession.driverPitStops.get(event.driverNumber)
+  if (pitState) {
+    pitState.inPit = false
+  }
+}
+
+// Handles a normalized position event (driver's race position).
+const handlePositionEvent = (event: InternalEvent): void => {
+  if (!activeSession || !event.driverNumber) return
+  activeSession.driverPositions.set(event.driverNumber, event.data.position as number)
+}
+
+// Handles a normalized race control event.
+// Extracts metadata (SC periods, red flags, DNFs) from the event.
+const handleRaceControlEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+
+  const rcEvent: RaceControlEvent = {
+    date: (d.date as string) ?? new Date().toISOString(),
+    category: (d.category as string) ?? "",
+    message: (d.message as string) ?? "",
+    flag: (d.flag as string) ?? null,
+    scope: (d.scope as string) ?? null,
+    sector: (d.sector as number) ?? null,
+    driverNumber: (d.driverNumber as number) ?? null,
+    lapNumber: (d.lapNumber as number) ?? null,
+  }
+
+  activeSession.raceControlMessages.push(rcEvent)
+
+  // Extract metadata (safety car periods, red flags, DNFs) from the event.
+  extractMetadataFromNormalizedRC(rcEvent)
+
+  emitToRoom(OPENF1_EVENTS.RACE_CONTROL, rcEvent)
+}
+
+// Handles a normalized weather event.
+// Captures periodic snapshots for the session weather history.
+const handleWeatherEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+
+  activeSession.weather = {
+    airTemperature: (d.airTemperature as number) ?? 0,
+    trackTemperature: (d.trackTemperature as number) ?? 0,
+    humidity: (d.humidity as number) ?? 0,
+    rainfall: !!d.rainfall,
+    windSpeed: (d.windSpeed as number) ?? 0,
+    windDirection: (d.windDirection as number) ?? 0,
+    pressure: (d.pressure as number) ?? 0,
+  }
+
+  // Capture periodic weather snapshots for session history.
+  const now = Date.now()
+  if (now - activeSession._lastWeatherSnapshot >= WEATHER_SNAPSHOT_INTERVAL) {
+    activeSession.weatherHistory.push({
+      date: new Date(event.timestamp).toISOString(),
+      airTemp: activeSession.weather.airTemperature,
+      trackTemp: activeSession.weather.trackTemperature,
+      humidity: activeSession.weather.humidity,
+      rainfall: activeSession.weather.rainfall,
+      windSpeed: activeSession.weather.windSpeed,
+      windDirection: activeSession.weather.windDirection,
+      pressure: activeSession.weather.pressure,
+    })
+    activeSession._lastWeatherSnapshot = now
+  }
+
+  emitToRoom(OPENF1_EVENTS.SESSION_STATE, {
+    weather: activeSession.weather,
+    raceControlMessages: activeSession.raceControlMessages,
+    overtakes: activeSession.overtakes,
+  })
+}
+
+// Handles a normalized overtake event.
+const handleOvertakeEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+
+  activeSession.overtakes.push({
+    date: (d.date as string) ?? new Date(event.timestamp).toISOString(),
+    overtakingDriverNumber: d.overtakingDriverNumber as number,
+    overtakenDriverNumber: d.overtakenDriverNumber as number,
+    position: d.position as number,
+  })
+}
+
+// Handles a normalized clock event. Emits countdown to frontend.
+const handleClockEvent = (event: InternalEvent): void => {
+  const d = event.data
+  emitToRoom(OPENF1_EVENTS.CLOCK, {
+    remainingMs: d.remainingMs as number,
+    running: d.running as boolean,
+    serverTs: d.serverTs as number,
+    speed: d.speed as number,
+  })
+}
+
+// Handles a normalized lap count event (sets total laps for race sessions).
+const handleLapCountEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+  if (d.totalLaps !== undefined && d.totalLaps !== null) {
+    activeSession.totalLaps = d.totalLaps as number
+  }
+}
+
+// Handles a team radio event. Stores the radio message for the session.
+const handleTeamRadioEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+
+  activeSession.teamRadio.push({
+    date: (d.date as string) ?? new Date(event.timestamp).toISOString(),
+    driverNumber: (d.driverNumber as number) ?? 0,
+    audioUrl: (d.audioUrl as string) ?? "",
+  })
+}
+
+// Handles a session data event. Stores the event for the session.
+// Also extracts grid position data from TimingAppData's GridPos field.
+const handleSessionDataEvent = (event: InternalEvent): void => {
+  if (!activeSession) return
+  const d = event.data
+
+  // Store grid position from TimingAppData GridPos field.
+  if (d.key === "GridPosition" && event.driverNumber) {
+    const gridPos = d.value as number
+    if (!isNaN(gridPos) && gridPos > 0) {
+      activeSession.driverGridPositions.set(event.driverNumber, gridPos)
+    }
+    return
+  }
+
+  activeSession.sessionData.push({
+    date: (d.date as string) ?? new Date(event.timestamp).toISOString(),
+    key: (d.key as string) ?? "",
+    value: d.value as string | number | boolean,
+  })
+}
+
+// ─── Race Control Metadata Extraction ───────────────────────────
+
+// Analyzes a normalized race control event and updates session metadata.
+// Detects safety car periods (SC/VSC), red flag periods, and DNF incidents.
+const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
+  if (!activeSession) return
+  const msgUpper = (rc.message || "").toUpperCase()
+
+  // Safety car detection.
+  if (rc.flag === "YELLOW" && msgUpper.includes("SAFETY CAR")) {
+    const type = msgUpper.includes("VIRTUAL") ? "VSC" as const : "SC" as const
+    if (!activeSession._activeSC) {
+      activeSession._activeSC = {
+        type,
+        startLap: rc.lapNumber ?? 0,
+        startTime: rc.date,
+      }
+    }
+  }
+
+  // Safety car ending — close the active period.
+  if (activeSession._activeSC && (rc.flag === "GREEN" || msgUpper.includes("SAFETY CAR IN"))) {
+    activeSession.safetyCarPeriods.push({
+      ...activeSession._activeSC,
+      endLap: rc.lapNumber ?? activeSession._activeSC.startLap,
+      endTime: rc.date,
+    })
+    activeSession._activeSC = null
+  }
+
+  // Red flag detection.
+  if (rc.flag === "RED") {
+    if (!activeSession._activeRedFlag) {
+      const reason = msgUpper.includes("INCIDENT") ? "Incident" : null
+      activeSession._activeRedFlag = { startTime: rc.date, reason }
+    }
+  }
+
+  // Red flag ending (green flag or restart).
+  if (activeSession._activeRedFlag && rc.flag === "GREEN") {
+    activeSession.redFlagPeriods.push({
+      ...activeSession._activeRedFlag,
+      endTime: rc.date,
+    })
+    activeSession._activeRedFlag = null
+  }
+
+  // DNF detection from retirement/stopped messages.
+  if (rc.driverNumber && (msgUpper.includes("RETIRED") || msgUpper.includes("STOPPED"))) {
+    const alreadyRecorded = activeSession.dnfs.some((d) => d.driverNumber === rc.driverNumber)
+    if (!alreadyRecorded) {
+      activeSession.dnfs.push({
+        driverNumber: rc.driverNumber,
+        lap: rc.lapNumber,
+        reason: rc.message,
+        date: rc.date,
+      })
+    }
+  }
+}
+
+// ─── MQTT Message Routing (Legacy) ───────────────────────────────
+
+// Routes an incoming MQTT message through the normalizer and unified event handler.
+// This is the entry point for both live MQTT and demo replay messages.
+// During live sessions with recording enabled, messages are also buffered for replay.
+export const handleMqttMessage = (topic: string, payload: Buffer): void => {
+  try {
+    const data = JSON.parse(payload.toString())
+
+    // Buffer the message for session recording if active.
+    if (activeSession?.isRecording && !activeSession.isDemo) {
+      activeSession.recordedMessages.push({
+        topic,
+        data,
+        timestamp: Date.now(),
+      })
+    }
+
+    // Notify the REST poller that this topic is active on MQTT.
+    markMqttReceived(topic)
+
+    // Handle synthetic clock events from demo replay (not a real MQTT topic).
+    if (topic === "synthetic:clock") {
+      const clockData = data as { remainingMs: number; running: boolean }
+      emitToRoom(OPENF1_EVENTS.CLOCK, {
+        remainingMs: clockData.remainingMs,
+        running: clockData.running,
+        serverTs: Date.now(),
+        speed: 1,
+      })
+      return
+    }
+
+    // Normalize MQTT message to internal event and route through the unified handler.
+    const event = normalizeOpenF1Message(topic, data)
+    if (event) {
+      handleEvent(event)
+    }
+  } catch (err) {
+    log.error(`✗ Failed to parse MQTT message on ${topic}:`, err)
   }
 }
 
@@ -521,6 +1030,21 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     raceControlMessages: [],
     overtakes: [],
     dateEndTs: msg.date_end ? new Date(msg.date_end).getTime() : 0,
+    safetyCarPeriods: [],
+    redFlagPeriods: [],
+    dnfs: [],
+    weatherHistory: [],
+    totalLaps: null,
+    _activeSC: null,
+    _activeRedFlag: null,
+    _lastWeatherSnapshot: 0,
+    driverGridPositions: new Map(),
+    driverStintHistory: new Map(),
+    driverPitStopHistory: new Map(),
+    teamRadio: [],
+    sessionData: [],
+    recordedMessages: [],
+    isRecording: true,
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -528,13 +1052,28 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     await tryFetchMultiviewer(circuitKey, trackName)
   }
 
-  // Start batched emissions, REST polling fallback, and live timing clock.
+  // Persist session to DB immediately so it's recoverable if the server crashes.
+  await createF1Session(
+    msg.session_key,
+    msg.meeting_key,
+    "live",
+    trackName,
+    circuitKey,
+    activeSession.sessionType,
+    activeSession.sessionName,
+  )
+
+  // Start batched emissions, REST polling fallback, live timing clock, and progressive saves.
   startPositionBatching()
   startDriverStateBatching()
-  onPolledMessage((topic, data) => routeMessage(topic, data))
+  onPolledMessage((topic, data) => {
+    const event = normalizeOpenF1Message(topic, data)
+    if (event) handleEvent(event)
+  })
   startPolling(msg.session_key)
   connectLiveTiming()
   startFallbackClock()
+  startProgressiveSaving()
 
   // Schedule the consolidated capability report after all data sources have settled.
   const reportSessionKey = activeSession.sessionKey
@@ -668,6 +1207,9 @@ const logSessionReport = (expectedSessionKey: number): void => {
   lines.forEach((line) => log.info(line))
 }
 
+// Maximum byte size for recorded session messages (prevents bloating the DB).
+const MAX_RECORDING_BYTES = 6 * 1024 * 1024
+
 // Ends the current session and persists the final track map and session data.
 const endSession = async (): Promise<void> => {
   if (!activeSession) return
@@ -677,15 +1219,21 @@ const endSession = async (): Promise<void> => {
   // Save final track map to MongoDB.
   await saveTrackMap()
 
-  // Persist aggregated session data to MongoDB (30-day TTL).
-  await saveF1Session(activeSession)
+  // Finalize the session record in MongoDB (marks as finished, writes final data).
+  await finalizeF1Session(activeSession.sessionKey, activeSession)
 
-  // Stop all batching, polling, live timing connection, and fallback clock.
+  // Save the recorded session as a replayable demo if recording was active.
+  if (activeSession.isRecording && activeSession.recordedMessages.length > 0) {
+    await saveSessionRecording(activeSession)
+  }
+
+  // Stop all batching, polling, live timing connection, fallback clock, and progressive saves.
   stopPositionBatching()
   stopDriverStateBatching()
   stopPolling()
   disconnectLiveTiming()
   stopFallbackClock()
+  stopProgressiveSaving()
 
   // Notify subscribers and broadcast session end to all clients.
   emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
@@ -694,33 +1242,49 @@ const endSession = async (): Promise<void> => {
   activeSession = null
 }
 
-// ─── Position Data ───────────────────────────────────────────────
+// Saves the recorded session messages as a replayable demo in the unified F1Session model.
+// Trims to the activity window and caps at MAX_RECORDING_BYTES to stay within BSON limits.
+const saveSessionRecording = async (session: SessionState): Promise<void> => {
+  try {
+    let messages = session.recordedMessages
 
-// Handles a location message (car position update).
-const handleLocationMessage = (msg: OpenF1LocationMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
+    // Trim from the end if too large.
+    let byteSize = Buffer.byteLength(JSON.stringify(messages))
+    while (byteSize > MAX_RECORDING_BYTES && messages.length > 0) {
+      messages = messages.slice(0, Math.floor(messages.length * 0.8))
+      byteSize = Buffer.byteLength(JSON.stringify(messages))
+    }
 
-  // Update the driver's current position.
-  activeSession.currentPositions.set(msg.driver_number, { x: msg.x, y: msg.y })
+    if (messages.length === 0) return
 
-  // Store position in the per-driver-per-lap history.
-  const currentLap = activeSession.currentLapByDriver.get(msg.driver_number) || 1
+    const sessionEndTs = messages[messages.length - 1].timestamp
 
-  if (!activeSession.positionsByDriverLap.has(msg.driver_number)) {
-    activeSession.positionsByDriverLap.set(msg.driver_number, new Map())
+    // Use a different session key for the demo variant (offset by 1M to avoid collision).
+    const demoSessionKey = session.sessionKey + 1_000_000
+
+    await saveDemoSession(
+      demoSessionKey,
+      session.meetingKey,
+      null,
+      session.trackName,
+      session.sessionType,
+      session.sessionName,
+      session.drivers.size,
+      sessionEndTs,
+      messages as ReplayMessage[],
+    )
+
+    const durationMins = ((sessionEndTs - messages[0].timestamp) / 60000).toFixed(1)
+    log.info(`✓ Saved session recording as demo ${demoSessionKey} (${messages.length} messages, ${durationMins} min, ~${(byteSize / 1024 / 1024).toFixed(1)}MB)`)
+  } catch (err) {
+    log.error("✗ Failed to save session recording:", err)
   }
-
-  const driverLaps = activeSession.positionsByDriverLap.get(msg.driver_number)!
-  if (!driverLaps.has(currentLap)) {
-    driverLaps.set(currentLap, [])
-  }
-
-  driverLaps.get(currentLap)!.push({ x: msg.x, y: msg.y, date: msg.date })
 }
 
-// ─── Lap Data ────────────────────────────────────────────────────
+// ─── Lap Processing ─────────────────────────────────────────────
 
-// Handles a lap message (lap completion notification).
+// Internal lap handler — stores the lap, updates best times, and triggers track map rebuilding.
+// Called by handleLapEvent() with a reconstructed OpenF1LapMsg.
 const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   if (!activeSession || msg.session_key !== activeSession.sessionKey) return
 
@@ -753,169 +1317,12 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
     const allLaps = Array.from(activeSession.completedLaps.values())
     const fastLaps = filterFastLaps(allLaps, activeSession.bestLapTime)
 
-    // Log fast lap filtering result for sector pipeline diagnostics.
     log.verbose(`Laps: ${allLaps.length} total, ${fastLaps.length} fast, shouldUpdate: ${fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)}`)
 
     if (fastLaps.length > 0 && shouldUpdate(fastLaps.length, activeSession.lastUpdateLap)) {
       await rebuildTrackMap(fastLaps)
     }
   }
-}
-
-// ─── Driver Data ─────────────────────────────────────────────────
-
-// Handles a driver message (driver info update during session).
-const handleDriverMessage = (msg: OpenF1DriverMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  const driverInfo: DriverInfo = {
-    driverNumber: msg.driver_number,
-    nameAcronym: msg.name_acronym,
-    fullName: msg.full_name,
-    teamName: msg.team_name,
-    teamColour: msg.team_colour,
-    headshotUrl: msg.headshot_url || null,
-  }
-
-  activeSession.drivers.set(msg.driver_number, driverInfo)
-
-  // Log driver data arrival via MQTT for diagnostics.
-  log.info(`Driver MQTT update: #${msg.driver_number} acronym=${msg.name_acronym}, name=${msg.full_name}, team=${msg.team_name}, colour=${msg.team_colour}, headshot=${msg.headshot_url ? "yes" : "null"}`)
-
-  // Emit updated driver list.
-  emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
-}
-
-// ─── Car Data (Telemetry) ─────────────────────────────────────────
-
-// Handles a car_data message (telemetry snapshot: speed, DRS, gear).
-const handleCarDataMessage = (msg: OpenF1CarDataMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.driverCarData.set(msg.driver_number, {
-    speed: msg.speed,
-    drs: msg.drs,
-    gear: msg.n_gear,
-  })
-}
-
-// ─── Intervals ────────────────────────────────────────────────────
-
-// Handles an interval message (gap to leader and interval to car ahead).
-const handleIntervalMessage = (msg: OpenF1IntervalMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.driverIntervals.set(msg.driver_number, {
-    gapToLeader: msg.gap_to_leader,
-    interval: msg.interval,
-  })
-}
-
-// ─── Pit Stops ────────────────────────────────────────────────────
-
-// Handles a pit message (driver entered/exited pit lane).
-const handlePitMessage = (msg: OpenF1PitMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  const existing = activeSession.driverPitStops.get(msg.driver_number)
-  activeSession.driverPitStops.set(msg.driver_number, {
-    count: (existing?.count ?? 0) + 1,
-    lastDuration: msg.pit_duration,
-    inPit: true,
-  })
-
-  // Mark driver as out of pits once the pit event has a duration (i.e. the stop is complete).
-  // We'll rely on stint messages or position updates to clear the inPit flag more accurately.
-}
-
-// ─── Stints ───────────────────────────────────────────────────────
-
-// Handles a stint message (tyre compound and stint tracking).
-const handleStintMessage = (msg: OpenF1StintMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.driverStints.set(msg.driver_number, {
-    compound: msg.compound,
-    stintNumber: msg.stint_number,
-    lapStart: msg.lap_start,
-    tyreAgeAtStart: msg.tyre_age_at_start,
-  })
-
-  // A new stint means the driver has left the pits.
-  const pitState = activeSession.driverPitStops.get(msg.driver_number)
-  if (pitState) {
-    pitState.inPit = false
-  }
-}
-
-// ─── Race Position ────────────────────────────────────────────────
-
-// Handles a position message (driver's race position update).
-const handlePositionMessage = (msg: OpenF1PositionMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.driverPositions.set(msg.driver_number, msg.position)
-}
-
-// ─── Race Control ─────────────────────────────────────────────────
-
-// Handles a race control message (flags, safety car, incidents).
-const handleRaceControlMessage = (msg: OpenF1RaceControlMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  const event = {
-    date: msg.date,
-    category: msg.category,
-    message: msg.message,
-    flag: msg.flag,
-    scope: msg.scope,
-    sector: msg.sector,
-    driverNumber: msg.driver_number,
-    lapNumber: msg.lap_number,
-  }
-
-  activeSession.raceControlMessages.push(event)
-
-  // Emit immediately for real-time display.
-  emitToRoom(OPENF1_EVENTS.RACE_CONTROL, event)
-}
-
-// ─── Weather ──────────────────────────────────────────────────────
-
-// Handles a weather message (track conditions update).
-const handleWeatherMessage = (msg: OpenF1WeatherMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.weather = {
-    airTemperature: msg.air_temperature,
-    trackTemperature: msg.track_temperature,
-    humidity: msg.humidity,
-    rainfall: msg.rainfall > 0,
-    windSpeed: msg.wind_speed,
-    windDirection: msg.wind_direction,
-    pressure: msg.pressure,
-  }
-
-  // Emit session state update immediately.
-  emitToRoom(OPENF1_EVENTS.SESSION_STATE, {
-    weather: activeSession.weather,
-    raceControlMessages: activeSession.raceControlMessages,
-    overtakes: activeSession.overtakes,
-  })
-}
-
-// ─── Overtakes ────────────────────────────────────────────────────
-
-// Handles an overtake message (position exchange event).
-const handleOvertakeMessage = (msg: OpenF1OvertakeMsg): void => {
-  if (!activeSession || msg.session_key !== activeSession.sessionKey) return
-
-  activeSession.overtakes.push({
-    date: msg.date,
-    overtakingDriverNumber: msg.overtaking_driver_number,
-    overtakenDriverNumber: msg.overtaken_driver_number,
-    position: msg.position,
-  })
 }
 
 // ─── Track Map Rebuilding ────────────────────────────────────────
@@ -1325,8 +1732,11 @@ const buildDriverStates = (): DriverLiveState[] => {
     const bestLap = activeSession!.driverBestLap.get(driverNumber) ?? null
 
     // Calculate tyre age from stint data and current lap.
+    // SignalR provides totalLaps directly; OpenF1 requires computation from lap numbers.
     const tyreAge = stintState
-      ? Math.max(0, currentLap - stintState.lapStart) + stintState.tyreAgeAtStart
+      ? (stintState.totalLaps !== undefined
+          ? stintState.totalLaps
+          : Math.max(0, currentLap - stintState.lapStart) + stintState.tyreAgeAtStart)
       : 0
 
     states.push({
@@ -1446,6 +1856,27 @@ const stopFallbackClock = (): void => {
   if (fallbackClockTimer) {
     clearInterval(fallbackClockTimer)
     fallbackClockTimer = null
+  }
+}
+
+// ─── Progressive Database Saving ──────────────────────────────────
+
+// Starts a periodic timer that flushes accumulated session data to MongoDB.
+// Only active during live sessions — demos don't need progressive saving.
+const startProgressiveSaving = (): void => {
+  stopProgressiveSaving()
+
+  progressiveSaveTimer = setInterval(() => {
+    if (!activeSession || activeSession.isDemo) return
+    updateF1Session(activeSession)
+  }, PROGRESSIVE_SAVE_INTERVAL)
+}
+
+// Stops the progressive save timer.
+const stopProgressiveSaving = (): void => {
+  if (progressiveSaveTimer) {
+    clearInterval(progressiveSaveTimer)
+    progressiveSaveTimer = null
   }
 }
 

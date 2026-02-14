@@ -16,10 +16,11 @@
   height: 100%;
   @include mixins.flexbox;
   position: absolute;
+  background: variables.$background !important;
 
   span {
     font-family: 'formula1-bold', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
   }
 }

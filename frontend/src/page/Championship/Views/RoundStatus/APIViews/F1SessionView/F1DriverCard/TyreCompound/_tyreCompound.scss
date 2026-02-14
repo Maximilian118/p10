@@ -1,0 +1,43 @@
+@use '../../../../../../../../scss/mixins';
+@use '../../../../../../../../scss/variables';
+
+// Circular tyre indicator with coloured arc bands on left/right sides
+.tyre-compound {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: variables.$colour-9;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
+  @include mixins.flexbox;
+
+  // SVG ring with two uniform-width arcs and rounded ends
+  &__ring {
+    position: absolute;
+    inset: 0;
+
+    circle {
+      fill: none;
+      stroke: var(--compound-color);
+      stroke-width: 3;
+      stroke-linecap: round;
+      // Two arcs (~35 units each) with gaps (~9 units) at top and bottom
+      // Circumference of r=14 ≈ 88
+      stroke-dasharray: 35 9;
+      stroke-dashoffset: -4.5;
+      transform: rotate(-90deg);
+      transform-origin: center;
+    }
+  }
+
+  // Compound letter (H, M, S, I, W, or C1-C5)
+  &__letter {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--compound-color);
+    line-height: 1;
+    user-select: none;
+    z-index: 1;
+  }
+}

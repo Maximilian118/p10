@@ -3,6 +3,7 @@ import "./_f1DriverCard.scss"
 import { driverType } from "../../../../../../../shared/types"
 import { DriverLiveState } from "../../../../../../../api/openAPI/types"
 import ImageIcon from "../../../../../../../components/utility/icon/imageIcon/ImageIcon"
+import TyreCompound from "./TyreCompound/TyreCompound"
 
 interface F1DriverCardProps {
   state: DriverLiveState
@@ -21,12 +22,15 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
 
   return (
     <div className={className} onClick={onClick}>
-      <ImageIcon
-        src={imageUrl}
-        size="medium"
-        background
-        fallBack={{ text: `#${state.driverNumber}`, textColor: `#${state.teamColour }`, backgroundColor: `#FFFFFF` }}
-      />
+      <div className="driver-image-wrapper">
+        <ImageIcon
+          src={imageUrl}
+          size="contained"
+          background
+          fallBack={{ text: state.driverNumber, textColor: `#${state.teamColour}`, backgroundColor: `#FFFFFF` }}
+        />
+      </div>
+      <TyreCompound compound={state.tyreCompound} />
     </div>
   )
 }

@@ -7,9 +7,15 @@
   box-sizing: border-box;
   margin-bottom: 2px;
   @include mixins.flexbox-start;
+  gap: 12px;
   background: white;
   cursor: pointer;
   transition: all variables.$trans-speed;
+
+  .driver-image-wrapper {
+    width: 26px;
+    height: 26px;
+  }
 
   // Highlighted state when this driver is selected in driver view.
   &--selected {
