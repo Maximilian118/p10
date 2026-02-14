@@ -7,6 +7,23 @@
   @include mixins.flexbox-column;
   align-items: start;
 
+  .in-pits, .DNS, .DNF, .DSQ {
+    color: variables.$mui-blue;
+    font-size: 12px;
+  }
+
+  .DNS {
+    color: variables.$orange;
+  }
+
+  .DNF {
+    color: variables.$f1-red;
+  }
+
+  .DSQ {
+    color: variables.$f1-red-hover;
+  }
+
   .laps-old {
     color: variables.$colour-9;
     font-size: 10px;

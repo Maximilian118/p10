@@ -86,6 +86,7 @@ export interface DriverLiveState {
   inPit: boolean
   pitStops: number
   isPitOutLap: boolean
+  retired: boolean
 
   // Telemetry snapshot.
   speed: number

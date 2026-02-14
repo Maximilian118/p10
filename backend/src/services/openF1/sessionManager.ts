@@ -1774,6 +1774,7 @@ const buildDriverStates = (): DriverLiveState[] => {
       inPit: pitState?.inPit ?? false,
       pitStops: pitState?.count ?? 0,
       isPitOutLap: latestLap?.is_pit_out_lap ?? false,
+      retired: activeSession!.dnfs.some((d) => d.driverNumber === driverNumber),
 
       speed: carData?.speed ?? 0,
       drs: carData?.drs ?? 0,
