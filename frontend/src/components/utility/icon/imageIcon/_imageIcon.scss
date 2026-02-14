@@ -16,7 +16,7 @@
   height: 100%;
   @include mixins.flexbox;
   position: absolute;
-  background: variables.$background !important;
+  background: variables.$background;
 
   span {
     font-family: 'formula1-bold', sans-serif;

@@ -16,6 +16,7 @@ interface F1DriverCardProps {
 // Falls back to the OpenF1 headshot URL if no championship match is found.
 const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selected, onClick }) => {
   // Use championship driver icon if available, otherwise fall back to OpenF1 headshot.
+  const useOwnImage = !!champDriver?.icon
   const imageUrl = champDriver?.icon || state.headshotUrl || ""
 
   const className = `f1-driver-card${selected ? " f1-driver-card--selected" : ""}`
@@ -26,10 +27,13 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
         <ImageIcon
           src={imageUrl}
           size="contained"
-          background
-          fallBack={{ text: state.driverNumber, textColor: `#${state.teamColour}`, backgroundColor: `#FFFFFF` }}
+          imageSize={120}
+          background={`#${state.teamColour}`}
+          offsetHeight={useOwnImage ? undefined : -8}
+          fallBack={{ text: state.driverNumber, textColor: `#FFFFFF`, backgroundColor: `#${state.teamColour}` }}
         />
       </div>
+      <h5 className="driver-id">{state.nameAcronym}</h5>
       <TyreCompound compound={state.tyreCompound} />
     </div>
   )

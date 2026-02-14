@@ -8,17 +8,20 @@ interface iconType {
   src: string
   id?: string
   size?: "small" | "medium" | "medium-large" | "large" | "x-large" | "xx-large" | "contained"
+  imageSize?: number
   style?: React.CSSProperties
   onClick?: (e: SyntheticEvent) => void
-  background?: boolean
+  background?: boolean | string
+  offsetHeight?: number
+  offsetWidth?: number
   fallBack?: {
-    text: number | string,
-    textColor: string,
-    backgroundColor: string,
+    text: number | string
+    textColor: string
+    backgroundColor: string
   }
 }
 
-const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick, background, fallBack }) => {
+const ImageIcon: React.FC<iconType> = ({ src, id, size, imageSize = 100, style, onClick, background, offsetHeight, offsetWidth, fallBack }) => {
   const [ error, setError ] = useState<boolean>(false)
 
   // Renders image, colored number fallback, or error state.
@@ -34,17 +37,23 @@ const ImageIcon: React.FC<iconType> = ({ src, id, size, style, onClick, backgrou
     if (shouldShowImageError(src, error)) {
       return <ImageError />
     }
-    return <img alt="Icon" onError={() => setError(true)} src={src}/>
+    // Apply vertical offset to reposition the image (positive = up, negative = down).
+    const offHeight = offsetHeight ? { bottom: `${offsetHeight}px` } : {}
+    const offWidth = offsetWidth ? { left: `${offsetWidth}px` } : {}
+    return <img alt="Icon" onError={() => setError(true)} src={src} style={{...offHeight, ...offWidth, width: `${imageSize}%`, height: `${imageSize}%`}}/>
   }
 
   // Enable pointer events and cursor when onClick is provided.
   const clickableStyle = onClick ? { pointerEvents: 'auto' as const, cursor: 'pointer' } : {}
 
-  // Build class name with optional background.
-  const className = `icon-${size ? size : "medium"} image-icon${background ? " image-icon-background" : ""}`
+  // Build class name with optional background (true = white via CSS class).
+  const className = `icon-${size ? size : "medium"} image-icon${background === true ? " image-icon-background" : ""}`
+
+  // Apply custom background color when a string is provided.
+  const backgroundStyle = typeof background === 'string' ? { background } : {}
 
   return (
-    <div id={id} className={className} style={{...style, ...clickableStyle}} onClick={onClick}>
+    <div id={id} className={className} style={{...style, ...clickableStyle, ...backgroundStyle}} onClick={onClick}>
       {iconContent(error, src)}
     </div>
   )
