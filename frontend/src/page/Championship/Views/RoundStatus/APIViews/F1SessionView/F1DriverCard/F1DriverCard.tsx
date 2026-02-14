@@ -4,6 +4,7 @@ import { driverType } from "../../../../../../../shared/types"
 import { DriverLiveState } from "../../../../../../../api/openAPI/types"
 import ImageIcon from "../../../../../../../components/utility/icon/imageIcon/ImageIcon"
 import TyreCompound from "./TyreCompound/TyreCompound"
+import TyreLaps from "./TyreLaps/TyreLaps"
 
 interface F1DriverCardProps {
   state: DriverLiveState
@@ -18,6 +19,9 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
   // Use championship driver icon if available, otherwise fall back to OpenF1 headshot.
   const useOwnImage = !!champDriver?.icon
   const imageUrl = champDriver?.icon || state.headshotUrl || ""
+
+  // Lap number on which the driver changed to current tyres (only if they've pitted).
+  const lastPitLap = state.pitStops > 0 ? state.currentLapNumber - state.tyreAge : undefined
 
   const className = `f1-driver-card${selected ? " f1-driver-card--selected" : ""}`
 
@@ -34,7 +38,8 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
         />
       </div>
       <h5 className="driver-id">{state.nameAcronym}</h5>
-      <TyreCompound compound={state.tyreCompound} />
+      <TyreCompound compound={state.tyreCompound} style={{ marginRight: 3 }}/>
+      <TyreLaps lapsOld={state.tyreAge} lastPit={lastPitLap}/>
     </div>
   )
 }

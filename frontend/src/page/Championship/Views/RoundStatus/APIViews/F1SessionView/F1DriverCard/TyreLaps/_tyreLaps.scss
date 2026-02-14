@@ -1,0 +1,19 @@
+@use '../../../../../../../../scss/mixins';
+@use '../../../../../../../../scss/variables';
+
+.tyre-laps {
+  width: 40px;
+  height: 100%;
+  @include mixins.flexbox-column;
+  align-items: start;
+
+  .laps-old {
+    color: variables.$colour-9;
+    font-size: 10px;
+  }
+
+  .last-pit {
+    color: variables.$colour-4;
+    font-size: 10px;
+  }
+}

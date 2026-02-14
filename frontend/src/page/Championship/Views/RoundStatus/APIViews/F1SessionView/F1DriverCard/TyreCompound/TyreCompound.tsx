@@ -1,4 +1,4 @@
-import React from "react"
+import React, { CSSProperties } from "react"
 import "./_tyreCompound.scss"
 import {
   resolveCompound,
@@ -12,11 +12,12 @@ interface TyreCompoundProps {
   compound: string | number | null | undefined
   // Optional weekend allocation to resolve C1-C5 numbers to labels
   allocation?: CompoundAllocation
+  style?: CSSProperties
 }
 
 // Displays a Pirelli-style tyre compound indicator with coloured side bands
 // mimicking the sidewall markings on real F1 tyres.
-const TyreCompound: React.FC<TyreCompoundProps> = ({ compound, allocation }) => {
+const TyreCompound: React.FC<TyreCompoundProps> = ({ compound, allocation, style }) => {
   // Resolve compound or fall back to unknown (gray "?")
   const resolved = (compound !== null && compound !== undefined)
     ? resolveCompound(compound, allocation)
@@ -28,7 +29,7 @@ const TyreCompound: React.FC<TyreCompoundProps> = ({ compound, allocation }) => 
   return (
     <div
       className="tyre-compound"
-      style={{ "--compound-color": colour } as React.CSSProperties}
+      style={{ ...style, "--compound-color": colour } as React.CSSProperties}
     >
       <svg className="tyre-compound__ring" viewBox="0 0 32 32">
         <circle cx="16" cy="16" r="14" />
