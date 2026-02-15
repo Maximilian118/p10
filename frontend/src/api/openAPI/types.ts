@@ -33,6 +33,7 @@ export interface TrackmapData {
   corners?: Corner[]
   sectorBoundaries?: SectorBoundaries | null
   pitLaneProfile?: PitLaneProfile | null
+  rotationOverride?: number
 }
 
 // Live car position received from backend Socket.IO.

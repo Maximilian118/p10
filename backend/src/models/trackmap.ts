@@ -50,6 +50,7 @@ export interface TrackmapType {
   corners: TrackmapCorner[]            // Cached MultiViewer corner labels
   sectorBoundaries: TrackmapSectorBoundaries | null // Derived sector boundary progress values
   pitLaneProfile: PitLaneProfile | null              // Telemetry-derived pit lane profile for exit detection + rendering
+  rotationOverride: number                            // Admin-set rotation adjustment in degrees (additive to PCA auto-rotation)
   created_at: string
   updated_at: string
   _doc: TrackmapType
@@ -128,6 +129,7 @@ const trackmapSchema = new mongoose.Schema<TrackmapType>({
   corners: { type: [trackmapCornerSchema], default: [] },
   sectorBoundaries: { type: sectorBoundariesSchema, default: null },
   pitLaneProfile: { type: pitLaneProfileSchema, default: null },
+  rotationOverride: { type: Number, default: 0 },
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })

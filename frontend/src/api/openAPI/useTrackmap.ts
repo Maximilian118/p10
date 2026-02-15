@@ -33,6 +33,7 @@ export interface UseTrackmapResult {
   corners: Corner[] | null
   sectorBoundaries: SectorBoundaries | null
   pitLaneProfile: PitLaneProfile | null
+  rotationOverride: number
   connectionStatus: TrackmapConnectionStatus
 }
 
@@ -50,6 +51,7 @@ const useTrackmap = (): UseTrackmapResult => {
   const [corners, setCorners] = useState<Corner[] | null>(null)
   const [sectorBoundaries, setSectorBoundaries] = useState<SectorBoundaries | null>(null)
   const [pitLaneProfile, setPitLaneProfile] = useState<PitLaneProfile | null>(null)
+  const [rotationOverride, setRotationOverride] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
@@ -95,6 +97,7 @@ const useTrackmap = (): UseTrackmapResult => {
       setCorners(data.corners ?? null)
       setSectorBoundaries(data.sectorBoundaries ?? null)
       setPitLaneProfile(data.pitLaneProfile ?? null)
+      setRotationOverride(data.rotationOverride ?? 0)
     }
 
     // Handle batched car position updates. CSS transitions on CarDot handle
@@ -159,6 +162,7 @@ const useTrackmap = (): UseTrackmapResult => {
     corners,
     sectorBoundaries,
     pitLaneProfile,
+    rotationOverride,
     connectionStatus,
   }
 }

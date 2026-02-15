@@ -524,6 +524,8 @@ export interface SessionState {
   trackStalls: Map<number, number>
   // Per-driver last emitted progress for hint-constrained track projection.
   lastEmittedProgress: Map<number, number>
+  // Admin-set rotation override in degrees (additive to PCA auto-rotation on frontend).
+  rotationOverride: number
 
   // ─── Session Recording (live → demo) ──────────────────────────
   // Buffered messages for recording live sessions as replayable demos.

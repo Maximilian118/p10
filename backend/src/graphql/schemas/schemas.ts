@@ -103,6 +103,7 @@ const Schema = buildSchema(`
     allocateProtestPoints(input: AllocateProtestPointsInput!): Protest!
     startDemo(sessionKey: Int, speed: Int): DemoStatus!
     stopDemo: DemoStatus!
+    setTrackmapRotation(trackName: String!, rotation: Float!): Boolean!
   }
 
   schema {

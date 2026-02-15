@@ -1,9 +1,17 @@
 import Trackmap from "../../models/trackmap"
-import { getActiveTrackName } from "../../services/openF1/sessionManager"
+import User from "../../models/user"
+import { getActiveTrackName, setTrackmapRotation } from "../../services/openF1/sessionManager"
+import { AuthRequest } from "../../middleware/auth"
 
 // Resolver arguments for the getTrackmap query.
 export interface GetTrackmapArgs {
   trackName?: string
+}
+
+// Resolver arguments for the setTrackmapRotation mutation.
+export interface SetTrackmapRotationArgs {
+  trackName: string
+  rotation: number
 }
 
 const trackmapResolvers = {
@@ -22,6 +30,17 @@ const trackmapResolvers = {
       return { ...trackmap.toObject(), path: trackmap.multiviewerPath }
     }
     return trackmap
+  },
+
+  // Updates the rotation override for a trackmap. Admin-only — saves to DB and
+  // broadcasts the updated trackmap to all connected clients via Socket.IO.
+  setTrackmapRotation: async ({ trackName, rotation }: SetTrackmapRotationArgs, req: AuthRequest) => {
+    if (!req.isAuth) throw new Error("Not authenticated")
+
+    const user = await User.findById(req._id)
+    if (!user?.permissions?.admin) throw new Error("Admin access required")
+
+    return await setTrackmapRotation(trackName, rotation)
   },
 }
 

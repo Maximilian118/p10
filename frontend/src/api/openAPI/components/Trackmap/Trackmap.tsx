@@ -13,6 +13,8 @@ interface TrackmapProps {
   demoMode?: boolean
   onTrackReady?: () => void
   onSessionInfo?: (info: { trackName: string; sessionName: string }) => void
+  rotationDelta?: number
+  onRotationSave?: (trackName: string, rotation: number) => void
 }
 
 interface CarDotProps {
@@ -257,10 +259,10 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
-    driverStates, corners, sectorBoundaries, pitLaneProfile, connectionStatus,
+    driverStates, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
   } = useTrackmap()
   const trackReadyFired = useRef(false)
 
@@ -445,11 +447,26 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     [svgTrackPath],
   )
 
-  // Memoize the rotation angle from PCA.
-  const rotationAngle = useMemo(
+  // PCA auto-rotation angle (landscape-optimal orientation).
+  const pcaAngle = useMemo(
     () => (svgTrackPath ? computeRotationAngle(svgTrackPath) : 0),
     [svgTrackPath],
   )
+
+  // Effective rotation: PCA base + admin override + live drag delta.
+  const rotationAngle = pcaAngle + rotationOverride + (rotationDelta ?? 0)
+
+  // Fire onRotationSave when a drag ends (delta transitions from non-zero to zero).
+  const prevDeltaRef = useRef(0)
+  useEffect(() => {
+    const prev = prevDeltaRef.current
+    prevDeltaRef.current = rotationDelta ?? 0
+    // Drag ended: delta went back to zero after being non-zero.
+    if (prev !== 0 && (rotationDelta ?? 0) === 0 && onRotationSave) {
+      const finalRotation = ((rotationOverride + prev) % 360 + 360) % 360
+      onRotationSave(trackName, finalRotation)
+    }
+  }, [rotationDelta, rotationOverride, trackName, onRotationSave])
 
   // Memoize the centroid for rotation transforms.
   const centroid = useMemo(

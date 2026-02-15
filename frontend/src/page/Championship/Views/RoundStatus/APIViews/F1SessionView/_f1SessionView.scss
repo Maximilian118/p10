@@ -35,6 +35,33 @@
     width: 100%;
     height: 240px;
     flex-shrink: 0;
+    position: relative;
+
+    .trackmap-bar-top, .trackmap-bar-bottom {
+      width: 100%;
+      height: 40px;
+      @include mixins.flexbox-space-between;
+      position:absolute;
+      padding: 0 5px;
+      box-sizing: border-box;
+    }
+
+    .trackmap-bar-top {
+      top: 0;
+    }
+
+    .trackmap-bar-bottom {
+      bottom: 0;
+
+      svg {
+        margin-left: auto;
+        cursor: grab;
+
+        &:active {
+          cursor: grabbing;
+        }
+      }
+    }
   }
 
   .driver-list {

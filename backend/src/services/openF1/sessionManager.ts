@@ -138,18 +138,8 @@ export const initSessionManager = (io: Server): void => {
         })
         socket.emit(OPENF1_EVENTS.DRIVERS, Array.from(activeSession.drivers.values()))
         // Send the best available track path (MultiViewer preferred, GPS fallback).
-        const displayPath = getDisplayPath()
-        if (displayPath && displayPath.length > 0) {
-          socket.emit(OPENF1_EVENTS.TRACKMAP, {
-            trackName: activeSession.trackName,
-            path: displayPath,
-            pathVersion: activeSession.totalLapsProcessed,
-            totalLapsProcessed: activeSession.totalLapsProcessed,
-            corners: activeSession.corners,
-            sectorBoundaries: getDisplaySectorBoundaries(),
-            pitLaneProfile: activeSession.pitLaneProfile,
-          })
-        }
+        const trackmapPayload = buildTrackmapPayload()
+        if (trackmapPayload) socket.emit(OPENF1_EVENTS.TRACKMAP, trackmapPayload)
         // Send current driver live states snapshot.
         const driverStates = buildDriverStates()
         if (driverStates.length > 0) {
@@ -247,6 +237,7 @@ export const initDemoSession = async (
     timeoutDNFDrivers: new Set(),
     trackStalls: new Map(),
     lastEmittedProgress: new Map(),
+    rotationOverride: 0,
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -282,6 +273,8 @@ export const initDemoSession = async (
         activeSession.pitLaneProfile = existing.pitLaneProfile
         log.info(`✓ Loaded pit lane profile for "${trackName}" (${existing.pitLaneProfile.samplesCollected} samples, limit: ${existing.pitLaneProfile.pitLaneSpeedLimit} km/h)`)
       }
+      // Load admin-set rotation override.
+      activeSession.rotationOverride = existing.rotationOverride ?? 0
     }
   } catch (err) {
     log.error("⚠ Failed to load track map for demo:", err)
@@ -301,19 +294,8 @@ export const initDemoSession = async (
 // Emits the current trackmap to all clients. Called after fast-forward
 // processing in startDemoReplay() so data is ready when the spinner stops.
 export const emitDemoTrackmap = (): void => {
-  if (!activeSession) return
-  const displayPath = getDisplayPath()
-  if (displayPath && displayPath.length > 0) {
-    emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-      trackName: activeSession.trackName,
-      path: displayPath,
-      pathVersion: activeSession.totalLapsProcessed,
-      totalLapsProcessed: activeSession.totalLapsProcessed,
-      corners: activeSession.corners,
-      sectorBoundaries: getDisplaySectorBoundaries(),
-      pitLaneProfile: activeSession.pitLaneProfile,
-    })
-  }
+  const payload = buildTrackmapPayload()
+  if (payload) emitToRoom(OPENF1_EVENTS.TRACKMAP, payload)
 }
 
 // Sets the pit lane profile on the active session (called by demoReplay after building it).
@@ -734,18 +716,8 @@ const maybeRebuildPitProfile = (): void => {
   activeSession.pitLaneProfile = profile
 
   // Emit updated trackmap so the frontend can render/update the pit building.
-  const displayPath = getDisplayPath()
-  if (displayPath && displayPath.length > 0) {
-    emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-      trackName: activeSession.trackName,
-      path: displayPath,
-      pathVersion: activeSession.totalLapsProcessed,
-      totalLapsProcessed: activeSession.totalLapsProcessed,
-      corners: activeSession.corners,
-      sectorBoundaries: getDisplaySectorBoundaries(),
-      pitLaneProfile: activeSession.pitLaneProfile,
-    })
-  }
+  const payload = buildTrackmapPayload()
+  if (payload) emitToRoom(OPENF1_EVENTS.TRACKMAP, payload)
 }
 
 // Handles a normalized interval/timing event.
@@ -1333,6 +1305,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   let sectorBoundaries: { startFinish: number; sector1_2: number; sector2_3: number } | null = null
   let pitLaneProfile: PitLaneProfile | null = null
   let totalLapsProcessed = 0
+  let rotationOverride = 0
   try {
     const existing = await Trackmap.findOne({ trackName })
     if (existing && existing.path.length > 0) {
@@ -1359,6 +1332,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
         pitLaneProfile = existing.pitLaneProfile
         log.info(`✓ Loaded pit lane profile for "${trackName}" (${existing.pitLaneProfile.samplesCollected} samples, limit: ${existing.pitLaneProfile.pitLaneSpeedLimit} km/h)`)
       }
+      // Load admin-set rotation override.
+      rotationOverride = existing.rotationOverride ?? 0
     } else {
       log.info(`ℹ No existing track map for "${trackName}" — will generate from live data`)
     }
@@ -1422,6 +1397,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     timeoutDNFDrivers: new Set(),
     trackStalls: new Map(),
     lastEmittedProgress: new Map(),
+    rotationOverride,
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -1471,18 +1447,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 
   // Emit the best available track path (MultiViewer preferred, GPS fallback).
-  const displayPath = getDisplayPath()
-  if (displayPath && displayPath.length > 0) {
-    emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-      trackName,
-      path: displayPath,
-      pathVersion: totalLapsProcessed,
-      totalLapsProcessed,
-      corners: activeSession.corners,
-      sectorBoundaries: getDisplaySectorBoundaries(),
-      pitLaneProfile: activeSession.pitLaneProfile,
-    })
-  }
+  const trackmapPayload = buildTrackmapPayload()
+  if (trackmapPayload) emitToRoom(OPENF1_EVENTS.TRACKMAP, trackmapPayload)
 }
 
 // Emits a consolidated session capability report showing the status of all data sources.
@@ -1800,16 +1766,12 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
 
   // Emit the best available track path. If we have a MultiViewer outline, keep using
   // it for display; the GPS path is still maintained as the reference for position mapping.
-  const displayPath = getDisplayPath()
-  emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-    trackName: activeSession.trackName,
-    path: displayPath || newPath,
+  const rebuildPayload = buildTrackmapPayload({
+    path: getDisplayPath() || newPath,
     pathVersion: validatedLaps.length,
     totalLapsProcessed: validatedLaps.length,
-    corners: activeSession.corners,
-    sectorBoundaries: getDisplaySectorBoundaries(),
-    pitLaneProfile: activeSession.pitLaneProfile,
   })
+  if (rebuildPayload) emitToRoom(OPENF1_EVENTS.TRACKMAP, rebuildPayload)
 
   // Persist to MongoDB.
   await saveTrackMap()
@@ -2043,18 +2005,8 @@ export const buildTrackFromDemoData = async (
   // Update the active session with sector boundaries and emit updated trackmap.
   if (activeSession && activeSession.trackName === trackName && sectorBounds) {
     activeSession.sectorBoundaries = sectorBounds
-    const displayPath = getDisplayPath()
-    if (displayPath && displayPath.length > 0) {
-      emitToRoom(OPENF1_EVENTS.TRACKMAP, {
-        trackName,
-        path: displayPath,
-        pathVersion: activeSession.totalLapsProcessed,
-        totalLapsProcessed: activeSession.totalLapsProcessed,
-        corners: activeSession.corners,
-        sectorBoundaries: getDisplaySectorBoundaries(),
-        pitLaneProfile: activeSession.pitLaneProfile,
-      })
-    }
+    const demoPayload = buildTrackmapPayload()
+    if (demoPayload) emitToRoom(OPENF1_EVENTS.TRACKMAP, demoPayload)
   }
 }
 
@@ -2093,6 +2045,44 @@ const getDisplaySectorBoundaries = (): { startFinish: number; sector1_2: number;
 
   // Last resort: return baselinePath-relative values (will be inaccurate on MV tracks).
   return sb
+}
+
+// Builds the standard trackmap payload emitted to clients. Returns null if no displayable path.
+const buildTrackmapPayload = (overrides?: { path?: { x: number; y: number }[]; pathVersion?: number; totalLapsProcessed?: number }) => {
+  if (!activeSession) return null
+  const displayPath = overrides?.path ?? getDisplayPath()
+  if (!displayPath || displayPath.length === 0) return null
+  return {
+    trackName: activeSession.trackName,
+    path: displayPath,
+    pathVersion: overrides?.pathVersion ?? activeSession.totalLapsProcessed,
+    totalLapsProcessed: overrides?.totalLapsProcessed ?? activeSession.totalLapsProcessed,
+    corners: activeSession.corners,
+    sectorBoundaries: getDisplaySectorBoundaries(),
+    pitLaneProfile: activeSession.pitLaneProfile,
+    rotationOverride: activeSession.rotationOverride,
+  }
+}
+
+// Updates the rotation override for a trackmap and broadcasts to all connected clients.
+// Called from the GraphQL resolver when an admin adjusts the track rotation.
+export const setTrackmapRotation = async (trackName: string, rotation: number): Promise<boolean> => {
+  const clamped = ((rotation % 360) + 360) % 360
+
+  // Persist to MongoDB.
+  await Trackmap.updateOne(
+    { trackName },
+    { $set: { rotationOverride: clamped, updated_at: new Date().toISOString() } },
+  )
+
+  // Update the active session cache and broadcast to all clients.
+  if (activeSession && activeSession.trackName === trackName) {
+    activeSession.rotationOverride = clamped
+    const payload = buildTrackmapPayload()
+    if (payload) emitToRoom(OPENF1_EVENTS.TRACKMAP, payload)
+  }
+
+  return true
 }
 
 // Attempts to fetch a high-fidelity track outline from the MultiViewer API.

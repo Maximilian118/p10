@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useContext, useRef, useEffect } from "react"
 import "./_f1SessionView.scss"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
@@ -6,6 +6,9 @@ import { DriverLiveState } from "../../../../../../api/openAPI/types"
 import { RoundType, driverType } from "../../../../../../shared/types"
 import F1DriverCard from "./F1DriverCard/F1DriverCard"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
+import { Loop } from "@mui/icons-material"
+import AppContext from "../../../../../../context"
+import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trackmapRequests"
 
 interface F1SessionViewProps {
   round?: RoundType
@@ -18,6 +21,9 @@ interface F1SessionViewProps {
 
 // View displayed when betting has closed for F1 series or during demo mode.
 // Shows live track map with car positions and driver cards from OpenF1 data.
+// Drag sensitivity: degrees of rotation per pixel of vertical mouse movement.
+const ROTATION_SENSITIVITY = 1
+
 const F1SessionView: React.FC<F1SessionViewProps> = ({
   round,
   isAdjudicator,
@@ -26,10 +32,51 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   sessionLabel,
   demoEnded,
 }) => {
+  const { user, setUser } = useContext(AppContext)
   const [driverView, setDriverView] = useState<DriverLiveState | null>(null)
   const [trackReady, setTrackReady] = useState(false)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
+
+  // ─── Rotation drag state (admin only) ─────────────────────────
+  const [dragRotationDelta, setDragRotationDelta] = useState(0)
+  const dragStartY = useRef(0)
+  const isDragging = useRef(false)
+
+  // Attaches window-level mousemove/mouseup listeners while dragging.
+  useEffect(() => {
+    if (!isDragging.current) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Upward drag (negative deltaY) = positive rotation (clockwise).
+      setDragRotationDelta(-(e.clientY - dragStartY.current) * ROTATION_SENSITIVITY)
+    }
+
+    const handleMouseUp = () => {
+      isDragging.current = false
+      setDragRotationDelta(0)
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+    }
+  })
+
+  // Starts the rotation drag from the Loop icon.
+  const handleRotationDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragStartY.current = e.clientY
+    isDragging.current = true
+    setDragRotationDelta(0)
+  }, [])
+
+  // Called by Trackmap when a drag ends — saves the new rotation to the backend.
+  const handleRotationSave = useCallback((trackName: string, rotation: number) => {
+    setTrackmapRotation(user, setUser, trackName, rotation)
+  }, [user, setUser])
 
   const advButton = !demoMode && isAdjudicator && onAdvance
 
@@ -89,6 +136,9 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
 
         {/* Live track map with car positions */}
         <div className="trackmap-container">
+          <div className="trackmap-bar-top">
+
+          </div>
           <Trackmap
             selectedDriverNumber={driverView?.driverNumber ?? null}
             onDriverSelect={handleMapDriverSelect}
@@ -96,7 +146,12 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             demoMode={demoMode}
             onTrackReady={handleTrackReady}
             onSessionInfo={setSessionInfo}
+            rotationDelta={dragRotationDelta}
+            onRotationSave={handleRotationSave}
           />
+          <div className="trackmap-bar-bottom">
+            {user.permissions.admin && <Loop onMouseDown={handleRotationDragStart} />}
+          </div>
         </div>
 
         {/* A list of all drivers in the session with their current stats */}
