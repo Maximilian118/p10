@@ -612,7 +612,7 @@ const handleCarDataEvent = (event: InternalEvent): void => {
       if (activeSession.timeoutDNFDrivers.has(event.driverNumber)) {
         activeSession.dnfs = activeSession.dnfs.filter(d => d.driverNumber !== event.driverNumber)
         activeSession.timeoutDNFDrivers.delete(event.driverNumber)
-        log.info(`✓ Track stall DNF reversed: driver #${event.driverNumber} is moving again`)
+
       }
     }
   }
@@ -690,7 +690,7 @@ const collectPitStopSample = (
     pitSideLeftWeight: clearVote ? voteResult.leftWeight : 0,
   })
 
-  log.info(`Pit sample #${activeSession.pitStopSamples.length} collected for driver #${driverNumber}: entry=${rawEntryProgress.toFixed(3)}, exit=${rawExitProgress.toFixed(3)}, speed=${exitSpeed.toFixed(0)}, side=${voteResult.side > 0 ? "R" : "L"} (R=${voteResult.rightWeight.toFixed(1)}/L=${voteResult.leftWeight.toFixed(1)} from ${voteResult.totalPoints}/${positionsForVote.length} GPS points, ${atLimitPositions.length} at-limit)`)
+
 
   // Rebuild profile when we have enough new samples.
   maybeRebuildPitProfile()
@@ -726,7 +726,6 @@ const maybeRebuildPitProfile = (): void => {
   if (!profile) return
 
   activeSession.pitLaneProfile = profile
-  log.info(`✓ Pit lane profile rebuilt: entry=${profile.entryProgress.toFixed(3)}, exit=${profile.exitProgress.toFixed(3)}, side=${profile.pitSide > 0 ? "right" : "left"}, limit=${profile.pitLaneSpeedLimit} km/h (${profile.samplesCollected} samples)`)
 
   // Emit updated trackmap so the frontend can render/update the pit building.
   const displayPath = getDisplayPath()
@@ -868,7 +867,7 @@ const checkTrackStallDNFs = (): void => {
         date: new Date().toISOString(),
       })
       activeSession!.timeoutDNFDrivers.add(driverNumber)
-      log.info(`⚠ Track stall DNF: driver #${driverNumber} stationary on track for ${maxLap - stallLeaderLap} laps (stalled at leader lap ${stallLeaderLap}, now lap ${maxLap})`)
+
     }
   })
 }

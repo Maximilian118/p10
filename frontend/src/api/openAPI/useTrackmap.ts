@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useContext, useRef } from "react"
+import { useState, useEffect, useCallback, useContext } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
 import AppContext from "../../context"
 import { getTrackmap } from "./requests/trackmapRequests"
@@ -53,8 +53,6 @@ const useTrackmap = (): UseTrackmapResult => {
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
-  // Throttle timestamp for debug logging.
-  const lastLogRef = useRef<number>(0)
 
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
@@ -114,21 +112,6 @@ const useTrackmap = (): UseTrackmapResult => {
     // Handle aggregated driver live state snapshots.
     const handleDriverStates = (states: DriverLiveState[]) => {
       setDriverStates(states)
-
-      // Debug: log tyre/pit state for all drivers every 5 seconds.
-      const now = Date.now()
-      if (!lastLogRef.current || now - lastLogRef.current > 5000) {
-        lastLogRef.current = now
-        console.table(states.map(s => ({
-          driver: s.nameAcronym,
-          lap: s.currentLapNumber,
-          tyreAge: s.tyreAge,
-          compound: s.tyreCompound,
-          pitStops: s.pitStops,
-          inPit: s.inPit,
-          retired: s.retired,
-        })))
-      }
     }
 
     // Handle session-wide state updates (weather, race control, overtakes).

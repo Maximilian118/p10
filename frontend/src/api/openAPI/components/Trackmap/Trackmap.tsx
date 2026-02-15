@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef, useCallback, useState } from "react"
 import useTrackmap from "../../useTrackmap"
 import usePathLockedPositions from "./usePathLockedPositions"
 
-import { computeArcLengths, getPointAndTangentAtProgress, getSubPath, buildOpenSvgPath, computeSignedArea } from "./trackPathUtils"
+import { computeArcLengths, getPointAndTangentAtProgress, getPointAtProgress, getSubPath, buildOpenSvgPath, computeSignedArea } from "./trackPathUtils"
 import { DriverLiveState, SectorBoundaries } from "../../types"
 import "./_trackmap.scss"
 
@@ -482,9 +482,23 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
         const pt = getPointAndTangentAtProgress(svgTrackPath, arcLengths, progress)
         if (!pt) return lines
 
-        // Perpendicular direction (90° rotation of tangent).
-        const perpX = -pt.tangent.dy
-        const perpY = pt.tangent.dx
+        // Compute smoothed tangent from two points slightly apart on the path.
+        // Single-segment tangents can be inaccurate at the path wrap point (e.g. Silverstone S/F).
+        const epsilon = 0.005
+        const pBefore = getPointAtProgress(svgTrackPath, arcLengths, (progress - epsilon + 1) % 1)
+        const pAfter = getPointAtProgress(svgTrackPath, arcLengths, (progress + epsilon) % 1)
+        if (!pBefore || !pAfter) return lines
+
+        const tdx = pAfter.x - pBefore.x
+        const tdy = pAfter.y - pBefore.y
+        const tLen = Math.sqrt(tdx * tdx + tdy * tdy)
+        const smoothTangent = tLen > 0
+          ? { dx: tdx / tLen, dy: tdy / tLen }
+          : pt.tangent
+
+        // Perpendicular direction (90° rotation of smoothed tangent).
+        const perpX = -smoothTangent.dy
+        const perpY = smoothTangent.dx
 
         lines.push({
           x1: pt.point.x - perpX * halfLen,
