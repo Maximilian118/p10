@@ -146,7 +146,7 @@ export const initSessionManager = (io: Server): void => {
             pathVersion: activeSession.totalLapsProcessed,
             totalLapsProcessed: activeSession.totalLapsProcessed,
             corners: activeSession.corners,
-            sectorBoundaries: activeSession.sectorBoundaries,
+            sectorBoundaries: getDisplaySectorBoundaries(),
             pitLaneProfile: activeSession.pitLaneProfile,
           })
         }
@@ -210,6 +210,7 @@ export const initDemoSession = async (
     multiviewerPath: null,
     corners: null,
     sectorBoundaries: null,
+    displaySectorBoundaries: null,
     isDemo: true,
     baselineArcLengths: null,
     multiviewerArcLengths: null,
@@ -245,6 +246,7 @@ export const initDemoSession = async (
     isRaceSession: checkIsRaceSession(sessionType || "Demo"),
     timeoutDNFDrivers: new Set(),
     trackStalls: new Map(),
+    lastEmittedProgress: new Map(),
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -252,6 +254,10 @@ export const initDemoSession = async (
     const existing = await Trackmap.findOne({ trackName })
     if (existing && existing.path.length > 0) {
       activeSession.baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
+      // Snap last point to first so the path forms a zero-gap closed loop.
+      if (activeSession.baselinePath.length > 1) {
+        activeSession.baselinePath[activeSession.baselinePath.length - 1] = { ...activeSession.baselinePath[0] }
+      }
       activeSession.baselineArcLengths = computeArcLengths(activeSession.baselinePath)
       activeSession.totalLapsProcessed = existing.totalLapsProcessed
       activeSession.lastUpdateLap = existing.totalLapsProcessed
@@ -304,7 +310,7 @@ export const emitDemoTrackmap = (): void => {
       pathVersion: activeSession.totalLapsProcessed,
       totalLapsProcessed: activeSession.totalLapsProcessed,
       corners: activeSession.corners,
-      sectorBoundaries: activeSession.sectorBoundaries,
+      sectorBoundaries: getDisplaySectorBoundaries(),
       pitLaneProfile: activeSession.pitLaneProfile,
     })
   }
@@ -736,7 +742,7 @@ const maybeRebuildPitProfile = (): void => {
       pathVersion: activeSession.totalLapsProcessed,
       totalLapsProcessed: activeSession.totalLapsProcessed,
       corners: activeSession.corners,
-      sectorBoundaries: activeSession.sectorBoundaries,
+      sectorBoundaries: getDisplaySectorBoundaries(),
       pitLaneProfile: activeSession.pitLaneProfile,
     })
   }
@@ -1331,6 +1337,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     const existing = await Trackmap.findOne({ trackName })
     if (existing && existing.path.length > 0) {
       baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
+      // Snap last point to first so the path forms a zero-gap closed loop.
+      if (baselinePath.length > 1) baselinePath[baselinePath.length - 1] = { ...baselinePath[0] }
       totalLapsProcessed = existing.totalLapsProcessed
       log.info(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${totalLapsProcessed} laps)`)
 
@@ -1377,6 +1385,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     multiviewerPath,
     corners,
     sectorBoundaries,
+    displaySectorBoundaries: null,
     isDemo: false,
     baselineArcLengths: baselinePath ? computeArcLengths(baselinePath) : null,
     multiviewerArcLengths: multiviewerPath ? computeArcLengths(multiviewerPath) : null,
@@ -1412,6 +1421,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     isRaceSession: checkIsRaceSession(msg.session_type || msg.session_name),
     timeoutDNFDrivers: new Set(),
     trackStalls: new Map(),
+    lastEmittedProgress: new Map(),
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -1469,7 +1479,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
       pathVersion: totalLapsProcessed,
       totalLapsProcessed,
       corners: activeSession.corners,
-      sectorBoundaries: activeSession.sectorBoundaries,
+      sectorBoundaries: getDisplaySectorBoundaries(),
       pitLaneProfile: activeSession.pitLaneProfile,
     })
   }
@@ -1700,6 +1710,20 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
 
 // ─── Track Map Rebuilding ────────────────────────────────────────
 
+// Flattens positionsByDriverLap into a single chronologically sorted array per driver.
+// Used by sector boundary computation which needs all positions for a driver in one array.
+const buildFlatPositions = (): Map<number, { x: number; y: number; date: string }[]> => {
+  const flat = new Map<number, { x: number; y: number; date: string }[]>()
+  if (!activeSession) return flat
+  activeSession.positionsByDriverLap.forEach((lapMap, driverNum) => {
+    const all: { x: number; y: number; date: string }[] = []
+    lapMap.forEach((positions) => all.push(...positions))
+    all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    flat.set(driverNum, all)
+  })
+  return flat
+}
+
 // Rebuilds the track map from accumulated fast-lap position data.
 const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
   if (!activeSession) return
@@ -1744,6 +1768,8 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
   }
 
   // Update session state and recompute arc-length cache for the new path.
+  // Snap last point to first so the path forms a zero-gap closed loop.
+  if (newPath.length > 1) newPath[newPath.length - 1] = { ...newPath[0] }
   activeSession.baselinePath = newPath
   activeSession.baselineArcLengths = computeArcLengths(newPath)
   activeSession.totalLapsProcessed = validatedLaps.length
@@ -1752,14 +1778,7 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
   // Attempt to compute sector boundaries if not yet determined.
   if (!activeSession.sectorBoundaries) {
     const allLaps = Array.from(activeSession.completedLaps.values())
-    // Flatten positionsByDriverLap into a single positions array per driver.
-    const flatPositions = new Map<number, { x: number; y: number; date: string }[]>()
-    activeSession.positionsByDriverLap.forEach((lapMap, driverNum) => {
-      const all: { x: number; y: number; date: string }[] = []
-      lapMap.forEach((positions) => all.push(...positions))
-      all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      flatPositions.set(driverNum, all)
-    })
+    const flatPositions = buildFlatPositions()
 
     // Log sector computation attempt for diagnostics.
     log.info(`Attempting sector computation: ${allLaps.length} laps, ${flatPositions.size} drivers with GPS, refPath: ${newPath.length} points`)
@@ -1768,6 +1787,14 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     if (boundaries) {
       activeSession.sectorBoundaries = boundaries
       log.info(`✓ Sector boundaries computed for "${activeSession.trackName}"`)
+
+      // Also compute directly against multiviewerPath for accurate display.
+      if (activeSession.multiviewerPath) {
+        activeSession.displaySectorBoundaries = computeSectorBoundaries(allLaps, flatPositions, activeSession.multiviewerPath)
+        if (activeSession.displaySectorBoundaries) {
+          log.info(`✓ Display sector boundaries computed against MultiViewer path`)
+        }
+      }
     }
   }
 
@@ -1780,7 +1807,7 @@ const rebuildTrackMap = async (fastLaps: OpenF1LapMsg[]): Promise<void> => {
     pathVersion: validatedLaps.length,
     totalLapsProcessed: validatedLaps.length,
     corners: activeSession.corners,
-    sectorBoundaries: activeSession.sectorBoundaries,
+    sectorBoundaries: getDisplaySectorBoundaries(),
     pitLaneProfile: activeSession.pitLaneProfile,
   })
 
@@ -1977,6 +2004,14 @@ export const buildTrackFromDemoData = async (
     log.info(`✓ Sector boundaries computed for "${trackName}" from demo data`)
   }
 
+  // Also compute directly against multiviewerPath for accurate display.
+  if (activeSession?.multiviewerPath && sectorBounds) {
+    activeSession.displaySectorBoundaries = computeSectorBoundaries(allLaps, positionsByDriver, activeSession.multiviewerPath)
+    if (activeSession.displaySectorBoundaries) {
+      log.info(`✓ Display sector boundaries computed against MultiViewer path from demo data`)
+    }
+  }
+
   // Save to MongoDB — upsert so it works whether or not a document already exists.
   const now = new Date().toISOString()
   if (existing) {
@@ -2016,7 +2051,7 @@ export const buildTrackFromDemoData = async (
         pathVersion: activeSession.totalLapsProcessed,
         totalLapsProcessed: activeSession.totalLapsProcessed,
         corners: activeSession.corners,
-        sectorBoundaries: activeSession.sectorBoundaries,
+        sectorBoundaries: getDisplaySectorBoundaries(),
         pitLaneProfile: activeSession.pitLaneProfile,
       })
     }
@@ -2029,6 +2064,35 @@ export const buildTrackFromDemoData = async (
 const getDisplayPath = (): { x: number; y: number }[] | null => {
   if (!activeSession) return null
   return activeSession.multiviewerPath || activeSession.baselinePath
+}
+
+// Returns sector boundaries converted to the display path's progress values.
+// Returns sector boundary progress values mapped to the active display path.
+// Prefers displaySectorBoundaries (computed directly on multiviewerPath), falls back
+// to GPS coordinate projection, then raw baselinePath-relative values.
+const getDisplaySectorBoundaries = (): { startFinish: number; sector1_2: number; sector2_3: number } | null => {
+  if (!activeSession?.sectorBoundaries) return null
+  const sb = activeSession.sectorBoundaries
+  const display = activeSession.multiviewerPath
+  // No conversion needed if we're using the GPS baseline as the display path.
+  if (!display || display === activeSession.baselinePath) return sb
+
+  // Preferred: sectors computed directly on the multiviewerPath (most accurate).
+  if (activeSession.displaySectorBoundaries) return activeSession.displaySectorBoundaries
+
+  // Fallback: project raw GPS coordinates of sector crossings onto the display
+  // path without hints — sectors are too far apart for the ±15% window to work.
+  const dispArc = activeSession.multiviewerArcLengths
+  if (sb.startFinishGps && sb.sector1_2Gps && sb.sector2_3Gps && dispArc) {
+    return {
+      startFinish: computeTrackProgress(sb.startFinishGps.x, sb.startFinishGps.y, display, dispArc),
+      sector1_2: computeTrackProgress(sb.sector1_2Gps.x, sb.sector1_2Gps.y, display, dispArc),
+      sector2_3: computeTrackProgress(sb.sector2_3Gps.x, sb.sector2_3Gps.y, display, dispArc),
+    }
+  }
+
+  // Last resort: return baselinePath-relative values (will be inaccurate on MV tracks).
+  return sb
 }
 
 // Attempts to fetch a high-fidelity track outline from the MultiViewer API.
@@ -2051,7 +2115,7 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
     }
 
     activeSession.multiviewerPath = mvData.path
-    activeSession.multiviewerArcLengths = computeArcLengths(mvData.path)
+    activeSession.multiviewerArcLengths = computeArcLengths(activeSession.multiviewerPath)
     activeSession.corners = mvData.corners.length > 0 ? mvData.corners : null
     mvLog.info(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
 
@@ -2075,6 +2139,17 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
       )
     } catch (cacheErr) {
       mvLog.error("⚠ Failed to cache MultiViewer data in MongoDB:", cacheErr)
+    }
+
+    // Recompute display sector boundaries against the new multiviewer path
+    // if baseline sectors and position data are available.
+    if (activeSession.sectorBoundaries && activeSession.positionsByDriverLap.size > 0) {
+      const allLaps = Array.from(activeSession.completedLaps.values())
+      const flatPositions = buildFlatPositions()
+      activeSession.displaySectorBoundaries = computeSectorBoundaries(allLaps, flatPositions, activeSession.multiviewerPath!)
+      if (activeSession.displaySectorBoundaries) {
+        mvLog.info(`✓ Display sector boundaries recomputed against MultiViewer path`)
+      }
     }
   } catch (err) {
     mvLog.error("⚠ MultiViewer track fetch failed, using GPS fallback:", err)
@@ -2275,8 +2350,7 @@ const startPositionBatching = (): void => {
     const referencePath = activeSession.baselinePath
     const shouldMap = displayPath && referencePath && displayPath !== referencePath
 
-    // Pre-cached arc-length tables for the hot path.
-    const baselineArc = activeSession.baselineArcLengths || undefined
+    // Pre-cached arc-length table for the display path (hot path).
     const multiviewerArc = activeSession.multiviewerArcLengths || undefined
 
     // Build the position payload.
@@ -2294,10 +2368,15 @@ const startPositionBatching = (): void => {
       let displayY = pos.y
       let progress: number | undefined
 
-      // Map GPS coordinates to MultiViewer coordinates via arc-length track progress.
+      // Project GPS coordinates directly onto the display path for correct positioning.
+      // Both paths use the same F1 coordinate system, so nearest-segment projection works.
+      // Pass the driver's previous progress as a hint to avoid nearest-segment ambiguity
+      // on tracks where sections run close together (e.g. Shanghai turns 14-16).
       if (shouldMap) {
-        progress = computeTrackProgress(pos.x, pos.y, referencePath, baselineArc)
-        const mapped = mapProgressToPoint(progress, displayPath, multiviewerArc)
+        const hint = activeSession!.lastEmittedProgress.get(driverNumber)
+        progress = computeTrackProgress(pos.x, pos.y, displayPath!, multiviewerArc, hint)
+        activeSession!.lastEmittedProgress.set(driverNumber, progress)
+        const mapped = mapProgressToPoint(progress, displayPath!, multiviewerArc)
         displayX = mapped.x
         displayY = mapped.y
       }

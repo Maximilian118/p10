@@ -12,10 +12,16 @@ import { createLogger } from "../../shared/logger"
 const log = createLogger("Sectors")
 
 // Sector boundary positions stored as track progress values (0–1).
+// Optional GPS coordinates store the raw interpolated car positions at each
+// boundary crossing (median across laps). Used for direct projection onto
+// MultiViewer paths, bypassing baselinePath to avoid nearest-segment ambiguity.
 export interface SectorBoundaries {
   startFinish: number
   sector1_2: number
   sector2_3: number
+  startFinishGps?: { x: number; y: number }
+  sector1_2Gps?: { x: number; y: number }
+  sector2_3Gps?: { x: number; y: number }
 }
 
 // Minimum number of valid crossings per boundary before the result is reliable.
@@ -115,6 +121,11 @@ export const computeSectorBoundaries = (
   const s1_2Progresses: number[] = []
   const s2_3Progresses: number[] = []
 
+  // Raw GPS coordinates of each boundary crossing for direct MultiViewer projection.
+  const sfXs: number[] = [], sfYs: number[] = []
+  const s12Xs: number[] = [], s12Ys: number[] = []
+  const s23Xs: number[] = [], s23Ys: number[] = []
+
   // Diagnostic counters for understanding data availability.
   let totalLaps = 0
   let skippedIncomplete = 0
@@ -159,15 +170,18 @@ export const computeSectorBoundaries = (
       interpolationMisses++
     }
 
-    // Map each position to track progress.
+    // Map each position to track progress and collect raw GPS coordinates.
     if (startPos) {
       startFinishProgresses.push(computeTrackProgress(startPos.x, startPos.y, referencePath))
+      sfXs.push(startPos.x); sfYs.push(startPos.y)
     }
     if (s1_2Pos) {
       s1_2Progresses.push(computeTrackProgress(s1_2Pos.x, s1_2Pos.y, referencePath))
+      s12Xs.push(s1_2Pos.x); s12Ys.push(s1_2Pos.y)
     }
     if (s2_3Pos) {
       s2_3Progresses.push(computeTrackProgress(s2_3Pos.x, s2_3Pos.y, referencePath))
+      s23Xs.push(s2_3Pos.x); s23Ys.push(s2_3Pos.y)
     }
   }
 
@@ -189,10 +203,13 @@ export const computeSectorBoundaries = (
     return null
   }
 
-  // Use circular median for robustness against outliers and wrap-around.
+  // Use circular median for progress and standard median for GPS coordinates.
   return {
     startFinish: circularMedian(startFinishProgresses),
     sector1_2: circularMedian(s1_2Progresses),
     sector2_3: circularMedian(s2_3Progresses),
+    startFinishGps: { x: median(sfXs), y: median(sfYs) },
+    sector1_2Gps: { x: median(s12Xs), y: median(s12Ys) },
+    sector2_3Gps: { x: median(s23Xs), y: median(s23Ys) },
   }
 }

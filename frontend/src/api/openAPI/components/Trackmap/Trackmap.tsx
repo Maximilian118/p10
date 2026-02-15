@@ -269,8 +269,19 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
   const seenDrivers = useRef<Set<number>>(new Set())
 
   // Negate Y to convert from math coordinates (Y-up) to SVG coordinates (Y-down).
+  // Snap last point to first for a zero-gap closure, then append a duplicate first point
+  // so arc-length parameterisation wraps smoothly at the S/F boundary.
+  // Rendering uses slice(0, -1) to avoid a doubled closing segment with the SVG Z command.
   const svgTrackPath = useMemo(
-    () => trackPath?.map((p) => ({ x: p.x, y: -p.y })) ?? null,
+    () => {
+      if (!trackPath) return null
+      const path = trackPath.map((p) => ({ x: p.x, y: -p.y }))
+      if (path.length > 1) {
+        path[path.length - 1] = { ...path[0] }
+        path.push({ ...path[0] })
+      }
+      return path
+    },
     [trackPath],
   )
 
@@ -427,9 +438,10 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     })
   }, [driverStates, selectedDriverNumber, sectorBoundaries, carPositions, smoothedProgressRef])
 
-  // Memoize the SVG path string.
+  // Memoize the SVG path string. Slice off the extra closing point used for arc-length wrapping
+  // since the SVG Z command already closes the path visually.
   const svgPathString = useMemo(
-    () => (svgTrackPath ? buildSvgPath(svgTrackPath) : ""),
+    () => (svgTrackPath ? buildSvgPath(svgTrackPath.slice(0, -1)) : ""),
     [svgTrackPath],
   )
 
@@ -606,7 +618,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       }
     }
 
-    const offsetDist = dotRadius * 1.8
+    const offsetDist = dotRadius * 2.2
     const steps = 40
 
     // Compute progress range (handle wrap-around if exit < entry).

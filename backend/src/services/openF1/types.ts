@@ -219,10 +219,16 @@ export interface Corner {
 }
 
 // Sector boundary positions stored as track progress values (0-1).
+// Optional GPS coordinates store the raw interpolated car positions at each
+// boundary crossing (median across laps). Used for direct projection onto
+// MultiViewer paths, bypassing baselinePath to avoid nearest-segment ambiguity.
 export interface SectorBoundaries {
   startFinish: number
   sector1_2: number
   sector2_3: number
+  startFinishGps?: { x: number; y: number }
+  sector1_2Gps?: { x: number; y: number }
+  sector2_3Gps?: { x: number; y: number }
 }
 
 // Validated lap used for track map construction.
@@ -435,8 +441,10 @@ export interface SessionState {
   multiviewerPath: { x: number; y: number }[] | null
   // Corner positions from MultiViewer (null if unavailable or GPS-only map).
   corners: Corner[] | null
-  // Computed sector boundary progress values (null until enough data is available).
+  // Computed sector boundary progress values on baselinePath (null until enough data is available).
   sectorBoundaries: SectorBoundaries | null
+  // Sector boundaries computed directly against multiviewerPath for accurate display (null when no multiviewer).
+  displaySectorBoundaries: SectorBoundaries | null
   // Whether this session is a demo replay (skips incremental track rebuilding).
   isDemo: boolean
   // Pre-computed arc-length tables for GPS and MultiViewer paths (cached to avoid per-tick recomputation).
@@ -514,6 +522,8 @@ export interface SessionState {
   timeoutDNFDrivers: Set<number>
   // On-track stall tracking: driverNumber → leader's lap when the car was first observed stationary.
   trackStalls: Map<number, number>
+  // Per-driver last emitted progress for hint-constrained track projection.
+  lastEmittedProgress: Map<number, number>
 
   // ─── Session Recording (live → demo) ──────────────────────────
   // Buffered messages for recording live sessions as replayable demos.

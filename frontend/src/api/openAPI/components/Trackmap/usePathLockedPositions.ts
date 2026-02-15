@@ -33,6 +33,11 @@ const BUFFER_DELAY = 400
 const MAX_BUFFER_SAMPLES = 10
 const DEDUP_THRESHOLD = 0.00005
 
+// Maximum backward progress jump allowed before a sample is rejected.
+// Larger backward jumps are likely wrong-segment projections on tracks
+// where sections run close together (e.g. Shanghai turns 14-16).
+const MAX_BACKWARD = 0.04
+
 // Exponential smoothing time constant (ms). Controls how quickly the rendered
 // progress chases the interpolated target. Acts as a velocity low-pass filter
 // that dampens abrupt speed transitions at corner entry/exit. Higher = smoother
@@ -88,8 +93,15 @@ const usePathLockedPositions = (
         buffersRef.current.set(car.driverNumber, samples)
       }
 
-      // Deduplicate samples where progress hasn't meaningfully changed.
+      // Reject large backward jumps (likely wrong-segment projection).
+      // Small backward motion (< threshold) is allowed for GPS noise.
       const last = samples[samples.length - 1]
+      if (last) {
+        const delta = shortestProgressDelta(last.progress, car.progress)
+        if (delta < -MAX_BACKWARD) return
+      }
+
+      // Deduplicate samples where progress hasn't meaningfully changed.
       if (!last || Math.abs(shortestProgressDelta(last.progress, car.progress)) > DEDUP_THRESHOLD) {
         samples.push({ progress: car.progress, time: now })
         if (samples.length > MAX_BUFFER_SAMPLES) {

@@ -22,11 +22,15 @@ export const computeArcLengths = (
 // onto the nearest line segment. Uses arc-length normalisation so progress
 // is proportional to physical distance along the track.
 // Pass pre-computed arcLengths to avoid recomputing per call on the hot path.
+// When hintProgress is provided, restricts the search to a ±15% window around
+// the hint to avoid nearest-segment ambiguity on tracks where sections run close
+// together (e.g. Shanghai turns 14-16). Falls back to global search if no hint.
 export const computeTrackProgress = (
   carX: number,
   carY: number,
   referencePath: { x: number; y: number }[],
   arcLengths?: number[],
+  hintProgress?: number,
 ): number => {
   if (referencePath.length === 0) return 0
   if (referencePath.length === 1) return 0
@@ -36,12 +40,36 @@ export const computeTrackProgress = (
   const totalLength = lengths[lengths.length - 1]
   if (totalLength === 0) return 0
 
+  const numSegs = referencePath.length - 1
   let minDistSq = Infinity
   let bestProgress = 0
 
-  // For each line segment, project the car onto the segment and track
+  // Determine search range: full path or windowed around hint.
+  let startIdx = 0
+  let endIdx = numSegs
+
+  if (hintProgress !== undefined) {
+    // Binary search for the segment containing the hint progress.
+    const targetLen = Math.max(0, Math.min(1, hintProgress)) * totalLength
+    let lo = 0
+    let hi = referencePath.length - 1
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1
+      if (lengths[mid] <= targetLen) lo = mid
+      else hi = mid
+    }
+    // Search ±15% of segments around the hint, minimum 10 segments.
+    const window = Math.max(10, Math.ceil(numSegs * 0.15))
+    startIdx = lo - window
+    endIdx = lo + window
+  }
+
+  // Project the car onto each segment in the search range and track
   // the projection with minimum distance.
-  for (let i = 0; i < referencePath.length - 1; i++) {
+  for (let j = startIdx; j < endIdx; j++) {
+    // Wrap index for closed-track circular search.
+    const i = ((j % numSegs) + numSegs) % numSegs
+
     const ax = referencePath[i].x
     const ay = referencePath[i].y
     const bx = referencePath[i + 1].x
@@ -149,4 +177,20 @@ export const mapProgressToPoint = (
     x: displayPath[lo].x + (displayPath[hi].x - displayPath[lo].x) * t,
     y: displayPath[lo].y + (displayPath[hi].y - displayPath[lo].y) * t,
   }
+}
+
+// Converts a progress value from one path's parameterization to another's.
+// Maps source progress → physical coordinates on sourcePath → projection onto targetPath.
+// Used to convert sector boundaries computed on baselinePath to the display path.
+// Optional hintProgress constrains the target search to avoid nearest-segment ambiguity.
+export const convertProgress = (
+  sourceProgress: number,
+  sourcePath: { x: number; y: number }[],
+  sourceArc: number[],
+  targetPath: { x: number; y: number }[],
+  targetArc: number[],
+  hintProgress?: number,
+): number => {
+  const point = mapProgressToPoint(sourceProgress, sourcePath, sourceArc)
+  return computeTrackProgress(point.x, point.y, targetPath, targetArc, hintProgress)
 }

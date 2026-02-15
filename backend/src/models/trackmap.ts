@@ -16,10 +16,14 @@ export interface TrackmapCorner {
 }
 
 // Sector boundary positions as track progress values (0-1).
+// Optional GPS coordinates store the raw car positions at each boundary crossing.
 export interface TrackmapSectorBoundaries {
   startFinish: number
   sector1_2: number
   sector2_3: number
+  startFinishGps?: TrackmapPoint
+  sector1_2Gps?: TrackmapPoint
+  sector2_3Gps?: TrackmapPoint
 }
 
 // An archived version of a track map from a previous year.
@@ -69,12 +73,15 @@ const trackmapCornerSchema = new mongoose.Schema<TrackmapCorner>(
   { _id: false },
 )
 
-// Sub-schema for sector boundary progress values.
+// Sub-schema for sector boundary progress values with optional GPS coordinates.
 const sectorBoundariesSchema = new mongoose.Schema<TrackmapSectorBoundaries>(
   {
     startFinish: { type: Number, required: true },
     sector1_2: { type: Number, required: true },
     sector2_3: { type: Number, required: true },
+    startFinishGps: { type: trackmapPointSchema, default: undefined },
+    sector1_2Gps: { type: trackmapPointSchema, default: undefined },
+    sector2_3Gps: { type: trackmapPointSchema, default: undefined },
   },
   { _id: false },
 )
