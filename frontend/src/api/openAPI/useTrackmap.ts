@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useContext } from "react"
+import { useState, useEffect, useCallback, useContext, useRef } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
 import AppContext from "../../context"
 import { getTrackmap } from "./requests/trackmapRequests"
@@ -14,6 +14,7 @@ const EVENTS = {
   SESSION_STATE: "openf1:session-state",
   RACE_CONTROL: "openf1:race-control",
   DEMO_STATUS: "openf1:demo-status",
+  DRIVER_FLAG: "openf1:driver-flag",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
@@ -35,6 +36,7 @@ export interface UseTrackmapResult {
   pitLaneProfile: PitLaneProfile | null
   rotationOverride: number
   connectionStatus: TrackmapConnectionStatus
+  driverFlags: Map<number, string>
 }
 
 // Hook that provides live F1 track map data and car positions.
@@ -55,6 +57,10 @@ const useTrackmap = (): UseTrackmapResult => {
   const [connectionStatus, setConnectionStatus] = useState<TrackmapConnectionStatus>("connecting")
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
+  const [driverFlags, setDriverFlags] = useState<Map<number, string>>(new Map())
+
+  // Timers for auto-expiring driver flags after 3 seconds.
+  const driverFlagTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
@@ -130,6 +136,29 @@ const useTrackmap = (): UseTrackmapResult => {
       })
     }
 
+    // Handle driver-specific flag events (e.g. BLUE flag). Sets a flag that
+    // auto-expires after 3 seconds, used by Trackmap to flash the car dot.
+    const handleDriverFlag = (data: { driverNumber: number; flag: string }) => {
+      setDriverFlags((prev) => {
+        const next = new Map(prev)
+        next.set(data.driverNumber, data.flag)
+        return next
+      })
+      // Clear existing timer for this driver if any.
+      const existing = driverFlagTimers.current.get(data.driverNumber)
+      if (existing) clearTimeout(existing)
+      // Remove the flag after 3 seconds.
+      const timer = setTimeout(() => {
+        setDriverFlags((prev) => {
+          const next = new Map(prev)
+          next.delete(data.driverNumber)
+          return next
+        })
+        driverFlagTimers.current.delete(data.driverNumber)
+      }, 3000)
+      driverFlagTimers.current.set(data.driverNumber, timer)
+    }
+
     socket.on(EVENTS.SESSION, handleSession)
     socket.on(EVENTS.TRACKMAP, handleTrackmap)
     socket.on(EVENTS.POSITIONS, handlePositions)
@@ -137,6 +166,7 @@ const useTrackmap = (): UseTrackmapResult => {
     socket.on(EVENTS.DRIVER_STATES, handleDriverStates)
     socket.on(EVENTS.SESSION_STATE, handleSessionState)
     socket.on(EVENTS.RACE_CONTROL, handleRaceControl)
+    socket.on(EVENTS.DRIVER_FLAG, handleDriverFlag)
     // Cleanup: leave the room and remove listeners.
     return () => {
       socket.emit(EVENTS.UNSUBSCRIBE)
@@ -147,6 +177,9 @@ const useTrackmap = (): UseTrackmapResult => {
       socket.off(EVENTS.DRIVER_STATES, handleDriverStates)
       socket.off(EVENTS.SESSION_STATE, handleSessionState)
       socket.off(EVENTS.RACE_CONTROL, handleRaceControl)
+      socket.off(EVENTS.DRIVER_FLAG, handleDriverFlag)
+      driverFlagTimers.current.forEach((t) => clearTimeout(t))
+      driverFlagTimers.current.clear()
     }
   }, [])
 
@@ -164,6 +197,7 @@ const useTrackmap = (): UseTrackmapResult => {
     pitLaneProfile,
     rotationOverride,
     connectionStatus,
+    driverFlags,
   }
 }
 

@@ -45,6 +45,12 @@
   // Car dot circle — handles interactive styles only.
   .car-dot {
     cursor: pointer;
+
+    // Blue flag flash — applied when a driver receives a BLUE flag.
+    // Runs until the flag state is removed (after 3 seconds).
+    &--flag-blue {
+      animation: dot-flag-blue 0.5s ease-in-out infinite;
+    }
   }
 
   // Corner number labels — non-interactive, subtly visible over the track.
@@ -57,6 +63,11 @@
   // Sector boundary lines — non-interactive overlays.
   .sector-line {
     pointer-events: none;
+  }
+
+  // Track path flashing animation — used during VSC ending.
+  .track-path--flashing {
+    animation: track-flash 0.8s ease-in-out infinite;
   }
 
   // Mini-sector colored segments — overlay on track when a driver is selected.
@@ -81,4 +92,16 @@
     font-size: 0.85rem;
     padding: 40px 0;
   }
+}
+
+// Track path flash keyframes (VSC ending).
+@keyframes track-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+// Blue flag car dot flash keyframes.
+// Alternates between the team color (SVG fill attribute) and blue.
+@keyframes dot-flag-blue {
+  50% { fill: #1976d2; }
 }

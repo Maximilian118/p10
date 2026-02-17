@@ -468,6 +468,8 @@ export interface SessionState {
   weather: SessionLiveState["weather"]
   // Race control messages accumulated during the session.
   raceControlMessages: RaceControlEvent[]
+  // Current track-wide flag status (computed from RC events with scope "Track").
+  trackFlag: string
   // Overtake events accumulated during the session.
   overtakes: OvertakeEvent[]
   // Expected session end timestamp (ms epoch) — used for fallback countdown when SignalR is unavailable.

@@ -16,6 +16,8 @@ interface TrackmapProps {
   onSessionInfo?: (info: { trackName: string; sessionName: string }) => void
   rotationDelta?: number
   onRotationSave?: (trackName: string, rotation: number) => void
+  trackFlag?: string | null
+  onPillSegments?: (map: Map<number, AcceptedSegments>) => void
 }
 
 interface CarDotProps {
@@ -28,6 +30,7 @@ interface CarDotProps {
   isNew: boolean
   pathLocked: boolean
   hidden: boolean
+  flagColor: string | null
   onSelect?: (driverNumber: number) => void
 }
 
@@ -38,13 +41,17 @@ interface CarDotProps {
 // When hidden, the dot is invisible but stays in the DOM so rAF keeps updating it.
 const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
   driverNumber, x, y, teamColour,
-  dotRadius, strokeWidth, isNew, pathLocked, hidden, onSelect,
+  dotRadius, strokeWidth, isNew, pathLocked, hidden, flagColor, onSelect,
 }, ref) => {
   // Build class name based on mode and visibility.
   let className = "car-dot-group"
   if (isNew) className += " car-dot-group--no-transition"
   else if (pathLocked) className += " car-dot-group--path-locked"
   if (hidden) className += " car-dot-group--hidden"
+
+  // Build circle class — adds flag flash animation when a driver flag is active.
+  let circleClass = "car-dot"
+  if (flagColor === "BLUE") circleClass += " car-dot--flag-blue"
 
   return (
     <g
@@ -57,7 +64,7 @@ const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
         fill={`#${teamColour}`}
         stroke="#ffffff"
         strokeWidth={strokeWidth}
-        className="car-dot"
+        className={circleClass}
         onClick={() => onSelect?.(driverNumber)}
       />
     </g>
@@ -70,6 +77,7 @@ const CarDot = React.memo(React.forwardRef<SVGGElement, CarDotProps>(({
   && prev.isNew === next.isNew
   && prev.pathLocked === next.pathLocked
   && prev.hidden === next.hidden
+  && prev.flagColor === next.flagColor
 )
 
 // Converts an array of {x, y} points into an SVG path string.
@@ -188,10 +196,11 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
 
 
 
-// Stamps segment values into the write-once buffer for segments the car has entered.
+// Stamps segment values into the write-once buffer for segments the car has passed.
 // A slot is stamped only if it is null (unvisited), the car's lapDist has reached
-// the segment's start, and the raw value is non-zero (data available). Returns true
+// the segment's end, and the raw value is non-zero (data available). Returns true
 // if any slot was newly stamped.
+// Note: Mini-sector counts vary by track and by sector (typically 5–12 per sector).
 const acceptSegments = (
   buffer: AcceptedSegments,
   rawSegments: { sector1: number[]; sector2: number[]; sector3: number[] },
@@ -217,12 +226,14 @@ const acceptSegments = (
       if (buffer[key][i] !== null) return
       if (value === 0) return
 
-      // Stamp when the car reaches the segment's start (lights up on entry, not exit).
-      let segStart = start + i * miniLen
-      if (segStart >= 1.0) segStart -= 1.0
-      const segStartDist = forwardDistance(lapBase, segStart)
+      // Stamp when the car reaches the segment's end (colours on exit, not entry).
+      let segEnd = start + (i + 1) * miniLen
+      if (segEnd >= 1.0) segEnd -= 1.0
+      let segEndDist = forwardDistance(lapBase, segEnd)
+      // S3's last segment ends at the startFinish line — treat as full lap distance.
+      if (segEndDist < 0.001) segEndDist = 1.0
 
-      if (lapDist >= segStartDist) {
+      if (lapDist >= segEndDist) {
         buffer[key][i] = value
         changed = true
       }
@@ -236,10 +247,11 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag, onPillSegments }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
+    driverFlags,
   } = useTrackmap()
   const trackReadyFired = useRef(false)
 
@@ -344,6 +356,89 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     })
   }, [svgCarPositions])
 
+  // Computes exit-based accepted segments for ALL drivers using the visual car dot
+  // position (smoothedProgressRef). Fires the onPillSegments callback at 1 Hz (aligned
+  // with driverStates emission) so MiniSectors pills colour exactly when the car dot
+  // crosses each mini-sector line. Buffers persist per driver/lap and reset on S/F crossing.
+  const pillSegmentsRef = useRef<Map<number, { lap: number; segments: AcceptedSegments }>>(new Map())
+  const pillSectorTracker = useRef<Map<number, number>>(new Map())
+
+  useEffect(() => {
+    if (!sectorBoundaries || driverStates.length === 0) return
+
+    // Compute the track's canonical segment counts (max per sector across all drivers).
+    // Retired/DNF drivers may have fewer segment entries, so we use the max to ensure
+    // every driver's pill buffer has the correct number of slots for this track.
+    const trackSegCounts = { sector1: 0, sector2: 0, sector3: 0 }
+    driverStates.forEach((ds) => {
+      trackSegCounts.sector1 = Math.max(trackSegCounts.sector1, ds.segments.sector1.length)
+      trackSegCounts.sector2 = Math.max(trackSegCounts.sector2, ds.segments.sector2.length)
+      trackSegCounts.sector3 = Math.max(trackSegCounts.sector3, ds.segments.sector3.length)
+    })
+
+    let anyChanged = false
+    const resultMap = new Map<number, AcceptedSegments>()
+
+    driverStates.forEach((ds) => {
+      // Read the car dot's visual position for this driver.
+      const cp = smoothedProgressRef.current?.get(ds.driverNumber)
+        ?? carPositions.find((c) => c.driverNumber === ds.driverNumber)?.progress
+      if (cp === undefined) return
+
+      const lapDist = forwardDistance(sectorBoundaries.startFinish, cp)
+      const s1End = forwardDistance(sectorBoundaries.startFinish, sectorBoundaries.sector1_2)
+      const s2End = forwardDistance(sectorBoundaries.startFinish, sectorBoundaries.sector2_3)
+      let currentSector = 2
+      if (lapDist < s1End) currentSector = 0
+      else if (lapDist < s2End) currentSector = 1
+
+      // Detect S/F crossing (sector 3 → sector 1) to reset the buffer.
+      const prevSector = pillSectorTracker.current.get(ds.driverNumber) ?? -1
+      const crossedSF = prevSector === 2 && currentSector === 0
+      pillSectorTracker.current.set(ds.driverNumber, currentSector)
+
+      // Get or create the write-once buffer for this driver.
+      // Buffer is sized to the track's canonical segment counts, not the individual
+      // driver's data — ensures all drivers have the same number of pill slots.
+      let entry = pillSegmentsRef.current.get(ds.driverNumber)
+      if (!entry || entry.lap !== ds.currentLapNumber || crossedSF) {
+        entry = {
+          lap: ds.currentLapNumber,
+          segments: {
+            sector1: new Array(trackSegCounts.sector1).fill(null),
+            sector2: new Array(trackSegCounts.sector2).fill(null),
+            sector3: new Array(trackSegCounts.sector3).fill(null),
+          },
+        }
+        pillSegmentsRef.current.set(ds.driverNumber, entry)
+        anyChanged = true
+      }
+
+      // Resize arrays if track segment count changed (preserving existing stamps).
+      const buf = entry.segments
+      const resize = (key: keyof AcceptedSegments, trackCount: number) => {
+        if (buf[key].length !== trackCount) {
+          buf[key] = Array.from({ length: trackCount }, (_, i) => (i < buf[key].length ? buf[key][i] : null))
+          anyChanged = true
+        }
+      }
+      resize("sector1", trackSegCounts.sector1)
+      resize("sector2", trackSegCounts.sector2)
+      resize("sector3", trackSegCounts.sector3)
+
+      // Stamp segments the visual car has exited.
+      const changed = acceptSegments(buf, ds.segments, sectorBoundaries, lapDist)
+      if (changed) anyChanged = true
+
+      resultMap.set(ds.driverNumber, buf)
+    })
+
+    // Notify the parent only when something changed.
+    if (anyChanged) {
+      onPillSegments?.(resultMap)
+    }
+  }, [driverStates, sectorBoundaries, carPositions, smoothedProgressRef, onPillSegments])
+
   // Stamps segments into the write-once buffer as the car dot passes them.
   // Clears the buffer exactly when the car dot crosses the start/finish line.
   useEffect(() => {
@@ -423,6 +518,27 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     () => (svgTrackPath ? buildSvgPath(svgTrackPath.slice(0, -1)) : ""),
     [svgTrackPath],
   )
+
+  // Track stroke color based on track-wide flag status.
+  // When a driver is selected (mini-sector view), the track stays dark.
+  const trackColor = useMemo(() => {
+    if (selectedDriverNumber) return "#2a2a3a"
+    switch (trackFlag) {
+      case "YELLOW":
+      case "DOUBLE YELLOW":
+      case "SC":
+      case "VSC":
+      case "VSC_ENDING":
+        return "#FFD700"
+      case "RED":
+        return "#E10600"
+      default:
+        return "#2a2a3a"
+    }
+  }, [selectedDriverNumber, trackFlag])
+
+  // Whether the track path should flash (VSC ending).
+  const trackFlashing = !selectedDriverNumber && trackFlag === "VSC_ENDING"
 
   // PCA auto-rotation angle (landscape-optimal orientation).
   const pcaAngle = useMemo(
@@ -656,14 +772,15 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
         >
           {/* Rotated group — all content uses original coordinates */}
           <g transform={rotateTransform}>
-            {/* Track outline path */}
+            {/* Track outline path — colored by track-wide flag status */}
             <path
               d={svgPathString}
-              stroke="#2a2a3a"
+              stroke={trackColor}
               strokeWidth={trackStrokeWidth}
               strokeLinejoin="round"
               strokeLinecap="round"
               fill="none"
+              className={trackFlashing ? "track-path--flashing" : undefined}
             />
 
             {/* Pit building — offset line following the track on the pit lane side */}
@@ -757,6 +874,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
                   isNew={isNew}
                   pathLocked={hasProgress}
                   hidden={!!selectedDriverNumber && car.driverNumber !== selectedDriverNumber}
+                  flagColor={driverFlags.get(car.driverNumber) ?? null}
                   onSelect={handleCarClick}
                 />
               )

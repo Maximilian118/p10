@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react"
 import { getSocket } from "../../shared/socket/socketClient"
-import { RaceControlEvent, SessionClock, SessionLiveState } from "./types"
+import { SessionClock } from "./types"
 
 // Socket event names (must match backend OPENF1_EVENTS).
 const EVENTS = {
-  RACE_CONTROL: "openf1:race-control",
-  SESSION_STATE: "openf1:session-state",
+  TRACK_FLAG: "openf1:track-flag",
   DEMO_STATUS: "openf1:demo-status",
   CLOCK: "session:clock",
 } as const
@@ -20,7 +19,7 @@ export interface SessionBannerData {
   demoEnded: boolean
 }
 
-// Consolidates all session banner logic: socket listeners for flags/demo status,
+// Consolidates all session banner logic: socket listeners for track flag/demo status,
 // and clock extrapolation via requestAnimationFrame.
 // Championship.tsx only needs to pass `enabled` (isAPISessionView) and `isDemoMode`.
 export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): SessionBannerData => {
@@ -31,7 +30,7 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
   const [clock, setClock] = useState<SessionClock | null>(null)
   const [remainingMs, setRemainingMs] = useState(0)
 
-  // Socket listeners for race control, session state, demo status, and clock.
+  // Socket listeners for track flag, demo status, and clock.
   useEffect(() => {
     if (!enabled) {
       setCurrentFlag(null)
@@ -44,24 +43,9 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
     const socket = getSocket()
     if (!socket) return
 
-    // Extracts the latest flag from a race control event.
-    // CHEQUERED is ignored — the display freezes at the last real flag.
-    const handleRaceControl = (event: RaceControlEvent) => {
-      if (event.flag && event.flag !== "CHEQUERED") {
-        setCurrentFlag(event.flag)
-      }
-    }
-
-    // Handles the initial session-state batch to extract the latest flag.
-    // Skips CHEQUERED so the display shows the last real flag.
-    const handleSessionState = (state: SessionLiveState) => {
-      const flagEvents = state.raceControlMessages.filter(e => e.flag && e.flag !== "CHEQUERED")
-      if (flagEvents.length > 0) {
-        setCurrentFlag(flagEvents[flagEvents.length - 1].flag)
-      } else {
-        // A session with no flag events is under green flag conditions by default.
-        setCurrentFlag("GREEN")
-      }
+    // Receives the backend-computed track-wide flag status directly.
+    const handleTrackFlag = (flag: string) => {
+      setCurrentFlag(flag)
     }
 
     // Handles demo status updates (phase only — timing data comes via session:clock).
@@ -74,14 +58,12 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
       setClock(data)
     }
 
-    socket.on(EVENTS.RACE_CONTROL, handleRaceControl)
-    socket.on(EVENTS.SESSION_STATE, handleSessionState)
+    socket.on(EVENTS.TRACK_FLAG, handleTrackFlag)
     socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
     socket.on(EVENTS.CLOCK, handleClock)
 
     return () => {
-      socket.off(EVENTS.RACE_CONTROL, handleRaceControl)
-      socket.off(EVENTS.SESSION_STATE, handleSessionState)
+      socket.off(EVENTS.TRACK_FLAG, handleTrackFlag)
       socket.off(EVENTS.DEMO_STATUS, handleDemoStatus)
       socket.off(EVENTS.CLOCK, handleClock)
     }

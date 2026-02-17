@@ -3,6 +3,7 @@ import "./_f1SessionView.scss"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
 import { DriverLiveState } from "../../../../../../api/openAPI/types"
+import { AcceptedSegments } from "../../../../../../api/openAPI/openF1Utility"
 import { RoundType, driverType } from "../../../../../../shared/types"
 import F1DriverCard from "./F1DriverCard/F1DriverCard"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
@@ -17,6 +18,7 @@ interface F1SessionViewProps {
   demoMode?: boolean
   sessionLabel?: string
   demoEnded?: boolean
+  trackFlag?: string | null
 }
 
 // View displayed when betting has closed for F1 series or during demo mode.
@@ -31,12 +33,16 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   demoMode,
   sessionLabel,
   demoEnded,
+  trackFlag,
 }) => {
   const { user, setUser } = useContext(AppContext)
   const [driverView, setDriverView] = useState<DriverLiveState | null>(null)
   const [trackReady, setTrackReady] = useState(false)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
+  // Accepted pill segments for all drivers (computed by Trackmap using visual car position).
+  const [pillSegments, setPillSegments] = useState<Map<number, AcceptedSegments>>(new Map())
+
   // ─── Rotation drag state (admin only) ─────────────────────────
   const [dragRotationDelta, setDragRotationDelta] = useState(0)
   const dragStartY = useRef(0)
@@ -116,6 +122,11 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     setDriverStates(states)
   }, [])
 
+  // Receives exit-based accepted segments from the Trackmap for all drivers.
+  const handlePillSegments = useCallback((map: Map<number, AcceptedSegments>) => {
+    setPillSegments(map)
+  }, [])
+
   return (
     <div className="f1-session-view">
       {/* Full-page spinner while session data is loading */}
@@ -147,6 +158,8 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             onSessionInfo={setSessionInfo}
             rotationDelta={dragRotationDelta}
             onRotationSave={handleRotationSave}
+            trackFlag={trackFlag}
+            onPillSegments={handlePillSegments}
           />
           <div className="trackmap-bar-bottom">
             {user.permissions.admin && <Loop onMouseDown={handleRotationDragStart} />}
@@ -164,6 +177,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
                 champDriver={champDriver}
                 selected={driverView?.driverNumber === state.driverNumber}
                 onClick={() => handleDriverViewSelect(state.driverNumber)}
+                pillSegments={pillSegments.get(state.driverNumber)}
               />
             )
           })}

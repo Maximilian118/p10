@@ -70,6 +70,8 @@ export const OPENF1_EVENTS = {
   DRIVER_STATES: "openf1:driver-states",
   SESSION_STATE: "openf1:session-state",
   RACE_CONTROL: "openf1:race-control",
+  TRACK_FLAG: "openf1:track-flag",
+  DRIVER_FLAG: "openf1:driver-flag",
   DEMO_STATUS: "openf1:demo-status",
   CLOCK: "session:clock",
   SUBSCRIBE: "openf1:subscribe",
@@ -162,6 +164,8 @@ export const initSessionManager = (io: Server): void => {
           raceControlMessages: activeSession.raceControlMessages,
           overtakes: activeSession.overtakes,
         })
+        // Send current track flag status.
+        socket.emit(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
         // Send latest clock state if available.
         const clock = getLatestClock()
         if (clock) {
@@ -240,6 +244,7 @@ export const initDemoSession = async (
     driverBestLap: new Map(),
     weather: null,
     raceControlMessages: [],
+    trackFlag: "GREEN",
     overtakes: [],
     dateEndTs: 0,
     safetyCarPeriods: [],
@@ -316,6 +321,7 @@ export const initDemoSession = async (
   startPositionBatching()
   startDriverStateBatching()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo", sessionName: "Demo" })
+  emitToRoom(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 }
 
@@ -956,6 +962,21 @@ const handleRaceControlEvent = (event: InternalEvent): void => {
   // Extract metadata (safety car periods, red flags, DNFs) from the event.
   extractMetadataFromNormalizedRC(rcEvent)
 
+  // Update and emit track-wide flag status when it changes.
+  if (rcEvent.scope === "Track" && rcEvent.flag && rcEvent.flag !== activeSession.trackFlag) {
+    activeSession.trackFlag = rcEvent.flag
+    emitToRoom(OPENF1_EVENTS.TRACK_FLAG, rcEvent.flag)
+  }
+
+  // Emit driver-specific flags (e.g. BLUE flag for a single car) with timestamp.
+  if (rcEvent.scope === "Driver" && rcEvent.flag && rcEvent.driverNumber) {
+    emitToRoom(OPENF1_EVENTS.DRIVER_FLAG, {
+      driverNumber: rcEvent.driverNumber,
+      flag: rcEvent.flag,
+      timestamp: Date.now(),
+    })
+  }
+
   emitToRoom(OPENF1_EVENTS.RACE_CONTROL, rcEvent)
 }
 
@@ -1073,8 +1094,8 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
   if (!activeSession) return
   const msgUpper = (rc.message || "").toUpperCase()
 
-  // Safety car detection.
-  if (rc.flag === "YELLOW" && msgUpper.includes("SAFETY CAR")) {
+  // Safety car detection (track-wide flags only).
+  if (rc.flag === "YELLOW" && rc.scope === "Track" && msgUpper.includes("SAFETY CAR")) {
     const type = msgUpper.includes("VIRTUAL") ? "VSC" as const : "SC" as const
     if (!activeSession._activeSC) {
       activeSession._activeSC = {
@@ -1095,8 +1116,8 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
     activeSession._activeSC = null
   }
 
-  // Red flag detection.
-  if (rc.flag === "RED") {
+  // Red flag detection (track-wide flags only).
+  if (rc.flag === "RED" && rc.scope === "Track") {
     if (!activeSession._activeRedFlag) {
       const reason = msgUpper.includes("INCIDENT") ? "Incident" : null
       activeSession._activeRedFlag = { startTime: rc.date, reason }
@@ -1401,6 +1422,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     driverBestLap: new Map(),
     weather: null,
     raceControlMessages: [],
+    trackFlag: "GREEN",
     overtakes: [],
     dateEndTs: msg.date_end ? new Date(msg.date_end).getTime() : 0,
     safetyCarPeriods: [],
@@ -1472,8 +1494,9 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   // Broadcast live session status to all connected clients (nav button).
   broadcastLiveSession()
 
-  // Emit driver info.
+  // Emit driver info and initial track flag status.
   emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
+  emitToRoom(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
 
   // Emit the best available track path (MultiViewer preferred, GPS fallback).
   const trackmapPayload = buildTrackmapPayload()
@@ -2183,6 +2206,7 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
 // ─── Driver State Aggregation & Batching ─────────────────────────
 
 // Zeroes out segment values the car hasn't reached yet during demo replay.
+// Note: Mini-sector counts vary by track and by sector (typically 5–12 per sector).
 // In live mode, MQTT naturally sends progressive data (growing arrays). In demo
 // mode, the REST API returns complete final lap records with all segments filled,
 // so we mask future segments to prevent the frontend from seeing ahead.
@@ -2241,12 +2265,12 @@ const truncateDemoSegments = (
       for (let i = 0; i < arr.length; i++) arr[i] = 0
       continue
     }
-    // Current sector — show segments the car has entered (ceil so the current segment lights up).
+    // Current sector — show segments the car has passed (floor to compensate for visual car dot lag).
     const sectorLen = end - start
     if (sectorLen <= 0) continue
     const progressInSector = lapDist - start
     const fraction = Math.max(0, progressInSector / sectorLen)
-    const segmentsToShow = Math.ceil(fraction * arr.length)
+    const segmentsToShow = Math.floor(fraction * arr.length)
     for (let i = segmentsToShow; i < arr.length; i++) arr[i] = 0
   }
 
@@ -2381,10 +2405,11 @@ const startFallbackClock = (): void => {
     const signalRClock = getLatestClock()
     if (signalRClock && (Date.now() - signalRClock.serverTs) < SIGNALR_STALE_THRESHOLD) return
 
-    // Derive running state from the latest race control flag.
+    // Derive running state from the latest track-wide race control flag.
     const rcMessages = activeSession.raceControlMessages
     let running = true
     for (let i = rcMessages.length - 1; i >= 0; i--) {
+      if (rcMessages[i].scope !== "Track") continue
       if (rcMessages[i].flag === "RED") { running = false; break }
       if (rcMessages[i].flag === "GREEN") break
     }

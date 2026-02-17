@@ -1134,6 +1134,7 @@ const Championship: React.FC = () => {
                 round={activeRound}
                 isAdjudicator={isAdjudicator}
                 onAdvance={() => handleAdvanceStatus("results")}
+                trackFlag={sessionBanner.currentFlag}
               />
             )
           }
@@ -1569,7 +1570,7 @@ const Championship: React.FC = () => {
           <seriesConfig.DemoPicker onSelect={setDemoSession} />
         )}
         {view === "demoMode" && demoSession && seriesConfig && (
-          <seriesConfig.View demoMode sessionLabel={demoSession.label} demoEnded={sessionBanner.demoEnded} />
+          <seriesConfig.View demoMode sessionLabel={demoSession.label} demoEnded={sessionBanner.demoEnded} trackFlag={sessionBanner.currentFlag} />
         )}
 
         {/* Invite full confirmation - adjudicator trying to invite when championship is full */}

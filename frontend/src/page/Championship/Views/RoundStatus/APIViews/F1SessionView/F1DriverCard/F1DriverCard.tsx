@@ -2,6 +2,7 @@ import React from "react"
 import "./_f1DriverCard.scss"
 import { driverType } from "../../../../../../../shared/types"
 import { DriverLiveState } from "../../../../../../../api/openAPI/types"
+import { AcceptedSegments } from "../../../../../../../api/openAPI/openF1Utility"
 import ImageIcon from "../../../../../../../components/utility/icon/imageIcon/ImageIcon"
 import TyreCompound from "./TyreCompound/TyreCompound"
 import TyreLaps from "./TyreLaps/TyreLaps"
@@ -12,11 +13,12 @@ interface F1DriverCardProps {
   champDriver?: driverType
   selected?: boolean
   onClick?: () => void
+  pillSegments?: AcceptedSegments
 }
 
 // Displays a driver card with their icon image from the championship driver data.
 // Falls back to the OpenF1 headshot URL if no championship match is found.
-const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selected, onClick }) => {
+const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selected, onClick, pillSegments }) => {
   // Use championship driver icon if available, otherwise fall back to OpenF1 headshot.
   const useOwnImage = !!champDriver?.icon
   const imageUrl = champDriver?.icon || state.headshotUrl || ""
@@ -41,7 +43,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
       <h5 className="driver-id">{state.nameAcronym}</h5>
       <TyreCompound compound={state.tyreCompound} style={{ marginRight: 3 }}/>
       <TyreLaps lapsOld={state.tyreAge} lastPit={lastPitLap} inPits={state.inPit} DNF={state.retired}/>
-      <MiniSectors segments={state.segments} currentLapNumber={state.currentLapNumber}/>
+      <MiniSectors segments={state.segments} currentLapNumber={state.currentLapNumber} acceptedSegments={pillSegments}/>
     </div>
   )
 }

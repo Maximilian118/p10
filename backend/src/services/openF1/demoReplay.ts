@@ -74,12 +74,13 @@ const generateSyntheticClock = (
 ): { topic: string; data: { remainingMs: number; running: boolean }; timestamp: number }[] => {
   const clockEvents: { topic: string; data: { remainingMs: number; running: boolean }; timestamp: number }[] = []
 
-  // Extract race control flag events (RED/GREEN) from the full dataset.
+  // Extract track-wide flag events (RED/GREEN) from the full dataset.
+  // Ignores driver/sector-scoped flags to avoid false clock pauses.
   const flagEvents: { ts: number; flag: string }[] = []
   for (const msg of messages) {
     if (msg.topic === "v1/race_control") {
-      const rc = msg.data as { flag?: string | null }
-      if (rc.flag === "RED" || rc.flag === "GREEN") {
+      const rc = msg.data as { flag?: string | null; scope?: string | null }
+      if ((rc.flag === "RED" || rc.flag === "GREEN") && rc.scope === "Track") {
         flagEvents.push({ ts: msg.timestamp, flag: rc.flag })
       }
     }
