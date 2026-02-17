@@ -11,6 +11,7 @@
   background: white;
   cursor: pointer;
   transition: all variables.$trans-speed;
+  will-change: transform;
 
   .driver-image-wrapper {
     width: 26px;
@@ -36,6 +37,11 @@
         font-size: 10px;
         letter-spacing: 0.6px;
         width: 33.3%;
+      }
+
+      .best-lap-time {
+        width: 55px;
+        text-align: end;
       }
     }
   }

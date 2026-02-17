@@ -48,7 +48,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
         <div className="timing-stats">
           <h5>{state.interval}</h5>
           <h5 style={{ color: timingColorValue(state.lastLapTime.color) }}>{formatLapTime(state.lastLapTime.value)}</h5>
-          <h5 style={{ color: timingColorValue(state.bestLapTime.color) }}>{formatLapTime(state.bestLapTime.value)}</h5>
+          <h5 className="best-lap-time" style={{ color: timingColorValue(state.bestLapTime.color) }}>{formatLapTime(state.bestLapTime.value)}</h5>
         </div>
       </div>
     </div>

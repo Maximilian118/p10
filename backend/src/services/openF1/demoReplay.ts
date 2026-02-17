@@ -315,9 +315,9 @@ const fetchFromAPI = async (
     { headers: authHeaders },
   )
 
-  // Fetch race position data within the activity window.
+  // Fetch race position data from session start to window end (full context for preamble).
   const positionRes = await axios.get<OpenF1PositionMsg[]>(
-    `${OPENF1_API_BASE}/position?session_key=${sessionKey}${dateFilter}`,
+    `${OPENF1_API_BASE}/position?session_key=${sessionKey}${contextFilter}`,
     { headers: authHeaders },
   )
 

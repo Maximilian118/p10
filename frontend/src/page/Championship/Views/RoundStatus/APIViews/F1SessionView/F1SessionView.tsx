@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useContext, useRef, useEffect } from "react"
+import React, { useState, useCallback, useMemo, useContext, useRef, useEffect, useLayoutEffect } from "react"
 import "./_f1SessionView.scss"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
@@ -127,6 +127,55 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     setPillSegments(map)
   }, [])
 
+  // Sorts drivers by race position (P1 at top). Null positions sink to the bottom.
+  const sortedStates = useMemo(() =>
+    [...driverStates].sort((a, b) => {
+      if (a.position === null && b.position === null) return 0
+      if (a.position === null) return 1
+      if (b.position === null) return -1
+      return a.position - b.position
+    }),
+  [driverStates])
+
+  // ─── FLIP animation for position changes ─────────────────────────
+  const listRef = useRef<HTMLDivElement>(null)
+  const prevTops = useRef<Map<number, number>>(new Map())
+
+  // After React reorders the DOM, slide cards from their old positions to new ones.
+  useLayoutEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const children = Array.from(el.children) as HTMLElement[]
+    const newTops = new Map<number, number>()
+
+    // Measure each card's new offsetTop and map it to the corresponding driver.
+    children.forEach((child, i) => {
+      if (i < sortedStates.length) {
+        newTops.set(sortedStates[i].driverNumber, child.offsetTop)
+      }
+    })
+
+    // Animate cards that moved: start at old position, transition to new position.
+    children.forEach((child, i) => {
+      if (i >= sortedStates.length) return
+      const driverNum = sortedStates[i].driverNumber
+      const prevTop = prevTops.current.get(driverNum)
+      const newTop = newTops.get(driverNum)!
+
+      if (prevTop !== undefined && prevTop !== newTop) {
+        const delta = prevTop - newTop
+        child.style.transform = `translateY(${delta}px)`
+        child.style.transition = "none"
+        void child.offsetHeight // force reflow so the browser registers the start position
+        child.style.transition = "transform 0.3s ease"
+        child.style.transform = ""
+      }
+    })
+
+    prevTops.current = newTops
+  }, [driverStates, sortedStates])
+
   return (
     <div className="f1-session-view">
       {/* Full-page spinner while session data is loading */}
@@ -167,8 +216,8 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
         </div>
 
         {/* A list of all drivers in the session with their current stats */}
-        <div className="driver-list">
-          {driverStates.map((state) => {
+        <div className="driver-list" ref={listRef}>
+          {sortedStates.map((state) => {
             const champDriver = champDriverMap.get(state.nameAcronym)
             return (
               <F1DriverCard
