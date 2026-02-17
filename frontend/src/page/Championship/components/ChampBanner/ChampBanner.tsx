@@ -73,7 +73,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
             <p>{champ.name}</p>
           </div>
           {sessionBanner
-            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} currentLap={sessionBanner.currentLap} totalLaps={sessionBanner.totalLaps} />
             : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </div>
       </div>
@@ -101,7 +101,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
             <p>{champ.name}</p>
           </div>
           {sessionBanner
-            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} currentLap={sessionBanner.currentLap} totalLaps={sessionBanner.totalLaps} />
             : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </>
       )
@@ -115,7 +115,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
             <p>{champ.name}</p>
           </div>
           {sessionBanner
-            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} />
+            ? <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} currentLap={sessionBanner.currentLap} totalLaps={sessionBanner.totalLaps} />
             : <ChampBannerStats stats={buildChampBannerStats(champ, viewedRoundNumber)} />}
         </>
       )

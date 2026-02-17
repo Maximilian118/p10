@@ -7,6 +7,8 @@ import SessionCountdown from "./SessionCountdown/SessionCountdown"
 interface SessionStatsProps {
   flag: string | null
   remainingMs: number
+  currentLap: number
+  totalLaps: number | null
   size?: number
 }
 
@@ -28,7 +30,7 @@ const getFlagDisplay = (flag: string | null): { icon: React.ReactNode; modifier:
 // Displays session status (flag icon + countdown) in the championship banner.
 // Series-agnostic — receives flag status and remaining time as props.
 // Optional size prop overrides the default icon and text size (px).
-const SessionStats: React.FC<SessionStatsProps> = ({ flag, remainingMs, size }) => {
+const SessionStats: React.FC<SessionStatsProps> = ({ flag, remainingMs, currentLap, totalLaps, size }) => {
   const { icon, modifier } = getFlagDisplay(flag)
 
   return (
@@ -37,6 +39,7 @@ const SessionStats: React.FC<SessionStatsProps> = ({ flag, remainingMs, size }) 
         {icon}
         <SessionCountdown remainingMs={remainingMs} size={size} />
       </div>
+      {totalLaps !== null && <span className="lap-count">{`L ${currentLap} / ${totalLaps}`}</span>}
     </div>
   )
 }

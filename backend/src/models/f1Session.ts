@@ -482,7 +482,7 @@ export const finalizeF1Session = async (sessionKey: number, session: SessionStat
 // Loads cached demo replay messages from the unified F1Session model.
 export const loadDemoSession = async (
   sessionKey: number,
-): Promise<{ messages: ReplayMessage[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string } | null> => {
+): Promise<{ messages: ReplayMessage[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string; totalLaps: number | null } | null> => {
   const doc = await F1Session.findOne({ sessionKey, type: "demo" })
   if (!doc || doc.replayMessages.length === 0) return null
 
@@ -492,6 +492,7 @@ export const loadDemoSession = async (
     trackName: doc.trackName,
     sessionEndTs: doc.replayEndTs,
     sessionType: doc.sessionType,
+    totalLaps: doc.totalLaps ?? null,
   }
 }
 
@@ -506,6 +507,7 @@ export const saveDemoSession = async (
   driverCount: number,
   sessionEndTs: number,
   messages: ReplayMessage[],
+  totalLaps: number | null,
 ): Promise<void> => {
   const now = new Date()
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -526,6 +528,7 @@ export const saveDemoSession = async (
         starters: driverCount,
         replayMessages: messages,
         replayEndTs: sessionEndTs,
+        totalLaps,
         lastUpdatedAt: now,
         expiresAt,
       },
@@ -541,7 +544,6 @@ export const saveDemoSession = async (
         fastestLap: null,
         poleTime: null,
         overtakes: [],
-        totalLaps: null,
       },
     },
     { upsert: true },

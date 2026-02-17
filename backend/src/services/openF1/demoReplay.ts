@@ -228,7 +228,7 @@ const computeOptimalMidpoint = (
 // Fetches all session data from the OpenF1 REST API and builds the message queue.
 const fetchFromAPI = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionType: string; sessionName: string; driverCount: number; sessionEndTs: number }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionType: string; sessionName: string; driverCount: number; sessionEndTs: number; totalLaps: number }> => {
   const token = await getOpenF1Token()
   const authHeaders = { Authorization: `Bearer ${token}` }
 
@@ -532,7 +532,10 @@ const fetchFromAPI = async (
 
   log.info(`${withClock.length} messages after trim + synthetic clock (${clockInRange.length} clock events)`)
 
-  return { messages: withClock, circuitKey, trackName, sessionType: session.session_type || session.session_name, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs }
+  // Compute total laps from the maximum lap number across all drivers.
+  const totalLaps = Math.max(0, ...lapsRes.data.map((l: OpenF1LapMsg) => l.lap_number))
+
+  return { messages: withClock, circuitKey, trackName, sessionType: session.session_type || session.session_name, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs, totalLaps }
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
@@ -905,13 +908,13 @@ const buildPitLaneProfile = (
 // Checks the unified F1Session cache first; fetches from OpenF1 API and caches if not found.
 const loadMessages = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string; totalLaps: number | null }> => {
   // Check unified F1Session cache first.
   const cached = await loadDemoSession(sessionKey)
   if (cached) {
     const msgs = cached.messages as { topic: string; data: unknown; timestamp: number }[]
     log.info(`Loaded ${msgs.length} messages from cache`)
-    return { messages: msgs, circuitKey: cached.circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs, sessionType: cached.sessionType }
+    return { messages: msgs, circuitKey: cached.circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs, sessionType: cached.sessionType, totalLaps: cached.totalLaps }
   }
 
   // Fetch lightweight session metadata from OpenF1 for path resolution and preamble.
@@ -1003,16 +1006,23 @@ const loadMessages = async (
             }
           }
 
+          // Compute total laps from the converted lap messages.
+          const staticTotalLaps = Math.max(0, ...converted
+            .filter(m => m.topic === "v1/laps")
+            .map(m => (m.data as { lap_number: number }).lap_number),
+          )
+
           // Save to the unified F1Session cache.
           await saveDemoSession(
             sessionKey, meetingKey, circuitKey, trackName,
             sessionMeta.session_type ?? sessionMeta.session_name, sessionMeta.session_name,
             driverNumbers.size, sessionEndTs,
             withClock as ReplayMessage[],
+            staticTotalLaps || null,
           )
 
           const resolvedSessionType = sessionMeta.session_type ?? sessionMeta.session_name
-          return { messages: withClock, circuitKey, trackName, sessionEndTs, sessionType: resolvedSessionType }
+          return { messages: withClock, circuitKey, trackName, sessionEndTs, sessionType: resolvedSessionType, totalLaps: staticTotalLaps }
         }
       }
     }
@@ -1042,9 +1052,10 @@ const loadMessages = async (
     result.driverCount,
     result.sessionEndTs,
     result.messages as ReplayMessage[],
+    result.totalLaps || null,
   )
 
-  return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs, sessionType: result.sessionType }
+  return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs, sessionType: result.sessionType, totalLaps: result.totalLaps }
 }
 
 // Starts a demo replay by loading cached data or fetching from the API.
@@ -1068,7 +1079,7 @@ export const startDemoReplay = async (
   emitDemoPhase("fetching")
 
   try {
-    const { messages, circuitKey, trackName, sessionType } = await loadMessages(replaySessionKey)
+    const { messages, circuitKey, trackName, sessionType, totalLaps } = await loadMessages(replaySessionKey)
     replayTrackName = trackName
 
     // Find the first position message to determine the preamble boundary.
@@ -1098,7 +1109,7 @@ export const startDemoReplay = async (
     await buildTrackFromDemoData(messages, trackName, replaySessionKey)
 
     // Initialize session — loads trackmap from MongoDB (GPS path now matches current session).
-    await initDemoSession(replaySessionKey, trackName, circuitKey, drivers, sessionType)
+    await initDemoSession(replaySessionKey, trackName, circuitKey, drivers, sessionType, totalLaps)
 
     // Build or refine pit lane profile from telemetry data if not yet settled.
     const existingTrackmap = await Trackmap.findOne({ trackName })

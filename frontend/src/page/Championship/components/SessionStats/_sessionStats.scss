@@ -4,9 +4,7 @@
 // Displays session status in the championship banner, replacing ChampBannerStats.
 .session-stats {
   width: 100%;
-  display: flex;
-  align-items: center;
-  align-self: center;
+  @include mixins.flexbox-space-between;
   margin-bottom: 10px;
 
   &__status {
@@ -34,5 +32,12 @@
 
   &--blue .session-stats__status {
     color: variables.$mui-blue;
+  }
+
+  .lap-count {
+    color: variables.$colour-9;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
   }
 }

@@ -98,7 +98,7 @@ const Nav: React.FC<navType> = ({ user }) => {
           ? <p className="server-msg">{serverMsg}</p>
           : isOnWatchLive && liveSession.active
             ? <div className="nav-session-stats">
-                <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} size={16} />
+                <SessionStats flag={sessionBanner.currentFlag} remainingMs={sessionBanner.remainingMs} currentLap={sessionBanner.currentLap} totalLaps={sessionBanner.totalLaps} size={16} />
               </div>
             : liveSession.active && (
                 <Button

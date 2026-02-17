@@ -159,11 +159,13 @@ export const initSessionManager = (io: Server): void => {
         if (driverStates.length > 0) {
           socket.emit(OPENF1_EVENTS.DRIVER_STATES, driverStates)
         }
-        // Send current session-wide state (weather, race control, overtakes).
+        // Send current session-wide state (weather, race control, overtakes, lap counts).
         socket.emit(OPENF1_EVENTS.SESSION_STATE, {
           weather: activeSession.weather,
           raceControlMessages: activeSession.raceControlMessages,
           overtakes: activeSession.overtakes,
+          totalLaps: activeSession.totalLaps,
+          currentLap: Math.max(0, ...Array.from(activeSession.currentLapByDriver.values())),
         })
         // Send current track flag status.
         socket.emit(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
@@ -214,6 +216,7 @@ export const initDemoSession = async (
   circuitKey: number | null,
   drivers: Map<number, DriverInfo>,
   sessionType?: string,
+  totalLaps?: number | null,
 ): Promise<void> => {
   activeSession = {
     sessionKey,
@@ -255,7 +258,7 @@ export const initDemoSession = async (
     redFlagPeriods: [],
     dnfs: [],
     weatherHistory: [],
-    totalLaps: null,
+    totalLaps: totalLaps ?? null,
     _activeSC: null,
     _activeRedFlag: null,
     _lastWeatherSnapshot: 0,
@@ -1048,6 +1051,8 @@ const handleWeatherEvent = (event: InternalEvent): void => {
     weather: activeSession.weather,
     raceControlMessages: activeSession.raceControlMessages,
     overtakes: activeSession.overtakes,
+    totalLaps: activeSession.totalLaps,
+    currentLap: Math.max(0, ...Array.from(activeSession.currentLapByDriver.values())),
   })
 }
 
@@ -1703,6 +1708,7 @@ const saveSessionRecording = async (session: SessionState): Promise<void> => {
       session.drivers.size,
       sessionEndTs,
       messages as ReplayMessage[],
+      session.totalLaps,
     )
 
     const durationMins = ((sessionEndTs - messages[0].timestamp) / 60000).toFixed(1)
