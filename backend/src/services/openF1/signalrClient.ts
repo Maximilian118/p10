@@ -103,6 +103,17 @@ const parseTimeString = (time: string): number => {
   return 0
 }
 
+// Parses a SignalR lap/sector time string ("1:23.456" or "23.456") into seconds.
+const parseLapTimeString = (value: string): number | null => {
+  if (!value || value === "") return null
+  const parts = value.split(":")
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) * 60 + parseFloat(parts[1])
+  }
+  const num = parseFloat(value)
+  return isNaN(num) ? null : num
+}
+
 // Records that a topic delivered data at the current timestamp.
 const markTopicSeen = (topic: string): void => {
   topicLastSeen.set(topic, Date.now())
@@ -212,6 +223,33 @@ const handleTimingData = (data: Record<string, unknown>) => {
     if (d.InPit !== undefined) timingData.inPit = d.InPit === true || d.InPit === "true"
     if (d.Retired !== undefined) timingData.retired = d.Retired === true || d.Retired === "true"
     if (d.Stopped !== undefined) timingData.stopped = d.Stopped === true || d.Stopped === "true"
+
+    // Extract lap and sector times from TimingData (pre-formatted strings → seconds).
+    // Also capture OverallFastest / PersonalFastest flags for color coding.
+    const lastLap = d.LastLapTime as Record<string, unknown> | undefined
+    if (lastLap?.Value) {
+      const parsed = parseLapTimeString(lastLap.Value as string)
+      if (parsed !== null) timingData.lastLapTime = parsed
+    }
+    if (lastLap?.OverallFastest !== undefined) timingData.lastLapOverallFastest = lastLap.OverallFastest === true
+    if (lastLap?.PersonalFastest !== undefined) timingData.lastLapPersonalFastest = lastLap.PersonalFastest === true
+
+    const bestLap = d.BestLapTime as Record<string, unknown> | undefined
+    if (bestLap?.Value) {
+      const parsed = parseLapTimeString(bestLap.Value as string)
+      if (parsed !== null) timingData.bestLapTime = parsed
+    }
+
+    const sectors = d.Sectors as Record<string, unknown>[] | undefined
+    if (sectors && Array.isArray(sectors)) {
+      const sectorKeys = ["s1", "s2", "s3"] as const
+      sectors.forEach((sector, i) => {
+        if (i < 3 && sector?.Value) {
+          const parsed = parseLapTimeString(sector.Value as string)
+          if (parsed !== null) timingData[sectorKeys[i]] = parsed
+        }
+      })
+    }
 
     if (Object.keys(timingData).length > 0) {
       eventHandler(normalizeSignalRTiming(driverNumber, timingData))

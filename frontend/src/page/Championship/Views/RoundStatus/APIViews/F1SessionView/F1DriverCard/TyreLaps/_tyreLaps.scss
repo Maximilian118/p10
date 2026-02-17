@@ -6,6 +6,7 @@
   height: 100%;
   @include mixins.flexbox-column;
   align-items: start;
+  flex-shrink: 0;
 
   .in-pits, .DNS, .DNF, .DSQ {
     color: variables.$mui-blue;

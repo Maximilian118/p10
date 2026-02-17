@@ -13,6 +13,7 @@ import {
   DriverInfo,
   DriverStintState,
   DriverLiveState,
+  TimingColor,
   CarPositionPayload,
   ValidatedLap,
   RaceControlEvent,
@@ -242,6 +243,9 @@ export const initDemoSession = async (
     driverPitStops: new Map(),
     driverCarData: new Map(),
     driverBestLap: new Map(),
+    driverLastLapTime: new Map(),
+    driverSectorTimes: new Map(),
+    driverLastLapFlags: new Map(),
     weather: null,
     raceControlMessages: [],
     trackFlag: "GREEN",
@@ -786,6 +790,34 @@ const handleIntervalEvent = (event: InternalEvent): void => {
     if (pitState) {
       pitState.inPit = data.inPit as boolean
     }
+  }
+
+  // Store SignalR lap/sector timing data (arrives as seconds, pre-parsed from formatted strings).
+  if (data.lastLapTime !== undefined) {
+    activeSession.driverLastLapTime.set(event.driverNumber, data.lastLapTime as number)
+  }
+  if (data.bestLapTime !== undefined) {
+    const best = data.bestLapTime as number
+    const currentBest = activeSession.driverBestLap.get(event.driverNumber)
+    if (!currentBest || best < currentBest) {
+      activeSession.driverBestLap.set(event.driverNumber, best)
+    }
+  }
+  if (data.s1 !== undefined || data.s2 !== undefined || data.s3 !== undefined) {
+    const existing = activeSession.driverSectorTimes.get(event.driverNumber) ?? { s1: null, s2: null, s3: null }
+    activeSession.driverSectorTimes.set(event.driverNumber, {
+      s1: (data.s1 as number) ?? existing.s1,
+      s2: (data.s2 as number) ?? existing.s2,
+      s3: (data.s3 as number) ?? existing.s3,
+    })
+  }
+
+  // Store SignalR OverallFastest / PersonalFastest flags for last lap color coding.
+  if (data.lastLapOverallFastest !== undefined || data.lastLapPersonalFastest !== undefined) {
+    activeSession.driverLastLapFlags.set(event.driverNumber, {
+      overallFastest: (data.lastLapOverallFastest as boolean) ?? false,
+      personalFastest: (data.lastLapPersonalFastest as boolean) ?? false,
+    })
   }
 }
 
@@ -1420,6 +1452,9 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     driverPitStops: new Map(),
     driverCarData: new Map(),
     driverBestLap: new Map(),
+    driverLastLapTime: new Map(),
+    driverSectorTimes: new Map(),
+    driverLastLapFlags: new Map(),
     weather: null,
     raceControlMessages: [],
     trackFlag: "GREEN",
@@ -2277,6 +2312,14 @@ const truncateDemoSegments = (
   return raw
 }
 
+// Formats a raw interval value to a display-ready string (e.g. 1.234 → "+1.234").
+// SignalR strings pass through unchanged; OpenF1 numbers get "+" prefixed.
+const formatInterval = (value: number | string | null): string | null => {
+  if (value === null || value === undefined) return null
+  if (typeof value === "string") return value
+  return `+${value.toFixed(3)}`
+}
+
 // Builds an array of DriverLiveState snapshots from the current session state.
 const buildDriverStates = (): DriverLiveState[] => {
   if (!activeSession) return []
@@ -2302,6 +2345,26 @@ const buildDriverStates = (): DriverLiveState[] => {
     const position = activeSession!.driverPositions.get(driverNumber) ?? null
     const bestLap = activeSession!.driverBestLap.get(driverNumber) ?? null
 
+    // Resolve last lap time (SignalR first, OpenF1 fallback).
+    const lastLapValue = activeSession!.driverLastLapTime.get(driverNumber) ?? latestLap?.lap_duration ?? null
+
+    // Determine last lap color: SignalR flags first, own calculation fallback.
+    const signalRFlags = activeSession!.driverLastLapFlags.get(driverNumber)
+    let lastLapColor: TimingColor = "default"
+    if (signalRFlags) {
+      if (signalRFlags.overallFastest) lastLapColor = "purple"
+      else if (signalRFlags.personalFastest) lastLapColor = "green"
+    } else if (lastLapValue !== null && activeSession!.bestLapTime > 0) {
+      if (lastLapValue <= activeSession!.bestLapTime) lastLapColor = "purple"
+      else if (lastLapValue <= (bestLap ?? Infinity)) lastLapColor = "green"
+    }
+
+    // Determine best lap color: purple only if it matches the session-wide best.
+    let bestLapColor: TimingColor = "default"
+    if (bestLap !== null && activeSession!.bestLapTime > 0 && bestLap <= activeSession!.bestLapTime) {
+      bestLapColor = "purple"
+    }
+
     // Calculate tyre age from stint data and current lap.
     // SignalR provides totalLaps directly; OpenF1 requires computation from lap numbers.
     const tyreAge = stintState
@@ -2319,17 +2382,17 @@ const buildDriverStates = (): DriverLiveState[] => {
       headshotUrl: driver.headshotUrl,
 
       position,
-      gapToLeader: intervalState?.gapToLeader ?? null,
-      interval: intervalState?.interval ?? null,
+      gapToLeader: formatInterval(intervalState?.gapToLeader ?? null),
+      interval: formatInterval(intervalState?.interval ?? null),
 
       currentLapNumber: currentLap,
-      lastLapTime: latestLap?.lap_duration ?? null,
-      bestLapTime: bestLap,
+      lastLapTime: { value: lastLapValue, color: lastLapColor },
+      bestLapTime: { value: bestLap, color: bestLapColor },
 
       sectorTimes: {
-        s1: latestLap?.duration_sector_1 ?? null,
-        s2: latestLap?.duration_sector_2 ?? null,
-        s3: latestLap?.duration_sector_3 ?? null,
+        s1: activeSession!.driverSectorTimes.get(driverNumber)?.s1 ?? latestLap?.duration_sector_1 ?? null,
+        s2: activeSession!.driverSectorTimes.get(driverNumber)?.s2 ?? latestLap?.duration_sector_2 ?? null,
+        s3: activeSession!.driverSectorTimes.get(driverNumber)?.s3 ?? latestLap?.duration_sector_3 ?? null,
       },
 
       // In demo mode, zero out segments the car hasn't reached yet (REST API returns

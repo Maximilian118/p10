@@ -242,6 +242,15 @@ export interface ValidatedLap {
 // ─── Aggregated State Types (emitted to frontend via Socket.IO) ──
 
 // Per-driver live state snapshot emitted as an array every ~1s.
+// Color classification for timing values (lap times, sector times).
+export type TimingColor = "purple" | "green" | "default"
+
+// A timing value paired with its color classification.
+export interface ColoredTiming {
+  value: number | null
+  color: TimingColor
+}
+
 export interface DriverLiveState {
   driverNumber: number
   nameAcronym: string
@@ -252,13 +261,13 @@ export interface DriverLiveState {
 
   // Position & Intervals
   position: number | null
-  gapToLeader: number | string | null
-  interval: number | string | null
+  gapToLeader: string | null
+  interval: string | null
 
   // Lap Data
   currentLapNumber: number
-  lastLapTime: number | null
-  bestLapTime: number | null
+  lastLapTime: ColoredTiming
+  bestLapTime: ColoredTiming
 
   // Sector times from the latest completed lap.
   sectorTimes: { s1: number | null; s2: number | null; s3: number | null }
@@ -464,6 +473,12 @@ export interface SessionState {
   driverCarData: Map<number, DriverCarDataState>
   // Best lap time per driver.
   driverBestLap: Map<number, number>
+  // Last lap time per driver from SignalR (seconds).
+  driverLastLapTime: Map<number, number>
+  // Sector times per driver from SignalR (seconds).
+  driverSectorTimes: Map<number, { s1: number | null; s2: number | null; s3: number | null }>
+  // SignalR last-lap color flags per driver (OverallFastest / PersonalFastest).
+  driverLastLapFlags: Map<number, { overallFastest: boolean; personalFastest: boolean }>
   // Current weather conditions.
   weather: SessionLiveState["weather"]
   // Race control messages accumulated during the session.

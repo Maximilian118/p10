@@ -15,11 +15,29 @@
   .driver-image-wrapper {
     width: 26px;
     height: 26px;
+    flex-shrink: 0;
   }
 
   .driver-id {
     width: 38px;
     color: variables.$colour-9;
+    flex-shrink: 0;
+  }
+
+  .timing-info {
+    height: 100%;
+    flex-grow: 1;
+
+    .timing-stats {
+      color: variables.$colour-9;
+      @include mixins.flexbox-space-between;
+
+      h5 {
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        width: 33.3%;
+      }
+    }
   }
 
   // Highlighted state when this driver is selected in driver view.

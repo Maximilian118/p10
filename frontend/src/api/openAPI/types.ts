@@ -66,6 +66,15 @@ export interface OpenF1DriverInfo {
   headshotUrl: string | null
 }
 
+// Color classification for timing values (lap times, sector times).
+export type TimingColor = "purple" | "green" | "default"
+
+// A timing value paired with its color classification.
+export interface ColoredTiming {
+  value: number | null
+  color: TimingColor
+}
+
 // Per-driver live state snapshot received from the backend every ~1s.
 export interface DriverLiveState {
   driverNumber: number
@@ -77,13 +86,13 @@ export interface DriverLiveState {
 
   // Position & Intervals
   position: number | null
-  gapToLeader: number | string | null
-  interval: number | string | null
+  gapToLeader: string | null
+  interval: string | null
 
   // Lap Data
   currentLapNumber: number
-  lastLapTime: number | null
-  bestLapTime: number | null
+  lastLapTime: ColoredTiming
+  bestLapTime: ColoredTiming
 
   // Sector times from the latest completed lap.
   sectorTimes: { s1: number | null; s2: number | null; s3: number | null }

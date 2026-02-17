@@ -309,9 +309,9 @@ const fetchFromAPI = async (
     allLocations.push(...locRes.data)
   }
 
-  // Fetch interval data within the activity window.
+  // Fetch interval data from session start to window end (full context for initial state).
   const intervalsRes = await axios.get<OpenF1IntervalMsg[]>(
-    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}${dateFilter}`,
+    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}${contextFilter}`,
     { headers: authHeaders },
   )
 
@@ -339,9 +339,9 @@ const fetchFromAPI = async (
     { headers: authHeaders },
   )
 
-  // Fetch weather data within the activity window.
+  // Fetch weather data from session start to window end (full context for initial state).
   const weatherRes = await axios.get<OpenF1WeatherMsg[]>(
-    `${OPENF1_API_BASE}/weather?session_key=${sessionKey}${dateFilter}`,
+    `${OPENF1_API_BASE}/weather?session_key=${sessionKey}${contextFilter}`,
     { headers: authHeaders },
   )
 
@@ -550,8 +550,13 @@ const RACE_START_EXCLUSION_MS = 10 * 60 * 1000
 const PREAMBLE_TOPICS = new Set(["v1/sessions", "v1/drivers"])
 
 // Stateful topics where we preserve the latest record per driver before the midpoint,
-// so the snapshot starts with correct initial state (e.g. tyre compound, position).
-const STATEFUL_TOPICS = new Set(["v1/stints", "v1/position", "v1/laps"])
+// so the snapshot starts with correct initial state (e.g. tyre compound, position, intervals).
+const STATEFUL_TOPICS = new Set(["v1/stints", "v1/position", "v1/intervals"])
+
+// Low-volume topics where we preserve ALL records before the midpoint.
+// Laps: needed for correct bestLapTime / driverBestLap calculations.
+// Weather & race_control: provides full session context (flag history, conditions).
+const FULL_HISTORY_TOPICS = new Set(["v1/laps", "v1/weather", "v1/race_control"])
 
 // Trims a full message queue to a mid-session snapshot that fits in one document.
 // Keeps session/driver preamble + latest stateful records per driver before midpoint,
@@ -572,7 +577,7 @@ const trimToSnapshot = (
   const preamble = messages.filter((m) => PREAMBLE_TOPICS.has(m.topic))
 
   // Extract the latest stateful record per driver before midpoint for each stateful topic.
-  // This ensures tyre compound, position, etc. are available at snapshot start.
+  // This ensures tyre compound, position, intervals are available at snapshot start.
   const statefulPreamble: { topic: string; data: unknown; timestamp: number }[] = []
 
   STATEFUL_TOPICS.forEach((topic) => {
@@ -589,25 +594,26 @@ const trimToSnapshot = (
     latestByDriver.forEach((msg) => statefulPreamble.push(msg))
   })
 
-  // Keep the latest weather record before midpoint so weather is available at start.
-  const weatherBefore = messages.filter((m) => m.topic === "v1/weather" && m.timestamp < midTs)
-  if (weatherBefore.length > 0) {
-    statefulPreamble.push(weatherBefore[weatherBefore.length - 1])
-  }
+  // Keep ALL records before midpoint for low-volume topics (laps, weather, race_control).
+  // Laps: needed for correct bestLapTime / driverBestLap calculations.
+  // Weather & race_control: provides full session context at snapshot start.
+  const fullHistoryPreamble = messages.filter((m) =>
+    FULL_HISTORY_TOPICS.has(m.topic) && m.timestamp < midTs,
+  )
 
-  // Keep all non-preamble, non-stateful-preamble messages from the midpoint onwards.
+  // Keep all remaining messages from the midpoint onwards (excludes preamble topics).
   let dataMessages = messages.filter((m) =>
     !PREAMBLE_TOPICS.has(m.topic) && m.timestamp >= midTs,
   )
 
   // Truncate from the end if the combined data exceeds the safe storage limit.
-  let combined = [...preamble, ...statefulPreamble, ...dataMessages]
+  let combined = [...preamble, ...statefulPreamble, ...fullHistoryPreamble, ...dataMessages]
   let byteSize = Buffer.byteLength(JSON.stringify(combined))
 
   while (byteSize > MAX_STORED_BYTES && dataMessages.length > 0) {
     // Trim 20% off the end each iteration.
     dataMessages = dataMessages.slice(0, Math.floor(dataMessages.length * 0.8))
-    combined = [...preamble, ...statefulPreamble, ...dataMessages]
+    combined = [...preamble, ...statefulPreamble, ...fullHistoryPreamble, ...dataMessages]
     byteSize = Buffer.byteLength(JSON.stringify(combined))
   }
 
