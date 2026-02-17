@@ -37,7 +37,6 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const [trackReady, setTrackReady] = useState(false)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
-
   // ─── Rotation drag state (admin only) ─────────────────────────
   const [dragRotationDelta, setDragRotationDelta] = useState(0)
   const dragStartY = useRef(0)

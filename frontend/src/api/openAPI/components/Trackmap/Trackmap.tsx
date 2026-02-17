@@ -4,6 +4,7 @@ import usePathLockedPositions from "./usePathLockedPositions"
 
 import { computeArcLengths, getPointAndTangentAtProgress, getPointAtProgress, getSubPath, buildOpenSvgPath, computeSignedArea } from "./trackPathUtils"
 import { DriverLiveState, SectorBoundaries } from "../../types"
+import { segmentColor, forwardDistance, AcceptedSegments } from "../../openF1Utility"
 import "./_trackmap.scss"
 
 interface TrackmapProps {
@@ -185,34 +186,11 @@ const computeDotRadius = (path: { x: number; y: number }[] | null): number => {
   return Math.max(50, trackExtent * 0.015)
 }
 
-// Maps a mini-sector status value to its display color.
-const segmentColor = (value: number): string | null => {
-  switch (value) {
-    case 2048: return "#FDD835"  // yellow sector
-    case 2049: return "#43A047"  // green sector
-    case 2051: return "#8E24AA"  // purple sector
-    case 2064: return "#757575"  // pitlane
-    default: return null         // no overlay
-  }
-}
 
-// Computes forward distance from a base progress to a target on the circular 0-1 track.
-const forwardDistance = (base: number, target: number): number => {
-  const d = target - base
-  return d >= 0 ? d : d + 1.0
-}
 
-// Write-once buffer holding accepted segment values for the current visual lap.
-// Each slot is null until the car dot passes it, then stamped with the color value.
-interface AcceptedSegments {
-  sector1: (number | null)[]
-  sector2: (number | null)[]
-  sector3: (number | null)[]
-}
-
-// Stamps segment values into the write-once buffer for segments the car has passed.
+// Stamps segment values into the write-once buffer for segments the car has entered.
 // A slot is stamped only if it is null (unvisited), the car's lapDist has reached
-// the segment's end, and the raw value is non-zero (data available). Returns true
+// the segment's start, and the raw value is non-zero (data available). Returns true
 // if any slot was newly stamped.
 const acceptSegments = (
   buffer: AcceptedSegments,
@@ -239,13 +217,12 @@ const acceptSegments = (
       if (buffer[key][i] !== null) return
       if (value === 0) return
 
-      let segEnd = start + (i + 1) * miniLen
-      if (segEnd >= 1.0) segEnd -= 1.0
-      let segEndDist = forwardDistance(lapBase, segEnd)
-      // S3's last segment ends at startFinish — treat as full lap distance.
-      if (segEndDist < 0.001) segEndDist = 1.0
+      // Stamp when the car reaches the segment's start (lights up on entry, not exit).
+      let segStart = start + i * miniLen
+      if (segStart >= 1.0) segStart -= 1.0
+      const segStartDist = forwardDistance(lapBase, segStart)
 
-      if (lapDist >= segEndDist) {
+      if (lapDist >= segStartDist) {
         buffer[key][i] = value
         changed = true
       }

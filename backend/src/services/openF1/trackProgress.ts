@@ -194,3 +194,9 @@ export const convertProgress = (
   const point = mapProgressToPoint(sourceProgress, sourcePath, sourceArc)
   return computeTrackProgress(point.x, point.y, targetPath, targetArc, hintProgress)
 }
+
+// Computes forward distance from a base progress to a target on the circular 0-1 track.
+export const forwardDistance = (base: number, target: number): number => {
+  const d = target - base
+  return d >= 0 ? d : d + 1.0
+}

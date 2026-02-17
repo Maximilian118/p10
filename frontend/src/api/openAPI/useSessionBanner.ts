@@ -58,6 +58,9 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
       const flagEvents = state.raceControlMessages.filter(e => e.flag && e.flag !== "CHEQUERED")
       if (flagEvents.length > 0) {
         setCurrentFlag(flagEvents[flagEvents.length - 1].flag)
+      } else {
+        // A session with no flag events is under green flag conditions by default.
+        setCurrentFlag("GREEN")
       }
     }
 

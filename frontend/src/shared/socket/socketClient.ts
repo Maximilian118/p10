@@ -90,6 +90,7 @@ export const initSocket = (accessToken: string): Socket => {
     auth: {
       accessToken,
     },
+    transports: ["polling", "websocket"],
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,

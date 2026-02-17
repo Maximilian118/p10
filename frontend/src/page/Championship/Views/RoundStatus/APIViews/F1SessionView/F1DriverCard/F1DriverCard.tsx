@@ -5,6 +5,7 @@ import { DriverLiveState } from "../../../../../../../api/openAPI/types"
 import ImageIcon from "../../../../../../../components/utility/icon/imageIcon/ImageIcon"
 import TyreCompound from "./TyreCompound/TyreCompound"
 import TyreLaps from "./TyreLaps/TyreLaps"
+import MiniSectors from "./MiniSectors/MiniSectors"
 
 interface F1DriverCardProps {
   state: DriverLiveState
@@ -40,6 +41,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
       <h5 className="driver-id">{state.nameAcronym}</h5>
       <TyreCompound compound={state.tyreCompound} style={{ marginRight: 3 }}/>
       <TyreLaps lapsOld={state.tyreAge} lastPit={lastPitLap} inPits={state.inPit} DNF={state.retired}/>
+      <MiniSectors segments={state.segments} currentLapNumber={state.currentLapNumber}/>
     </div>
   )
 }

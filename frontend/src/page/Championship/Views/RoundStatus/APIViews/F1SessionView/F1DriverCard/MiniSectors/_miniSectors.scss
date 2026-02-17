@@ -1,0 +1,18 @@
+@use '../../../../../../../../scss/variables';
+
+.mini-sectors {
+  height: 50%;
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5px;
+
+  // Individual colored pill representing one mini-sector.
+  &__pill {
+    flex-grow: 1;
+    height: 5px;
+    border-radius: 2px;
+    transition: background-color variables.$trans-speed;
+  }
+}

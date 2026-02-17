@@ -23,7 +23,7 @@ import {
 import { computePitSideVote, buildProfileFromSamples, PIT_SPEED_MARGIN, MIN_PIT_PROGRESS_RANGE, computeInfieldSide } from "./pitLaneUtils"
 import { buildTrackPath, filterFastLaps, shouldUpdate, hasTrackLayoutChanged } from "./trackmapBuilder"
 import { fetchTrackOutline } from "./multiviewerClient"
-import { computeTrackProgress, mapProgressToPoint, computeArcLengths } from "./trackProgress"
+import { computeTrackProgress, mapProgressToPoint, computeArcLengths, forwardDistance } from "./trackProgress"
 import { computeSectorBoundaries } from "./sectorBoundaries"
 import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./openf1Client"
 import { createF1Session, updateF1Session, finalizeF1Session, saveDemoSession, ReplayMessage } from "../../models/f1Session"
@@ -89,6 +89,10 @@ let positionBatchTimer: ReturnType<typeof setInterval> | null = null
 // Timer for aggregated driver state emissions.
 let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
 
+// Tracks when each driver's lap number last changed (real wall-clock time).
+// Used by truncateDemoSegments() to detect stale GPS during lap transitions.
+const driverLapTransitionTs = new Map<number, number>()
+
 // Timer for fallback countdown clock (activates when SignalR is unavailable).
 let fallbackClockTimer: ReturnType<typeof setInterval> | null = null
 
@@ -109,6 +113,13 @@ const SESSION_POLL_INTERVAL = 60_000
 
 // Room name for clients receiving OpenF1 live data.
 const OPENF1_ROOM = "openf1:live"
+
+// Callback invoked when the openf1:live room becomes empty.
+// Set by demoReplay to auto-stop the demo when no clients are watching.
+let onRoomEmptyCallback: (() => void) | null = null
+export const setOnRoomEmpty = (cb: (() => void) | null): void => {
+  onRoomEmptyCallback = cb
+}
 
 // Delay before emitting the capability report (ms).
 // Slightly longer than the MQTT grace period so REST polling decisions are finalized.
@@ -163,8 +174,25 @@ export const initSessionManager = (io: Server): void => {
 
     socket.on(OPENF1_EVENTS.UNSUBSCRIBE, () => {
       socket.leave(OPENF1_ROOM)
+      // Stop demo replay if this was the last viewer in the room.
+      checkRoomEmpty()
+    })
+
+    // Handle socket disconnect (tab close, network drop, browser close).
+    // Socket.io auto-removes the socket from all rooms on disconnect.
+    socket.on("disconnect", () => {
+      checkRoomEmpty()
     })
   })
+}
+
+// Checks if the openf1:live room is empty and invokes the room-empty callback.
+const checkRoomEmpty = (): void => {
+  if (!ioServer || !onRoomEmptyCallback) return
+  const room = ioServer.sockets.adapter.rooms.get(OPENF1_ROOM)
+  if (!room || room.size === 0) {
+    onRoomEmptyCallback()
+  }
 }
 
 // Returns the active session's track name (used by GraphQL resolver).
@@ -310,6 +338,7 @@ export const setActivePitLaneProfile = (profile: PitLaneProfile): void => {
 export const endDemoSession = (): void => {
   stopPositionBatching()
   stopDriverStateBatching()
+  driverLapTransitionTs.clear()
   emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
   activeSession = null
 }
@@ -1633,7 +1662,12 @@ const handleLapMessage = async (msg: OpenF1LapMsg): Promise<void> => {
   if (!activeSession || msg.session_key !== activeSession.sessionKey) return
 
   // Update the driver's current lap number.
+  // Record when the lap counter changes for GPS-settle detection in demo segment truncation.
+  const prevLap = activeSession.currentLapByDriver.get(msg.driver_number)
   activeSession.currentLapByDriver.set(msg.driver_number, msg.lap_number)
+  if (prevLap !== msg.lap_number) {
+    driverLapTransitionTs.set(msg.driver_number, Date.now())
+  }
 
   // Check for timeout-based DNFs on every lap completion (any driver's lap may push
   // the leader count past the threshold for another driver sitting in the pit or stalled on track).
@@ -2148,6 +2182,77 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
 
 // ─── Driver State Aggregation & Batching ─────────────────────────
 
+// Zeroes out segment values the car hasn't reached yet during demo replay.
+// In live mode, MQTT naturally sends progressive data (growing arrays). In demo
+// mode, the REST API returns complete final lap records with all segments filled,
+// so we mask future segments to prevent the frontend from seeing ahead.
+const truncateDemoSegments = (
+  currentLapData: OpenF1LapMsg,
+  driverNumber: number,
+): { sector1: number[]; sector2: number[]; sector3: number[] } => {
+  const raw = {
+    sector1: [...(currentLapData.segments_sector_1 ?? [])],
+    sector2: [...(currentLapData.segments_sector_2 ?? [])],
+    sector3: [...(currentLapData.segments_sector_3 ?? [])],
+  }
+
+  // Graceful fallback: if track progress data isn't available, return raw segments.
+  if (!activeSession?.sectorBoundaries || !activeSession.baselinePath || !activeSession.baselineArcLengths) return raw
+
+  const pos = activeSession.currentPositions.get(driverNumber)
+  if (!pos) return raw
+
+  const progress = computeTrackProgress(pos.x, pos.y, activeSession.baselinePath, activeSession.baselineArcLengths)
+  const { startFinish, sector1_2, sector2_3 } = activeSession.sectorBoundaries
+
+  // Compute lap-relative distance from the start/finish line.
+  const lapDist = forwardDistance(startFinish, progress)
+  const s1End = forwardDistance(startFinish, sector1_2)
+  const s2End = forwardDistance(startFinish, sector2_3)
+
+  // Determine which sector the car is currently in.
+  let currentSector: number
+  if (lapDist < s1End) currentSector = 0
+  else if (lapDist < s2End) currentSector = 1
+  else currentSector = 2
+
+  // Process each sector: past → keep all, current → proportional, future → zero all.
+  const sectorDefs = [
+    { arr: raw.sector1, sectorIdx: 0, start: 0, end: s1End },
+    { arr: raw.sector2, sectorIdx: 1, start: s1End, end: s2End },
+    { arr: raw.sector3, sectorIdx: 2, start: s2End, end: 1.0 },
+  ]
+
+  // Guard against stale GPS during lap transitions. When the lap counter just
+  // changed, GPS may still reflect the end of the previous lap (high progress).
+  // Zero all segments until GPS settles past S/F.
+  const GPS_SETTLE_MS = 1500
+  const transitionTs = driverLapTransitionTs.get(driverNumber)
+  if (transitionTs && Date.now() - transitionTs < GPS_SETTLE_MS && lapDist > 0.5) {
+    for (const { arr } of sectorDefs) {
+      for (let i = 0; i < arr.length; i++) arr[i] = 0
+    }
+    return raw
+  }
+
+  for (const { arr, sectorIdx, start, end } of sectorDefs) {
+    if (sectorIdx < currentSector) continue
+    if (sectorIdx > currentSector) {
+      for (let i = 0; i < arr.length; i++) arr[i] = 0
+      continue
+    }
+    // Current sector — show segments the car has entered (ceil so the current segment lights up).
+    const sectorLen = end - start
+    if (sectorLen <= 0) continue
+    const progressInSector = lapDist - start
+    const fraction = Math.max(0, progressInSector / sectorLen)
+    const segmentsToShow = Math.ceil(fraction * arr.length)
+    for (let i = segmentsToShow; i < arr.length; i++) arr[i] = 0
+  }
+
+  return raw
+}
+
 // Builds an array of DriverLiveState snapshots from the current session state.
 const buildDriverStates = (): DriverLiveState[] => {
   if (!activeSession) return []
@@ -2203,13 +2308,15 @@ const buildDriverStates = (): DriverLiveState[] => {
         s3: latestLap?.duration_sector_3 ?? null,
       },
 
-      // Use current in-progress lap for live segment updates (progressively filled
-      // as the car crosses each mini-sector). Falls back to empty when lap just started.
-      segments: {
-        sector1: currentLapData?.segments_sector_1 ?? [],
-        sector2: currentLapData?.segments_sector_2 ?? [],
-        sector3: currentLapData?.segments_sector_3 ?? [],
-      },
+      // In demo mode, zero out segments the car hasn't reached yet (REST API returns
+      // complete final lap records). In live mode, MQTT data is naturally progressive.
+      segments: activeSession!.isDemo && currentLapData
+        ? truncateDemoSegments(currentLapData, driverNumber)
+        : {
+            sector1: currentLapData?.segments_sector_1 ?? [],
+            sector2: currentLapData?.segments_sector_2 ?? [],
+            sector3: currentLapData?.segments_sector_3 ?? [],
+          },
 
       tyreCompound: stintState?.compound ?? null,
       tyreAge,

@@ -1,6 +1,6 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
-import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, emitDemoTrackmap, buildTrackFromDemoData, setActivePitLaneProfile, OPENF1_EVENTS } from "./sessionManager"
+import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, emitDemoTrackmap, buildTrackFromDemoData, setActivePitLaneProfile, OPENF1_EVENTS, setOnRoomEmpty } from "./sessionManager"
 import {
   OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo,
   OpenF1CarDataMsg, OpenF1IntervalMsg, OpenF1PitMsg, OpenF1StintMsg,
@@ -1176,6 +1176,12 @@ export const startDemoReplay = async (
     replayStartTime = Date.now()
     replayActive = true
 
+    // Auto-stop the demo when the last client leaves the room.
+    setOnRoomEmpty(() => {
+      log.info("Auto-stopping demo replay — no clients in room")
+      stopDemoReplay()
+    })
+
     // Emit the trackmap now that fast-forwarded data is populated.
     // This is what stops the frontend spinner — delayed until data is ready.
     emitDemoTrackmap()
@@ -1239,6 +1245,9 @@ export const stopDemoReplay = (natural = false): DemoStatus => {
     clearInterval(replayTimer)
     replayTimer = null
   }
+
+  // Unregister the room-empty callback so disconnects no longer trigger stop.
+  setOnRoomEmpty(null)
 
   // Clean up the demo session state.
   if (replayActive) {

@@ -561,10 +561,15 @@ const Championship: React.FC = () => {
     }
   }, [champ])
 
-  // Start demo replay when a session is selected.
+  // Start demo replay when a session is selected. Stop on unmount/session change.
   useEffect(() => {
     if (view === "demoMode" && demoSession) {
       startDemo(user, setUser, setBackendErr, demoSession.key)
+    }
+    return () => {
+      if (demoSession) {
+        stopDemo(user, setUser, setBackendErr)
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoSession])
