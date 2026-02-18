@@ -50,13 +50,10 @@
       }
 
       .f1-session-weather {
-        @include mixins.flexbox-end;
-        align-items: start;
-
-        svg {
-          margin-top: 2px;
-          color: variables.$colour-4;
-        }
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        justify-content: flex-end;
       }
     }
   }

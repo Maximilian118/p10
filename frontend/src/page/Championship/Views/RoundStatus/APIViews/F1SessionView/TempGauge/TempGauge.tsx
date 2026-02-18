@@ -3,7 +3,9 @@ import "./_tempGauge.scss"
 
 interface TempGaugeProps {
   temperature: number
-  label: "TRC" | "AIR"
+  label: string
+  min?: number
+  max?: number
 }
 
 // Arc geometry constants for the circular gauge.
@@ -15,9 +17,9 @@ const STROKE_WIDTH = 3
 const START_ANGLE = 135
 const END_ANGLE = 405
 const ARC_SPAN = END_ANGLE - START_ANGLE
-// Temperature range mapped to the arc (0°C to 60°C).
-const MIN_TEMP = 0
-const MAX_TEMP = 60
+// Default range (0°C to 60°C) — can be overridden via min/max props.
+const DEFAULT_MIN = 0
+const DEFAULT_MAX = 60
 
 // Converts degrees to radians.
 const toRad = (deg: number) => (deg * Math.PI) / 180
@@ -36,9 +38,9 @@ const describeArc = (startDeg: number, endDeg: number): string => {
   return `M ${start.x} ${start.y} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${end.x} ${end.y}`
 }
 
-// Interpolates between green (cold), yellow (mid), and red (hot).
-const temperatureColor = (temp: number): string => {
-  const t = Math.max(0, Math.min(1, (temp - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)))
+// Interpolates between green (low), yellow (mid), and red (high).
+const gaugeColor = (value: number, min: number, max: number): string => {
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)))
   if (t < 0.5) {
     // Green → Yellow (0.0 → 0.5)
     const ratio = t / 0.5
@@ -52,13 +54,13 @@ const temperatureColor = (temp: number): string => {
   return `rgb(255, ${g}, 0)`
 }
 
-// Circular temperature gauge with a colored arc, value, and label.
-// Displays track or air temperature within a compact SVG gauge.
-const TempGauge: React.FC<TempGaugeProps> = ({ temperature, label }) => {
-  const clamped = Math.max(MIN_TEMP, Math.min(MAX_TEMP, temperature))
-  const ratio = (clamped - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)
+// Circular gauge with a colored arc, value, and label.
+// Range defaults to 0–60 but can be overridden via min/max props.
+const TempGauge: React.FC<TempGaugeProps> = ({ temperature, label, min = DEFAULT_MIN, max = DEFAULT_MAX }) => {
+  const clamped = Math.max(min, Math.min(max, temperature))
+  const ratio = (clamped - min) / (max - min)
   const fillAngle = START_ANGLE + ratio * ARC_SPAN
-  const color = temperatureColor(temperature)
+  const color = gaugeColor(temperature, min, max)
 
   return (
     <div className="temp-gauge">
@@ -67,7 +69,7 @@ const TempGauge: React.FC<TempGaugeProps> = ({ temperature, label }) => {
         <path
           d={describeArc(START_ANGLE, END_ANGLE)}
           fill="none"
-          stroke="rgba(255,255,255,0.1)"
+          stroke="rgba(0,0,0,0.2)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
         />

@@ -8,7 +8,7 @@ import { RoundType, driverType } from "../../../../../../shared/types"
 import F1DriverCard from "./F1DriverCard/F1DriverCard"
 import TempGauge from "./TempGauge/TempGauge"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
-import { Loop, Thunderstorm } from "@mui/icons-material"
+import { Loop } from "@mui/icons-material"
 import AppContext from "../../../../../../context"
 import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trackmapRequests"
 
@@ -209,9 +209,12 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
                 : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
           </p>
           {/* Weather stats */}
-          <div className="f1-session-weather">
-            <Thunderstorm/>
-          </div>
+          {weather && (
+            <div className="f1-session-weather">
+              <TempGauge temperature={weather.humidity} label="HUM" min={0} max={100} />
+              <TempGauge temperature={weather.windSpeed} label="WND" min={0} max={40} />
+            </div>
+          )}
         </div>
         {/* Live track map with car positions */}
         <div className="trackmap-container">
