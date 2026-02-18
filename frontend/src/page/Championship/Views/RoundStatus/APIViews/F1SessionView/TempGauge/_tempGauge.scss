@@ -1,0 +1,39 @@
+@use '../../../../../../../scss/mixins';
+@use '../../../../../../../scss/variables';
+
+.temp-gauge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+
+  svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  // Centered text overlay (value + label stacked).
+  &__text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+    z-index: 1;
+  }
+
+  &__value {
+    font-size: 10px;
+    font-weight: 700;
+    color: variables.$colour-9;
+  }
+
+  &__label {
+    font-size: 7px;
+    font-weight: 500;
+    color: variables.$colour-9;
+    margin-top: 1px;
+  }
+}

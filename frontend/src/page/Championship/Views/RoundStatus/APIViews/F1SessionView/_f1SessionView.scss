@@ -1,3 +1,4 @@
+@use '../../../../../../scss/variables';
 @use '../../../../../../scss/mixins';
 
 .f1-session-view {
@@ -12,15 +13,6 @@
     margin-bottom: 70px;
   }
 
-  .f1-session-title {
-    margin: 20px 0 5px;
-
-    // Red text when the demo replay has ended.
-    &--ended {
-      color: #f44336;
-    }
-  }
-
   // Wrapper for main content — must participate in the flex chain so
   // .driver-list can grow and scroll within the remaining space.
   .f1-session-content {
@@ -28,6 +20,45 @@
     width: 100%;
     flex-grow: 1;
     min-height: 0;
+
+    .f1-session-top-bar {
+      width: 100%;
+      @include mixins.flexbox-space-between;
+      align-items: end;
+      margin-top: 5px;
+      padding: 0 5px;
+      box-sizing: border-box;
+
+      .f1-session-temps, .f1-session-weather {
+        width: 80px;
+        height: 100%;
+      }
+
+      .f1-session-temps {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .f1-session-title {
+        font-size: 14px;
+        padding-bottom: 5px;
+        // Red text when the demo replay has ended.
+        &--ended {
+          color: #f44336;
+        }
+      }
+
+      .f1-session-weather {
+        @include mixins.flexbox-end;
+        align-items: start;
+
+        svg {
+          margin-top: 2px;
+          color: variables.$colour-4;
+        }
+      }
+    }
   }
 
   // Track map container fills the main content area.
@@ -37,20 +68,13 @@
     flex-shrink: 0;
     position: relative;
 
-    .trackmap-bar-top, .trackmap-bar-bottom {
+    .trackmap-bar-bottom {
       width: 100%;
       height: 40px;
       @include mixins.flexbox-space-between;
       position:absolute;
       padding: 0 5px;
       box-sizing: border-box;
-    }
-
-    .trackmap-bar-top {
-      top: 0;
-    }
-
-    .trackmap-bar-bottom {
       bottom: 0;
 
       svg {

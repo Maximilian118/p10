@@ -2,12 +2,13 @@ import React, { useState, useCallback, useMemo, useContext, useRef, useEffect, u
 import "./_f1SessionView.scss"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
-import { DriverLiveState } from "../../../../../../api/openAPI/types"
+import { DriverLiveState, SessionLiveState } from "../../../../../../api/openAPI/types"
 import { AcceptedSegments } from "../../../../../../api/openAPI/openF1Utility"
 import { RoundType, driverType } from "../../../../../../shared/types"
 import F1DriverCard from "./F1DriverCard/F1DriverCard"
+import TempGauge from "./TempGauge/TempGauge"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
-import { Loop } from "@mui/icons-material"
+import { Loop, Thunderstorm } from "@mui/icons-material"
 import AppContext from "../../../../../../context"
 import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trackmapRequests"
 
@@ -42,6 +43,8 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
   // Accepted pill segments for all drivers (computed by Trackmap using visual car position).
   const [pillSegments, setPillSegments] = useState<Map<number, AcceptedSegments>>(new Map())
+  // Weather data forwarded from the Trackmap's useTrackmap hook.
+  const [weather, setWeather] = useState<SessionLiveState["weather"]>(null)
 
   // ─── Rotation drag state (admin only) ─────────────────────────
   const [dragRotationDelta, setDragRotationDelta] = useState(0)
@@ -127,6 +130,11 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     setPillSegments(map)
   }, [])
 
+  // Receives weather data from the Trackmap's session state.
+  const handleWeatherUpdate = useCallback((w: SessionLiveState["weather"]) => {
+    setWeather(w)
+  }, [])
+
   // Sorts drivers by race position (P1 at top). Null positions sink to the bottom.
   const sortedStates = useMemo(() =>
     [...driverStates].sort((a, b) => {
@@ -184,20 +192,29 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
       {/* Main content — hidden while loading but Trackmap stays mounted
           so its useTrackmap hook keeps the data pipeline active. */}
       <div className="f1-session-content" style={!trackReady ? { display: "none" } : undefined}>
-        {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
-        <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
-          {demoEnded
-            ? "End of Demo"
-            : sessionInfo
-              ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
-              : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
-        </p>
-
+        <div className="f1-session-top-bar">
+          {/* Temp stats */}
+          {weather && (
+            <div className="f1-session-temps">
+              <TempGauge temperature={weather.trackTemperature} label="TRC" />
+              <TempGauge temperature={weather.airTemperature} label="AIR" />
+            </div>
+          )}
+          {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
+          <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
+            {demoEnded
+              ? "End of Demo"
+              : sessionInfo
+                ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
+                : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
+          </p>
+          {/* Weather stats */}
+          <div className="f1-session-weather">
+            <Thunderstorm/>
+          </div>
+        </div>
         {/* Live track map with car positions */}
         <div className="trackmap-container">
-          <div className="trackmap-bar-top">
-
-          </div>
           <Trackmap
             selectedDriverNumber={driverView?.driverNumber ?? null}
             onDriverSelect={handleMapDriverSelect}
@@ -209,6 +226,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             onRotationSave={handleRotationSave}
             trackFlag={trackFlag}
             onPillSegments={handlePillSegments}
+            onWeatherUpdate={handleWeatherUpdate}
           />
           <div className="trackmap-bar-bottom">
             {user.permissions.admin && <Loop onMouseDown={handleRotationDragStart} />}
