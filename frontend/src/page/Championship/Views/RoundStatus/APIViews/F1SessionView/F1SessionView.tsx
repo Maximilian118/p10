@@ -21,6 +21,8 @@ interface F1SessionViewProps {
   sessionLabel?: string
   demoEnded?: boolean
   trackFlag?: string | null
+  safetyCar?: boolean
+  medicalCar?: boolean
 }
 
 // View displayed when betting has closed for F1 series or during demo mode.
@@ -36,6 +38,8 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   sessionLabel,
   demoEnded,
   trackFlag,
+  safetyCar,
+  medicalCar,
 }) => {
   const { user, setUser } = useContext(AppContext)
   const [driverView, setDriverView] = useState<DriverLiveState | null>(null)
@@ -204,14 +208,23 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             </div>
           </div>
         )}
-        {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
-        <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
-          {demoEnded
-            ? "End of Demo"
-            : sessionInfo
-              ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
-              : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
-        </p>
+        {/* Top bar above track map that has title in the middle and SC/MC indicator */}
+        <div className="f1-session-bar-top">
+          {/* Safety Car takes priority over Medical Car — only one pill shown at a time */}
+          {safetyCar
+            ? <span className="safety-vehicle-pill safety-vehicle-pill--sc">SC</span>
+            : medicalCar
+              ? <span className="safety-vehicle-pill safety-vehicle-pill--mc">MC</span>
+              : null}
+          {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
+          <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
+            {demoEnded
+              ? "End of Demo"
+              : sessionInfo
+                ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
+                : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
+          </p>
+        </div>
         {/* Live track map with car positions */}
         <div className="trackmap-container">
           <Trackmap

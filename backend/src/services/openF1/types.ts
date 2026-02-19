@@ -504,6 +504,8 @@ export interface SessionState {
   // Active safety car/red flag state for tracking open periods.
   _activeSC: { type: "SC" | "VSC"; startLap: number; startTime: string } | null
   _activeRedFlag: { startTime: string; reason: string | null } | null
+  // Whether the medical car is currently deployed on track.
+  _medicalCar: boolean
   _lastWeatherSnapshot: number
 
   // ─── Grid Position ──────────────────────────────────────────

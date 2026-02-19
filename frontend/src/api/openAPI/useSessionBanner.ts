@@ -9,18 +9,22 @@ const EVENTS = {
   CLOCK: "session:clock",
   DRIVER_STATES: "openf1:driver-states",
   SESSION_STATE: "openf1:session-state",
+  MEDICAL_CAR: "openf1:medical-car",
 } as const
 
 type DemoPhase = "idle" | "fetching" | "ready" | "stopped" | "ended"
 
 // Public return type — SessionStats uses currentFlag/remainingMs/lap counts,
-// F1SessionView uses demoEnded for the "End of Demo" title.
+// F1SessionView uses demoEnded for the "End of Demo" title,
+// and safetyCar/medicalCar booleans for the SC/MC indicator pill.
 export interface SessionBannerData {
   currentFlag: string | null
   remainingMs: number
   demoEnded: boolean
   currentLap: number
   totalLaps: number | null
+  safetyCar: boolean
+  medicalCar: boolean
 }
 
 // Consolidates all session banner logic: socket listeners for track flag/demo status,
@@ -29,6 +33,7 @@ export interface SessionBannerData {
 export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): SessionBannerData => {
   const [currentFlag, setCurrentFlag] = useState<string | null>(null)
   const [demoPhase, setDemoPhase] = useState<DemoPhase>("idle")
+  const [medicalCar, setMedicalCar] = useState(false)
 
   // Clock state — driven by session:clock events from the backend.
   const [clock, setClock] = useState<SessionClock | null>(null)
@@ -38,7 +43,7 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
   const [currentLap, setCurrentLap] = useState(0)
   const [totalLaps, setTotalLaps] = useState<number | null>(null)
 
-  // Socket listeners for track flag, demo status, clock, driver states, and session state.
+  // Socket listeners for track flag, demo status, clock, driver states, session state, and medical car.
   useEffect(() => {
     if (!enabled) {
       setCurrentFlag(null)
@@ -47,6 +52,7 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
       setRemainingMs(0)
       setCurrentLap(0)
       setTotalLaps(null)
+      setMedicalCar(false)
       return
     }
 
@@ -81,11 +87,17 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
       if (data.currentLap !== undefined) setCurrentLap(data.currentLap)
     }
 
+    // Receives medical car deployment status from the backend.
+    const handleMedicalCar = (active: boolean) => {
+      setMedicalCar(active)
+    }
+
     socket.on(EVENTS.TRACK_FLAG, handleTrackFlag)
     socket.on(EVENTS.DEMO_STATUS, handleDemoStatus)
     socket.on(EVENTS.CLOCK, handleClock)
     socket.on(EVENTS.DRIVER_STATES, handleDriverStates)
     socket.on(EVENTS.SESSION_STATE, handleSessionState)
+    socket.on(EVENTS.MEDICAL_CAR, handleMedicalCar)
 
     return () => {
       socket.off(EVENTS.TRACK_FLAG, handleTrackFlag)
@@ -93,6 +105,7 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
       socket.off(EVENTS.CLOCK, handleClock)
       socket.off(EVENTS.DRIVER_STATES, handleDriverStates)
       socket.off(EVENTS.SESSION_STATE, handleSessionState)
+      socket.off(EVENTS.MEDICAL_CAR, handleMedicalCar)
     }
   }, [enabled])
 
@@ -121,5 +134,8 @@ export const useSessionBanner = (enabled: boolean, isDemoMode: boolean): Session
 
   const demoEnded = isDemoMode && demoPhase === "ended"
 
-  return { currentFlag, remainingMs, demoEnded, currentLap, totalLaps }
+  // Derive safety car boolean from the track flag (SC, VSC, and VSC_ENDING all indicate active SC).
+  const safetyCar = currentFlag === "SC" || currentFlag === "VSC" || currentFlag === "VSC_ENDING"
+
+  return { currentFlag, remainingMs, demoEnded, currentLap, totalLaps, safetyCar, medicalCar }
 }

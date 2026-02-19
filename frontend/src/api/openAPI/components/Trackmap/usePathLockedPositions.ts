@@ -44,6 +44,10 @@ const MAX_BACKWARD = 0.04
 // but laggier.
 const SMOOTH_TAU = 250
 
+// Module-level state for diagnostic logging (avoids re-allocation per render).
+let lastBufferUpdateTs = 0
+let animFrameCount = 0
+
 // Locks car dots to the SVG track path using progress-based arc-length
 // parameterization. Uses a jitter buffer for continuous interpolation and
 // exponential smoothing for visually smooth velocity transitions.
@@ -117,6 +121,20 @@ const usePathLockedPositions = (
     smoothedRef.current.forEach((_, dn) => {
       if (!currentDrivers.has(dn)) smoothedRef.current.delete(dn)
     })
+
+    // Log buffer health: time since last update, depth and time span per driver.
+    const dtMs = now - lastBufferUpdateTs
+    lastBufferUpdateTs = now
+    const bufferInfo: Record<number, { depth: number; spanMs: number }> = {}
+    buffersRef.current.forEach((samples, dn) => {
+      if (samples.length > 0) {
+        bufferInfo[dn] = {
+          depth: samples.length,
+          spanMs: Math.round(samples[samples.length - 1].time - samples[0].time),
+        }
+      }
+    })
+    console.log("[PathLock] buffer:", { dtMs: Math.round(dtMs), bufferInfo })
   }, [carPositions])
 
   // rAF animation loop — interpolates buffered progress, applies exponential
@@ -177,6 +195,23 @@ const usePathLockedPositions = (
 
         el.style.transform = `translate(${point.x}px, ${point.y}px)`
       })
+
+      // Log interpolation state once per second (~60 frames) for one sample driver.
+      animFrameCount++
+      if (animFrameCount % 60 === 0) {
+        const entry = [...buffersRef.current.entries()][0]
+        if (entry) {
+          const [sampleDn, sampleBuf] = entry
+          const gaps = sampleBuf.slice(1).map((s, i) => Math.round(s.time - sampleBuf[i].time))
+          console.log("[PathLock] animate:", {
+            driver: sampleDn,
+            bufferDepth: sampleBuf.length,
+            sampleGapsMs: gaps,
+            renderTimeBehind: Math.round(renderTime - sampleBuf[sampleBuf.length - 1].time),
+            smoothed: smoothedRef.current.get(sampleDn)?.toFixed(5),
+          })
+        }
+      }
 
       lastFrameTimeRef.current = now
       rafRef.current = requestAnimationFrame(animate)

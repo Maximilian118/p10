@@ -9,6 +9,8 @@ export interface APIViewProps {
   sessionLabel?: string
   demoEnded?: boolean
   trackFlag?: string | null
+  safetyCar?: boolean
+  medicalCar?: boolean
 }
 
 // A demo session selection from the picker.

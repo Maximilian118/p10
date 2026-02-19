@@ -66,6 +66,9 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
   // Timers for auto-expiring driver flags after 3 seconds.
   const driverFlagTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
+  // Tracks when the last position batch arrived for frequency logging.
+  const lastBatchTime = useRef(Date.now())
+
   // Fetch the initial track map from the backend on mount.
   const fetchInitialTrackmap = useCallback(async () => {
     const data = await getTrackmap(user, setUser)
@@ -115,6 +118,16 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
     // smooth interpolation, so React re-renders at 10 Hz are fine — React.memo
     // on each CarDot ensures only dots with changed positions actually re-render.
     const handlePositions = (positions: CarPosition[]) => {
+      // Log batch frequency and sample data for diagnosing live vs demo smoothness.
+      const now = Date.now()
+      const delta = now - lastBatchTime.current
+      lastBatchTime.current = now
+      console.log("[Positions]", {
+        dtMs: delta,
+        count: positions.length,
+        hasProgress: positions[0]?.progress !== undefined,
+        sample: positions[0],
+      })
       setCarPositions(positions)
     }
 

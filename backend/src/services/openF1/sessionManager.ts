@@ -78,6 +78,7 @@ export const OPENF1_EVENTS = {
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
   LIVE_SESSION: "f1:live-session",
+  MEDICAL_CAR: "openf1:medical-car",
 } as const
 
 // Current active session state (null when no session is active).
@@ -181,6 +182,7 @@ export const initSessionManager = (io: Server): void => {
             if (states.length > 0) socket.emit(OPENF1_EVENTS.DRIVER_STATES, states)
           })
           socket.emit(OPENF1_EVENTS.TRACK_FLAG, demoState.trackFlag)
+          socket.emit(OPENF1_EVENTS.MEDICAL_CAR, demoState._medicalCar)
         }
         return
       }
@@ -211,8 +213,9 @@ export const initSessionManager = (io: Server): void => {
           totalLaps: activeSession.totalLaps,
           currentLap: Math.max(0, ...Array.from(activeSession.currentLapByDriver.values())),
         })
-        // Send current track flag status.
+        // Send current track flag status and medical car state.
         socket.emit(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
+        socket.emit(OPENF1_EVENTS.MEDICAL_CAR, activeSession._medicalCar)
         // Send latest clock state if available.
         const clock = getLatestClock()
         if (clock) {
@@ -314,6 +317,7 @@ export const initDemoSession = async (
     totalLaps: totalLaps ?? null,
     _activeSC: null,
     _activeRedFlag: null,
+    _medicalCar: false,
     _lastWeatherSnapshot: 0,
     driverGridPositions: new Map(),
     driverStintHistory: new Map(),
@@ -1262,6 +1266,20 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
       pitState.pitLanePositions = []
     }
   }
+
+  // Medical car deployment detection from race control message text.
+  if (msgUpper.includes("MEDICAL CAR") && msgUpper.includes("DEPLOYED")) {
+    if (!activeSession._medicalCar) {
+      activeSession._medicalCar = true
+      emitToRoom(OPENF1_EVENTS.MEDICAL_CAR, true)
+    }
+  }
+
+  // Medical car clearing — green flag at track scope clears it (no explicit "returned" message from FIA).
+  if (activeSession._medicalCar && rc.flag === "GREEN" && rc.scope === "Track") {
+    activeSession._medicalCar = false
+    emitToRoom(OPENF1_EVENTS.MEDICAL_CAR, false)
+  }
 }
 
 // ─── MQTT Message Routing (Legacy) ───────────────────────────────
@@ -1535,6 +1553,7 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     totalLaps: null,
     _activeSC: null,
     _activeRedFlag: null,
+    _medicalCar: false,
     _lastWeatherSnapshot: 0,
     driverGridPositions: new Map(),
     driverStintHistory: new Map(),
