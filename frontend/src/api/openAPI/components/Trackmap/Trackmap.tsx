@@ -253,7 +253,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
     trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, sessionState, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
     driverFlags,
-  } = useTrackmap()
+  } = useTrackmap(demoMode)
   const trackReadyFired = useRef(false)
 
   // Tracks which drivers have rendered at least once. On initial appearance

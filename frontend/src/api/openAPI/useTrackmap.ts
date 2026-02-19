@@ -41,7 +41,8 @@ export interface UseTrackmapResult {
 
 // Hook that provides live F1 track map data and car positions.
 // Fetches the initial track map via GraphQL and listens for live updates via Socket.IO.
-const useTrackmap = (): UseTrackmapResult => {
+// When demoMode is true, subscribes as a demo viewer (isolated from live data).
+const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
   const { user, setUser } = useContext(AppContext)
 
   const [trackPath, setTrackPath] = useState<{ x: number; y: number }[] | null>(null)
@@ -83,8 +84,8 @@ const useTrackmap = (): UseTrackmapResult => {
       return
     }
 
-    // Join the openf1:live room to receive updates.
-    socket.emit(EVENTS.SUBSCRIBE)
+    // Join the openf1:live room (or demo channel) to receive updates.
+    socket.emit(EVENTS.SUBSCRIBE, demoMode ? { demoMode: true } : undefined)
 
     // Handle session status updates.
     const handleSession = (data: OpenF1SessionStatus) => {
@@ -181,7 +182,7 @@ const useTrackmap = (): UseTrackmapResult => {
       driverFlagTimers.current.forEach((t) => clearTimeout(t))
       driverFlagTimers.current.clear()
     }
-  }, [])
+  }, [demoMode])
 
   return {
     trackPath,

@@ -1,6 +1,6 @@
 import { Server } from "socket.io"
 import { connectMqtt, onMqttMessage } from "./openf1Client"
-import { initSessionManager, handleMqttMessage, handleEvent, checkForActiveSession, startSessionPolling } from "./sessionManager"
+import { initSessionManager, handleMqttMessage, handleLiveSignalREvent, checkForActiveSession, startSessionPolling } from "./sessionManager"
 import { onSignalREvent } from "./signalrClient"
 import { createLogger } from "../../shared/logger"
 
@@ -21,7 +21,7 @@ export const initializeOpenF1Service = async (io: Server): Promise<void> => {
 
     // Register message handlers for both data sources.
     onMqttMessage(handleMqttMessage)
-    onSignalREvent(handleEvent)
+    onSignalREvent(handleLiveSignalREvent)
 
     // Connect to OpenF1 MQTT broker.
     await connectMqtt()

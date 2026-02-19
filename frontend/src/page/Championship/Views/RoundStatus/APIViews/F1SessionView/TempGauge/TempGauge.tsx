@@ -69,7 +69,7 @@ const TempGauge: React.FC<TempGaugeProps> = ({ temperature, label, min = DEFAULT
         <path
           d={describeArc(START_ANGLE, END_ANGLE)}
           fill="none"
-          stroke="rgba(0,0,0,0.2)"
+          stroke="rgba(0,0,0,0.3)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
         />

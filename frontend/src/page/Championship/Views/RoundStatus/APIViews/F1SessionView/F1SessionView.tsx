@@ -188,34 +188,24 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     <div className="f1-session-view">
       {/* Full-page spinner while session data is loading */}
       {!trackReady && <FillLoading />}
-
-      {/* Main content — hidden while loading but Trackmap stays mounted
-          so its useTrackmap hook keeps the data pipeline active. */}
+      
       <div className="f1-session-content" style={!trackReady ? { display: "none" } : undefined}>
-        <div className="f1-session-top-bar">
-          {/* Temp stats */}
-          {weather && (
-            <div className="f1-session-temps">
-              <TempGauge temperature={weather.trackTemperature} label="TRC" />
-              <TempGauge temperature={weather.airTemperature} label="AIR" />
-            </div>
-          )}
-          {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
-          <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
-            {demoEnded
-              ? "End of Demo"
-              : sessionInfo
-                ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
-                : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
-          </p>
-          {/* Weather stats */}
-          {weather && (
-            <div className="f1-session-weather">
-              <TempGauge temperature={weather.humidity} label="HUM" min={0} max={100} />
-              <TempGauge temperature={weather.windSpeed} label="WND" min={0} max={40} />
-            </div>
-          )}
-        </div>
+        {weather && (
+          <div className="f1-session-weather-bar">
+            <TempGauge temperature={weather.trackTemperature} label="TRC" />
+            <TempGauge temperature={weather.airTemperature} label="AIR" />
+            <TempGauge temperature={weather.humidity} label="HUM" min={0} max={100} />
+            <TempGauge temperature={weather.windSpeed} label="WND" min={0} max={40} />
+          </div>
+        )}
+        {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}
+        <p className={`f1-session-title${demoEnded ? ' f1-session-title--ended' : ''}`}>
+          {demoEnded
+            ? "End of Demo"
+            : sessionInfo
+              ? `${sessionInfo.trackName} - ${sessionInfo.sessionName}`
+              : (sessionLabel || (demoMode ? "F1 Demo Session" : "F1 Live Session"))}
+        </p>
         {/* Live track map with car positions */}
         <div className="trackmap-container">
           <Trackmap

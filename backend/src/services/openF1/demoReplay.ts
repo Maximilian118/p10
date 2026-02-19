@@ -1,6 +1,6 @@
 import axios from "axios"
 import { getOpenF1Token } from "./auth"
-import { handleMqttMessage, emitToRoom, initDemoSession, endDemoSession, emitDemoTrackmap, buildTrackFromDemoData, setActivePitLaneProfile, OPENF1_EVENTS, setOnRoomEmpty } from "./sessionManager"
+import { handleMqttMessage, emitToRoom, emitToDemo, initDemoSession, endDemoSession, emitDemoTrackmap, buildTrackFromDemoData, setActivePitLaneProfile, OPENF1_EVENTS, setOnDemoStop, withDemoContext } from "./sessionManager"
 import {
   OpenF1LocationMsg, OpenF1LapMsg, OpenF1SessionMsg, OpenF1DriverMsg, DriverInfo,
   OpenF1CarDataMsg, OpenF1IntervalMsg, OpenF1PitMsg, OpenF1StintMsg,
@@ -59,9 +59,9 @@ export const getDemoStatus = (): DemoStatus => ({
   speed: replaySpeed,
 })
 
-// Emits a demo phase update to all connected clients.
+// Emits a demo phase update to the demo viewer socket.
 const emitDemoPhase = (phase: "fetching" | "ready" | "stopped" | "ended"): void => {
-  emitToRoom(OPENF1_EVENTS.DEMO_STATUS, { phase })
+  emitToDemo(OPENF1_EVENTS.DEMO_STATUS, { phase })
 }
 
 // Generates synthetic clock events from the full (pre-trim) message queue.
@@ -1122,7 +1122,7 @@ export const startDemoReplay = async (
         // Keep whichever profile has more samples (existing vs newly built).
         const existingProfile = existingTrackmap.pitLaneProfile
         if (!existingProfile || profile.samplesCollected > existingProfile.samplesCollected) {
-          setActivePitLaneProfile(profile)
+          withDemoContext(() => setActivePitLaneProfile(profile))
           existingTrackmap.pitLaneProfile = profile
           existingTrackmap.updated_at = new Date().toISOString()
           await existingTrackmap.save()
@@ -1136,12 +1136,14 @@ export const startDemoReplay = async (
     // Process stateful preamble messages (stints, positions, weather, etc.) that sit
     // between driver entries and the first location message. These must be fed through
     // handleMqttMessage so sessionManager has correct initial state (tyre compounds, etc.).
-    for (let i = 0; i < preambleEnd; i++) {
-      const msg = messages[i]
-      if (!PREAMBLE_TOPICS.has(msg.topic) && msg.topic !== "synthetic:clock") {
-        handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+    withDemoContext(() => {
+      for (let i = 0; i < preambleEnd; i++) {
+        const msg = messages[i]
+        if (!PREAMBLE_TOPICS.has(msg.topic) && msg.topic !== "synthetic:clock") {
+          handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)), true)
+        }
       }
-    }
+    })
 
     // Abort if a newer replay was started while we were loading/initializing.
     if (thisGeneration !== replayGeneration) {
@@ -1168,20 +1170,23 @@ export const startDemoReplay = async (
     // Process all fast-forwarded messages (positions + laps) immediately.
     // Track the latest synthetic clock event so we can emit it for initial state.
     let latestFastForwardClock: { remainingMs: number; running: boolean } | null = null
-    for (let i = preambleEnd; i < fastForwardEnd; i++) {
-      const msg = messages[i]
-      if (msg.topic === "synthetic:clock") {
-        latestFastForwardClock = msg.data as { remainingMs: number; running: boolean }
-      } else {
-        handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+    withDemoContext(() => {
+      for (let i = preambleEnd; i < fastForwardEnd; i++) {
+        const msg = messages[i]
+        if (msg.topic === "synthetic:clock") {
+          latestFastForwardClock = msg.data as { remainingMs: number; running: boolean }
+        } else {
+          handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)), true)
+        }
       }
-    }
+    })
 
     // Emit the latest clock state from the fast-forwarded period so the frontend
     // starts with the correct countdown value.
-    if (latestFastForwardClock) {
-      emitToRoom(OPENF1_EVENTS.CLOCK, {
-        ...latestFastForwardClock,
+    if (latestFastForwardClock !== null) {
+      const clock = latestFastForwardClock as { remainingMs: number; running: boolean }
+      emitToDemo(OPENF1_EVENTS.CLOCK, {
+        ...clock,
         serverTs: Date.now(),
         speed: replaySpeed,
       })
@@ -1194,15 +1199,15 @@ export const startDemoReplay = async (
     replayStartTime = Date.now()
     replayActive = true
 
-    // Auto-stop the demo when the last client leaves the room.
-    setOnRoomEmpty(() => {
-      log.info("Auto-stopping demo replay — no clients in room")
+    // Auto-stop the demo when the demo viewer disconnects or unsubscribes.
+    setOnDemoStop(() => {
+      log.info("Auto-stopping demo replay — demo viewer left")
       stopDemoReplay()
     })
 
     // Emit the trackmap now that fast-forwarded data is populated.
     // This is what stops the frontend spinner — delayed until data is ready.
-    emitDemoTrackmap()
+    withDemoContext(() => emitDemoTrackmap())
 
     // Notify frontend that replay is ready (clock is now driven by synthetic:clock events).
     emitDemoPhase("ready")
@@ -1227,24 +1232,27 @@ export const startDemoReplay = async (
       const elapsedSession = elapsedReal * replaySpeed
       const currentSessionTime = replayBaseTime + elapsedSession
 
-      // Feed all messages up to the current session time.
-      while (replayIndex < replayMessages.length && replayMessages[replayIndex].timestamp <= currentSessionTime) {
-        const msg = replayMessages[replayIndex]
+      // Feed all messages up to the current session time within demo context
+      // so sessionManager reads/writes demoState and emits to the demo socket.
+      withDemoContext(() => {
+        while (replayIndex < replayMessages.length && replayMessages[replayIndex].timestamp <= currentSessionTime) {
+          const msg = replayMessages[replayIndex]
 
-        // Synthetic clock events are emitted directly as session:clock.
-        if (msg.topic === "synthetic:clock") {
-          const clockData = msg.data as { remainingMs: number; running: boolean }
-          emitToRoom(OPENF1_EVENTS.CLOCK, {
-            ...clockData,
-            serverTs: Date.now(),
-            speed: replaySpeed,
-          })
-        } else {
-          handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)))
+          // Synthetic clock events are emitted directly as session:clock.
+          if (msg.topic === "synthetic:clock") {
+            const clockData = msg.data as { remainingMs: number; running: boolean }
+            emitToRoom(OPENF1_EVENTS.CLOCK, {
+              ...clockData,
+              serverTs: Date.now(),
+              speed: replaySpeed,
+            })
+          } else {
+            handleMqttMessage(msg.topic, Buffer.from(JSON.stringify(msg.data)), true)
+          }
+
+          replayIndex++
         }
-
-        replayIndex++
-      }
+      })
     }, REPLAY_TICK_INTERVAL)
 
     return getDemoStatus()
@@ -1264,8 +1272,11 @@ export const stopDemoReplay = (natural = false): DemoStatus => {
     replayTimer = null
   }
 
-  // Unregister the room-empty callback so disconnects no longer trigger stop.
-  setOnRoomEmpty(null)
+  // Unregister the demo stop callback so disconnects no longer trigger stop.
+  setOnDemoStop(null)
+
+  // Notify frontend BEFORE cleaning up — endDemoSession clears demoSocketId.
+  emitDemoPhase(natural ? "ended" : "stopped")
 
   // Clean up the demo session state.
   if (replayActive) {
@@ -1275,9 +1286,6 @@ export const stopDemoReplay = (natural = false): DemoStatus => {
   replayActive = false
   replayMessages = []
   replayIndex = 0
-
-  // Notify frontend — "ended" for natural completion, "stopped" for user-initiated.
-  emitDemoPhase(natural ? "ended" : "stopped")
 
   log.info(natural ? "Demo replay ended" : "Demo replay stopped")
   return getDemoStatus()

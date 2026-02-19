@@ -83,6 +83,16 @@ export const OPENF1_EVENTS = {
 // Current active session state (null when no session is active).
 let activeSession: SessionState | null = null
 
+// Demo session state — separate from live activeSession so demos don't interfere.
+let demoState: SessionState | null = null
+
+// Socket ID of the client watching the demo — demo events emit only to this socket.
+let demoSocketId: string | null = null
+
+// Override for emitToRoom routing during demo context. When set, emitToRoom
+// sends to the demo socket instead of the live room.
+let emitOverride: ((event: string, data: unknown) => void) | null = null
+
 // Socket.IO server reference for emitting events.
 let ioServer: Server | null = null
 
@@ -91,6 +101,10 @@ let positionBatchTimer: ReturnType<typeof setInterval> | null = null
 
 // Timer for aggregated driver state emissions.
 let driverStateBatchTimer: ReturnType<typeof setInterval> | null = null
+
+// Separate batch timers for demo sessions.
+let demoPositionBatchTimer: ReturnType<typeof setInterval> | null = null
+let demoDriverStateBatchTimer: ReturnType<typeof setInterval> | null = null
 
 // Tracks when each driver's lap number last changed (real wall-clock time).
 // Used by truncateDemoSegments() to detect stale GPS during lap transitions.
@@ -124,6 +138,13 @@ export const setOnRoomEmpty = (cb: (() => void) | null): void => {
   onRoomEmptyCallback = cb
 }
 
+// Callback invoked when the demo socket disconnects or unsubscribes.
+// Set by demoReplay to stop the replay when the viewer navigates away.
+let onDemoStopCallback: (() => void) | null = null
+export const setOnDemoStop = (cb: (() => void) | null): void => {
+  onDemoStopCallback = cb
+}
+
 // Delay before emitting the capability report (ms).
 // Slightly longer than the MQTT grace period so REST polling decisions are finalized.
 const CAPABILITY_REPORT_DELAY = 17000
@@ -140,9 +161,32 @@ export const initSessionManager = (io: Server): void => {
     // Send current live session status to every connecting client (for nav button).
     socket.emit(OPENF1_EVENTS.LIVE_SESSION, getActiveSessionInfo())
 
-    socket.on(OPENF1_EVENTS.SUBSCRIBE, () => {
+    socket.on(OPENF1_EVENTS.SUBSCRIBE, (opts?: { demoMode?: boolean }) => {
+      // Demo subscriber — register as the demo socket and send current demo state.
+      if (opts?.demoMode) {
+        demoSocketId = socket.id
+        if (demoState) {
+          socket.emit(OPENF1_EVENTS.SESSION, {
+            active: true,
+            trackName: demoState.trackName,
+            sessionType: demoState.sessionType,
+            sessionName: demoState.sessionName,
+          })
+          socket.emit(OPENF1_EVENTS.DRIVERS, Array.from(demoState.drivers.values()))
+          // Send the demo's track map via context swap so buildTrackmapPayload reads demoState.
+          withDemoContext(() => {
+            const trackmapPayload = buildTrackmapPayload()
+            if (trackmapPayload) socket.emit(OPENF1_EVENTS.TRACKMAP, trackmapPayload)
+            const states = buildDriverStates()
+            if (states.length > 0) socket.emit(OPENF1_EVENTS.DRIVER_STATES, states)
+          })
+          socket.emit(OPENF1_EVENTS.TRACK_FLAG, demoState.trackFlag)
+        }
+        return
+      }
+
+      // Live subscriber — join the shared room and send current live state.
       socket.join(OPENF1_ROOM)
-      // Send current session state and track map to the new subscriber.
       if (activeSession) {
         socket.emit(OPENF1_EVENTS.SESSION, {
           active: true,
@@ -181,13 +225,22 @@ export const initSessionManager = (io: Server): void => {
 
     socket.on(OPENF1_EVENTS.UNSUBSCRIBE, () => {
       socket.leave(OPENF1_ROOM)
-      // Stop demo replay if this was the last viewer in the room.
+      // Stop demo replay if this was the demo socket.
+      if (socket.id === demoSocketId) {
+        demoSocketId = null
+        if (onDemoStopCallback) onDemoStopCallback()
+      }
       checkRoomEmpty()
     })
 
     // Handle socket disconnect (tab close, network drop, browser close).
     // Socket.io auto-removes the socket from all rooms on disconnect.
     socket.on("disconnect", () => {
+      // Stop demo replay if the demo viewer disconnected.
+      if (socket.id === demoSocketId) {
+        demoSocketId = null
+        if (onDemoStopCallback) onDemoStopCallback()
+      }
       checkRoomEmpty()
     })
   })
@@ -208,8 +261,8 @@ export const getActiveTrackName = (): string | null => {
 }
 
 // Initializes a demo session directly without OpenF1 API calls.
-// Sets activeSession synchronously first so replay messages aren't dropped,
-// then loads the existing trackmap from MongoDB (fast local query).
+// Sets demoState (separate from activeSession) so live data is unaffected.
+// Loads the existing trackmap from MongoDB (fast local query).
 export const initDemoSession = async (
   sessionKey: number,
   trackName: string,
@@ -218,7 +271,7 @@ export const initDemoSession = async (
   sessionType?: string,
   totalLaps?: number | null,
 ): Promise<void> => {
-  activeSession = {
+  demoState = {
     sessionKey,
     meetingKey: 0,
     trackName,
@@ -284,52 +337,51 @@ export const initDemoSession = async (
   try {
     const existing = await Trackmap.findOne({ trackName })
     if (existing && existing.path.length > 0) {
-      activeSession.baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
+      demoState!.baselinePath = existing.path.map((p) => ({ x: p.x, y: p.y }))
       // Snap last point to first so the path forms a zero-gap closed loop.
-      if (activeSession.baselinePath.length > 1) {
-        activeSession.baselinePath[activeSession.baselinePath.length - 1] = { ...activeSession.baselinePath[0] }
+      if (demoState!.baselinePath.length > 1) {
+        demoState!.baselinePath[demoState!.baselinePath.length - 1] = { ...demoState!.baselinePath[0] }
       }
-      activeSession.baselineArcLengths = computeArcLengths(activeSession.baselinePath)
-      activeSession.totalLapsProcessed = existing.totalLapsProcessed
-      activeSession.lastUpdateLap = existing.totalLapsProcessed
+      demoState!.baselineArcLengths = computeArcLengths(demoState!.baselinePath)
+      demoState!.totalLapsProcessed = existing.totalLapsProcessed
+      demoState!.lastUpdateLap = existing.totalLapsProcessed
       log.info(`✓ Loaded existing track map for "${trackName}" (${existing.path.length} points, ${existing.totalLapsProcessed} laps)`)
 
       // Load cached MultiViewer outline if available.
       if (existing.multiviewerPath && existing.multiviewerPath.length > 0) {
-        activeSession.multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
-        activeSession.multiviewerArcLengths = computeArcLengths(activeSession.multiviewerPath)
+        demoState!.multiviewerPath = existing.multiviewerPath.map((p) => ({ x: p.x, y: p.y }))
+        demoState!.multiviewerArcLengths = computeArcLengths(demoState!.multiviewerPath)
         mvLog.info(`✓ Loaded cached MultiViewer outline for "${trackName}" (${existing.multiviewerPath.length} points)`)
       }
 
       // Load cached corners and sector boundaries.
       if (existing.corners && existing.corners.length > 0) {
-        activeSession.corners = existing.corners.map((c) => ({ number: c.number, trackPosition: { x: c.trackPosition.x, y: c.trackPosition.y } }))
+        demoState!.corners = existing.corners.map((c) => ({ number: c.number, trackPosition: { x: c.trackPosition.x, y: c.trackPosition.y } }))
       }
       if (existing.sectorBoundaries) {
-        activeSession.sectorBoundaries = existing.sectorBoundaries
+        demoState!.sectorBoundaries = existing.sectorBoundaries
       }
       // Load cached pit lane profile.
       if (existing.pitLaneProfile) {
-        activeSession.pitLaneProfile = existing.pitLaneProfile
+        demoState!.pitLaneProfile = existing.pitLaneProfile
         log.info(`✓ Loaded pit lane profile for "${trackName}" (${existing.pitLaneProfile.samplesCollected} samples, limit: ${existing.pitLaneProfile.pitLaneSpeedLimit} km/h)`)
       }
       // Load admin-set rotation override.
-      activeSession.rotationOverride = existing.rotationOverride ?? 0
+      demoState!.rotationOverride = existing.rotationOverride ?? 0
     }
   } catch (err) {
     log.error("⚠ Failed to load track map for demo:", err)
   }
 
   // Try to fetch MultiViewer outline if not cached.
-  if (!activeSession.multiviewerPath) {
-    await tryFetchMultiviewer(circuitKey, trackName)
+  if (!demoState!.multiviewerPath) {
+    await tryFetchMultiviewer(circuitKey, trackName, demoState!)
   }
 
-  startPositionBatching()
-  startDriverStateBatching()
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo", sessionName: "Demo" })
-  emitToRoom(OPENF1_EVENTS.TRACK_FLAG, activeSession.trackFlag)
-  emitToRoom(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
+  startDemoBatching()
+  emitToDemo(OPENF1_EVENTS.SESSION, { active: true, trackName, sessionType: "Demo", sessionName: "Demo" })
+  emitToDemo(OPENF1_EVENTS.TRACK_FLAG, demoState!.trackFlag)
+  emitToDemo(OPENF1_EVENTS.DRIVERS, Array.from(drivers.values()))
 }
 
 // Emits the current trackmap to all clients. Called after fast-forward
@@ -349,11 +401,11 @@ export const setActivePitLaneProfile = (profile: PitLaneProfile): void => {
 
 // Cleans up a demo session and notifies the frontend.
 export const endDemoSession = (): void => {
-  stopPositionBatching()
-  stopDriverStateBatching()
+  stopDemoBatching()
   driverLapTransitionTs.clear()
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
-  activeSession = null
+  emitToDemo(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
+  demoState = null
+  demoSocketId = null
 }
 
 // ─── Source Priority ──────────────────────────────────────────────
@@ -379,6 +431,13 @@ const isSignalRFresh = (eventType: string): boolean => {
 }
 
 // ─── Normalized Event Handler ────────────────────────────────────
+
+// Wraps handleEvent with a demo guard for live SignalR events.
+// Suppresses SignalR data processing while a demo is active.
+export const handleLiveSignalREvent = (event: InternalEvent): void => {
+  if (demoState) return
+  handleEvent(event)
+}
 
 // Handles a normalized internal event from any source (SignalR, OpenF1, or demo).
 // Applies source priority: SignalR data suppresses OpenF1 for overlapping topics.
@@ -1210,8 +1269,12 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
 // Routes an incoming MQTT message through the normalizer and unified event handler.
 // This is the entry point for both live MQTT and demo replay messages.
 // During live sessions with recording enabled, messages are also buffered for replay.
-export const handleMqttMessage = (topic: string, payload: Buffer): void => {
+// fromReplay: true when called by the demo tick loop (bypasses the demo-active guard).
+export const handleMqttMessage = (topic: string, payload: Buffer, fromReplay = false): void => {
   try {
+    // Suppress live MQTT events while a demo is active.
+    if (!fromReplay && demoState) return
+
     const data = JSON.parse(payload.toString())
 
     // Buffer the message for session recording if active.
@@ -1511,6 +1574,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
   startPositionBatching()
   startDriverStateBatching()
   onPolledMessage((topic, data) => {
+    // Suppress REST polling during demo playback.
+    if (demoState) return
     const event = normalizeOpenF1Message(topic, data)
     if (event) handleEvent(event)
   })
@@ -2186,8 +2251,9 @@ export const setTrackmapRotation = async (trackName: string, rotation: number): 
 // Attempts to fetch a high-fidelity track outline from the MultiViewer API.
 // Uses the shared circuit key (identical between OpenF1 and MultiViewer).
 // On success, stores the path in the active session and caches it in MongoDB.
-const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string): Promise<void> => {
-  if (!activeSession) return
+const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string, targetSession?: SessionState): Promise<void> => {
+  const session = targetSession ?? activeSession
+  if (!session) return
 
   // No circuit key available — fall back to GPS-derived track.
   if (circuitKey === null) {
@@ -2202,9 +2268,9 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
       return
     }
 
-    activeSession.multiviewerPath = mvData.path
-    activeSession.multiviewerArcLengths = computeArcLengths(activeSession.multiviewerPath)
-    activeSession.corners = mvData.corners.length > 0 ? mvData.corners : null
+    session.multiviewerPath = mvData.path
+    session.multiviewerArcLengths = computeArcLengths(session.multiviewerPath)
+    session.corners = mvData.corners.length > 0 ? mvData.corners : null
     mvLog.info(`✓ Fetched MultiViewer track outline for "${trackName}" (${mvData.path.length} points, ${mvData.corners.length} corners)`)
 
     // Cache the MultiViewer data in MongoDB for future sessions.
@@ -2231,11 +2297,11 @@ const tryFetchMultiviewer = async (circuitKey: number | null, trackName: string)
 
     // Recompute display sector boundaries against the new multiviewer path
     // if baseline sectors and position data are available.
-    if (activeSession.sectorBoundaries && activeSession.positionsByDriverLap.size > 0) {
-      const allLaps = Array.from(activeSession.completedLaps.values())
+    if (session.sectorBoundaries && session.positionsByDriverLap.size > 0) {
+      const allLaps = Array.from(session.completedLaps.values())
       const flatPositions = buildFlatPositions()
-      activeSession.displaySectorBoundaries = computeSectorBoundaries(allLaps, flatPositions, activeSession.multiviewerPath!)
-      if (activeSession.displaySectorBoundaries) {
+      session.displaySectorBoundaries = computeSectorBoundaries(allLaps, flatPositions, session.multiviewerPath!)
+      if (session.displaySectorBoundaries) {
         mvLog.info(`✓ Display sector boundaries recomputed against MultiViewer path`)
       }
     }
@@ -2431,18 +2497,20 @@ const buildDriverStates = (): DriverLiveState[] => {
   return states
 }
 
+// Single tick of driver state batching — reads from activeSession, emits via emitToRoom.
+// Shared by both live and demo batching timers (demo wraps in withDemoContext).
+const driverStateBatchTick = (): void => {
+  if (!activeSession || activeSession.drivers.size === 0) return
+  const states = buildDriverStates()
+  if (states.length > 0) {
+    emitToRoom(OPENF1_EVENTS.DRIVER_STATES, states)
+  }
+}
+
 // Starts a timer that emits aggregated driver state snapshots every ~1s.
 const startDriverStateBatching = (): void => {
   stopDriverStateBatching()
-
-  driverStateBatchTimer = setInterval(() => {
-    if (!activeSession || activeSession.drivers.size === 0) return
-
-    const states = buildDriverStates()
-    if (states.length > 0) {
-      emitToRoom(OPENF1_EVENTS.DRIVER_STATES, states)
-    }
-  }, DRIVER_STATE_BATCH_INTERVAL)
+  driverStateBatchTimer = setInterval(driverStateBatchTick, DRIVER_STATE_BATCH_INTERVAL)
 }
 
 // Stops the driver state batching timer.
@@ -2526,73 +2594,74 @@ const stopProgressiveSaving = (): void => {
 
 // ─── Position Batching ───────────────────────────────────────────
 
+// Single tick of position batching — reads from activeSession, emits via emitToRoom.
+// Shared by both live and demo batching timers (demo wraps in withDemoContext).
+const positionBatchTick = (): void => {
+  if (!activeSession || activeSession.currentPositions.size === 0) return
+
+  // Determine coordinate mapping: if MultiViewer is active and we have a GPS
+  // reference path, map car positions through track progress.
+  const displayPath = activeSession.multiviewerPath
+  const referencePath = activeSession.baselinePath
+  const shouldMap = displayPath && referencePath && displayPath !== referencePath
+
+  // Pre-cached arc-length table for the display path (hot path).
+  const multiviewerArc = activeSession.multiviewerArcLengths || undefined
+
+  // Build the position payload.
+  const positions: CarPositionPayload[] = []
+  const missingDrivers: number[] = []
+
+  activeSession.currentPositions.forEach((pos, driverNumber) => {
+    const driver = activeSession!.drivers.get(driverNumber)
+    if (!driver) {
+      missingDrivers.push(driverNumber)
+      return
+    }
+
+    let displayX = pos.x
+    let displayY = pos.y
+    let progress: number | undefined
+
+    // Project GPS coordinates directly onto the display path for correct positioning.
+    // Both paths use the same F1 coordinate system, so nearest-segment projection works.
+    // Pass the driver's previous progress as a hint to avoid nearest-segment ambiguity
+    // on tracks where sections run close together (e.g. Shanghai turns 14-16).
+    if (shouldMap) {
+      const hint = activeSession!.lastEmittedProgress.get(driverNumber)
+      progress = computeTrackProgress(pos.x, pos.y, displayPath!, multiviewerArc, hint)
+      activeSession!.lastEmittedProgress.set(driverNumber, progress)
+      const mapped = mapProgressToPoint(progress, displayPath!, multiviewerArc)
+      displayX = mapped.x
+      displayY = mapped.y
+    }
+
+    positions.push({
+      driverNumber,
+      x: displayX,
+      y: displayY,
+      ...(progress !== undefined && { progress }),
+      nameAcronym: driver.nameAcronym,
+      fullName: driver.fullName,
+      teamName: driver.teamName,
+      teamColour: driver.teamColour,
+    })
+  })
+
+  // Log when positions are skipped due to missing driver info.
+  if (missingDrivers.length > 0) {
+    log.verbose(`Position batch: ${missingDrivers.length} drivers skipped (no info): ${missingDrivers.join(", ")}`)
+  }
+
+  if (positions.length > 0) {
+    emitToRoom(OPENF1_EVENTS.POSITIONS, positions)
+  }
+}
+
 // Starts a timer that emits batched car positions to the frontend at ~10fps.
-// When a MultiViewer track outline is active, car GPS positions are mapped
-// through track progress so they align with the display path.
 const startPositionBatching = (): void => {
   stopPositionBatching()
-
-  positionBatchTimer = setInterval(() => {
-    if (!activeSession || activeSession.currentPositions.size === 0) return
-
-    // Determine coordinate mapping: if MultiViewer is active and we have a GPS
-    // reference path, map car positions through track progress.
-    const displayPath = activeSession.multiviewerPath
-    const referencePath = activeSession.baselinePath
-    const shouldMap = displayPath && referencePath && displayPath !== referencePath
-
-    // Pre-cached arc-length table for the display path (hot path).
-    const multiviewerArc = activeSession.multiviewerArcLengths || undefined
-
-    // Build the position payload.
-    const positions: CarPositionPayload[] = []
-    const missingDrivers: number[] = []
-
-    activeSession.currentPositions.forEach((pos, driverNumber) => {
-      const driver = activeSession!.drivers.get(driverNumber)
-      if (!driver) {
-        missingDrivers.push(driverNumber)
-        return
-      }
-
-      let displayX = pos.x
-      let displayY = pos.y
-      let progress: number | undefined
-
-      // Project GPS coordinates directly onto the display path for correct positioning.
-      // Both paths use the same F1 coordinate system, so nearest-segment projection works.
-      // Pass the driver's previous progress as a hint to avoid nearest-segment ambiguity
-      // on tracks where sections run close together (e.g. Shanghai turns 14-16).
-      if (shouldMap) {
-        const hint = activeSession!.lastEmittedProgress.get(driverNumber)
-        progress = computeTrackProgress(pos.x, pos.y, displayPath!, multiviewerArc, hint)
-        activeSession!.lastEmittedProgress.set(driverNumber, progress)
-        const mapped = mapProgressToPoint(progress, displayPath!, multiviewerArc)
-        displayX = mapped.x
-        displayY = mapped.y
-      }
-
-      positions.push({
-        driverNumber,
-        x: displayX,
-        y: displayY,
-        ...(progress !== undefined && { progress }),
-        nameAcronym: driver.nameAcronym,
-        fullName: driver.fullName,
-        teamName: driver.teamName,
-        teamColour: driver.teamColour,
-      })
-    })
-
-    // Log when positions are skipped due to missing driver info.
-    if (missingDrivers.length > 0) {
-      log.verbose(`Position batch: ${missingDrivers.length} drivers skipped (no info): ${missingDrivers.join(", ")}`)
-    }
-
-    if (positions.length > 0) {
-      emitToRoom(OPENF1_EVENTS.POSITIONS, positions)
-    }
-  }, POSITION_BATCH_INTERVAL)
+  positionBatchTimer = setInterval(positionBatchTick, POSITION_BATCH_INTERVAL)
 }
 
 // Stops the position batching timer.
@@ -2603,13 +2672,63 @@ const stopPositionBatching = (): void => {
   }
 }
 
+// ─── Demo Batching ──────────────────────────────────────────────
+
+// Starts separate batch timers for demo sessions.
+// Uses withDemoContext so the shared tick functions read from demoState
+// and emit to the demo socket instead of the live room.
+export const startDemoBatching = (): void => {
+  stopDemoBatching()
+  demoDriverStateBatchTimer = setInterval(() => {
+    if (!demoState) return
+    withDemoContext(driverStateBatchTick)
+  }, DRIVER_STATE_BATCH_INTERVAL)
+  demoPositionBatchTimer = setInterval(() => {
+    if (!demoState) return
+    withDemoContext(positionBatchTick)
+  }, POSITION_BATCH_INTERVAL)
+}
+
+// Stops the demo batch timers.
+export const stopDemoBatching = (): void => {
+  if (demoDriverStateBatchTimer) {
+    clearInterval(demoDriverStateBatchTimer)
+    demoDriverStateBatchTimer = null
+  }
+  if (demoPositionBatchTimer) {
+    clearInterval(demoPositionBatchTimer)
+    demoPositionBatchTimer = null
+  }
+}
+
 // ─── Socket.IO Emission ──────────────────────────────────────────
 
-// Emits an event to all clients in the openf1:live room.
+// Emits an event to the appropriate target — live room by default,
+// or the demo socket when called within withDemoContext.
 export const emitToRoom = (event: string, data: unknown): void => {
-  if (ioServer) {
+  if (emitOverride) {
+    emitOverride(event, data)
+  } else if (ioServer) {
     ioServer.to(OPENF1_ROOM).emit(event, data)
   }
+}
+
+// Emits an event directly to the demo viewer's socket.
+export const emitToDemo = (event: string, data: unknown): void => {
+  if (demoSocketId && ioServer) {
+    ioServer.to(demoSocketId).emit(event, data)
+  }
+}
+
+// Temporarily swaps activeSession to demoState and routes emissions
+// to the demo socket. Safe in Node.js single-threaded model.
+export const withDemoContext = (fn: () => void): void => {
+  const savedSession = activeSession
+  activeSession = demoState
+  emitOverride = emitToDemo
+  fn()
+  emitOverride = null
+  activeSession = savedSession
 }
 
 // Returns the current live session info for broadcasting to all clients.

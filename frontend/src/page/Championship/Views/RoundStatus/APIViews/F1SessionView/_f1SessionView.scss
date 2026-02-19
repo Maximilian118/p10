@@ -21,39 +21,24 @@
     flex-grow: 1;
     min-height: 0;
 
-    .f1-session-top-bar {
+    .f1-session-weather-bar {
       width: 100%;
-      @include mixins.flexbox-space-between;
+      height: 46px;
+      @include mixins.flexbox;
       align-items: end;
-      margin-top: 5px;
-      padding: 0 5px;
+      padding: 6px 20px 2px;
       box-sizing: border-box;
+      background: white;
+      gap: 8px;
+    }
 
-      .f1-session-temps, .f1-session-weather {
-        width: 80px;
-        height: 100%;
-      }
+    .f1-session-title {
+      font-size: 14px;
+      margin: 20px 0 5px;
 
-      .f1-session-temps {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-      }
-
-      .f1-session-title {
-        font-size: 14px;
-        padding-bottom: 5px;
-        // Red text when the demo replay has ended.
-        &--ended {
-          color: #f44336;
-        }
-      }
-
-      .f1-session-weather {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-        justify-content: flex-end;
+      // Red text when the demo replay has ended.
+      &--ended {
+        color: #f44336;
       }
     }
   }
