@@ -42,7 +42,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
       </div>
       <h5 className="driver-id">{state.nameAcronym}</h5>
       <TyreCompound compound={state.tyreCompound} style={{ marginRight: 3 }}/>
-      <TyreLaps lapsOld={state.tyreAge} lastPit={lastPitLap} inPits={state.inPit} DNF={state.retired}/>
+      <TyreLaps lapsOld={state.tyreAge} lastPit={lastPitLap} DRS={state.drs >= 10} inPits={state.inPit} DNF={state.retired}/>
       <div className="timing-info">
         <MiniSectors segments={state.segments} currentLapNumber={state.currentLapNumber} acceptedSegments={pillSegments}/>
         <div className="timing-stats">

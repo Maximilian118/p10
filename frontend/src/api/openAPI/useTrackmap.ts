@@ -15,6 +15,7 @@ const EVENTS = {
   RACE_CONTROL: "openf1:race-control",
   DEMO_STATUS: "openf1:demo-status",
   DRIVER_FLAG: "openf1:driver-flag",
+  TRACK_FLAG: "openf1:track-flag",
   SUBSCRIBE: "openf1:subscribe",
   UNSUBSCRIBE: "openf1:unsubscribe",
 } as const
@@ -37,6 +38,7 @@ export interface UseTrackmapResult {
   rotationOverride: number
   connectionStatus: TrackmapConnectionStatus
   driverFlags: Map<number, string>
+  trackFlag: string | null
 }
 
 // Hook that provides live F1 track map data and car positions.
@@ -59,6 +61,7 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionState, setSessionState] = useState<SessionLiveState | null>(null)
   const [driverFlags, setDriverFlags] = useState<Map<number, string>>(new Map())
+  const [trackFlag, setTrackFlag] = useState<string | null>(null)
 
   // Timers for auto-expiring driver flags after 3 seconds.
   const driverFlagTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
@@ -138,6 +141,11 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
       })
     }
 
+    // Handle track-wide flag status (GREEN, YELLOW, RED, SC, VSC, etc.).
+    const handleTrackFlag = (flag: string) => {
+      setTrackFlag(flag)
+    }
+
     // Handle driver-specific flag events (e.g. BLUE flag). Sets a flag that
     // auto-expires after 3 seconds, used by Trackmap to flash the car dot.
     const handleDriverFlag = (data: { driverNumber: number; flag: string }) => {
@@ -169,6 +177,7 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
     socket.on(EVENTS.SESSION_STATE, handleSessionState)
     socket.on(EVENTS.RACE_CONTROL, handleRaceControl)
     socket.on(EVENTS.DRIVER_FLAG, handleDriverFlag)
+    socket.on(EVENTS.TRACK_FLAG, handleTrackFlag)
     // Cleanup: leave the room and remove listeners.
     return () => {
       socket.emit(EVENTS.UNSUBSCRIBE)
@@ -180,6 +189,7 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
       socket.off(EVENTS.SESSION_STATE, handleSessionState)
       socket.off(EVENTS.RACE_CONTROL, handleRaceControl)
       socket.off(EVENTS.DRIVER_FLAG, handleDriverFlag)
+      socket.off(EVENTS.TRACK_FLAG, handleTrackFlag)
       driverFlagTimers.current.forEach((t) => clearTimeout(t))
       driverFlagTimers.current.clear()
     }
@@ -200,6 +210,7 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
     rotationOverride,
     connectionStatus,
     driverFlags,
+    trackFlag,
   }
 }
 

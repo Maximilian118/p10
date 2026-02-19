@@ -33,5 +33,10 @@
   .last-pit {
     color: variables.$colour-4;
     font-size: 10px;
+
+    // Red DRS indicator replaces pit info when DRS is active.
+    &.drs {
+      color: variables.$f1-red;
+    }
   }
 }

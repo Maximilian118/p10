@@ -248,12 +248,15 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag, onPillSegments, onWeatherUpdate }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag: trackFlagProp, onPillSegments, onWeatherUpdate }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, sessionState, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
-    driverFlags,
+    driverFlags, trackFlag: hookTrackFlag,
   } = useTrackmap(demoMode)
+
+  // Prefer the hook's direct socket listener; fall back to the prop if available.
+  const trackFlag = hookTrackFlag ?? trackFlagProp
   const trackReadyFired = useRef(false)
 
   // Tracks which drivers have rendered at least once. On initial appearance
@@ -526,9 +529,7 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
   )
 
   // Track stroke color based on track-wide flag status.
-  // When a driver is selected (mini-sector view), the track stays dark.
   const trackColor = useMemo(() => {
-    if (selectedDriverNumber) return "#2a2a3a"
     switch (trackFlag) {
       case "YELLOW":
       case "DOUBLE YELLOW":
@@ -541,10 +542,10 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       default:
         return "#2a2a3a"
     }
-  }, [selectedDriverNumber, trackFlag])
+  }, [trackFlag])
 
   // Whether the track path should flash (VSC ending).
-  const trackFlashing = !selectedDriverNumber && trackFlag === "VSC_ENDING"
+  const trackFlashing = trackFlag === "VSC_ENDING"
 
   // PCA auto-rotation angle (landscape-optimal orientation).
   const pcaAngle = useMemo(
