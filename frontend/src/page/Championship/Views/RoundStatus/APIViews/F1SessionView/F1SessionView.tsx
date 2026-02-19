@@ -2,14 +2,14 @@ import React, { useState, useCallback, useMemo, useContext, useRef, useEffect, u
 import "./_f1SessionView.scss"
 import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
-import { DriverLiveState, SessionLiveState } from "../../../../../../api/openAPI/types"
+import { DriverLiveState, SessionLiveState, RaceControlEvent } from "../../../../../../api/openAPI/types"
 import { AcceptedSegments } from "../../../../../../api/openAPI/openF1Utility"
 import { RoundType, driverType } from "../../../../../../shared/types"
 import F1DriverCard from "./F1DriverCard/F1DriverCard"
 import TempGauge from "./TempGauge/TempGauge"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
 import { Loop } from "@mui/icons-material"
-import { CloudRain, Sun } from "lucide-react"
+import { CloudRain, Sun, Flag } from "lucide-react"
 import AppContext from "../../../../../../context"
 import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trackmapRequests"
 
@@ -50,6 +50,10 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const [pillSegments, setPillSegments] = useState<Map<number, AcceptedSegments>>(new Map())
   // Weather data forwarded from the Trackmap's useTrackmap hook.
   const [weather, setWeather] = useState<SessionLiveState["weather"]>(null)
+  // Race control messages forwarded from the Trackmap's useTrackmap hook.
+  const [raceControlMessages, setRaceControlMessages] = useState<RaceControlEvent[]>([])
+  // Toggles between driver list and race control messages panel.
+  const [showRaceControl, setShowRaceControl] = useState(false)
 
   // ─── Rotation drag state (admin only) ─────────────────────────
   const [dragRotationDelta, setDragRotationDelta] = useState(0)
@@ -139,6 +143,26 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const handleWeatherUpdate = useCallback((w: SessionLiveState["weather"]) => {
     setWeather(w)
   }, [])
+
+  // Receives race control messages from the Trackmap's session state.
+  const handleRaceControlUpdate = useCallback((messages: RaceControlEvent[]) => {
+    setRaceControlMessages(messages)
+  }, [])
+
+  // Sorts race control messages by date descending (most recent first) and
+  // removes duplicates caused by both session-state snapshots and individual
+  // race-control events containing the same message.
+  const sortedRaceControl = useMemo(() => {
+    const seen = new Set<string>()
+    return [...raceControlMessages]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .filter((msg) => {
+        const key = `${msg.date}|${msg.message}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+  }, [raceControlMessages])
 
   // Sorts drivers by race position (P1 at top). Null positions sink to the bottom.
   const sortedStates = useMemo(() =>
@@ -239,28 +263,49 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             trackFlag={trackFlag}
             onPillSegments={handlePillSegments}
             onWeatherUpdate={handleWeatherUpdate}
+            onRaceControlUpdate={handleRaceControlUpdate}
           />
           <div className="trackmap-bar-bottom">
+            <div
+              className={`rc-toggle${showRaceControl ? " rc-toggle--active" : ""}`}
+              onClick={() => setShowRaceControl((prev) => !prev)}
+            >
+              <Flag size={16} />
+            </div>
             {user.permissions.admin && <Loop onMouseDown={handleRotationDragStart} />}
           </div>
         </div>
 
-        {/* A list of all drivers in the session with their current stats */}
-        <div className="driver-list" ref={listRef}>
-          {sortedStates.map((state) => {
-            const champDriver = champDriverMap.get(state.nameAcronym)
-            return (
-              <F1DriverCard
-                key={state.driverNumber}
-                state={state}
-                champDriver={champDriver}
-                selected={driverView?.driverNumber === state.driverNumber}
-                onClick={() => handleDriverViewSelect(state.driverNumber)}
-                pillSegments={pillSegments.get(state.driverNumber)}
-              />
-            )
-          })}
-        </div>
+        {/* Toggle between driver list and race control messages panel */}
+        {showRaceControl ? (
+          <div className="race-control-messages">
+            {sortedRaceControl.map((msg, i) => (
+              <div key={i} className="rc-message">
+                <span className="rc-message__time">
+                  {new Date(msg.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+                {msg.flag && <span className={`rc-message__flag rc-message__flag--${msg.flag.toLowerCase()}`} />}
+                <span className="rc-message__text">{msg.message}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="driver-list" ref={listRef}>
+            {sortedStates.map((state) => {
+              const champDriver = champDriverMap.get(state.nameAcronym)
+              return (
+                <F1DriverCard
+                  key={state.driverNumber}
+                  state={state}
+                  champDriver={champDriver}
+                  selected={driverView?.driverNumber === state.driverNumber}
+                  onClick={() => handleDriverViewSelect(state.driverNumber)}
+                  pillSegments={pillSegments.get(state.driverNumber)}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {advButton && (
           <Button

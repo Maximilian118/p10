@@ -110,12 +110,31 @@
       width: 100%;
       height: 40px;
       @include mixins.flexbox-space-between;
-      position:absolute;
+      position: absolute;
       padding: 0 5px;
       box-sizing: border-box;
       bottom: 0;
 
-      svg {
+      // Race control toggle button (bottom-left of trackmap).
+      .rc-toggle {
+        width: 28px;
+        height: 28px;
+        @include mixins.flexbox;
+        border-radius: 4px;
+        cursor: pointer;
+        color: variables.$colour-3;
+        transition: all variables.$trans-speed;
+
+        &:hover { color: variables.$colour-9; }
+
+        &--active {
+          color: variables.$colour-9;
+          background: variables.$colour-1;
+        }
+      }
+
+      // Loop icon (admin rotation handle) pushed to the right.
+      > svg {
         margin-left: auto;
         cursor: grab;
 
@@ -132,6 +151,55 @@
     flex-grow: 1;
     min-height: 0;
     overflow-y: auto;
+  }
+
+  // Scrollable race control messages panel — replaces driver-list when toggled.
+  // Same flex layout as .driver-list so it fills the same space.
+  .race-control-messages {
+    @include mixins.flexbox-start-column;
+    width: 100%;
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: variables.$colour-9;
+    align-items: stretch;
+
+    .rc-message {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+      // Timestamp column.
+      &__time {
+        font-size: 11px;
+        color: variables.$colour-3;
+        white-space: nowrap;
+        font-family: 'formula1-regular', sans-serif;
+      }
+
+      // Coloured dot indicating the flag type.
+      &__flag {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &--green { background: #4caf50; }
+        &--yellow { background: #fdd835; }
+        &--red { background: #f44336; }
+        &--blue { background: #2196f3; }
+        &--clear { background: #4caf50; }
+        &--chequered { background: #ffffff; }
+      }
+
+      // Message text.
+      &__text {
+        font-size: 12px;
+        color: #ffffff;
+      }
+    }
   }
 
   .advance-button {

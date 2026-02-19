@@ -3,7 +3,7 @@ import useTrackmap from "../../useTrackmap"
 import usePathLockedPositions from "./usePathLockedPositions"
 
 import { computeArcLengths, getPointAndTangentAtProgress, getPointAtProgress, getSubPath, buildOpenSvgPath, computeSignedArea } from "./trackPathUtils"
-import { DriverLiveState, SessionLiveState, SectorBoundaries } from "../../types"
+import { DriverLiveState, SessionLiveState, SectorBoundaries, RaceControlEvent } from "../../types"
 import { segmentColor, forwardDistance, AcceptedSegments } from "../../openF1Utility"
 import "./_trackmap.scss"
 
@@ -19,6 +19,7 @@ interface TrackmapProps {
   trackFlag?: string | null
   onPillSegments?: (map: Map<number, AcceptedSegments>) => void
   onWeatherUpdate?: (weather: SessionLiveState["weather"]) => void
+  onRaceControlUpdate?: (messages: RaceControlEvent[]) => void
 }
 
 interface CarDotProps {
@@ -248,7 +249,7 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag: trackFlagProp, onPillSegments, onWeatherUpdate }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag: trackFlagProp, onPillSegments, onWeatherUpdate, onRaceControlUpdate }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, sessionState, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
@@ -355,6 +356,11 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
   useEffect(() => {
     onWeatherUpdate?.(sessionState?.weather ?? null)
   }, [sessionState?.weather, onWeatherUpdate])
+
+  // Forward race control messages to the parent component.
+  useEffect(() => {
+    onRaceControlUpdate?.(sessionState?.raceControlMessages ?? [])
+  }, [sessionState?.raceControlMessages, onRaceControlUpdate])
 
   // Clean up seenDrivers when drivers leave so that re-appearing drivers
   // get the no-transition initial placement again.
