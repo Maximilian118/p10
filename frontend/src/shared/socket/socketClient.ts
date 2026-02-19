@@ -99,6 +99,11 @@ export const initSocket = (accessToken: string): Socket => {
     reconnectionDelayMax: 5000,
   })
 
+  // Close socket cleanly before page unload to prevent WebSocket upgrade race condition.
+  window.addEventListener("beforeunload", () => {
+    socket?.close()
+  })
+
   return socket
 }
 
