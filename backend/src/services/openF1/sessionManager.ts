@@ -2411,6 +2411,35 @@ const formatInterval = (value: number | string | null): string | null => {
   return `+${value.toFixed(3)}`
 }
 
+// Detects whether a driver is stationary in the pit lane using multiple signals:
+// 1. Explicit pit flag from v1/pit MQTT messages (existing primary detection)
+// 2. Fallback: GPS progress within pit lane bounds + low speed from telemetry
+const isDriverInPit = (driverNumber: number, pitState: DriverPitState | undefined): boolean => {
+  // Primary: existing pit message detection.
+  if (pitState?.inPit) return true
+
+  // Fallback: pit lane profile + GPS progress + speed telemetry.
+  const profile = activeSession?.pitLaneProfile
+  const gps = activeSession?.currentPositions.get(driverNumber)
+  const carData = activeSession?.driverCarData.get(driverNumber)
+  if (!profile || !gps || !activeSession?.baselinePath || !activeSession?.baselineArcLengths) return false
+
+  // Compute track progress from GPS coordinates.
+  const progress = computeTrackProgress(gps.x, gps.y, activeSession.baselinePath, activeSession.baselineArcLengths)
+
+  // Check if progress falls within pit lane entry/exit bounds (handles wrap-around).
+  const inPitBounds = profile.entryProgress < profile.exitProgress
+    ? (progress >= profile.entryProgress && progress <= profile.exitProgress)
+    : (progress >= profile.entryProgress || progress <= profile.exitProgress)
+
+  if (!inPitBounds) return false
+
+  // Check if car is slow enough to be in the pit lane (at or below pit speed limit).
+  const speed = carData?.speed ?? 0
+  const speedLimit = profile.pitLaneSpeedLimit || DEFAULT_PIT_LANE_LIMIT
+  return speed <= speedLimit
+}
+
 // Builds an array of DriverLiveState snapshots from the current session state.
 const buildDriverStates = (): DriverLiveState[] => {
   if (!activeSession) return []
@@ -2498,7 +2527,7 @@ const buildDriverStates = (): DriverLiveState[] => {
 
       tyreCompound: stintState?.compound ?? null,
       tyreAge,
-      inPit: pitState?.inPit ?? false,
+      inPit: isDriverInPit(driverNumber, pitState),
       pitStops: pitState?.count ?? 0,
       isPitOutLap: latestLap?.is_pit_out_lap ?? false,
       retired: activeSession!.dnfs.some((d) => d.driverNumber === driverNumber),
