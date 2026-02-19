@@ -9,6 +9,7 @@ import F1DriverCard from "./F1DriverCard/F1DriverCard"
 import TempGauge from "./TempGauge/TempGauge"
 import FillLoading from "../../../../../../components/utility/fillLoading/FillLoading"
 import { Loop } from "@mui/icons-material"
+import { CloudRain, Sun } from "lucide-react"
 import AppContext from "../../../../../../context"
 import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trackmapRequests"
 
@@ -188,14 +189,19 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     <div className="f1-session-view">
       {/* Full-page spinner while session data is loading */}
       {!trackReady && <FillLoading />}
-      
+
       <div className="f1-session-content" style={!trackReady ? { display: "none" } : undefined}>
         {weather && (
           <div className="f1-session-weather-bar">
-            <TempGauge temperature={weather.trackTemperature} label="TRC" />
-            <TempGauge temperature={weather.airTemperature} label="AIR" />
-            <TempGauge temperature={weather.humidity} label="HUM" min={0} max={100} />
-            <TempGauge temperature={weather.windSpeed} label="WND" min={0} max={40} />
+            <div className="f1-session-guages">
+              <TempGauge temperature={weather.trackTemperature} label="TRC" />
+              <TempGauge temperature={weather.airTemperature} label="AIR" />
+              <TempGauge temperature={weather.humidity} label="HUM" min={0} max={100} />
+              <TempGauge temperature={weather.windSpeed} label="WND" min={0} max={40} />
+            </div>
+            <div className={`f1-session-icon-container ${weather.rainfall ? "rain" : "sun"}`}>
+              {weather.rainfall ? <CloudRain/> : <Sun/>}
+            </div>
           </div>
         )}
         {/* Session title — shows "Track - Session" or "End of Demo" when replay finishes */}

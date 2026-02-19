@@ -72,9 +72,10 @@ const useTrackmap = (demoMode?: boolean): UseTrackmapResult => {
     }
   }, [user, setUser])
 
+  // Skip REST fetch in demo mode — demo gets its trackmap via the socket.
   useEffect(() => {
-    fetchInitialTrackmap()
-  }, [fetchInitialTrackmap])
+    if (!demoMode) fetchInitialTrackmap()
+  }, [fetchInitialTrackmap, demoMode])
 
   // Subscribe to Socket.IO events for live data.
   useEffect(() => {

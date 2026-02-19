@@ -23,13 +23,34 @@
 
     .f1-session-weather-bar {
       width: 100%;
-      height: 46px;
       @include mixins.flexbox;
-      align-items: end;
-      padding: 6px 20px 2px;
+      padding: 2px 20px;
       box-sizing: border-box;
       background: white;
       gap: 8px;
+
+      .f1-session-guages {
+        height: 100%;
+        padding: 4px 0 2px;
+        box-sizing: border-box;
+        @include mixins.flexbox;
+        gap: 8px;
+      }
+
+      .f1-session-icon-container {
+        width: 27px;
+        height: 27px;
+        @include mixins.flexbox;
+
+        svg { 
+          width: 24px; 
+          height: 24px; 
+        }
+
+        // Lucide icons use stroke="currentColor", so CSS color is all we need.
+        &.rain { color: #3b82f6; }
+        &.sun { color: #f59e0b; }
+      }
     }
 
     .f1-session-title {
