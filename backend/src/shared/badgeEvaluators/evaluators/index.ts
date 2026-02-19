@@ -9,6 +9,7 @@ import { driverBetsEvaluators } from "./driverBets"
 import { streaksEvaluators } from "./streaks"
 import { comebackEvaluators } from "./comeback"
 import { quirkyEvaluators } from "./quirky"
+import { f1SessionEvaluators } from "./f1Session"
 
 // Combined badge checker registry from all category files.
 export const badgeCheckerRegistry: Map<string, BadgeChecker> = new Map([
@@ -20,4 +21,5 @@ export const badgeCheckerRegistry: Map<string, BadgeChecker> = new Map([
   ...streaksEvaluators,
   ...comebackEvaluators,
   ...quirkyEvaluators,
+  ...f1SessionEvaluators,
 ])

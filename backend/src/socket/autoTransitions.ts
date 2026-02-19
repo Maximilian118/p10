@@ -86,6 +86,17 @@ export const scheduleCountdownTransition = (
   scheduleAutoTransition(io, champId, roundIndex, "betting_open", totalDelay)
 }
 
+// Schedules auto-transition from betting_open to betting_closed after the configured delay.
+export const scheduleBettingCloseTransition = (
+  io: Server,
+  champId: string,
+  roundIndex: number,
+  delayMs: number
+): void => {
+  log.info(` Scheduling betting close transition: delay=${Math.round(delayMs / 1000)}s`)
+  scheduleAutoTransition(io, champId, roundIndex, "betting_closed", delayMs)
+}
+
 // Schedules auto-transition from results to completed after 5 minutes.
 export const scheduleResultsTransition = (
   io: Server,
@@ -184,6 +195,12 @@ const transitionRoundStatus = async (
   champ.rounds[roundIndex].statusChangedAt = moment().format()
   champ.updated_at = moment().format()
   await champ.save()
+
+  // Schedule auto-close of betting window when entering betting_open (if automation enabled).
+  if (newStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
+    const closeDelayMs = (champ.settings.automation.bettingWindow.autoCloseTime || 5) * 60 * 1000
+    scheduleBettingCloseTransition(io, champId, roundIndex, closeDelayMs)
+  }
 
   // Execute resultsHandler when entering the results view.
   // This processes all results-related logic (points, badges, next round setup).

@@ -292,6 +292,10 @@ export interface AutomationSettingsType {
   bettingWindow: {
     autoOpen: boolean
     autoOpenTime: number
+    autoOpenData: {
+      timestamp: string
+      updated_at: string
+    }
     autoClose: boolean
     autoCloseTime: number
   }

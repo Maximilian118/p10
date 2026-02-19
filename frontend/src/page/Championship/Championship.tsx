@@ -1100,6 +1100,8 @@ const Championship: React.FC = () => {
               setStandingsView={setStandingsView}
               isAdjudicator={isAdjudicator}
               onStartNextRound={() => setShowStartConfirm(true)}
+              autoOpenTimestamp={champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp}
+              autoOpenTime={champ.settings?.automation?.bettingWindow?.autoOpenTime}
             />
           </div>
         </div>
@@ -1170,7 +1172,10 @@ const Championship: React.FC = () => {
             heading={`Start Round ${completedRoundsCount + 1}?`}
             paragraphs={[
               "This will begin the countdown.",
-              "Betting will open shortly after."
+              "Betting will open shortly after.",
+              ...(champ?.settings?.automation?.enabled && champ?.settings?.automation?.bettingWindow?.autoOpen && champ?.settings?.automation?.bettingWindow?.autoOpenData?.timestamp
+                ? ["Note: This round is set to auto-start based on the qualifying schedule."]
+                : []),
             ]}
             cancelText="Go Back"
             confirmText="Confirm Start Round"

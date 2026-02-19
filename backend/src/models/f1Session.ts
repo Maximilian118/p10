@@ -16,6 +16,9 @@ export interface LapRecord {
   position: number | null
   compound: string | null
   isPitOutLap: boolean
+  i1Speed: number | null // Speed trap at intermediate 1.
+  i2Speed: number | null // Speed trap at intermediate 2.
+  stSpeed: number | null // Speed trap on main straight.
 }
 
 // Per-driver stint summary.
@@ -157,6 +160,9 @@ export interface F1SessionType {
   // Overtakes.
   overtakes: OvertakeRecord[]
 
+  // Team radio messages captured during the session.
+  teamRadio: { date: string; driverNumber: number; audioUrl: string }[]
+
   // Demo replay data (type: "demo" only).
   replayMessages: ReplayMessage[]
   replayEndTs: number
@@ -198,6 +204,8 @@ const f1SessionSchema = new mongoose.Schema<F1SessionType>({
   poleTime: { type: Number, default: null },
 
   overtakes: { type: mongoose.Schema.Types.Mixed, default: [] },
+
+  teamRadio: { type: mongoose.Schema.Types.Mixed, default: [] },
 
   replayMessages: { type: mongoose.Schema.Types.Mixed, default: [] },
   replayEndTs: { type: Number, default: 0 },
@@ -253,6 +261,7 @@ export const createF1Session = async (
           fastestLap: null,
           poleTime: null,
           overtakes: [],
+          teamRadio: [],
           replayMessages: [],
           replayEndTs: 0,
           lastUpdatedAt: now,
@@ -293,6 +302,9 @@ export const updateF1Session = async (session: SessionState): Promise<void> => {
           position: session.driverPositions.get(driverNumber) ?? null,
           compound: stint?.compound ?? null,
           isPitOutLap: lap.is_pit_out_lap,
+          i1Speed: lap.i1_speed ?? null,
+          i2Speed: lap.i2_speed ?? null,
+          stSpeed: lap.st_speed ?? null,
         })
       })
       laps.sort((a, b) => a.lapNumber - b.lapNumber)
@@ -402,6 +414,13 @@ export const updateF1Session = async (session: SessionState): Promise<void> => {
       position: o.position,
     }))
 
+    // Build team radio records.
+    const teamRadio = session.teamRadio.map((r) => ({
+      date: r.date,
+      driverNumber: r.driverNumber,
+      audioUrl: r.audioUrl,
+    }))
+
     // Find the session-wide fastest lap.
     let fastestLap: { driverNumber: number; time: number; lap: number } | null = null
     session.driverBestLap.forEach((time, driverNumber) => {
@@ -446,6 +465,7 @@ export const updateF1Session = async (session: SessionState): Promise<void> => {
           safetyCarPeriods,
           redFlagPeriods,
           overtakes,
+          teamRadio,
           fastestLap,
           poleTime,
           totalLaps: session.totalLaps,
@@ -544,6 +564,7 @@ export const saveDemoSession = async (
         fastestLap: null,
         poleTime: null,
         overtakes: [],
+        teamRadio: [],
       },
     },
     { upsert: true },

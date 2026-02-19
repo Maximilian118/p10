@@ -1,7 +1,13 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
 .fill-loading {
   width: 100%;
   flex-grow: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  @include mixins.flexbox-column;
+
+  p {
+    margin-top: 40px;
+    color: variables.$mui-blue;
+  }
 }

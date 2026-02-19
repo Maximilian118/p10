@@ -6,14 +6,131 @@ import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType, PointsA
 import Badge from "../../models/badge"
 import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
-import { badgeCheckerRegistry, BadgeContext } from "../../shared/badgeEvaluators"
+import { badgeCheckerRegistry, BadgeContext, F1SessionData, DriverSessionEntry } from "../../shared/badgeEvaluators"
 import { sendNotification } from "../../shared/notifications"
+import Series from "../../models/series"
+import F1Session from "../../models/f1Session"
 import { createLogger } from "../../shared/logger"
 
 const pointsLog = createLogger("DriverPoints")
 const teamPointsLog = createLogger("TeamPoints")
 const badgeLog = createLogger("AwardBadges")
 const resultsLog = createLogger("ResultsHandler")
+
+// Builds F1SessionData from a finalized F1Session document for badge evaluation.
+// Maps F1Session driver data to DB Driver._id strings using the round's driver entries.
+const buildF1SessionData = (
+  f1Session: InstanceType<typeof F1Session>,
+  currentRound: Round,
+): F1SessionData => {
+  // Build a map from nameAcronym to round driver._id for cross-referencing.
+  // We match F1Session drivers to round drivers via driverID on the populated driver.
+  const driverSessionData = new Map<string, DriverSessionEntry>()
+
+  // For each F1Session driver, find the corresponding round driver entry.
+  for (const f1Driver of f1Session.drivers) {
+    // Look up the round driver by matching nameAcronym to driverID.
+    const roundDriverEntry = currentRound.drivers.find((d) => {
+      const driverObj = d.driver as unknown as { driverID?: string; _id: { toString(): string } }
+      return driverObj.driverID === f1Driver.nameAcronym
+    })
+
+    const driverId = roundDriverEntry
+      ? (roundDriverEntry.driver as unknown as { _id: { toString(): string } })._id?.toString()
+        || roundDriverEntry.driver.toString()
+      : null
+
+    if (!driverId) continue
+
+    // Find the DNF reason from the session's dnf records.
+    const dnfRecord = f1Session.dnfs.find((d) => d.driverNumber === f1Driver.driverNumber)
+
+    // Compute unique compounds used.
+    const compounds = [...new Set(f1Driver.stints.map((s) => s.compound))]
+
+    // Find top speed across all laps.
+    let topSpeed: number | null = null
+    for (const lap of f1Driver.laps) {
+      const speeds = [lap.i1Speed, lap.i2Speed, lap.stSpeed].filter((s): s is number => s !== null)
+      for (const speed of speeds) {
+        if (topSpeed === null || speed > topSpeed) topSpeed = speed
+      }
+    }
+
+    // Compute positions gained (gridPosition - finalPosition, positive = gained).
+    const positionsGained = (f1Driver.gridPosition !== null && f1Driver.finalPosition !== null)
+      ? f1Driver.gridPosition - f1Driver.finalPosition
+      : 0
+
+    // Sum pit stop durations.
+    const totalPitStopTime = f1Driver.pitStops.reduce((sum, p) => sum + (p.duration ?? 0), 0)
+
+    driverSessionData.set(driverId, {
+      finalPosition: f1Driver.finalPosition,
+      gridPosition: f1Driver.gridPosition,
+      positionsGained,
+      pitStopCount: f1Driver.pitStops.length,
+      totalPitStopTime,
+      stintCount: f1Driver.stints.length,
+      compounds,
+      bestLapTime: f1Driver.bestLapTime,
+      bestLapNumber: f1Driver.bestLapNumber,
+      totalLaps: f1Driver.totalLaps,
+      driverStatus: f1Driver.driverStatus,
+      dnfReason: dnfRecord?.reason ?? null,
+      topSpeed,
+    })
+  }
+
+  // Count safety car periods by type.
+  const scPeriods = f1Session.safetyCarPeriods.filter((p) => p.type === "SC")
+  const vscPeriods = f1Session.safetyCarPeriods.filter((p) => p.type === "VSC")
+
+  // Detect rain from weather snapshots.
+  const hadRain = f1Session.weatherSnapshots.some((w) => w.rainfall)
+
+  // Detect yellow flags from race control events.
+  const hadYellowFlag = f1Session.raceControlEvents.some((e) => e.flag === "YELLOW" || e.flag === "DOUBLE YELLOW")
+
+  // Detect medical car from race control events (medical car messages).
+  const hadMedicalCar = f1Session.raceControlEvents.some(
+    (e) => e.message?.toLowerCase().includes("medical car") || e.message?.toLowerCase().includes("medical")
+  )
+
+  // Find fastest lap driver mapped to DB driver._id.
+  let fastestLapDriverId: string | null = null
+  if (f1Session.fastestLap) {
+    const flDriver = f1Session.drivers.find((d) => d.driverNumber === f1Session.fastestLap?.driverNumber)
+    if (flDriver) {
+      const roundEntry = currentRound.drivers.find((d) => {
+        const driverObj = d.driver as unknown as { driverID?: string }
+        return driverObj.driverID === flDriver.nameAcronym
+      })
+      if (roundEntry) {
+        fastestLapDriverId = (roundEntry.driver as unknown as { _id: { toString(): string } })._id?.toString()
+          || roundEntry.driver.toString()
+      }
+    }
+  }
+
+  return {
+    hadSafetyCar: scPeriods.length > 0,
+    safetyCarCount: scPeriods.length,
+    hadVSC: vscPeriods.length > 0,
+    hadRedFlag: f1Session.redFlagPeriods.length > 0,
+    redFlagCount: f1Session.redFlagPeriods.length,
+    hadYellowFlag,
+    hadRain,
+    hadMedicalCar,
+    raceControlEventCount: f1Session.raceControlEvents.length,
+    fastestLapDriverId,
+    fastestLapTime: f1Session.fastestLap?.time ?? null,
+    totalLaps: f1Session.totalLaps,
+    sessionType: f1Session.sessionType,
+    dnfCount: f1Session.dnfs.length,
+    driverSessionData,
+  }
+}
 
 // Calculates the sum of all adjustments for a competitor/driver/team entry.
 export const sumAdjustments = (adjustment?: PointsAdjustment[]): number => {
@@ -821,6 +938,7 @@ const awardBadges = async (
   currentRound: Round,
   roundIndex: number,
   driverDNFSnapshot?: Map<string, number>,
+  f1SessionData?: F1SessionData,
 ): Promise<void> => {
   // Load all badge definitions for this championship.
   if (!champ.champBadges || champ.champBadges.length === 0) {
@@ -867,6 +985,7 @@ const awardBadges = async (
       allRounds: champ.rounds,
       maxCompetitors: champ.settings?.maxCompetitors || 24,
       driverDNFSnapshot,
+      f1SessionData,
     }
 
     // Evaluate each badge.
@@ -1216,8 +1335,23 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   // ============================================================================
   // STEP 6: AWARD BADGES
   // ============================================================================
+  // Build F1SessionData for API-enabled championships to enrich badge evaluations.
+  let f1SessionData: F1SessionData | undefined
+  try {
+    const series = await Series.findById(champ.series)
+    if (series?.hasAPI) {
+      const f1Session = await F1Session.findOne({ status: "finished" }).sort({ endedAt: -1 }).exec()
+      if (f1Session && f1Session.drivers.length > 0) {
+        f1SessionData = buildF1SessionData(f1Session, currentRound)
+        resultsLog.info(`Built F1SessionData from session ${f1Session.sessionKey} (${f1Session.drivers.length} drivers)`)
+      }
+    }
+  } catch (err) {
+    resultsLog.warn("Failed to build F1SessionData for badges:", err)
+  }
+
   // For each competitor, evaluate all badge criteria and award earned badges.
-  await awardBadges(champ, currentRound, roundIndex, driverDNFSnapshot)
+  await awardBadges(champ, currentRound, roundIndex, driverDNFSnapshot, f1SessionData)
 
   // ============================================================================
   // STEP 7: UPDATE USER CHAMPIONSHIP SNAPSHOTS

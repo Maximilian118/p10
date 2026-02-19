@@ -195,6 +195,11 @@ export interface ChampType {
       bettingWindow: {
         autoOpen: boolean
         autoOpenTime: number // How many mins before Qualifying starts do we open the betting window?
+        autoOpenData: {
+          // Data retrieved from API's in regards to the next qualifying session start time
+          timestamp: string // Next qualifying start data and time
+          updated_at: string // When was timestamp last updated?
+        }
         autoClose: boolean
         autoCloseTime: number // How many mins after Qualifying starts do we close the betting window?
       }
@@ -488,6 +493,10 @@ const champSchema = new mongoose.Schema<ChampType>({
       bettingWindow: {
         autoOpen: { type: Boolean, default: false },
         autoOpenTime: { type: Number, default: 10 },
+        autoOpenData: {
+          timestamp: { type: String, default: "" },
+          updated_at: { type: String, default: "" },
+        },
         autoClose: { type: Boolean, default: false },
         autoCloseTime: { type: Number, default: 5 },
       },

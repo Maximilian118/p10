@@ -14,6 +14,7 @@ interface TrackmapProps {
   demoMode?: boolean
   onTrackReady?: () => void
   onSessionInfo?: (info: { trackName: string; sessionName: string }) => void
+  onSessionActiveChange?: (active: boolean) => void
   rotationDelta?: number
   onRotationSave?: (trackName: string, rotation: number) => void
   trackFlag?: string | null
@@ -249,7 +250,7 @@ const acceptSegments = (
 // The track outline is rendered from a precomputed path (from the backend),
 // and car positions are overlaid as coloured circles animated via CSS transitions.
 // The track is rotated via PCA to fill a landscape container optimally.
-const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, rotationDelta, onRotationSave, trackFlag: trackFlagProp, onPillSegments, onWeatherUpdate, onRaceControlUpdate }) => {
+const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelect, onDriverStatesUpdate, demoMode, onTrackReady, onSessionInfo, onSessionActiveChange, rotationDelta, onRotationSave, trackFlag: trackFlagProp, onPillSegments, onWeatherUpdate, onRaceControlUpdate }) => {
   const {
     trackPath, carPositions, sessionActive, trackName, sessionName,
     driverStates, sessionState, corners, sectorBoundaries, pitLaneProfile, rotationOverride, connectionStatus,
@@ -346,6 +347,11 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
       onSessionInfo?.({ trackName, sessionName })
     }
   }, [trackName, sessionName, onSessionInfo])
+
+  // Forward session active state changes to the parent component.
+  useEffect(() => {
+    onSessionActiveChange?.(sessionActive)
+  }, [sessionActive, onSessionActiveChange])
 
   // Forward driver live states to the parent component.
   useEffect(() => {

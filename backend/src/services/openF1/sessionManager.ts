@@ -28,6 +28,7 @@ import { computeTrackProgress, mapProgressToPoint, computeArcLengths, forwardDis
 import { computeSectorBoundaries } from "./sectorBoundaries"
 import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./openf1Client"
 import { createF1Session, updateF1Session, finalizeF1Session, saveDemoSession, ReplayMessage } from "../../models/f1Session"
+import { triggerAutoResults } from "./autoResults"
 import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus, getSignalRTopicTimestamps } from "./signalrClient"
 import { isMqttConnected, getSubscribedTopics } from "./openf1Client"
 import { InternalEvent, normalizeOpenF1Message } from "./normalizer"
@@ -1745,6 +1746,11 @@ const endSession = async (): Promise<void> => {
   // Save the recorded session as a replayable demo if recording was active.
   if (activeSession.isRecording && activeSession.recordedMessages.length > 0) {
     await saveSessionRecording(activeSession)
+  }
+
+  // Trigger automatic round results for any API-enabled championships.
+  if (ioServer) {
+    await triggerAutoResults(activeSession.sessionKey, ioServer)
   }
 
   // Stop all batching, polling, live timing connection, fallback clock, and progressive saves.

@@ -46,6 +46,10 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const [trackReady, setTrackReady] = useState(false)
   const [driverStates, setDriverStates] = useState<DriverLiveState[]>([])
   const [sessionInfo, setSessionInfo] = useState<{ trackName: string; sessionName: string } | null>(null)
+  // Tracks whether a live session is currently active on the backend.
+  const [sessionActive, setSessionActive] = useState<boolean | null>(null)
+  // Tracks whether the session was active and then ended (for "Finalising Round..." state).
+  const [sessionEnded, setSessionEnded] = useState(false)
   // Accepted pill segments for all drivers (computed by Trackmap using visual car position).
   const [pillSegments, setPillSegments] = useState<Map<number, AcceptedSegments>>(new Map())
   // Weather data forwarded from the Trackmap's useTrackmap hook.
@@ -149,6 +153,15 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     setRaceControlMessages(messages)
   }, [])
 
+  // Handles session active state changes from the Trackmap.
+  // Detects when a live session ends (was active, now inactive) to show "Finalising Round...".
+  const handleSessionActiveChange = useCallback((active: boolean) => {
+    if (!demoMode && sessionActive === true && !active) {
+      setSessionEnded(true)
+    }
+    setSessionActive(active)
+  }, [demoMode, sessionActive])
+
   // Sorts race control messages by date descending (most recent first) and
   // removes duplicates caused by both session-state snapshots and individual
   // race-control events containing the same message.
@@ -213,6 +226,24 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     prevTops.current = newTops
   }, [driverStates, sortedStates])
 
+  // Show "Finalising Round..." when a live session has ended and we're waiting for results.
+  if (!demoMode && sessionEnded) {
+    return (
+      <div className="f1-session-view">
+        <FillLoading text="Finalising Round..." />
+      </div>
+    )
+  }
+
+  // Show "Waiting for F1 Session..." when no session is active yet (live mode only).
+  if (!demoMode && sessionActive === false && !trackReady) {
+    return (
+      <div className="f1-session-view">
+        <FillLoading text="Waiting for F1 Session..." />
+      </div>
+    )
+  }
+
   return (
     <div className="f1-session-view">
       {/* Full-page spinner while session data is loading */}
@@ -258,6 +289,7 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
             demoMode={demoMode}
             onTrackReady={handleTrackReady}
             onSessionInfo={setSessionInfo}
+            onSessionActiveChange={handleSessionActiveChange}
             rotationDelta={dragRotationDelta}
             onRotationSave={handleRotationSave}
             trackFlag={trackFlag}

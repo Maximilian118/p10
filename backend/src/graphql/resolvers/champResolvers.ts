@@ -25,6 +25,7 @@ import { broadcastRoundStatusChange, broadcastBetPlaced, SOCKET_EVENTS } from ".
 import {
   scheduleCountdownTransition,
   scheduleResultsTransition,
+  scheduleBettingCloseTransition,
   cancelTimer,
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
@@ -109,7 +110,7 @@ const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = 
 // Populates round data (competitors, drivers, teams) when transitioning from "waiting".
 // Uses championship-level competitors as the roster, carries over grandTotalPoints from previous round.
 // For returning competitors (not in previous round), looks back through all rounds.
-const populateRoundData = async (
+export const populateRoundData = async (
   champ: ChampType,
   roundIndex: number,
 ): Promise<{ competitors: CompetitorEntry[]; drivers: DriverEntry[]; randomisedDrivers: DriverEntry[]; teams: TeamEntry[] }> => {
@@ -1649,6 +1650,12 @@ const champResolvers = {
         // Execute resultsHandler to process results (points, badges, next round setup).
         await resultsHandler(_id, roundIndex)
         scheduleResultsTransition(io, _id, roundIndex)
+      }
+
+      // Schedule auto-close of betting window when entering betting_open (if automation enabled).
+      if (actualStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
+        const closeDelayMs = (champ.settings.automation.bettingWindow.autoCloseTime || 5) * 60 * 1000
+        scheduleBettingCloseTransition(io, _id, roundIndex, closeDelayMs)
       }
 
       // Return populated championship.

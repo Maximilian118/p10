@@ -10,6 +10,7 @@ import {
   didScorePoints,
   getCompetitorEntry,
   getDriverWithExtremeStat,
+  getMaxPointsInRound,
   getNoBetStreak,
   getStreakLength,
 } from "./helpers"
@@ -95,11 +96,72 @@ export const createNoBetStreakChecker = (streakLength: number): BadgeChecker => 
   }
 }
 
-// Factory: Check points milestone reached.
+// Factory: Check points milestone reached (LEGACY — use percentage-based checkers instead).
 export const createPointsMilestoneChecker = (milestone: number): BadgeChecker => {
   return (ctx: BadgeContext) => {
     const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
     return { earned: entry ? entry.totalPoints >= milestone : false }
+  }
+}
+
+// Factory: Check season points as percentage of total earnable (maxPerRound × totalRounds).
+export const createSeasonPercentageChecker = (percentage: number): BadgeChecker => {
+  return (ctx: BadgeContext) => {
+    const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+    if (!entry) return { earned: false }
+    const maxPerRound = getMaxPointsInRound(ctx.champ.pointsStructure)
+    const totalEarnable = maxPerRound * ctx.allRounds.length
+    if (totalEarnable === 0) return { earned: false }
+    return { earned: entry.totalPoints >= (percentage / 100) * totalEarnable }
+  }
+}
+
+// Factory: Check point lead as percentage of max round points.
+export const createPercentageLeadChecker = (percentage: number): BadgeChecker => {
+  return (ctx: BadgeContext) => {
+    const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+    if (!entry || entry.position !== 1) return { earned: false }
+    const secondPlace = ctx.currentRound.competitors.find((c) => c.position === 2)
+    if (!secondPlace) return { earned: false }
+    const maxPerRound = getMaxPointsInRound(ctx.champ.pointsStructure)
+    if (maxPerRound === 0) return { earned: false }
+    const requiredLead = (percentage / 100) * maxPerRound
+    const lead = entry.totalPoints - secondPlace.totalPoints
+    return { earned: lead >= requiredLead }
+  }
+}
+
+// Factory: Check career points as percentage of total career earnable.
+// Uses current season's structure × total career rounds played as denominator.
+export const createCareerPercentageChecker = (percentage: number): BadgeChecker => {
+  return (ctx: BadgeContext) => {
+    const maxPerRound = getMaxPointsInRound(ctx.champ.pointsStructure)
+    const totalCareerRounds = countTotalRoundsPlayed(ctx)
+    const careerEarnable = maxPerRound * totalCareerRounds
+    if (careerEarnable === 0) return { earned: false }
+    // Sum career points across all seasons.
+    let totalCareerPoints = 0
+    const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+    if (currentEntry) totalCareerPoints += currentEntry.totalPoints
+    for (const season of ctx.champ.history || []) {
+      const lastRound = season.rounds?.[season.rounds.length - 1]
+      const entry = lastRound?.competitors?.find(
+        (c) => c.competitor.toString() === ctx.competitorId.toString(),
+      )
+      if (entry) totalCareerPoints += entry.totalPoints
+    }
+    return { earned: totalCareerPoints >= (percentage / 100) * careerEarnable }
+  }
+}
+
+// Factory: Check single-round points as percentage of max round points.
+export const createRoundPercentageChecker = (percentage: number): BadgeChecker => {
+  return (ctx: BadgeContext) => {
+    const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
+    if (!entry) return { earned: false }
+    const maxPerRound = getMaxPointsInRound(ctx.champ.pointsStructure)
+    if (maxPerRound === 0) return { earned: false }
+    return { earned: entry.points >= (percentage / 100) * maxPerRound }
   }
 }
 

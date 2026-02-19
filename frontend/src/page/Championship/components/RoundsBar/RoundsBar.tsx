@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import "./_roundsBar.scss"
 import { ToggleButton, ToggleButtonGroup } from "@mui/material"
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
@@ -18,6 +18,18 @@ interface RoundsBarProps {
   setStandingsView: (view: StandingsView) => void
   isAdjudicator: boolean
   onStartNextRound?: () => void
+  autoOpenTimestamp?: string // ISO timestamp of the next qualifying session start.
+  autoOpenTime?: number // Minutes before qualifying to auto-open betting.
+}
+
+// Formats milliseconds into HH:MM:SS countdown string.
+const formatCountdown = (ms: number): string => {
+  if (ms <= 0) return "00:00:00"
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
 }
 
 // Navigation bar for browsing championship rounds and switching between standings views.
@@ -30,7 +42,43 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
   setStandingsView,
   isAdjudicator,
   onStartNextRound,
+  autoOpenTimestamp,
+  autoOpenTime,
 }) => {
+  const [countdown, setCountdown] = useState<string | null>(null)
+
+  // Countdown timer: shows HH:MM:SS when within 24h of auto-open time.
+  useEffect(() => {
+    if (!autoOpenTimestamp || !autoOpenTime) {
+      setCountdown(null)
+      return
+    }
+
+    const qualifyingStart = new Date(autoOpenTimestamp).getTime()
+    const autoOpenAt = qualifyingStart - (autoOpenTime * 60 * 1000)
+
+    // Update countdown every second.
+    const tick = () => {
+      const msUntilOpen = autoOpenAt - Date.now()
+      const twentyFourHours = 24 * 60 * 60 * 1000
+
+      if (msUntilOpen <= 0) {
+        // Auto-open time has passed — round should be starting.
+        setCountdown(null)
+      } else if (msUntilOpen <= twentyFourHours) {
+        // Within 24h — show countdown.
+        setCountdown(formatCountdown(msUntilOpen))
+      } else {
+        // More than 24h — no countdown yet.
+        setCountdown(null)
+      }
+    }
+
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [autoOpenTimestamp, autoOpenTime])
+
   // Navigation constraints - can only view completed rounds.
   const lastCompletedIndex = Math.max(0, completedRounds - 1)
   const canGoBack = viewedRoundIndex > 0
@@ -89,8 +137,22 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
           className="rounds-bar-nav-btn rounds-bar-start-btn"
           onClick={handleStartNextRound}
         >
-          <p>Start</p>
+          {/* Show countdown when within 24h, otherwise show "Start" */}
+          <p>{countdown || "Start"}</p>
           <Arrows />
+        </ToggleButton>
+      )
+    }
+
+    // Non-adjudicator at latest completed round — show countdown or waiting icon.
+    if (completedRounds < totalRounds && countdown) {
+      return (
+        <ToggleButton
+          value="countdown"
+          className="rounds-bar-nav-btn rounds-bar-countdown-btn"
+          disabled
+        >
+          <p>{countdown}</p>
         </ToggleButton>
       )
     }

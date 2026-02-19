@@ -7,7 +7,8 @@
 // Without API, these badges will NEVER be awarded:
 // - Curse Breaker (requires consecutiveDNFs)
 // - Disaster Magnet (requires consecutiveDNFs)
-// See driverBets.ts evaluator for implementation details.
+// - All F1 Session Data badges (safety car, red flag, weather, fastest lap, DNF, tyre, pit stop badges)
+// See driverBets.ts and f1Session.ts evaluators for implementation details.
 
 // A list of badge reward outcomes with pre-determined rarity.
 // Rarity Scale: 0=Common, 1=Uncommon, 2=Rare, 3=Epic, 4=Legendary, 5=Mythic
@@ -35,7 +36,7 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Blanked", awardedHow: "No Points", awardedDesc: "Score no points in a round.", rarity: 0 },
   { name: "Solo Point", awardedHow: "Single Point", awardedDesc: "Score exactly 1 point in a round.", rarity: 0 },
   { name: "Deuce", awardedHow: "Two Points", awardedDesc: "Score exactly 2 points in a round.", rarity: 0 },
-  { name: "Double Digits", awardedHow: "Double Digits", awardedDesc: "Reach 10+ total points in a championship.", rarity: 0 },
+  { name: "Off the Mark", awardedHow: "Season 5%", awardedDesc: "Earn 5% of total earnable season points.", rarity: 0 },
   { name: "Upper Half", awardedHow: "Top Half Finish", awardedDesc: "Finish in the top half of standings.", rarity: 0 },
   { name: "Lower Half", awardedHow: "Bottom Half Finish", awardedDesc: "Finish in the bottom half of standings.", rarity: 0 },
   { name: "Welcome Aboard", awardedHow: "Joined Championship", awardedDesc: "Join a championship.", rarity: 0 },
@@ -47,6 +48,8 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Lucky Number", awardedHow: "Lucky Number", awardedDesc: "Have exactly 7, 13, or 21 total points.", rarity: 0 },
   { name: "Trendsetter", awardedHow: "Trendsetter", awardedDesc: "3+ other competitors also bet on the same driver as you.", rarity: 0 },
   { name: "Overcut", awardedHow: "Overcut", awardedDesc: "Get passed by 3+ competitors in standings in one round.", rarity: 0 },
+  // F1 Session Data badges (API-dependent).
+  { name: "Soft Touch", awardedHow: "Soft Tyre Bet", awardedDesc: "Bet on a driver who used soft tyres during the session.", rarity: 0 },
 
   // ============================================================================
   // UNCOMMON (Rarity 1) - Moderate difficulty
@@ -59,11 +62,11 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "First Podium", awardedHow: "First Podium", awardedDesc: "Finish on the podium for the first time.", rarity: 1 },
   { name: "Near Miss Win", awardedHow: "Won With P9 or P11", awardedDesc: "Win by betting on P9 or P11.", rarity: 1 },
   { name: "Middle Child", awardedHow: "Round Middle", awardedDesc: "Finish exactly in the middle position.", rarity: 1 },
-  { name: "Comfortable Lead", awardedHow: "6 Point Lead", awardedDesc: "Be 6+ points ahead of second place.", rarity: 1 },
+  { name: "Comfortable Lead", awardedHow: "25% Lead", awardedDesc: "Lead by 25% of a round's max points.", rarity: 1 },
   { name: "Tied Up", awardedHow: "Tied With 2", awardedDesc: "Have the same points as 2+ other competitors.", rarity: 1 },
   { name: "Maxed Out", awardedHow: "Max Round Points", awardedDesc: "Score maximum possible points in a single round.", rarity: 1 },
   { name: "High Five Points", awardedHow: "Five Points", awardedDesc: "Score exactly 5 points in a round.", rarity: 1 },
-  { name: "Quarter Century", awardedHow: "25 Total Points", awardedDesc: "Reach 25+ total points in a championship.", rarity: 1 },
+  { name: "Gaining Traction", awardedHow: "Season 10%", awardedDesc: "Earn 10% of total earnable season points.", rarity: 1 },
   { name: "Top Five Finish", awardedHow: "Championship Top 5", awardedDesc: "Finish in the top 5 of a championship.", rarity: 2 },
   { name: "Wooden Spoon", awardedHow: "Championship Last", awardedDesc: "Finish last in a championship.", rarity: 0 },
   { name: "Midpack", awardedHow: "Midpack Finish", awardedDesc: "Finish exactly in the middle of standings.", rarity: 1 },
@@ -105,6 +108,8 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Generous Judge", awardedHow: "Gave Points Bonus", awardedDesc: "Give a points bonus to a competitor as adjudicator.", rarity: 1 },
   { name: "Teacher's Pet", awardedHow: "Received Points Bonus", awardedDesc: "Receive a points bonus from the adjudicator.", rarity: 1 },
   { name: "Penalized", awardedHow: "Received Points Penalty", awardedDesc: "Receive a points penalty from the adjudicator.", rarity: 1 },
+  // F1 Session Data badges (API-dependent).
+  { name: "Dry Run", awardedHow: "Dry Weather Win", awardedDesc: "Win in fully dry conditions (no rain during session).", rarity: 1 },
 
   // ============================================================================
   // RARE (Rarity 2) - Harder to achieve
@@ -116,18 +121,18 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Perfect P10", awardedHow: "Perfect P10", awardedDesc: "Bet on the exact P10 finisher.", rarity: 4 },
   { name: "Crowd Beater", awardedHow: "Large Field Win", awardedDesc: "Win a round with 10+ competitors.", rarity: 0 },
   { name: "Photo Finish", awardedHow: "Photo Finish", awardedDesc: "Win a round by tiebreaker.", rarity: 1 },
-  { name: "Cruising", awardedHow: "12 Point Lead", awardedDesc: "Be 12+ points ahead of second place.", rarity: 2 },
-  { name: "Dominant Lead", awardedHow: "18 Point Lead", awardedDesc: "Be 18+ points ahead of second place.", rarity: 2 },
+  { name: "Cruising", awardedHow: "50% Lead", awardedDesc: "Lead by 50% of a round's max points.", rarity: 2 },
+  { name: "Dominant Lead", awardedHow: "75% Lead", awardedDesc: "Lead by 75% of a round's max points.", rarity: 2 },
   { name: "Three-Way Tie", awardedHow: "Tied With 3", awardedDesc: "Have the same points as 3+ other competitors.", rarity: 2 },
   { name: "Joint Leaders", awardedHow: "Tied For Lead", awardedDesc: "Be tied for first place in standings.", rarity: 2 },
   { name: "Even Steven", awardedHow: "Even Points Streak", awardedDesc: "Have even total points for 4 consecutive rounds.", rarity: 2 },
   { name: "Odd Ball", awardedHow: "Odd Points Streak", awardedDesc: "Have odd total points for 4 consecutive rounds.", rarity: 2 },
-  { name: "Half Century Points", awardedHow: "50 Points", awardedDesc: "Reach 50+ total points in a championship.", rarity: 2 },
-  { name: "Seventy Five Club", awardedHow: "75 Points", awardedDesc: "Reach 75+ total points in a championship.", rarity: 2 },
+  { name: "In the Points", awardedHow: "Season 20%", awardedDesc: "Earn 20% of total earnable season points.", rarity: 2 },
+  { name: "One Third Distance", awardedHow: "Season 33%", awardedDesc: "Earn 33% of total earnable season points.", rarity: 2 },
   { name: "Pointless Wonder", awardedHow: "Zero After 10 Rounds", awardedDesc: "Have zero points after 10 rounds.", rarity: 2 },
   { name: "Consistent Scorer", awardedHow: "Same Points x3", awardedDesc: "Score the same points in 3 consecutive rounds.", rarity: 2 },
   { name: "Downward Spiral", awardedHow: "Descending Points", awardedDesc: "Score descending points for 3 rounds.", rarity: 2 },
-  { name: "Double Trouble", awardedHow: "10+ Points in Round", awardedDesc: "Score 10 or more points in a single round.", rarity: 2 },
+  { name: "Double Trouble", awardedHow: "60% Round Points", awardedDesc: "Score 60% of max round points in a single round.", rarity: 2 },
   { name: "Podium Finish", awardedHow: "Championship Top 3", awardedDesc: "Finish in the top 3 of a championship.", rarity: 2 },
   { name: "Silver Medal", awardedHow: "Championship Runner-Up", awardedDesc: "Finish second in a championship.", rarity: 2 },
   { name: "Bronze Medal", awardedHow: "Championship Bronze", awardedDesc: "Finish third in a championship.", rarity: 2 },
@@ -185,6 +190,18 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "In Charge", awardedHow: "Became Adjudicator", awardedDesc: "Become the adjudicator of a championship.", rarity: 2 },
   { name: "Passing the Torch", awardedHow: "Passed Adjudicator", awardedDesc: "Pass your adjudicator role to another competitor.", rarity: 2 },
   { name: "Bouncer", awardedHow: "Kicked Competitor", awardedDesc: "Kick a competitor from the championship.", rarity: 2 },
+  // F1 Session Data badges (API-dependent).
+  { name: "Safety Net", awardedHow: "Safety Car Win", awardedDesc: "Win a round where the session had a safety car.", rarity: 2 },
+  { name: "VSC Victor", awardedHow: "VSC Win", awardedDesc: "Win when the session had a virtual safety car.", rarity: 2 },
+  { name: "Speed Demon", awardedHow: "Fastest Lap Bet", awardedDesc: "Bet on the driver who set the session fastest lap.", rarity: 2 },
+  { name: "Wreckage", awardedHow: "Collision DNF Bet", awardedDesc: "Bet on a driver whose DNF was from a collision or crash.", rarity: 2 },
+  { name: "Engine Blues", awardedHow: "Mechanical DNF Bet", awardedDesc: "Bet on a driver whose DNF was from mechanical failure.", rarity: 2 },
+  { name: "Sole Survivor", awardedHow: "No DNF Win", awardedDesc: "Win when 3+ drivers DNF'd in the session.", rarity: 2 },
+  { name: "Smooth Operator", awardedHow: "Clean Session Win", awardedDesc: "Win when the session had zero incidents (no flags, no SC, no DNFs).", rarity: 2 },
+  { name: "Drama Magnet", awardedHow: "Dramatic Session Win", awardedDesc: "Win when the session had 5+ race control events.", rarity: 2 },
+  { name: "Hard Headed", awardedHow: "Hard Tyre Win", awardedDesc: "Win with a driver who used hard compound during the session.", rarity: 2 },
+  { name: "Pit Saver", awardedHow: "Fewest Pits Win", awardedDesc: "Win with the driver who had the fewest pit stops.", rarity: 2 },
+  { name: "One and Done", awardedHow: "One-Stop Win", awardedDesc: "Win with a driver who used a one-stop strategy.", rarity: 2 },
 
   // ============================================================================
   // EPIC (Rarity 3) - Significant achievement
@@ -193,11 +210,11 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Seven Time Bridesmaid", awardedHow: "7x Runner-Up", awardedDesc: "Be runner-up 7 times in a championship.", rarity: 3 },
   { name: "Full House", awardedHow: "Full Field Win", awardedDesc: "Win when all competitors are betting.", rarity: 2 },
   { name: "Comeback King", awardedHow: "Comeback Win", awardedDesc: "Win after being last in the previous round.", rarity: 3 },
-  { name: "Runaway Leader", awardedHow: "24 Point Lead", awardedDesc: "Be 24+ points ahead of second place.", rarity: 3 },
+  { name: "Runaway Leader", awardedHow: "100% Lead", awardedDesc: "Lead by a full round's worth of max points.", rarity: 3 },
   { name: "Five-Way Tie", awardedHow: "Tied With 5", awardedDesc: "Have the same points as 5+ other competitors.", rarity: 3 },
   { name: "Rising Star", awardedHow: "Ascending Points", awardedDesc: "Score ascending points for 3 rounds (e.g., 1, 2, 3).", rarity: 3 },
-  { name: "Century Points", awardedHow: "100 Points", awardedDesc: "Reach 100+ total points in a championship.", rarity: 4 },
-  { name: "Century Club", awardedHow: "Century Club", awardedDesc: "Accumulate 100+ points across all seasons.", rarity: 3 },
+  { name: "Half Distance", awardedHow: "Season 50%", awardedDesc: "Earn 50% of total earnable season points.", rarity: 3 },
+  { name: "Century Club", awardedHow: "Career 33%", awardedDesc: "Earn 33% of total earnable career points.", rarity: 3 },
   { name: "Complete Shutout", awardedHow: "0 Points Entire Season", awardedDesc: "Finish a championship with zero points.", rarity: 3 },
   { name: "Final Round Hero", awardedHow: "Final Round Clinch", awardedDesc: "Win the championship on the final round.", rarity: 3 },
   { name: "Double Century", awardedHow: "200 Rounds Played", awardedDesc: "Participate in 200 rounds total.", rarity: 3 },
@@ -235,6 +252,14 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   // API-dependent badges (only awarded when series.hasAPI === true).
   { name: "Curse Breaker", awardedHow: "Curse Breaker", awardedDesc: "Win with a driver ending a 2+ no-time streak in qualifying.", rarity: 2 },
   { name: "Disaster Magnet", awardedHow: "Disaster Magnet", awardedDesc: "Bet on a driver who failed to set a time 3 rounds in a row.", rarity: 2 },
+  // F1 Session Data badges (API-dependent).
+  { name: "Double Yellow", awardedHow: "Multi Safety Car Win", awardedDesc: "Win when the session had 2+ safety car periods.", rarity: 3 },
+  { name: "Red Alert", awardedHow: "Red Flag Win", awardedDesc: "Win when the session had a red flag.", rarity: 3 },
+  { name: "Medical Emergency", awardedHow: "Medical Car Win", awardedDesc: "Win when the medical car was deployed during the session.", rarity: 3 },
+  { name: "Rain Dancer", awardedHow: "Wet Weather Win", awardedDesc: "Win when the session had rainfall.", rarity: 3 },
+  { name: "Carnage Champion", awardedHow: "High DNF Win", awardedDesc: "Win when 5+ drivers DNF'd in the session.", rarity: 3 },
+  { name: "Stoppage Time", awardedHow: "Session Stopped Win", awardedDesc: "Win when the session was stopped and resumed (red flag).", rarity: 3 },
+  { name: "Pit Lane Regular", awardedHow: "Most Pits Win", awardedDesc: "Win with the driver who had the most pit stops.", rarity: 3 },
 
   // ============================================================================
   // LEGENDARY (Rarity 4) - Exceptional
@@ -246,9 +271,10 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Dominator", awardedHow: "Half Round Wins", awardedDesc: "Win at least half of all rounds in a championship.", rarity: 4 },
   { name: "Title Defender", awardedHow: "Title Defense", awardedDesc: "Successfully defend championship title.", rarity: 4 },
   { name: "Consistent Elite", awardedHow: "Consistent Top 5", awardedDesc: "Finish top 5 in 3 consecutive seasons.", rarity: 4 },
-  { name: "Untouchable", awardedHow: "36 Point Lead", awardedDesc: "Be 36+ points ahead of second place.", rarity: 4 },
-  { name: "125 Club", awardedHow: "125 Points", awardedDesc: "Reach 125+ total points in a championship.", rarity: 4 },
-  { name: "Career 200", awardedHow: "200 Career Points", awardedDesc: "Accumulate 200+ total points across all seasons.", rarity: 4 },
+  { name: "Untouchable", awardedHow: "150% Lead", awardedDesc: "Lead by 1.5 rounds' worth of max points.", rarity: 4 },
+  { name: "Two Thirds Distance", awardedHow: "Season 66%", awardedDesc: "Earn 66% of total earnable season points.", rarity: 4 },
+  { name: "Career 200", awardedHow: "Career 50%", awardedDesc: "Earn 50% of total earnable career points.", rarity: 4 },
+  { name: "Final Stint", awardedHow: "Season 80%", awardedDesc: "Earn 80% of total earnable season points.", rarity: 4 },
   { name: "500 Club", awardedHow: "500 Rounds Played", awardedDesc: "Participate in 500 rounds total.", rarity: 4 },
   { name: "Ultimate Fan", awardedHow: "Same Driver x10", awardedDesc: "Bet on the same driver for 10 consecutive rounds.", rarity: 4 },
   { name: "Penta Kill", awardedHow: "5 Win Streak", awardedDesc: "Win 5 rounds in a row.", rarity: 4 },
@@ -264,10 +290,15 @@ const badgeRewardOutcomes: badgeOutcomeType[] = [
   { name: "Dominant Champion", awardedHow: "Championship Won by 30+ Points", awardedDesc: "Win championship with 30+ point margin.", rarity: 4 },
   { name: "Patience Pays", awardedHow: "First Championship After 5+ Seasons", awardedDesc: "First title win after competing 5+ seasons.", rarity: 4 },
   { name: "Complete Ghost", awardedHow: "Missed Entire Season", awardedDesc: "Miss every bet in a championship.", rarity: 4 },
+  // F1 Session Data badges (API-dependent).
+  { name: "Code Red Survivor", awardedHow: "Multi Red Flag Win", awardedDesc: "Win when the session had 2+ red flags.", rarity: 4 },
+  { name: "Rapid Reward", awardedHow: "Fastest Lap Win", awardedDesc: "Win AND bet on the driver who set the fastest lap.", rarity: 4 },
+  { name: "Chaos Theory", awardedHow: "Chaotic Session Win", awardedDesc: "Win when the session had 2+ drama types (SC, red flag, rain).", rarity: 4 },
 
   // ============================================================================
   // MYTHIC (Rarity 5) - Almost impossible
   // ============================================================================
+  { name: "Chequered Flag", awardedHow: "Season 95%", awardedDesc: "Earn 95% of total earnable season points.", rarity: 5 },
   { name: "Twenty Wins", awardedHow: "20 Round Wins", awardedDesc: "Win 20 rounds in a championship.", rarity: 5 },
   { name: "Back to Back", awardedHow: "Back-to-Back Champ", awardedDesc: "Win 2 championships in a row.", rarity: 5 },
   { name: "Triple Crown", awardedHow: "Hat Trick Champ", awardedDesc: "Win 3 championships.", rarity: 5 },

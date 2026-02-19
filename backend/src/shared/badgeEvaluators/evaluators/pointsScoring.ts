@@ -9,16 +9,19 @@ import {
   MIN_ROUNDS_CUMULATIVE,
 } from "../helpers"
 import {
-  createPointLeadChecker,
   createTiedPointsChecker,
-  createPointsMilestoneChecker,
+  createSeasonPercentageChecker,
+  createPercentageLeadChecker,
+  createCareerPercentageChecker,
+  createRoundPercentageChecker,
 } from "../factories"
 
 // Points/scoring pattern badge evaluators.
 export const pointsScoringEvaluators: [string, BadgeChecker][] = [
-  ["6 Point Lead", createPointLeadChecker(6)],
-  ["12 Point Lead", createPointLeadChecker(12)],
-  ["24 Point Lead", createPointLeadChecker(24)],
+  // Point lead badges (percentage of max round points).
+  ["25% Lead", createPercentageLeadChecker(25)],
+  ["50% Lead", createPercentageLeadChecker(50)],
+  ["100% Lead", createPercentageLeadChecker(100)],
   ["Tied With 2", createTiedPointsChecker(2)],
   ["Tied With 3", createTiedPointsChecker(3)],
   ["Tied With 5", createTiedPointsChecker(5)],
@@ -59,9 +62,10 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
       return { earned: streak >= 4 }
     },
   ],
-  ["Double Digits", createPointsMilestoneChecker(10)],
-  ["50 Points", createPointsMilestoneChecker(50)],
-  ["100 Points", createPointsMilestoneChecker(100)],
+  // Season milestone badges (percentage of total earnable season points).
+  ["Season 5%", createSeasonPercentageChecker(5)],
+  ["Season 20%", createSeasonPercentageChecker(20)],
+  ["Season 50%", createSeasonPercentageChecker(50)],
   [
     "Max Round Points",
     (ctx) => {
@@ -150,38 +154,16 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
       return { earned: entry?.points === 5 }
     },
   ],
-  ["25 Points", createPointsMilestoneChecker(25)],
-  ["75 Points", createPointsMilestoneChecker(75)],
-  ["125 Points", createPointsMilestoneChecker(125)],
-  ["150 Points", createPointsMilestoneChecker(150)],
-  ["200 Points", createPointsMilestoneChecker(200)],
-  ["18 Point Lead", createPointLeadChecker(18)],
-  ["36 Point Lead", createPointLeadChecker(36)],
-  [
-    "25 Total Points",
-    (ctx) => {
-      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
-      return { earned: entry ? entry.totalPoints >= 25 : false }
-    },
-  ],
-  [
-    "Century Club",
-    (ctx) => {
-      // Accumulate 100+ points across all seasons
-      let totalPoints = 0
-      const currentEntry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
-      if (currentEntry) totalPoints += currentEntry.totalPoints
-
-      for (const season of ctx.champ.history || []) {
-        const lastRound = season.rounds?.[season.rounds.length - 1]
-        const entry = lastRound?.competitors?.find(
-          (c) => c.competitor.toString() === ctx.competitorId.toString(),
-        )
-        if (entry) totalPoints += entry.totalPoints
-      }
-      return { earned: totalPoints >= 100 }
-    },
-  ],
+  ["Season 10%", createSeasonPercentageChecker(10)],
+  ["Season 33%", createSeasonPercentageChecker(33)],
+  ["Season 66%", createSeasonPercentageChecker(66)],
+  ["Season 80%", createSeasonPercentageChecker(80)],
+  ["Season 95%", createSeasonPercentageChecker(95)],
+  ["75% Lead", createPercentageLeadChecker(75)],
+  ["150% Lead", createPercentageLeadChecker(150)],
+  // Career badges (percentage of total career earnable points).
+  ["Career 33%", createCareerPercentageChecker(33)],
+  ["Career 50%", createCareerPercentageChecker(50)],
   [
     "Tied For Lead",
     (ctx) => {
@@ -194,11 +176,6 @@ export const pointsScoringEvaluators: [string, BadgeChecker][] = [
       return { earned: tiedWithFirst > 0 }
     },
   ],
-  [
-    "10+ Points in Round",
-    (ctx) => {
-      const entry = getCompetitorEntry(ctx.currentRound, ctx.competitorId)
-      return { earned: entry ? entry.points >= 10 : false }
-    },
-  ],
+  // Per-round badge (percentage of max round points).
+  ["60% Round Points", createRoundPercentageChecker(60)],
 ]
