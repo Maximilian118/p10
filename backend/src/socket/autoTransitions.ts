@@ -1,7 +1,7 @@
 import { Server } from "socket.io"
 import Champ, { RoundStatus } from "../models/champ"
 import { broadcastRoundStatusChange } from "./socketHandler"
-import { resultsHandler } from "../graphql/resolvers/resolverUtility"
+import { resultsHandler, archiveSeason } from "../graphql/resolvers/resolverUtility"
 import { champPopulation } from "../shared/population"
 import moment from "moment"
 import { createLogger } from "../shared/logger"
@@ -206,16 +206,34 @@ const transitionRoundStatus = async (
   // This processes all results-related logic (points, badges, next round setup).
   // Re-fetch with population so the socket broadcast includes calculated results data.
   if (newStatus === "results") {
+    // Determine if this is the last round BEFORE archival changes the rounds array.
+    const isLastRound = roundIndex === champ.rounds.length - 1
+
     await resultsHandler(champId, roundIndex)
+
+    // Archive season if this is the last round.
+    if (isLastRound) {
+      await archiveSeason(champId)
+    }
 
     const populatedChamp = await Champ.findById(champId).populate(champPopulation).exec()
     if (populatedChamp) {
-      const populatedRound = populatedChamp.rounds[roundIndex]
+      // After archival, the old round index may point to a new season's round.
+      const populatedRound = populatedChamp.rounds[roundIndex] || populatedChamp.rounds[0]
+      const seasonEndInfo = isLastRound
+        ? { isSeasonEnd: true, seasonEndedAt: populatedChamp.seasonEndedAt || moment().format() }
+        : undefined
+
       broadcastRoundStatusChange(io, champId, roundIndex, newStatus, {
         drivers: populatedRound.drivers,
         competitors: populatedRound.competitors,
         teams: populatedRound.teams,
-      })
+      }, seasonEndInfo)
+
+      // Only schedule auto-transition to completed for non-final rounds.
+      if (!isLastRound) {
+        scheduleAutoTransition(io, champId, roundIndex, "completed", RESULTS_DURATION)
+      }
       return
     }
   }

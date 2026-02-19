@@ -1,0 +1,178 @@
+@use '../../../../../scss/variables';
+@use '../../../../../scss/mixins';
+
+.championship-finish {
+  @include mixins.flexbox-column;
+  width: 100%;
+  padding: 0 0 24px;
+  position: relative;
+  overflow: hidden;
+
+  // Subtle gold radial glow behind the champion section.
+  &__glow {
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px;
+    height: 300px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(variables.$gold, 0.12) 0%,
+      rgba(variables.$gold, 0.04) 40%,
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  // Header row with countdown and skip button.
+  &__header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
+
+  // 24h countdown display.
+  &__countdown {
+    font-size: 14px;
+    font-weight: 500;
+    color: variables.$colour-4;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+  }
+
+  // Skip button.
+  &__skip {
+    padding: 0 0 2px;
+    background: none;
+  }
+
+  // Season title block.
+  &__title {
+    @include mixins.flexbox-column;
+    gap: 2px;
+    padding: 20px 0 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  // "Season X" label above champion heading.
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: variables.$colour-4;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  // "Champion" heading with gold styling.
+  &__heading {
+    font-size: 28px;
+    font-weight: 700;
+    color: variables.$gold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    letter-spacing: -0.5px;
+  }
+
+  // Champion hero section.
+  &__champion {
+    @include mixins.flexbox-column;
+    gap: 6px;
+    padding: 12px 0 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  // Gold ring around the champion's icon.
+  &__champion-ring {
+    @include mixins.flexbox;
+    padding: 4px;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 3px variables.$gold,
+      0 0 12px rgba(variables.$gold, 0.25);
+  }
+
+  // Champion's name.
+  &__champion-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: variables.$colour-9;
+    margin-top: 4px;
+  }
+
+  // Champion's total points.
+  &__champion-points {
+    font-size: 14px;
+    font-weight: 600;
+    color: variables.$gold;
+  }
+
+  // Final standings section below the podium.
+  &__standings {
+    width: 100%;
+    padding: 8px 20px 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
+
+  // "Final Standings" section title.
+  &__standings-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: variables.$colour-4;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid variables.$border;
+  }
+
+  // Individual standing row for 4th place and below.
+  &__standing-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid variables.$colour-1;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  // Position number in standings.
+  &__standing-pos {
+    font-size: 14px;
+    font-weight: 600;
+    color: variables.$colour-4;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  // Competitor name in standings.
+  &__standing-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: variables.$colour-9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Points in standings.
+  &__standing-pts {
+    font-size: 13px;
+    font-weight: 600;
+    color: variables.$colour-4;
+    font-variant-numeric: tabular-nums;
+  }
+}

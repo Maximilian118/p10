@@ -42,6 +42,8 @@ export interface RoundStatusPayload {
     competitors: unknown[]
     teams: unknown[]
   }
+  isSeasonEnd?: boolean // True when the last round of a season transitions to results
+  seasonEndedAt?: string // ISO timestamp for the 24h ChampionshipFinishView countdown
 }
 
 // Payload for bet placed events (broadcast to all users).
@@ -285,12 +287,14 @@ export const initializeSocket = (io: Server): void => {
 
 // Broadcasts round status change to all users in a championship room.
 // Optionally includes round data when transitioning from "waiting".
+// Optionally includes season end info when the last round transitions to results.
 export const broadcastRoundStatusChange = (
   io: Server,
   champId: string,
   roundIndex: number,
   newStatus: RoundStatus,
-  roundData?: { drivers: unknown[]; competitors: unknown[]; teams: unknown[] }
+  roundData?: { drivers: unknown[]; competitors: unknown[]; teams: unknown[] },
+  seasonEndInfo?: { isSeasonEnd: boolean; seasonEndedAt: string },
 ): void => {
   const roomName = `championship:${champId}`
   const payload: RoundStatusPayload = {
@@ -299,6 +303,7 @@ export const broadcastRoundStatusChange = (
     status: newStatus,
     timestamp: new Date().toISOString(),
     ...(roundData && { round: roundData }),
+    ...(seasonEndInfo && seasonEndInfo),
   }
 
   // Log room occupancy for monitoring.

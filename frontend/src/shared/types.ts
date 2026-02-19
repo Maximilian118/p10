@@ -401,6 +401,10 @@ export interface ChampType {
   // Invited users - can accept to join the championship.
   invited: userType[]
 
+  // Season end state - drives the 24h ChampionshipFinishView.
+  seasonEndedAt: string | null
+  seasonEndStandings: CompetitorEntryType[] | null
+
   // History of each season.
   history: ChampHistoryType[]
 

@@ -254,6 +254,8 @@ const champSchema = `
     kicked: [User!]!
     invited: [User!]!
     history: [ChampHistory!]
+    seasonEndedAt: String
+    seasonEndStandings: [CompetitorEntry]
     created_by: User
     created_at: String!
     updated_at: String!

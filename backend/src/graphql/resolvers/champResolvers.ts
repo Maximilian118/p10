@@ -28,7 +28,7 @@ import {
   scheduleBettingCloseTransition,
   cancelTimer,
 } from "../../socket/autoTransitions"
-import { resultsHandler, checkRoundExpiry, findLastKnownPoints } from "./resolverUtility"
+import { resultsHandler, checkRoundExpiry, findLastKnownPoints, createEmptyRound, createCompetitorEntry, archiveSeason } from "./resolverUtility"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("ChampResolver")
@@ -67,22 +67,6 @@ export interface ChampInput {
   champBadges?: string[]
 }
 
-// Generates an initial competitor entry for a user.
-const createCompetitorEntry = (
-  userId: ObjectId,
-  totalPoints = 0,
-  position = 1,
-): CompetitorEntry => ({
-  competitor: userId,
-  bet: null,
-  points: 0,
-  totalPoints,
-  grandTotalPoints: totalPoints, // Initialize to totalPoints (no adjustments yet).
-  position,
-  updated_at: null,
-  created_at: null,
-})
-
 // Fisher-Yates shuffle for randomizing array order.
 const shuffleArray = <T>(array: T[]): T[] => {
   const shuffled = [...array]
@@ -92,20 +76,6 @@ const shuffleArray = <T>(array: T[]): T[] => {
   }
   return shuffled
 }
-
-// Generates an empty round with the given round number.
-const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = []): Round => ({
-  round: roundNumber,
-  status: "waiting",
-  statusChangedAt: null, // Only set when status changes to an active state
-  resultsProcessed: false,
-  competitors,
-  drivers: [],
-  randomisedDrivers: [],
-  teams: [],
-  winner: null,
-  runnerUp: null,
-})
 
 // Populates round data (competitors, drivers, teams) when transitioning from "waiting".
 // Uses championship-level competitors as the roster, carries over grandTotalPoints from previous round.
@@ -1608,7 +1578,16 @@ const champResolvers = {
         champ.rounds[roundIndex].drivers = roundData.drivers
         champ.rounds[roundIndex].randomisedDrivers = roundData.randomisedDrivers
         champ.rounds[roundIndex].teams = roundData.teams
+
+        // Clear season end state when the first round of a new season starts.
+        if (roundIndex === 0 && champ.seasonEndedAt) {
+          champ.seasonEndedAt = null
+          champ.seasonEndStandings = null
+        }
       }
+
+      // Determine if this is the last round of the season (before any archival changes rounds).
+      const isLastRound = roundIndex === champ.rounds.length - 1
 
       // Cancel any existing timer for this round.
       cancelTimer(_id, roundIndex)
@@ -1622,8 +1601,9 @@ const champResolvers = {
       }
 
       // Skip results: save "results" status first so resultsHandler can process,
-      // then transition directly to "completed".
-      if (status === "results" && champ.settings.skipResults) {
+      // then transition directly to "completed". Never skip for the last round —
+      // always show ChampionshipFinishView instead.
+      if (status === "results" && champ.settings.skipResults && !isLastRound) {
         // Save "results" status to database first - resultsHandler requires this.
         champ.rounds[roundIndex].status = "results"
         champ.rounds[roundIndex].statusChangedAt = moment().format()
@@ -1646,10 +1626,17 @@ const champResolvers = {
       // Schedule auto-transitions only if not skipping.
       if (status === "countDown" && !champ.settings.skipCountDown) {
         scheduleCountdownTransition(io, _id, roundIndex)
-      } else if (status === "results" && !champ.settings.skipResults) {
+      } else if (status === "results" && (!champ.settings.skipResults || isLastRound)) {
         // Execute resultsHandler to process results (points, badges, next round setup).
         await resultsHandler(_id, roundIndex)
-        scheduleResultsTransition(io, _id, roundIndex)
+
+        // Archive season if this is the last round.
+        if (isLastRound) {
+          await archiveSeason(_id)
+        } else {
+          // Only schedule auto-transition to completed for non-final rounds.
+          scheduleResultsTransition(io, _id, roundIndex)
+        }
       }
 
       // Schedule auto-close of betting window when entering betting_open (if automation enabled).
@@ -1658,7 +1645,7 @@ const champResolvers = {
         scheduleBettingCloseTransition(io, _id, roundIndex, closeDelayMs)
       }
 
-      // Return populated championship.
+      // Re-fetch championship after potential archival (rounds may have changed).
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
       if (!populatedChamp) {
@@ -1667,15 +1654,20 @@ const champResolvers = {
 
       // Broadcast status change to all users viewing this championship.
       // Include populated round data when transitioning from "waiting" or entering "results".
+      // Include season end info when the last round enters results.
+      const seasonEndInfo = isLastRound && actualStatus === "results"
+        ? { isSeasonEnd: true, seasonEndedAt: populatedChamp.seasonEndedAt || moment().format() }
+        : undefined
+
       if (currentStatus === "waiting" || actualStatus === "results") {
-        const populatedRound = populatedChamp.rounds[roundIndex]
+        const populatedRound = populatedChamp.rounds[roundIndex] || populatedChamp.rounds[0]
         broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, {
           drivers: populatedRound.drivers,
           competitors: populatedRound.competitors,
           teams: populatedRound.teams,
-        })
+        }, seasonEndInfo)
       } else {
-        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus)
+        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, undefined, seasonEndInfo)
       }
 
       // Send notifications to all competitors.
@@ -1956,8 +1948,11 @@ const champResolvers = {
         }
       })
 
+      // Determine if this is the last round of the season before any archival changes.
+      const isLastRound = roundIndex === champ.rounds.length - 1
+
       // Transition to "results" status - this triggers resultsHandler which calculates points.
-      // If skipResults is enabled, we'll transition to "completed" immediately after processing.
+      // If skipResults is enabled (and not last round), we'll transition to "completed" immediately.
       round.status = "results"
       round.statusChangedAt = moment().format()
 
@@ -1967,23 +1962,20 @@ const champResolvers = {
       // Call resultsHandler to calculate points and populate next round.
       await resultsHandler(_id, roundIndex)
 
-      // Re-save after resultsHandler modifies the champ.
-      const updatedChamp = await Champ.findById(_id)
-      if (updatedChamp) {
-        await updatedChamp.save()
+      // Archive season if this is the last round.
+      if (isLastRound) {
+        await archiveSeason(_id)
       }
 
-      // Return populated championship.
+      // Re-fetch championship after potential archival (rounds may have changed).
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
 
       if (!populatedChamp) {
         return throwError("submitDriverPositions", _id, "Championship not found after update!", 404)
       }
 
-      const populatedRound = populatedChamp.rounds[roundIndex]
-
-      // If skipResults is enabled, transition directly to "completed" without showing results.
-      if (champ.settings.skipResults) {
+      // If skipResults is enabled and NOT the last round, transition to "completed".
+      if (champ.settings.skipResults && !isLastRound) {
         populatedChamp.rounds[roundIndex].status = "completed"
         populatedChamp.rounds[roundIndex].statusChangedAt = moment().format()
         populatedChamp.updated_at = moment().format()
@@ -1998,19 +1990,28 @@ const champResolvers = {
         )
       } else {
         // Broadcast status change with populated round data so all clients get results instantly.
+        // Include season end info for the last round.
+        const seasonEndInfo = isLastRound
+          ? { isSeasonEnd: true, seasonEndedAt: populatedChamp.seasonEndedAt || moment().format() }
+          : undefined
+
+        const populatedRound = populatedChamp.rounds[roundIndex] || populatedChamp.rounds[0]
         broadcastRoundStatusChange(io, _id, roundIndex, "results", {
           drivers: populatedRound.drivers,
           competitors: populatedRound.competitors,
           teams: populatedRound.teams,
-        })
+        }, seasonEndInfo)
 
         log.info(
           `Championship ${_id} round ${roundIndex + 1}: ` +
-            `Positions submitted, transitioning to results`,
+            `Positions submitted, transitioning to results` +
+            (isLastRound ? " (season end)" : ""),
         )
 
-        // Schedule auto-transition to completed.
-        scheduleResultsTransition(io, _id, roundIndex)
+        // Only schedule auto-transition to completed for non-final rounds.
+        if (!isLastRound) {
+          scheduleResultsTransition(io, _id, roundIndex)
+        }
       }
 
       return filterChampForUser({

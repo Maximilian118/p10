@@ -242,6 +242,10 @@ export interface ChampType {
   // Users invited to this championship - can accept to join.
   invited: ObjectId[]
 
+  // Season end state - drives the 24h ChampionshipFinishView on frontend.
+  seasonEndedAt: string | null // ISO timestamp when the season was archived
+  seasonEndStandings: CompetitorEntry[] | null // Final round standings snapshot for display
+
   // History of each round of each season of this championship
   history: SeasonHistory[]
 
@@ -543,6 +547,10 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Invited users - can accept to join.
   invited: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+
+  // Season end state - drives the 24h ChampionshipFinishView on frontend.
+  seasonEndedAt: { type: String, default: null },
+  seasonEndStandings: { type: [competitorEntrySchema], default: null },
 
   // History of each season.
   history: [SeasonHistorySchema],

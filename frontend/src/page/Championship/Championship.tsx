@@ -40,6 +40,7 @@ import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
+import ChampionshipFinishView from "./Views/RoundStatus/ChampionshipFinishView/ChampionshipFinishView"
 import { getSeriesConfig } from "./Views/RoundStatus/APIViews"
 import type { DemoSession } from "./Views/RoundStatus/APIViews"
 import { startDemo, stopDemo } from "../../api/openAPI/requests/demoRequests"
@@ -162,6 +163,9 @@ const Championship: React.FC = () => {
 
   // Round status view - when a round is in an active state (not waiting/completed).
   const [ roundStatusView, setRoundStatusView ] = useState<RoundStatus | null>(null)
+
+  // Season end state - true when viewing the ChampionshipFinishView after final round.
+  const [ isSeasonEnd, setIsSeasonEnd ] = useState<boolean>(false)
 
   // Track last rejected bet for BettingOpenView to show rejection feedback.
   const [ lastRejectedBet, setLastRejectedBet ] = useState<BetRejectedPayload | null>(null)
@@ -298,6 +302,17 @@ const Championship: React.FC = () => {
 
   // Handle real-time round status updates from socket.
   const handleRoundStatusChange = useCallback((payload: RoundStatusPayload) => {
+    // Detect season end — refetch champ data to get post-archival state.
+    if (payload.isSeasonEnd) {
+      setIsSeasonEnd(true)
+      setRoundStatusView("results")
+      // Refetch full champ data to get seasonEndStandings and new season rounds.
+      if (id) {
+        getChampById(id, setChamp, user, setUser, navigate, setLoading, setBackendErr)
+      }
+      return
+    }
+
     // Update local champ state with new status and round data if included.
     // Results data (points, badges) is included in the socket payload when entering "results".
     setChamp(prev => {
@@ -325,7 +340,8 @@ const Championship: React.FC = () => {
     } else {
       setRoundStatusView(null)
     }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   // Handle real-time bet updates from socket (from other users).
   const handleBetPlaced = useCallback((payload: BetPlacedPayload) => {
@@ -586,10 +602,22 @@ const Championship: React.FC = () => {
   }, [view, champ?._id])
 
   // Check current round status on load - show status view if round is active.
+  // Also detects season end: if seasonEndedAt exists and is within 24h, show ChampionshipFinishView.
   // Runs when champ data is loaded (champ._id changes).
   // Resets roundStatusView when navigating to a championship without an active round.
   useEffect(() => {
     if (champ) {
+      // Detect season end on page refresh — show finish view if within 24h window.
+      if (champ.seasonEndedAt && champ.seasonEndStandings) {
+        const elapsedMs = Date.now() - new Date(champ.seasonEndedAt).getTime()
+        const twentyFourHoursMs = 24 * 60 * 60 * 1000
+        if (elapsedMs < twentyFourHoursMs) {
+          setIsSeasonEnd(true)
+          setRoundStatusView("results")
+          return
+        }
+      }
+
       const currentRound = champ.rounds.find(r => r.status !== "completed")
       if (currentRound && currentRound.status !== "waiting" && currentRound.status !== "completed") {
         setRoundStatusView(currentRound.status)
@@ -1154,14 +1182,23 @@ const Championship: React.FC = () => {
             />
           )
         })()}
-        {isInRoundStatusView && roundStatusView === "results" && activeRound && champ && (
-          <ResultsView
-            round={activeRound}
-            rounds={champ.rounds}
-            currentRoundIndex={activeRoundIndex}
-            isAdjudicator={isAdjudicator}
-            onSkipTimer={() => setRoundStatusView(null)}
-          />
+        {isInRoundStatusView && roundStatusView === "results" && champ && (
+          isSeasonEnd && champ.seasonEndStandings ? (
+            <ChampionshipFinishView
+              seasonEndStandings={champ.seasonEndStandings}
+              season={champ.season - 1}
+              seasonEndedAt={champ.seasonEndedAt}
+              onSkip={() => { setRoundStatusView(null); setIsSeasonEnd(false) }}
+            />
+          ) : activeRound ? (
+            <ResultsView
+              round={activeRound}
+              rounds={champ.rounds}
+              currentRoundIndex={activeRoundIndex}
+              isAdjudicator={isAdjudicator}
+              onSkipTimer={() => setRoundStatusView(null)}
+            />
+          ) : null
         )}
 
         {/* Start Round Confirmation - shown before countdown begins */}

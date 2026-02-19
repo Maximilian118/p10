@@ -4,7 +4,7 @@ import Champ from "../../models/champ"
 import Driver from "../../models/driver"
 import Series from "../../models/series"
 import F1Session from "../../models/f1Session"
-import { resultsHandler } from "../../graphql/resolvers/resolverUtility"
+import { resultsHandler, archiveSeason } from "../../graphql/resolvers/resolverUtility"
 import { broadcastRoundStatusChange } from "../../socket/socketHandler"
 import { scheduleResultsTransition } from "../../socket/autoTransitions"
 import { champPopulation } from "../../shared/population"
@@ -141,27 +141,42 @@ const processChampionship = async (
   champ.markModified("rounds")
   await champ.save()
 
+  // Determine if this is the last round BEFORE archival changes the rounds array.
+  const isLastRound = roundIndex === champ.rounds.length - 1
+
   log.info(`✓ Auto-set positionActual for "${champ.name}" round ${roundIndex + 1} — running resultsHandler`)
 
   // Run the existing 7-step results pipeline.
   await resultsHandler(champId, roundIndex)
 
+  // Archive season if this is the last round.
+  if (isLastRound) {
+    await archiveSeason(champId)
+  }
+
   // Re-fetch with population so the broadcast includes calculated results data.
   const populatedChamp = await Champ.findById(champId).populate(champPopulation).exec()
   if (populatedChamp) {
-    const populatedRound = populatedChamp.rounds[roundIndex]
+    // After archival, the old round index may point to a new season's round.
+    const populatedRound = populatedChamp.rounds[roundIndex] || populatedChamp.rounds[0]
+    const seasonEndInfo = isLastRound
+      ? { isSeasonEnd: true, seasonEndedAt: populatedChamp.seasonEndedAt || moment().format() }
+      : undefined
+
     broadcastRoundStatusChange(io, champId, roundIndex, "results", {
       drivers: populatedRound.drivers,
       competitors: populatedRound.competitors,
       teams: populatedRound.teams,
-    })
+    }, seasonEndInfo)
   }
 
-  // Schedule the 5-minute auto-transition to "completed".
-  scheduleResultsTransition(io, champId, roundIndex)
+  // Only schedule auto-transition to completed for non-final rounds.
+  if (!isLastRound) {
+    scheduleResultsTransition(io, champId, roundIndex)
+  }
 
   // Refresh the next qualifying session timestamp for the next round.
   await refreshNextQualifyingForChamp(champId)
 
-  log.info(`✓ Auto-results complete for "${champ.name}" round ${roundIndex + 1}`)
+  log.info(`✓ Auto-results complete for "${champ.name}" round ${roundIndex + 1}${isLastRound ? " (season end)" : ""}`)
 }

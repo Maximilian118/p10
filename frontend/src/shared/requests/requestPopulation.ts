@@ -928,6 +928,44 @@ export const populateChamp = `
       points
     }
   }
+  seasonEndedAt
+  seasonEndStandings {
+    competitor {
+      _id
+      name
+      icon
+      profile_picture
+    }
+    points
+    totalPoints
+    grandTotalPoints
+    adjustment {
+      adjustment
+      type
+      reason
+      updated_at
+      created_at
+    }
+    position
+    deleted
+    deletedUserSnapshot {
+      _id
+      name
+      icon
+    }
+    badgesAwarded {
+      _id
+      url
+      name
+      customName
+      rarity
+      awardedHow
+      awardedDesc
+      zoom
+    }
+    updated_at
+    created_at
+  }
   champBadges {
     _id
     url

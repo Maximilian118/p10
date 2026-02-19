@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb"
 import Team, { teamType } from "../../models/team"
 import { throwError } from "./resolverErrors"
 import Driver, { driverType } from "../../models/driver"
-import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType, PointsAdjustment } from "../../models/champ"
+import Champ, { Round, CompetitorEntry, PointsStructureEntry, ChampType, PointsAdjustment, SeasonHistory } from "../../models/champ"
 import Badge from "../../models/badge"
 import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
@@ -16,6 +16,37 @@ const pointsLog = createLogger("DriverPoints")
 const teamPointsLog = createLogger("TeamPoints")
 const badgeLog = createLogger("AwardBadges")
 const resultsLog = createLogger("ResultsHandler")
+const seasonLog = createLogger("SeasonArchival")
+
+// Generates an initial competitor entry for a user.
+export const createCompetitorEntry = (
+  userId: ObjectId,
+  totalPoints = 0,
+  position = 1,
+): CompetitorEntry => ({
+  competitor: userId,
+  bet: null,
+  points: 0,
+  totalPoints,
+  grandTotalPoints: totalPoints, // Initialize to totalPoints (no adjustments yet).
+  position,
+  updated_at: null,
+  created_at: null,
+})
+
+// Generates an empty round with the given round number.
+export const createEmptyRound = (roundNumber: number, competitors: CompetitorEntry[] = []): Round => ({
+  round: roundNumber,
+  status: "waiting",
+  statusChangedAt: null, // Only set when status changes to an active state
+  resultsProcessed: false,
+  competitors,
+  drivers: [],
+  randomisedDrivers: [],
+  teams: [],
+  winner: null,
+  runnerUp: null,
+})
 
 // Builds F1SessionData from a finalized F1Session document for badge evaluation.
 // Maps F1Session driver data to DB Driver._id strings using the round's driver entries.
@@ -1483,6 +1514,116 @@ export const checkRoundExpiry = async (champ: ChampDocument): Promise<boolean> =
   await champ.save()
 
   return true
+}
+
+/**
+ * archiveSeason - Archives the completed season and creates a new one.
+ *
+ * Called after resultsHandler() completes on the LAST round of a season.
+ * 1. Snapshots final round standings to champ.seasonEndStandings
+ * 2. Updates the current season's history entry with completed round data
+ * 3. Increments champ.season
+ * 4. Creates fresh rounds for the new season (same count as previous)
+ * 5. Pushes a new empty season history entry
+ * 6. Sets champ.seasonEndedAt for the 24h ChampionshipFinishView
+ * 7. Updates User championship snapshots with new season + reset stats
+ */
+export const archiveSeason = async (champId: string): Promise<void> => {
+  const champ = await Champ.findById(champId)
+  if (!champ) {
+    seasonLog.error(`Championship ${champId} not found`)
+    return
+  }
+
+  const previousRoundCount = champ.rounds.length
+  const currentSeason = champ.season
+
+  // Step 1: Snapshot final standings for the ChampionshipFinishView.
+  const finalRound = champ.rounds[champ.rounds.length - 1]
+  champ.seasonEndStandings = finalRound.competitors.map((c) => ({
+    competitor: c.competitor,
+    bet: c.bet,
+    points: c.points,
+    totalPoints: c.totalPoints,
+    grandTotalPoints: c.grandTotalPoints,
+    adjustment: c.adjustment,
+    position: c.position,
+    deleted: c.deleted,
+    deletedUserSnapshot: c.deletedUserSnapshot,
+    badgesAwarded: c.badgesAwarded,
+    updated_at: c.updated_at,
+    created_at: c.created_at,
+  }))
+
+  // Step 2: Update the current season's history entry with completed data.
+  const historyEntry = champ.history.find((h: SeasonHistory) => h.season === currentSeason)
+  if (historyEntry) {
+    historyEntry.rounds = champ.rounds
+    historyEntry.adjudicator = champ.adjudicator
+    historyEntry.drivers = (await Series.findById(champ.series))?.drivers || []
+    historyEntry.pointsStructure = champ.pointsStructure
+  }
+
+  // Step 3: Increment season.
+  champ.season = currentSeason + 1
+
+  // Step 4: Create fresh rounds for the new season.
+  const newRounds: Round[] = []
+  for (let i = 1; i <= previousRoundCount; i++) {
+    // First round includes all current competitors with reset points.
+    if (i === 1) {
+      const freshCompetitors = champ.competitors.map((userId: ObjectId, idx: number) =>
+        createCompetitorEntry(userId, 0, idx + 1),
+      )
+      newRounds.push(createEmptyRound(i, freshCompetitors))
+    } else {
+      newRounds.push(createEmptyRound(i))
+    }
+  }
+  champ.rounds = newRounds
+
+  // Step 5: Push new empty season history entry (same pattern as createChamp).
+  const newSeasonHistory: SeasonHistory = {
+    season: champ.season,
+    adjudicator: champ.adjudicator,
+    drivers: (await Series.findById(champ.series))?.drivers || [],
+    rounds: newRounds,
+    pointsStructure: champ.pointsStructure,
+  }
+  champ.history.push(newSeasonHistory)
+
+  // Step 6: Set seasonEndedAt for the 24h ChampionshipFinishView.
+  champ.seasonEndedAt = moment().format()
+
+  // Step 7: Update User championship snapshots with new season and reset stats.
+  for (const userId of champ.competitors) {
+    await User.updateOne(
+      { _id: userId, "championships._id": champ._id },
+      {
+        $set: {
+          "championships.$.season": champ.season,
+          "championships.$.position": 0,
+          "championships.$.positionChange": null,
+          "championships.$.totalPoints": 0,
+          "championships.$.lastPoints": 0,
+          "championships.$.roundsCompleted": 0,
+          "championships.$.totalRounds": previousRoundCount,
+          "championships.$.updated_at": moment().format(),
+        },
+      },
+    )
+  }
+
+  // Save all changes.
+  champ.markModified("rounds")
+  champ.markModified("history")
+  champ.updated_at = moment().format()
+  await champ.save()
+
+  seasonLog.info(
+    `Archived season ${currentSeason} for championship ${champId}. ` +
+      `New season ${champ.season} created with ${previousRoundCount} rounds.`,
+  )
 }
 
 // Type for Mongoose document (used for checkRoundExpiry).
