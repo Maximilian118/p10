@@ -10,6 +10,7 @@ import {
   BetPlacedPayload,
   BetConfirmedPayload,
   BetRejectedPayload,
+  ScheduleUpdatedPayload,
 } from "../socket/socketClient"
 
 // Hook to manage socket connection and championship room subscription.
@@ -22,12 +23,14 @@ export const useChampionshipSocket = (
   onBetConfirmed?: (payload: BetConfirmedPayload) => void,
   onBetRejected?: (payload: BetRejectedPayload) => void,
   isBanned?: boolean,
+  onScheduleUpdated?: (payload: ScheduleUpdatedPayload) => void,
 ): void => {
   const { user } = useContext(AppContext)
   const statusCallbackRef = useRef(onRoundStatusChange)
   const betCallbackRef = useRef(onBetPlaced)
   const betConfirmedRef = useRef(onBetConfirmed)
   const betRejectedRef = useRef(onBetRejected)
+  const scheduleCallbackRef = useRef(onScheduleUpdated)
 
   // Keep callback refs updated to avoid stale closures.
   useEffect(() => {
@@ -45,6 +48,10 @@ export const useChampionshipSocket = (
   useEffect(() => {
     betRejectedRef.current = onBetRejected
   }, [onBetRejected])
+
+  useEffect(() => {
+    scheduleCallbackRef.current = onScheduleUpdated
+  }, [onScheduleUpdated])
 
   // Initialize socket on mount when user has token.
   useEffect(() => {
@@ -153,6 +160,24 @@ export const useChampionshipSocket = (
 
     return () => {
       socket.off(SOCKET_EVENTS.BET_REJECTED, handler)
+    }
+  }, [champId])
+
+  // Listen for qualifying schedule timestamp updates.
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handler = (payload: ScheduleUpdatedPayload): void => {
+      if (payload.champId === champId && scheduleCallbackRef.current) {
+        scheduleCallbackRef.current(payload)
+      }
+    }
+
+    socket.on(SOCKET_EVENTS.SCHEDULE_UPDATED, handler)
+
+    return () => {
+      socket.off(SOCKET_EVENTS.SCHEDULE_UPDATED, handler)
     }
   }, [champId])
 }

@@ -36,7 +36,7 @@ export const initializeOpenF1Service = async (io: Server): Promise<void> => {
     startSessionPolling()
 
     // Start qualifying schedule polling (fetches next qualifying start time every hour).
-    startQualifyingSchedulePolling()
+    startQualifyingSchedulePolling(io)
 
     // Start round automation (checks every 30s if any championship needs auto-opening).
     startRoundAutomation(io)

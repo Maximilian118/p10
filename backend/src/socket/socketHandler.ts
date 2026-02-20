@@ -20,6 +20,7 @@ export const SOCKET_EVENTS = {
   BET_REJECTED: "bet:rejected",
   ADJUDICATOR_CHANGED: "adjudicator:changed",
   NOTIFICATION_RECEIVED: "notification:received",
+  SCHEDULE_UPDATED: "automation:schedule_updated",
   ERROR: "error",
   // OpenF1 live data (see services/openF1/sessionManager.ts for handlers)
   OPENF1_TRACKMAP: "openf1:trackmap",

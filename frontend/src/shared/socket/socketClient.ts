@@ -15,6 +15,7 @@ export const SOCKET_EVENTS = {
   BET_REJECTED: "bet:rejected",
   ADJUDICATOR_CHANGED: "adjudicator:changed",
   NOTIFICATION_RECEIVED: "notification:received",
+  SCHEDULE_UPDATED: "automation:schedule_updated",
   ERROR: "error",
 } as const
 
@@ -60,6 +61,12 @@ export interface BetRejectedPayload {
   driverId: string
   reason: "already_taken" | "betting_closed" | "not_competitor" | "invalid_round" | "not_found" | "server_error" | "not_authorized"
   takenBy?: string
+}
+
+// Payload when qualifying schedule timestamp is updated.
+export interface ScheduleUpdatedPayload {
+  champId: string
+  autoOpenTimestamp: string
 }
 
 // Payload when adjudicator is changed (broadcast to championship room).

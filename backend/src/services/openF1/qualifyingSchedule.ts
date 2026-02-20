@@ -1,8 +1,10 @@
+import { Server } from "socket.io"
 import axios from "axios"
 import moment from "moment"
 import Champ from "../../models/champ"
 import Series from "../../models/series"
 import { getOpenF1Token } from "./auth"
+import { SOCKET_EVENTS } from "../../socket/socketHandler"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("QualifyingSchedule")
@@ -13,6 +15,7 @@ const OPENF1_API_BASE = "https://api.openf1.org/v1"
 const POLL_INTERVAL = 60 * 60 * 1000
 
 let pollTimer: NodeJS.Timeout | null = null
+let ioServer: Server | null = null
 
 // OpenF1 session response shape (subset of fields we need).
 interface OpenF1SessionSchedule {
@@ -26,6 +29,9 @@ interface OpenF1SessionSchedule {
 }
 
 // Fetches the next upcoming qualifying session from the OpenF1 API.
+// Uses session_name=Qualifying to exclude Sprint Qualifying sessions.
+// Filters client-side for sessions starting after now (the API does not support
+// comparison operators on date_start).
 const fetchNextQualifyingSession = async (): Promise<OpenF1SessionSchedule | null> => {
   try {
     const token = await getOpenF1Token()
@@ -34,57 +40,30 @@ const fetchNextQualifyingSession = async (): Promise<OpenF1SessionSchedule | nul
       return null
     }
 
-    const now = new Date().toISOString()
-    const year = new Date().getFullYear()
-
-    // Query for qualifying and sprint shootout sessions starting after now.
     const res = await axios.get<OpenF1SessionSchedule[]>(
       `${OPENF1_API_BASE}/sessions`,
       {
         params: {
-          year,
-          session_type: "Qualifying",
-          date_start: `>${now}`,
+          year: new Date().getFullYear(),
+          session_name: "Qualifying",
         },
         headers: { Authorization: `Bearer ${token}` },
         timeout: 10000,
       },
     )
 
-    const sessions = res.data || []
-
-    // Also check for Sprint Shootout sessions.
-    let sprintSessions: OpenF1SessionSchedule[] = []
-    try {
-      const sprintRes = await axios.get<OpenF1SessionSchedule[]>(
-        `${OPENF1_API_BASE}/sessions`,
-        {
-          params: {
-            year,
-            session_type: "Sprint Shootout",
-            date_start: `>${now}`,
-          },
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-        },
-      )
-      sprintSessions = sprintRes.data || []
-    } catch {
-      // Sprint Shootout may not exist for all rounds — ignore errors.
-    }
-
-    // Combine and sort by start time, pick the earliest.
-    const allSessions = [...sessions, ...sprintSessions]
+    // Find the earliest qualifying session starting after now.
+    const upcoming = (res.data || [])
       .filter((s) => new Date(s.date_start).getTime() > Date.now())
       .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
 
-    if (allSessions.length === 0) {
+    if (upcoming.length === 0) {
       log.info("No upcoming qualifying sessions found")
       return null
     }
 
-    const next = allSessions[0]
-    log.info(`Next qualifying: "${next.session_name}" (${next.session_type}) at ${next.date_start}`)
+    const next = upcoming[0]
+    log.info(`Next qualifying: "${next.session_name}" at ${next.date_start}`)
     return next
   } catch (err) {
     log.error("Failed to fetch qualifying schedule:", err)
@@ -124,6 +103,13 @@ const updateChampionshipTimestamps = async (nextSession: OpenF1SessionSchedule):
         champ.markModified("settings")
         await champ.save()
         log.info(`Updated "${champ.name}" — next qualifying at ${newTimestamp}`)
+
+        // Broadcast to connected clients so RoundsBar countdown updates without refresh.
+        const champId = champ._id.toString()
+        ioServer?.to(`championship:${champId}`).emit(SOCKET_EVENTS.SCHEDULE_UPDATED, {
+          champId,
+          autoOpenTimestamp: newTimestamp,
+        })
       }
     }
   } catch (err) {
@@ -141,8 +127,9 @@ export const pollNextQualifyingSession = async (): Promise<void> => {
 }
 
 // Starts the hourly polling loop for qualifying session schedule.
-export const startQualifyingSchedulePolling = (): void => {
+export const startQualifyingSchedulePolling = (io: Server): void => {
   if (pollTimer) return
+  ioServer = io
 
   // Run immediately on startup.
   pollNextQualifyingSession()
@@ -178,6 +165,12 @@ export const refreshNextQualifyingForChamp = async (champId: string): Promise<vo
     champ.markModified("settings")
     await champ.save()
     log.info(`Refreshed next qualifying for "${champ.name}" — ${nextSession.date_start}`)
+
+    // Broadcast to connected clients so RoundsBar countdown updates without refresh.
+    ioServer?.to(`championship:${champId}`).emit(SOCKET_EVENTS.SCHEDULE_UPDATED, {
+      champId,
+      autoOpenTimestamp: nextSession.date_start,
+    })
   } catch (err) {
     log.error(`Failed to refresh qualifying for champ ${champId}:`, err)
   }

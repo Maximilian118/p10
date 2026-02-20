@@ -35,7 +35,7 @@ import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
 import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
 import { useChampionshipSocket } from "../../shared/hooks/useChampionshipSocket"
-import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload, AdjudicatorChangedPayload, SOCKET_EVENTS, getSocket } from "../../shared/socket/socketClient"
+import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload, AdjudicatorChangedPayload, ScheduleUpdatedPayload, SOCKET_EVENTS, getSocket } from "../../shared/socket/socketClient"
 import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
 import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView"
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
@@ -412,10 +412,34 @@ const Championship: React.FC = () => {
     setLastRejectedBet(payload)
   }, [])
 
+  // Handle qualifying schedule timestamp update via socket.
+  // Updates local champ state so RoundsBar countdown starts without a page refresh.
+  const handleScheduleUpdated = useCallback((payload: ScheduleUpdatedPayload) => {
+    setChamp(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          automation: {
+            ...prev.settings.automation,
+            bettingWindow: {
+              ...prev.settings.automation.bettingWindow,
+              autoOpenData: {
+                ...prev.settings.automation.bettingWindow.autoOpenData,
+                timestamp: payload.autoOpenTimestamp,
+              },
+            },
+          },
+        },
+      }
+    })
+  }, [])
+
   // Connect to championship socket for real-time updates.
   // Skip joining socket room if user is banned from this championship.
   const isBannedFromChamp = champ?.banned?.some(b => b._id === user._id) ?? false
-  useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected, isBannedFromChamp)
+  useChampionshipSocket(id, handleRoundStatusChange, handleBetPlaced, handleBetConfirmed, handleBetRejected, isBannedFromChamp, handleScheduleUpdated)
 
   // Listen for adjudicator changed events via socket.
   useEffect(() => {
