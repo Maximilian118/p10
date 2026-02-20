@@ -1,0 +1,155 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+// Comment section — sits at bottom of the floating card.
+.comment-section {
+  border-top: 1px solid variables.$colour-1;
+
+  &__toggle {
+    background: none;
+    border: none;
+    color: variables.$colour-4;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 8px 16px;
+    display: block;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Scrollable comment list — fits ~3-4 comments.
+  &__list {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px 16px;
+  }
+
+  &__load-more {
+    background: none;
+    border: none;
+    color: variables.$mui-blue;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 6px 0;
+    width: 100%;
+    text-align: center;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__loading {
+    @include mixins.flexbox;
+    padding: 8px 0;
+  }
+
+  // Comment input — subtle background, flush at card bottom.
+  &__input-wrapper {
+    position: relative;
+    border-top: 1px solid variables.$colour-1;
+  }
+
+  &__input {
+    width: 100%;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    outline: none;
+    box-sizing: border-box;
+    background: transparent;
+    color: variables.$colour-9;
+
+    &::placeholder {
+      color: variables.$colour-3;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+
+  &__input-loader {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+// Individual comment card.
+.comment-card {
+  padding: 6px 0;
+
+  &__header {
+    @include mixins.flexbox-space-between;
+    margin-bottom: 4px;
+  }
+
+  &__user {
+    @include mixins.flexbox-start;
+    gap: 6px;
+    cursor: pointer;
+
+    &:hover .comment-card__name {
+      text-decoration: underline;
+    }
+  }
+
+  &__name {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: variables.$colour-9;
+  }
+
+  &__time {
+    font-size: 0.75rem;
+    color: variables.$colour-4;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    font-size: 0.85rem;
+    color: variables.$colour-6;
+    margin: 0 0 4px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  // Like/dislike action buttons.
+  &__actions {
+    @include mixins.flexbox-start;
+    gap: 12px;
+  }
+
+  &__action {
+    @include mixins.flexbox-start;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: variables.$colour-4;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color variables.$trans-speed;
+
+    &:hover {
+      color: variables.$colour-6;
+    }
+
+    // Active state when user has liked/disliked.
+    &--active {
+      color: variables.$mui-blue;
+
+      &:hover {
+        color: variables.$mui-blue-hover;
+      }
+    }
+
+    span {
+      font-size: 0.75rem;
+    }
+  }
+}

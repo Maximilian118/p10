@@ -1,0 +1,87 @@
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
+
+// Compact "Following:" row with user icons.
+.user-following-row {
+  width: 100%;
+  height: 60px;
+  @include mixins.flexbox-start;
+  background: white;
+  padding: 10px 7.5%;
+  box-sizing: border-box;
+  border-bottom: 1px solid variables.$background;
+  cursor: pointer;
+  transition: background variables.$trans-speed;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  // Empty state — non-interactive.
+  &--empty {
+    cursor: default;
+
+    &:hover {
+      background: white;
+    }
+  }
+
+  .following-label {
+    font-size: 0.85rem;
+    color: variables.$colour-9;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .following-icons {
+    flex-grow: 1;
+    min-width: 0;
+  }
+}
+
+// Expanded detail view container.
+.following-detail {
+  width: 100%;
+  background: white;
+
+  .following-detail-header {
+    @include mixins.flexbox-space-between;
+    padding: 12px 7.5%;
+    border-bottom: 1px solid variables.$border;
+
+    .following-detail-title {
+      font-size: 0.85rem;
+      color: variables.$colour-9;
+    }
+
+    .following-detail-close {
+      cursor: pointer;
+      color: variables.$colour-4;
+      transition: color variables.$trans-speed;
+
+      &:hover {
+        color: variables.$colour-9;
+      }
+    }
+  }
+
+  .following-detail-search {
+    border-bottom: 1px solid variables.$border;
+
+    .search {
+      width: 100%;
+    }
+  }
+
+  .following-detail-list {
+    width: 100%;
+  }
+
+  .following-detail-empty {
+    padding: 20px 7.5%;
+    color: variables.$colour-4;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+}

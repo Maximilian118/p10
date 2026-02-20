@@ -1,0 +1,226 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+// Floating card container.
+.social-event-card {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid variables.$border;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  // Header: event icon, category title, timestamp.
+  &__header {
+    @include mixins.flexbox-space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid variables.$colour-1;
+  }
+
+  &__title-row {
+    @include mixins.flexbox-start;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  // Smaller icon in the header title row.
+  &__header-icon {
+    font-size: 1.1rem !important;
+    flex-shrink: 0;
+  }
+
+  &__title {
+    font-size: 0.85rem;
+    color: variables.$colour-9;
+    white-space: nowrap;
+  }
+
+  &__time {
+    font-size: 0.78rem;
+    color: variables.$colour-4;
+    flex-shrink: 0;
+    margin-left: 10px;
+  }
+
+  // Content area: event-specific visuals via inline styles from config.
+  &__content {
+    padding: 16px;
+    position: relative;
+  }
+
+  // Clickable user row inside content area.
+  &__user {
+    @include mixins.flexbox-start;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+
+    &:hover .social-event-card__name {
+      text-decoration: underline;
+    }
+  }
+
+  &__name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: variables.$colour-9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Default content layout: icon + text side by side.
+  &__content-default {
+    @include mixins.flexbox-start;
+    gap: 12px;
+  }
+
+  // Icon inside the content area (from config).
+  &__content-icon {
+    font-size: 1.4rem !important;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    font-size: 0.9rem;
+    color: variables.$colour-6;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  // Championship icon in content area.
+  &__champ-icon {
+    flex-shrink: 0;
+  }
+
+  // ─── Shared showcase layout (victory, champion, runner-up, streak, perfect) ───
+  &--victory &__content,
+  &--champion &__content,
+  &--runner-up &__content,
+  &--streak &__content,
+  &--perfect &__content {
+    padding: 24px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__showcase-icon {
+    font-size: 2.5rem !important;
+    flex-shrink: 0;
+  }
+
+  &__showcase-hero {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  &__showcase-user {
+    @include mixins.flexbox;
+    gap: 8px;
+    cursor: pointer;
+    margin-top: 4px;
+
+    &:hover .social-event-card__showcase-name {
+      text-decoration: underline;
+    }
+  }
+
+  &__showcase-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &__showcase-sub {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.5px;
+  }
+
+  // Theme: Victory — racing green.
+  &--victory &__content {
+    background: linear-gradient(135deg, #0a2e1a 0%, #1a4a2e 50%, #0d3320 100%);
+  }
+
+  &--victory &__showcase-icon {
+    filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.5));
+  }
+
+  // Theme: Champion — gold.
+  &--champion &__content {
+    background: linear-gradient(135deg, #2e2400 0%, #4a3800 50%, #332a00 100%);
+  }
+
+  &--champion &__showcase-icon {
+    font-size: 3rem !important;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.6));
+  }
+
+  // Theme: Runner-up — silver/slate.
+  &--runner-up &__content {
+    background: linear-gradient(135deg, #1a1a24 0%, #2a2a3a 50%, #1e1e2a 100%);
+  }
+
+  &--runner-up &__showcase-icon {
+    font-size: 2.8rem !important;
+    filter: drop-shadow(0 0 10px rgba(192, 192, 192, 0.5));
+  }
+
+  // Theme: Streak — fiery amber.
+  &--streak &__content {
+    background: linear-gradient(135deg, #2e1500 0%, #4a2400 50%, #331a00 100%);
+  }
+
+  &--streak &__showcase-icon {
+    font-size: 2.8rem !important;
+    filter: drop-shadow(0 0 10px rgba(232, 134, 12, 0.6));
+  }
+
+  // Theme: Perfect — crimson.
+  &--perfect &__content {
+    background: linear-gradient(135deg, #2e0a0a 0%, #4a1515 50%, #330d0d 100%);
+  }
+
+  &--perfect &__showcase-icon {
+    filter: drop-shadow(0 0 8px rgba(225, 6, 0, 0.5));
+  }
+
+  // ─── Badge earned: dark showcase ───
+  &--badge &__content {
+    background: #1a1a2e;
+    padding: 20px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &--badge &__badge-showcase {
+    @include mixins.flexbox;
+  }
+
+  &--badge &__badge-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    text-align: center;
+
+    strong {
+      color: white;
+      font-weight: 700;
+    }
+  }
+
+  &--badge &__rarity-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}

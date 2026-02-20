@@ -1,0 +1,35 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+.home-container {
+  padding: 20px 7.5% !important;
+  @include mixins.flexbox-start-column;
+  gap: 20px;
+
+  // Social feed container.
+  .social-feed {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+    gap: 14px;
+
+    &__loading {
+      @include mixins.flexbox;
+      padding: 20px 0;
+    }
+
+    &__empty {
+      text-align: center;
+      color: variables.$colour-4;
+
+      p {
+        margin: 0;
+        font-size: 0.9rem;
+      }
+    }
+
+    // Invisible sentinel for infinite scroll trigger.
+    &__sentinel {
+      height: 1px;
+    }
+  }
+}

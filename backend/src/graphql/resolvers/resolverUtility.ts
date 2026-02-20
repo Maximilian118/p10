@@ -8,6 +8,7 @@ import User, { userBadgeSnapshotType } from "../../models/user"
 import moment from "moment"
 import { badgeCheckerRegistry, BadgeContext, F1SessionData, DriverSessionEntry } from "../../shared/badgeEvaluators"
 import { sendNotification } from "../../shared/notifications"
+import { createSocialEvent, POINTS_MILESTONES, MIN_WIN_STREAK } from "../../shared/socialEvents"
 import Series from "../../models/series"
 import F1Session from "../../models/f1Session"
 import { createLogger } from "../../shared/logger"
@@ -991,6 +992,8 @@ const awardBadges = async (
   const competitorIds = currentRound.competitors.map((c) => c.competitor)
   const users = await User.find({ _id: { $in: competitorIds } })
   const userBadgesMap = new Map(users.map((u) => [u._id.toString(), u.badges || []]))
+  // Map user IDs to name/icon for social event userSnapshot population.
+  const userInfoMap = new Map(users.map((u) => [u._id.toString(), { name: u.name, icon: u.icon }]))
 
   // Track awards to batch save at end.
   const badgeAwards: { badgeId: ObjectId; competitorId: ObjectId; awardedHow: string }[] = []
@@ -1154,6 +1157,29 @@ const awardBadges = async (
       )
     )
 
+    // Create social events for Epic+ rarity badges (rarity >= 3).
+    await Promise.all(
+      userBadgeSnapshots
+        .filter(({ snapshot }) => snapshot.rarity >= 3)
+        .map(({ userId, snapshot }) => {
+          const userInfo = userInfoMap.get(userId.toString())
+          return createSocialEvent({
+            kind: "badge_earned",
+            userId,
+            userSnapshot: { name: userInfo?.name ?? "Unknown", icon: userInfo?.icon ?? "" },
+            payload: {
+              badgeName: snapshot.customName || snapshot.name,
+              badgeUrl: snapshot.url,
+              badgeRarity: snapshot.rarity,
+              badgeAwardedHow: snapshot.awardedHow,
+              champId: champ._id,
+              champName: champ.name,
+              champIcon: champ.icon,
+            },
+          })
+        })
+    )
+
     badgeLog.info(`Batch saved ${badgeAwards.length} badge awards`)
   }
 }
@@ -1272,6 +1298,75 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
     return
   }
   calculateCompetitorPoints(currentRound, champ.pointsStructure)
+
+  // Create social events for round results (winner, win streak, milestones).
+  if (currentRound.winner) {
+    const winnerEntry = currentRound.competitors.find(
+      (c) => c.competitor.toString() === currentRound.winner?.toString()
+    )
+    if (winnerEntry) {
+      const winnerUser = await User.findById(currentRound.winner).select("name icon")
+      if (winnerUser) {
+        // Round won event.
+        await createSocialEvent({
+          kind: "round_won",
+          userId: currentRound.winner,
+          userSnapshot: { name: winnerUser.name, icon: winnerUser.icon },
+          payload: {
+            champId: champ._id,
+            champName: champ.name,
+            champIcon: champ.icon,
+            roundNumber: roundIndex + 1,
+            pointsEarned: winnerEntry.points,
+          },
+        })
+
+        // Check for win streak (3+ consecutive round wins).
+        let streakCount = 1
+        for (let i = roundIndex - 1; i >= 0; i--) {
+          if (champ.rounds[i].winner?.toString() === currentRound.winner?.toString()) {
+            streakCount++
+          } else {
+            break
+          }
+        }
+        if (streakCount >= MIN_WIN_STREAK) {
+          await createSocialEvent({
+            kind: "win_streak",
+            userId: currentRound.winner,
+            userSnapshot: { name: winnerUser.name, icon: winnerUser.icon },
+            payload: {
+              champId: champ._id,
+              champName: champ.name,
+              champIcon: champ.icon,
+              streakCount,
+            },
+          })
+        }
+
+        // Check for points milestone crossing.
+        const prevTotal = winnerEntry.grandTotalPoints - winnerEntry.points
+        const newTotal = winnerEntry.grandTotalPoints
+        for (const milestone of POINTS_MILESTONES) {
+          if (prevTotal < milestone && newTotal >= milestone) {
+            await createSocialEvent({
+              kind: "points_milestone",
+              userId: currentRound.winner,
+              userSnapshot: { name: winnerUser.name, icon: winnerUser.icon },
+              payload: {
+                champId: champ._id,
+                champName: champ.name,
+                champIcon: champ.icon,
+                milestoneValue: milestone,
+                milestoneLabel: `${milestone} points`,
+              },
+            })
+            break
+          }
+        }
+      }
+    }
+  }
 
   // Re-sync to next round: grandTotalPoints becomes the new totalPoints (bakes in adjustments).
   if (hasNextRound) {
@@ -1554,6 +1649,44 @@ export const archiveSeason = async (champId: string): Promise<void> => {
     updated_at: c.updated_at,
     created_at: c.created_at,
   }))
+
+  // Create social events for season winner and runner-up.
+  const sortedStandings = [...finalRound.competitors].sort((a, b) => a.position - b.position)
+  const seasonWinner = sortedStandings[0]
+  const seasonRunnerUp = sortedStandings[1]
+
+  if (seasonWinner && !seasonWinner.deleted) {
+    const winnerUser = await User.findById(seasonWinner.competitor).select("name icon")
+    if (winnerUser) {
+      await createSocialEvent({
+        kind: "season_won",
+        userId: seasonWinner.competitor,
+        userSnapshot: { name: winnerUser.name, icon: winnerUser.icon },
+        payload: {
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          season: currentSeason,
+        },
+      })
+    }
+  }
+  if (seasonRunnerUp && !seasonRunnerUp.deleted) {
+    const runnerUpUser = await User.findById(seasonRunnerUp.competitor).select("name icon")
+    if (runnerUpUser) {
+      await createSocialEvent({
+        kind: "season_runner_up",
+        userId: seasonRunnerUp.competitor,
+        userSnapshot: { name: runnerUpUser.name, icon: runnerUpUser.icon },
+        payload: {
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+          season: currentSeason,
+        },
+      })
+    }
+  }
 
   // Step 2: Update the current season's history entry with completed data.
   const historyEntry = champ.history.find((h: SeasonHistory) => h.season === currentSeason)

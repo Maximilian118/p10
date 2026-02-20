@@ -1,0 +1,22 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+.users-page {
+  padding: 20px 0 80px !important;
+
+  .form-title {
+    margin-bottom: 40px;
+  }
+
+  .users-list {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+  }
+
+  .users-empty {
+    width: 100%;
+    padding: 40px 0;
+    text-align: center;
+    color: variables.$colour-4;
+  }
+}

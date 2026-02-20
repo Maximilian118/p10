@@ -55,6 +55,9 @@ const userSchema = `
     notifications: [Notification!]!
     notificationsCount: Int
     notificationSettings: NotificationSettings!
+    following: [ID!]!
+    socialEventSettings: SocialEventSettings!
+    location: UserLocation
     permissions: Permissions!
     logged_in_at: String!
     created_at: String!

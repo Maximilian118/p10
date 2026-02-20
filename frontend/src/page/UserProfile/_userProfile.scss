@@ -1,0 +1,16 @@
+@use '../../scss/variables';
+
+// Follow button styles.
+.follow-button {
+  &.MuiButton-root {
+    background: variables.$mui-blue;
+    border-radius: 0;
+    text-transform: none;
+    padding: 10px 16px;
+    transition: background variables.$trans-speed;
+
+    &:hover {
+      background: variables.$mui-blue-hover;
+    }
+  }
+}

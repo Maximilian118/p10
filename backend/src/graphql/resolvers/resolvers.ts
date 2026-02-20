@@ -8,6 +8,7 @@ import champResolvers from "./champResolvers"
 import notificationResolvers from "./notificationResolvers"
 import trackmapResolvers from "./trackmapResolvers"
 import demoResolvers from "./demoResolvers"
+import socialEventResolvers from "./socialEventResolvers"
 
 const Resolvers = {
   ...userResolvers,
@@ -20,6 +21,7 @@ const Resolvers = {
   ...notificationResolvers,
   ...trackmapResolvers,
   ...demoResolvers,
+  ...socialEventResolvers,
 }
 
 export default Resolvers

@@ -1,6 +1,6 @@
 import React, { useContext, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email, Delete, Mail } from "@mui/icons-material"
+import { ArrowBack, Logout, Save, Image as ImageIcon, Lock as LockIcon, Email, Delete, Mail, People, DynamicFeed } from "@mui/icons-material"
 import { Button } from "@mui/material"
 import "./_settings.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
@@ -198,6 +198,24 @@ const Settings: React.FC = () => {
           fullWidth
         >
           Email Preferences
+        </Button>
+        <Button
+          variant="contained"
+          className="settings-action-btn"
+          onClick={() => navigate("/users", { state: { mode: "following", title: "Followed Users" } })}
+          startIcon={<People />}
+          fullWidth
+        >
+          Followed Users
+        </Button>
+        <Button
+          variant="contained"
+          className="settings-action-btn"
+          onClick={() => navigate("/social-events-settings")}
+          startIcon={<DynamicFeed />}
+          fullWidth
+        >
+          Social Events
         </Button>
         <Button
           variant="contained"

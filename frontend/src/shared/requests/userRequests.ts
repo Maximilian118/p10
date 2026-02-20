@@ -4,6 +4,7 @@ import { userType, logInSuccess, logout } from "../localStorage"
 import { populateUser, populateUserProfile } from "./requestPopulation"
 import { uplaodS3 } from "./bucketRequests"
 import { graphQLErrors, graphQLErrorType, graphQLResponse, headers } from "./requestsUtility"
+import { tokensHandler } from "../localStorage"
 import { NavigateFunction } from "react-router-dom"
 import { loginFormType } from "../../page/Login/Login"
 import { forgotFormType } from "../../page/Forgot"
@@ -722,6 +723,145 @@ export const getUsers = async (
       })
   } catch (err: unknown) {
     graphQLErrors("getUsers", err, setUser, navigate, setBackendErr, true)
+  }
+
+  setLoading(false)
+}
+
+// Follow a user. Adds target user to the authenticated user's following array.
+export const followUser = async (
+  userId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { userId },
+        query: `
+          mutation FollowUser($userId: ID!) {
+            followUser(userId: $userId) {
+              ${populateUser}
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("followUser", res, setUser, navigate, setBackendErr, true)
+      return false
+    }
+
+    const data = res.data.data.followUser
+    tokensHandler(user, data.tokens, setUser)
+
+    // Update following in state and localStorage.
+    const updatedFollowing = data.following as string[]
+    localStorage.setItem("following", JSON.stringify(updatedFollowing))
+    setUser((prev) => ({ ...prev, following: updatedFollowing }))
+
+    return true
+  } catch (err: unknown) {
+    graphQLErrors("followUser", err, setUser, navigate, setBackendErr, true)
+    return false
+  }
+}
+
+// Unfollow a user. Removes target user from the authenticated user's following array.
+export const unfollowUser = async (
+  userId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<boolean> => {
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { userId },
+        query: `
+          mutation UnfollowUser($userId: ID!) {
+            unfollowUser(userId: $userId) {
+              ${populateUser}
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("unfollowUser", res, setUser, navigate, setBackendErr, true)
+      return false
+    }
+
+    const data = res.data.data.unfollowUser
+    tokensHandler(user, data.tokens, setUser)
+
+    // Update following in state and localStorage.
+    const updatedFollowing = data.following as string[]
+    localStorage.setItem("following", JSON.stringify(updatedFollowing))
+    setUser((prev) => ({ ...prev, following: updatedFollowing }))
+
+    return true
+  } catch (err: unknown) {
+    graphQLErrors("unfollowUser", err, setUser, navigate, setBackendErr, true)
+    return false
+  }
+}
+
+// Fetch followed users as basic user objects. If userId is provided, fetches that user's following list.
+export const getFollowing = async (
+  setUsers: React.Dispatch<React.SetStateAction<UserBasicType[]>>,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+  userId?: string,
+): Promise<void> => {
+  setLoading(true)
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { userId },
+          query: `
+            query GetFollowing($userId: ID) {
+              getFollowing(userId: $userId) {
+                array {
+                  _id
+                  name
+                  icon
+                }
+                tokens
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("getFollowing", res, setUser, navigate, setBackendErr, true)
+        } else {
+          const data = graphQLResponse("getFollowing", res, user, setUser) as { array: UserBasicType[] }
+          setUsers(data.array)
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("getFollowing", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("getFollowing", err, setUser, navigate, setBackendErr, true)
   }
 
   setLoading(false)

@@ -3,7 +3,7 @@ import { Route, Routes } from "react-router-dom"
 import { userType } from './shared/localStorage'
 
 import Notfound from "./page/NotFound"
-import Home from './page/Home'
+import Home from './page/Home/Home'
 import Splash from './page/Splash/Splash'
 import Login from './page/Login/Login'
 import Forgot from "./page/Forgot"
@@ -29,6 +29,8 @@ import VerifyEmail from "./page/VerifyEmail/VerifyEmail"
 import Notifications from "./page/Notifications/Notifications"
 import Email from "./page/Email/Email"
 import WatchLive from "./page/WatchLive/WatchLive"
+import Users from "./page/Users/Users"
+import SocialEventsSettings from "./page/SocialEventsSettings/SocialEventsSettings"
 
 interface routerType {
   user: userType,
@@ -58,6 +60,8 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/team/:id" Component={Team}/>
     <Route path="/create-team" Component={CreateTeam}/>
     <Route path="/watch-live" Component={WatchLive}/>
+    <Route path="/users" Component={Users}/>
+    <Route path="/social-events-settings" Component={SocialEventsSettings}/>
   </Routes>
 ) : (
   <Routes>

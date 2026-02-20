@@ -23,14 +23,15 @@ function IconList<T extends IconItem>({ items, onItemClick, counterInverted, cen
   const [lastIcon, setLastIcon] = useState<number>(10)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Calculate how many icons can fit in the container.
+  // Calculate how many icons can fit. Only reserve a slot for the counter when items overflow.
   useEffect(() => {
     const containerWidth = containerRef.current?.getBoundingClientRect().width
 
     if (containerWidth) {
-      setLastIcon(Math.floor(containerWidth / 37) - 1)
+      const maxSlots = Math.floor(containerWidth / 37)
+      setLastIcon(items.length <= maxSlots ? items.length : maxSlots - 1)
     }
-  }, [])
+  }, [items.length])
 
   const className = `icon-list${centered ? ' centered' : ''}`
 

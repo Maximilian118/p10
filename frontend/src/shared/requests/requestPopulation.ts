@@ -55,6 +55,32 @@ export const populateUser = `
     emailProtestDenied
     emailProtestExpired
   }
+  following
+  socialEventSettings {
+    badge_earned_epic
+    badge_earned_legendary
+    badge_earned_mythic
+    champ_joined
+    champ_created
+    season_won
+    season_runner_up
+    round_won
+    round_perfect_bet
+    win_streak
+    points_milestone
+    rounds_milestone
+    user_joined_platform
+    adjudicator_promoted
+  }
+  location {
+    city
+    region
+    country
+    coordinates {
+      lat
+      lng
+    }
+  }
   permissions {
     admin
     adjudicator
@@ -100,6 +126,7 @@ export const populateUserProfile = `
     awarded_at
     featured
   }
+  following
   permissions {
     admin
     adjudicator

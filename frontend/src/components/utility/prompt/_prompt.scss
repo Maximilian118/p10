@@ -1,0 +1,50 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.prompt {
+  width: 100%;
+  @include mixins.flexbox-space-between;
+  background: rgba(variables.$mui-blue, 0.08);
+  border: 1px solid rgba(variables.$mui-blue, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+
+  &__content {
+    @include mixins.flexbox-start;
+    gap: 8px;
+    flex: 1;
+  }
+
+  &__icon {
+    color: variables.$mui-blue;
+    font-size: 1.2rem !important;
+    flex-shrink: 0;
+    @include mixins.flexbox;
+  }
+
+  &__text {
+    font-size: 0.85rem;
+    color: variables.$colour-6;
+    margin: 0;
+  }
+
+  &__actions {
+    @include mixins.flexbox;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: variables.$colour-4;
+    padding: 2px;
+    @include mixins.flexbox;
+
+    &:hover {
+      color: variables.$colour-6;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Settings } from "@mui/icons-material"
+import { ArrowBack, Settings } from "@mui/icons-material"
 import "./_profile.scss"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import AppContext from "../../context"
@@ -9,8 +9,10 @@ import { formErrType, formType, SelectionModeState, userProfileType } from "../.
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import BadgeChampPicker from "../../components/utility/badgeChampPicker/BadgeChampPicker"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
-import { getUserById } from "../../shared/requests/userRequests"
+import { getUserById, getFollowing, UserBasicType } from "../../shared/requests/userRequests"
 import { setFeaturedBadge } from "../../shared/requests/badgeRequests"
+import UserFollowing from "../../components/cards/userFollowing/UserFollowing"
+import FollowingDetail from "../../components/cards/userFollowing/FollowingDetail"
 
 const Profile: React.FC = () => {
   const navigate = useNavigate()
@@ -39,12 +41,25 @@ const Profile: React.FC = () => {
   // Loading state for featured badge mutations (add/remove).
   const [featuredBadgeLoading, setFeaturedBadgeLoading] = useState<boolean>(false)
 
+  // Following state: compact row icons and expanded detail toggle.
+  const [followingUsers, setFollowingUsers] = useState<UserBasicType[]>([])
+  const [followingLoading, setFollowingLoading] = useState<boolean>(false)
+  const [showFollowingDetail, setShowFollowingDetail] = useState<boolean>(false)
+
   // Ref for badge picker area to detect clicks outside.
   const badgePickerRef = useRef<HTMLDivElement>(null)
 
   // Fetch full profile data on mount.
   useEffect(() => {
     getUserById(user._id, setUserProfile, user, setUser, navigate, setLoading, setBackendErr)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Fetch basic following user data for the compact row icons.
+  useEffect(() => {
+    if (user.following?.length) {
+      getFollowing(setFollowingUsers, user, setUser, navigate, setFollowingLoading, setBackendErr)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -133,16 +148,38 @@ const Profile: React.FC = () => {
         setSelectionMode={setSelectionMode}
         featuredBadgeLoading={featuredBadgeLoading}
       />
-      <BadgeChampPicker
-        user={user}
-        selectionMode={selectionMode}
-        onBadgeSelect={handleBadgeSelect}
-        onBadgeRemove={handleBadgeRemove}
-        ref={badgePickerRef}
+      {/* Compact following row — hidden during badge selection and following detail. */}
+      {!showFollowingDetail && !selectionMode.active && (
+        <UserFollowing
+          followingUsers={followingUsers}
+          onExpand={() => setShowFollowingDetail(true)}
+          loading={followingLoading}
+        />
+      )}
+
+      {/* Expanded following detail replaces BadgeChampPicker when active. */}
+      {showFollowingDetail ? (
+        <FollowingDetail
+          userId={user._id}
+          onClose={() => setShowFollowingDetail(false)}
+        />
+      ) : (
+        <BadgeChampPicker
+          user={user}
+          selectionMode={selectionMode}
+          onBadgeSelect={handleBadgeSelect}
+          onBadgeRemove={handleBadgeRemove}
+          ref={badgePickerRef}
+        />
+      )}
+      <ButtonBar
+        leftButtons={showFollowingDetail ? [
+          { label: "Back", onClick: () => setShowFollowingDetail(false), startIcon: <ArrowBack />, color: "inherit" }
+        ] : undefined}
+        rightButtons={[
+          { label: "Settings", onClick: () => navigate("/settings"), endIcon: <Settings /> },
+        ]}
       />
-      <ButtonBar buttons={[
-        { label: "Settings", onClick: () => navigate("/settings"), endIcon: <Settings /> },
-      ]} />
     </div>
   )
 }

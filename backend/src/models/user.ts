@@ -2,6 +2,7 @@ import mongoose from "mongoose"
 import moment from "moment"
 import { ObjectId } from "mongodb"
 import { NotificationType, NotificationSettingsType } from "./notification"
+import { SocialEventSettingsType, defaultSocialEventSettings, UserLocationType } from "./socialEvent"
 
 export interface userInputType {
   name: string
@@ -75,6 +76,9 @@ export interface userType extends Omit<userInputType, "email"> {
   notifications: NotificationType[] // User's notifications
   notificationsCount?: number // Computed unread count (not stored in DB)
   notificationSettings: NotificationSettingsType // Email notification preferences
+  following: ObjectId[] // User IDs this user follows
+  socialEventSettings: SocialEventSettingsType // Social event privacy preferences
+  location?: UserLocationType // Approximate geolocation
   permissions: {
     admin: boolean
     adjudicator: boolean
@@ -202,6 +206,35 @@ const userSchema = new mongoose.Schema<userType>({
     emailProtestPassed: { type: Boolean, default: true },
     emailProtestDenied: { type: Boolean, default: true },
     emailProtestExpired: { type: Boolean, default: true },
+  },
+  // User IDs this user follows.
+  following: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
+  // Social event privacy preferences (which events generate feed items for this user).
+  socialEventSettings: {
+    badge_earned_epic: { type: Boolean, default: defaultSocialEventSettings.badge_earned_epic },
+    badge_earned_legendary: { type: Boolean, default: defaultSocialEventSettings.badge_earned_legendary },
+    badge_earned_mythic: { type: Boolean, default: defaultSocialEventSettings.badge_earned_mythic },
+    champ_joined: { type: Boolean, default: defaultSocialEventSettings.champ_joined },
+    champ_created: { type: Boolean, default: defaultSocialEventSettings.champ_created },
+    season_won: { type: Boolean, default: defaultSocialEventSettings.season_won },
+    season_runner_up: { type: Boolean, default: defaultSocialEventSettings.season_runner_up },
+    round_won: { type: Boolean, default: defaultSocialEventSettings.round_won },
+    round_perfect_bet: { type: Boolean, default: defaultSocialEventSettings.round_perfect_bet },
+    win_streak: { type: Boolean, default: defaultSocialEventSettings.win_streak },
+    points_milestone: { type: Boolean, default: defaultSocialEventSettings.points_milestone },
+    rounds_milestone: { type: Boolean, default: defaultSocialEventSettings.rounds_milestone },
+    user_joined_platform: { type: Boolean, default: defaultSocialEventSettings.user_joined_platform },
+    adjudicator_promoted: { type: Boolean, default: defaultSocialEventSettings.adjudicator_promoted },
+  },
+  // Approximate user location for geo-based feed ranking.
+  location: {
+    city: { type: String },
+    region: { type: String },
+    country: { type: String },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
   },
   refresh_count: { type: Number, default: 0 }, // Refresh count.
   logged_in_at: { type: String, default: moment().format() }, // Last logged in.

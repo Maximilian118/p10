@@ -9,6 +9,7 @@ import teamSchema from "./teamSchema"
 import notificationSchema from "./notificationSchema"
 import trackmapSchema from "./trackmapSchema"
 import demoSchema from "./demoSchema"
+import socialEventSchema from "./socialEventSchema"
 
 const Schema = buildSchema(`
   scalar JSON
@@ -23,6 +24,7 @@ const Schema = buildSchema(`
   ${notificationSchema}
   ${trackmapSchema}
   ${demoSchema}
+  ${socialEventSchema}
 
   type rootQuery {
     signS3(filename: String!): S3Payload!
@@ -43,6 +45,10 @@ const Schema = buildSchema(`
     getProtest(protestId: ID!): Protest!
     getProtestsForChampionship(champId: ID!): Protests!
     getTrackmap(trackName: String): Trackmap
+    getFeed(cursor: String, limit: Int): SocialEventFeed!
+    getComments(eventId: ID!, cursor: String, limit: Int): SocialComments!
+    getFollowing(userId: ID): Users!
+    getFollowingDetailed(userId: ID!): FollowingDetailed!
   }
 
   type rootMutation {
@@ -104,6 +110,13 @@ const Schema = buildSchema(`
     startDemo(sessionKey: Int, speed: Int): DemoStatus!
     stopDemo: DemoStatus!
     setTrackmapRotation(trackName: String!, rotation: Float!): Boolean!
+    followUser(userId: ID!): User!
+    unfollowUser(userId: ID!): User!
+    addComment(eventId: ID!, text: String!): SocialComment!
+    toggleCommentLike(commentId: ID!): SocialComment!
+    toggleCommentDislike(commentId: ID!): SocialComment!
+    updateSocialEventSettings(settings: SocialEventSettingsInput!): User!
+    updateLocation(location: LocationInput!): User!
   }
 
   schema {

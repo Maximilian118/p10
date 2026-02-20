@@ -1,0 +1,30 @@
+@use '../../scss/mixins';
+@use '../../scss/variables';
+
+// Mirrors the Email preferences page layout.
+.social-events-settings {
+  padding: 20px 7.5% 80px !important;
+
+  .switches {
+    width: 100%;
+    @include mixins.flexbox-start-column;
+    flex-shrink: 0;
+    padding: 0 0 20px;
+    box-sizing: border-box;
+    gap: 10px;
+  }
+
+  .description {
+    text-align: center;
+    color: variables.$colour-4;
+    font-size: 0.85rem;
+    margin: 0 0 30px;
+    line-height: 1.5;
+  }
+
+  .section-title {
+    margin: 10px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}

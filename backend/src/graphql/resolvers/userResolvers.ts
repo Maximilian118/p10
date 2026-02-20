@@ -11,6 +11,7 @@ import { comparePass, hashPass, signTokens } from "../../shared/utility"
 import generator from "generate-password"
 import { Resend } from "resend"
 import { createLogger } from "../../shared/logger"
+import { createSocialEvent } from "../../shared/socialEvents"
 
 const log = createLogger("UserResolver")
 
@@ -77,6 +78,13 @@ const userResolvers = {
 
       // Save the new user to the DB.
       await user.save()
+
+      // Create social event for new user joining the platform.
+      await createSocialEvent({
+        kind: "user_joined_platform",
+        userId: user._id,
+        userSnapshot: { name: user.name, icon: user.icon },
+      })
 
       // Return the new user with tokens.
       return {

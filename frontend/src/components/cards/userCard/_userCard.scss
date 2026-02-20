@@ -10,7 +10,7 @@
   flex-shrink: 0;
 
   .image-icon {
-    margin-right: 20px;
+    margin-right: 15px;
     flex-shrink: 0;
   }
 
@@ -21,13 +21,29 @@
     text-transform: capitalize;
     font-size: 15px;
     overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .invite-button {
-    background: variables.$mui-success;
+    flex-shrink: 0;
+  }
 
-    &:hover {
-      background: variables.$mui-success-hover;
+  // Icon list container — fixed at 143px (3 icons + counter). overflow: hidden
+  // overrides the implicit min-width: auto so the flex-basis is enforced.
+  .user-card-icons {
+    @include mixins.flexbox-end;
+    flex-shrink: 0;
+    width: 148px;
+    height: 50px;
+    overflow: hidden;
+
+    .icon-list {
+      justify-content: flex-end;
+    }
+
+    .image-icon {
+      margin-right: 0 !important;
     }
   }
 

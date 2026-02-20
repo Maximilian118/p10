@@ -1,7 +1,7 @@
-import { userType, userBadgeSnapshotType, userChampSnapshotType, NotificationType, NotificationTypeEnum, NotificationSettingsType } from "./localStorage"
+import { userType, userBadgeSnapshotType, userChampSnapshotType, NotificationType, NotificationTypeEnum, NotificationSettingsType, SocialEventSettingsType, UserLocationType } from "./localStorage"
 
 // Re-export for convenience.
-export type { userType, userType as fullUserType, userBadgeSnapshotType, userChampSnapshotType, NotificationType, NotificationTypeEnum, NotificationSettingsType }
+export type { userType, userType as fullUserType, userBadgeSnapshotType, userChampSnapshotType, NotificationType, NotificationTypeEnum, NotificationSettingsType, SocialEventSettingsType, UserLocationType }
 
 // State for badge selection mode on profile page.
 export interface SelectionModeState {
@@ -17,6 +17,7 @@ export interface userProfileType {
   profile_picture: string
   championships: userChampSnapshotType[]
   badges: userBadgeSnapshotType[]
+  following?: string[]
   permissions: {
     admin: boolean
     adjudicator: boolean

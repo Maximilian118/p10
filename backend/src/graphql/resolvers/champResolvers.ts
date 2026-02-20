@@ -33,6 +33,7 @@ import { createLogger } from "../../shared/logger"
 
 const log = createLogger("ChampResolver")
 import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
+import { createSocialEvent } from "../../shared/socialEvents"
 import badgeResolvers from "./badgeResolvers"
 
 // Profanity filter for protest content.
@@ -541,6 +542,18 @@ const champResolvers = {
       user.championships.push(champSnapshot)
       await user.save()
 
+      // Create social event for championship creation.
+      await createSocialEvent({
+        kind: "champ_created",
+        userId: user._id,
+        userSnapshot: { name: user.name, icon: user.icon },
+        payload: {
+          champId: newChamp._id,
+          champName: newChamp.name,
+          champIcon: newChamp.icon,
+        },
+      })
+
       // Return the created championship with tokens.
       // Filter admin settings for non-admin users.
       const isAdmin = user?.permissions?.admin === true
@@ -673,6 +686,18 @@ const champResolvers = {
         user.championships.push(champSnapshot)
       }
       await user.save()
+
+      // Create social event for joining a championship.
+      await createSocialEvent({
+        kind: "champ_joined",
+        userId: user._id,
+        userSnapshot: { name: user.name, icon: user.icon },
+        payload: {
+          champId: champ._id,
+          champName: champ.name,
+          champIcon: champ.icon,
+        },
+      })
 
       // Notify the adjudicator that a new user joined their championship.
       const adjudicatorId = champ.adjudicator.current.toString()
@@ -1290,6 +1315,20 @@ const champResolvers = {
         { userId: oldAdjudicatorId, champId: _id, awardedHow: "Passed Adjudicator" },
         req,
       )
+
+      // Create social event for adjudicator promotion.
+      if (newAdjudicatorUser) {
+        await createSocialEvent({
+          kind: "adjudicator_promoted",
+          userId: newAdjudicatorId,
+          userSnapshot: { name: newAdjudicatorUser.name, icon: newAdjudicatorUser.icon },
+          payload: {
+            champId: champ._id,
+            champName: champ.name,
+            champIcon: champ.icon,
+          },
+        })
+      }
 
       // Return populated championship.
       const populatedChamp = await Champ.findById(_id).populate(champPopulation).exec()
