@@ -41,6 +41,7 @@ import BettingOpenView from "./Views/RoundStatus/BettingOpenView/BettingOpenView
 import BettingClosedView from "./Views/RoundStatus/BettingClosedView/BettingClosedView"
 import ResultsView from "./Views/RoundStatus/ResultsView/ResultsView"
 import ChampionshipFinishView from "./Views/RoundStatus/ChampionshipFinishView/ChampionshipFinishView"
+import StatisticsView from "./Views/Statistics/StatisticsView"
 import { getSeriesConfig } from "./Views/RoundStatus/APIViews"
 import type { DemoSession } from "./Views/RoundStatus/APIViews"
 import { startDemo, stopDemo } from "../../api/openAPI/requests/demoRequests"
@@ -1524,6 +1525,10 @@ const Championship: React.FC = () => {
             setDraw={setBadgeDraw}
             onEditHandlersReady={setBadgeEditHandlers}
           />
+        )}
+
+        {view === "statistics" && champ && (
+          <StatisticsView champ={champ} />
         )}
 
         {view === "rulesAndRegs" && (

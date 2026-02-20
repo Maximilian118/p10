@@ -17,6 +17,7 @@ const strategyRegistry: Partial<Record<ChampView, ToolbarStrategy>> = {
   protests: protestsStrategy,
   protest: protestStrategy,
   demoMode: demoModeStrategy,
+  statistics: defaultStrategy,
 }
 
 // Resolves the appropriate strategy for a given view.

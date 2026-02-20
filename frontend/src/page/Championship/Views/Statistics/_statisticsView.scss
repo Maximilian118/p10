@@ -1,0 +1,79 @@
+@use '../../../../scss/variables';
+@use '../../../../scss/mixins';
+
+.statistics-view {
+  @include mixins.flexbox-start-column;
+  width: 100%;
+  flex-shrink: 0;
+  flex-grow: 1;
+  box-sizing: border-box;
+  padding: 20px 0 120px;
+  gap: 20px;
+
+  // Each chart section card.
+  &__section {
+    width: 92%;
+    background: white;
+    border-radius: 12px;
+    box-shadow: variables.$shadow-close;
+    padding: 16px 12px;
+    box-sizing: border-box;
+  }
+
+  // Section heading label.
+  &__section-heading {
+    font-size: 13px;
+    font-weight: 600;
+    color: variables.$colour-6;
+    margin: 0 0 12px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  // Default chart container.
+  &__section-chart {
+    width: 100%;
+    height: 300px;
+    position: relative;
+  }
+
+  // Tall variant for heatmap.
+  &__section-chart--tall {
+    height: 400px;
+  }
+
+  // Short variant for simple bar charts.
+  &__section-chart--short {
+    height: 250px;
+  }
+
+  // Medium variant for pie and radar.
+  &__section-chart--medium {
+    height: 280px;
+  }
+
+  // Radar chart height.
+  &__section-chart--radar {
+    height: 320px;
+  }
+
+  // Empty state when no completed rounds.
+  &__empty {
+    @include mixins.flexbox-column;
+    padding: 60px 20px;
+    color: variables.$colour-4;
+    text-align: center;
+    gap: 8px;
+  }
+
+  &__empty-heading {
+    font-size: 16px;
+    font-weight: 600;
+    color: variables.$colour-6;
+  }
+
+  &__empty-text {
+    font-size: 14px;
+    color: variables.$colour-4;
+  }
+}

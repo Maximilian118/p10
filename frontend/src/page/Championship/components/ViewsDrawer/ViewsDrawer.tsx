@@ -125,7 +125,11 @@ const ViewsDrawer: React.FC<ViewsDrawerProps> = ({
     {
       icon: <BarChartIcon />,
       label: "Statistics",
-      onClick: handleClose,
+      onClick: () => {
+        setOpen(false)
+        setView("statistics")
+      },
+      viewId: "statistics",
     },
     {
       icon: <ArrowBackIcon />,
