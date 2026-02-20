@@ -235,19 +235,12 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
     )
   }
 
-  // Show "Waiting for F1 Session..." when no session is active yet (live mode only).
-  if (!demoMode && sessionActive === false && !trackReady) {
-    return (
-      <div className="f1-session-view">
-        <FillLoading text="Waiting for F1 Session..." />
-      </div>
-    )
-  }
-
   return (
     <div className="f1-session-view">
-      {/* Full-page spinner while session data is loading */}
-      {!trackReady && <FillLoading />}
+      {/* Full-page spinner — shows "Waiting for F1 Session..." when no session is active yet */}
+      {!trackReady && (
+        <FillLoading text={!demoMode && sessionActive === false ? "Waiting for F1 Session..." : undefined} />
+      )}
 
       <div className="f1-session-content" style={!trackReady ? { display: "none" } : undefined}>
         {weather && (
