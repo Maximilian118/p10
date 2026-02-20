@@ -4,7 +4,7 @@ import { ChampType, badgeType } from "../../../../shared/types"
 import { userType } from "../../../../shared/localStorage"
 import { graphQLErrorType } from "../../../../shared/requests/requestsUtility"
 import BadgePicker from "../../../../components/utility/badgePicker/BadgePicker"
-import BadgeInfoCard from "../../../../components/cards/badgeInfoCard/BadgeInfoCard"
+import BadgeModal from "../../../../components/modal/configs/BadgeModal/BadgeModal"
 import { BadgePickerEditRef } from "../../../../components/utility/badgePicker/badgePickerEdit/BadgePickerEdit"
 
 interface BadgesProps {
@@ -37,20 +37,8 @@ const Badges: React.FC<BadgesProps> = ({
   setDraw,
   onEditHandlersReady,
 }) => {
-  // State for the currently selected badge to display in BadgeInfoCard.
+  // State for the currently selected badge to display in BadgeModal.
   const [ selectedBadge, setSelectedBadge ] = useState<badgeType | null>(null)
-  // Displayed badge persists during close animation so content doesn't disappear instantly.
-  const [ displayedBadge, setDisplayedBadge ] = useState<badgeType | null>(null)
-
-  // Sync displayedBadge with selectedBadge, but delay clearing to allow close animation.
-  React.useEffect(() => {
-    if (selectedBadge) {
-      setDisplayedBadge(selectedBadge)
-    } else {
-      const timeout = setTimeout(() => setDisplayedBadge(null), 300)
-      return () => clearTimeout(timeout)
-    }
-  }, [selectedBadge])
 
   // Create a wrapper form interface for BadgePicker compatibility.
   // champBadges may be undefined if not yet loaded (lazy loading).
@@ -74,14 +62,8 @@ const Badges: React.FC<BadgesProps> = ({
     setSelectedBadge(prev => prev?._id === badge._id ? null : badge)
   }
 
-  // Close badge info card when clicking anywhere outside a badge.
-  const handleViewClick = () => {
-    setSelectedBadge(null)
-  }
-
   return (
-    <div className="badges-view" onClick={handleViewClick}>
-      <BadgeInfoCard badge={displayedBadge} isOpen={selectedBadge !== null} />
+    <div className="badges-view">
       <BadgePicker
         form={badgeForm}
         setForm={setBadgeForm}
@@ -99,6 +81,10 @@ const Badges: React.FC<BadgesProps> = ({
         championship={champ._id}
         onBadgeClick={handleBadgeClick}
       />
+      {/* Badge detail modal — opens when a badge is clicked */}
+      {selectedBadge && (
+        <BadgeModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
+      )}
     </div>
   )
 }

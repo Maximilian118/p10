@@ -1,9 +1,10 @@
-import React, { forwardRef, useEffect, useMemo, useState } from "react"
+import React, { forwardRef, useMemo, useState } from "react"
 import './_badgeChampPicker.scss'
 import ChampSection from "./champSection/ChampSection"
 import { userBadgeSnapshotType, userType } from "../../../shared/localStorage"
 import { SelectionModeState, userProfileType } from "../../../shared/types"
 import Badge from "../badge/Badge"
+import BadgeModal from "../../modal/configs/BadgeModal/BadgeModal"
 import { WorkspacePremium } from "@mui/icons-material"
 import { Button } from "@mui/material"
 
@@ -14,30 +15,12 @@ interface BadgeChampPickerProps {
   onBadgeRemove: () => void
 }
 
-// Tracks selected badge and which championship it belongs to.
-interface SelectedBadgeInfo {
-  badge: userBadgeSnapshotType
-  champId: string
-}
-
 // Badge picker component that displays badges organized by championship.
 // In selection mode, displays a unified grid of all badges for easy selection.
 const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
   ({ user, selectionMode, onBadgeSelect, onBadgeRemove }, ref) => {
-    // State for selected badge (controls isOpen animation).
-    const [selectedBadge, setSelectedBadge] = useState<SelectedBadgeInfo | null>(null)
-    // Displayed badge persists during close animation so content doesn't disappear instantly.
-    const [displayedBadge, setDisplayedBadge] = useState<SelectedBadgeInfo | null>(null)
-
-    // Sync displayedBadge with selectedBadge, but delay clearing to allow close animation.
-    useEffect(() => {
-      if (selectedBadge) {
-        setDisplayedBadge(selectedBadge)
-      } else {
-        const timeout = setTimeout(() => setDisplayedBadge(null), 300)
-        return () => clearTimeout(timeout)
-      }
-    }, [selectedBadge])
+    // State for the badge shown in the detail modal.
+    const [selectedBadge, setSelectedBadge] = useState<userBadgeSnapshotType | null>(null)
 
     // Collect all earned badges sorted by rarity (highest first) for selection mode.
     const allEarnedBadges = useMemo(() => {
@@ -58,11 +41,9 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
       onBadgeSelect(badge._id)
     }
 
-    // Handles badge click for info display in normal mode.
-    const handleBadgeInfoClick = (badge: userBadgeSnapshotType, champId: string) => {
-      setSelectedBadge(prev =>
-        prev?.badge._id === badge._id ? null : { badge, champId }
-      )
+    // Opens badge detail modal in normal mode.
+    const handleBadgeInfoClick = (badge: userBadgeSnapshotType) => {
+      setSelectedBadge(badge)
     }
 
     return (
@@ -70,7 +51,6 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
         className={`badge-champ-picker ${selectionMode.active ? 'selection-mode' : ''}`}
         ref={ref}
         style={{ paddingBottom: selectionMode.active ? 0 : 120}}
-        onClick={() => setSelectedBadge(null)}
       >
         {/* Tooltip header - slides in during selection mode */}
         <div className={`badge-champ-tooltip ${selectionMode.active ? 'visible' : ''}`}>
@@ -95,8 +75,6 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
             user={user}
             champ={c}
             onBadgeClick={handleBadgeInfoClick}
-            activeBadge={displayedBadge?.champId === c._id ? displayedBadge.badge : null}
-            isOpen={selectedBadge?.champId === c._id}
           />
         ))}
 
@@ -121,6 +99,11 @@ const BadgeChampPicker = forwardRef<HTMLDivElement, BadgeChampPickerProps>(
               <p className="no-badges-message">You own no badges!</p>
             )}
           </div>
+        )}
+
+        {/* Badge detail modal — opens when a badge is clicked in normal mode */}
+        {selectedBadge && (
+          <BadgeModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
         )}
       </div>
     )
