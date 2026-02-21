@@ -14,6 +14,10 @@
   transition: variables.$trans-speed;
   overflow: hidden;
 
+  .MuiPagination-root {
+    margin-top: 5px !important;
+  }
+
   .mui-background-wrapper {
     width: 100%;
     height: 100%;

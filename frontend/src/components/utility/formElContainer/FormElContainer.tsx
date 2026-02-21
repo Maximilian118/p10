@@ -11,9 +11,10 @@ interface formElContainerType {
   backendErr: graphQLErrorType
   onClick?: () => void
   disabled?: boolean
+  label?: string
 }
 
-const FormElContainer = ({ name, content, formErr, backendErr, onClick, disabled }: formElContainerType) => {
+const FormElContainer = ({ name, content, formErr, backendErr, onClick, disabled, label }: formElContainerType) => {
   const error = formErr[name] || backendErr.type === name ? true : false
   const isClickable = onClick && !disabled
 
@@ -37,7 +38,7 @@ const FormElContainer = ({ name, content, formErr, backendErr, onClick, disabled
           className="mui-background"
           focused={true}
           name={name}
-          label={inputLabel(name, formErr, backendErr)}
+          label={label || inputLabel(name, formErr, backendErr)}
           variant="filled"
           multiline={true}
           rows={40}

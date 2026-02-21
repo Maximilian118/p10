@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect } from "react"
 import './_champBasicsCard.scss'
 import DropZone from "../../utility/dropZone/DropZone"
 import MUITextField from "../../utility/muiTextField/MUITextField"
@@ -26,6 +26,16 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
   backendErr,
   setBackendErr,
 }: champBaiscsCard<T, U>) => {
+  // Whether the selected series locks the round count.
+  const seriesLocksRounds = !!form.series?.rounds
+
+  // Sync rounds to the series' round count when the series defines one.
+  useEffect(() => {
+    if (form.series?.rounds) {
+      setForm(prev => ({ ...prev, rounds: form.series!.rounds! }))
+    }
+  }, [form.series, setForm])
+
   const paginationHandler = (e: React.ChangeEvent<unknown>, value: number) => {
     setForm(prevForm => {
       return {
@@ -34,7 +44,7 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
       }
     })
   }
-  
+
   return (
     <div className="champ-basics-card">
       <DropZone<T, U> 
@@ -57,6 +67,8 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
       />
       <FormElContainer
         name="rounds"
+        label={seriesLocksRounds ? "Number of rounds for the selected series" : undefined}
+        disabled={seriesLocksRounds}
         content={
           <Pagination
             count={99}
@@ -64,6 +76,7 @@ const ChampBasicsCard = <T extends createChampFormType, U extends createChampFor
             className="mui-form-pagination"
             color="primary"
             onChange={paginationHandler}
+            disabled={seriesLocksRounds}
           />
         }
         formErr={formErr}

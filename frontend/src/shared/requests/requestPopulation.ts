@@ -622,6 +622,7 @@ export const populateChamp = `
     profile_picture
     name
     shortName
+    rounds
     hasAPI
     drivers {
       _id
