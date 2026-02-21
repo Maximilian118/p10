@@ -35,10 +35,12 @@ const socialEventResolvers = {
     // Build the query filter based on follow/geo/global priority.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {}
+    let isFiltered = false
 
     if (following.length > 0) {
       // Primary: events from followed users.
       filter.user = { $in: following }
+      isFiltered = true
     } else if (user.location?.country) {
       // Secondary: events from users in the same country.
       const nearbyUsers = await User.find({
@@ -46,6 +48,7 @@ const socialEventResolvers = {
         _id: { $ne: req._id },
       }).select("_id").limit(200)
       filter.user = { $in: nearbyUsers.map(u => u._id) }
+      isFiltered = true
     }
     // If no follows and no geo, filter stays empty = global recent events.
 
@@ -58,6 +61,21 @@ const socialEventResolvers = {
       .sort({ created_at: -1 })
       .limit(fetchLimit + 1)
       .lean()
+
+    // Backfill with global events if the filtered query returned fewer than a full page.
+    if (isFiltered && events.length <= fetchLimit) {
+      const excludeIds = events.map(e => e._id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const backfillFilter: any = { _id: { $nin: excludeIds } }
+      if (cursor) backfillFilter.created_at = { $lt: cursor }
+
+      const backfill = await SocialEvent.find(backfillFilter)
+        .sort({ created_at: -1 })
+        .limit(fetchLimit + 1 - events.length)
+        .lean()
+
+      events.push(...backfill)
+    }
 
     const hasMore = events.length > fetchLimit
     if (hasMore) events.pop()
