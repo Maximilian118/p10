@@ -4,7 +4,7 @@
 .points-picker {
   width: 100%;
   height: 285px;
-  @include mixins.flexbox;
+  position: relative;
   padding: 10px 0;
   box-sizing: border-box;
 }
