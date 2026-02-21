@@ -7,6 +7,14 @@ h1, h2, h3, h4, h5, h6, p, img, button {
   user-select: none;
 }
 
+// Blue info icon used next to titles to open contextual help modals.
+.info-icon {
+  color: variables.$mui-blue;
+  cursor: pointer;
+  font-size: 24px !important;
+  margin-left: 10px;
+}
+
 img {
   -webkit-user-drag: none;
 }

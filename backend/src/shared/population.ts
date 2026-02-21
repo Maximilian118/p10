@@ -160,3 +160,24 @@ export const protestPopulation = [
   { path: "accused", select: "_id name icon" },
   { path: "votes.competitor", select: "_id name icon" },
 ]
+
+// Full population for a single league (detail view).
+export const leaguePopulation = [
+  { path: "series", select: "_id name shortName icon profile_picture rounds" },
+  { path: "creator", select: "_id name icon" },
+  { path: "championships.championship", select: "_id name icon profile_picture competitors" },
+  { path: "championships.adjudicator", select: "_id name icon" },
+  { path: "championships.scores.insights.contributions.competitor", select: "_id name icon" },
+  { path: "championships.scores.insights.contributions.driver", select: "_id name icon driverID" },
+  { path: "championships.scores.insights.bestPrediction.competitor", select: "_id name icon" },
+  { path: "championships.scores.insights.bestPrediction.driver", select: "_id name icon driverID" },
+  { path: "championships.scores.insights.worstPrediction.competitor", select: "_id name icon" },
+  { path: "championships.scores.insights.worstPrediction.driver", select: "_id name icon driverID" },
+]
+
+// Lightweight population for league list view.
+export const leagueListPopulation = [
+  { path: "series", select: "_id name shortName icon rounds" },
+  { path: "creator", select: "_id name icon" },
+  { path: "championships.championship", select: "_id name icon profile_picture" },
+]

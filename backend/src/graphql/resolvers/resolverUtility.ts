@@ -1532,12 +1532,14 @@ export const resultsHandler = async (champId: string, roundIndex: number): Promi
   )
 
   // ============================================================================
-  // STEP 8: SEND NOTIFICATIONS (FUTURE)
+  // STEP 8: CALCULATE LEAGUE SCORES
   // ============================================================================
-  // TODO: Implement notification system:
-  // - Notify users of their round results
-  // - Notify users of badges earned
-  // - Notify users of position changes
+  // If this championship is enrolled in a league, calculate and store its
+  // prediction score for this round.
+  if (champ.league) {
+    const { updateLeagueScore } = await import("../../shared/leagueScoring")
+    await updateLeagueScore(champId, champ.league.toString(), currentRound)
+  }
 
   // Note: resultsProcessed flag was set at the start to prevent race conditions.
   // Save all changes to the database.

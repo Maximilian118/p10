@@ -31,6 +31,9 @@ import Email from "./page/Email/Email"
 import WatchLive from "./page/WatchLive/WatchLive"
 import Users from "./page/Users/Users"
 import SocialEventsSettings from "./page/SocialEventsSettings/SocialEventsSettings"
+import Leagues from "./page/Leagues"
+import League from "./page/League/League"
+import CreateLeague from "./page/CreateLeague/CreateLeague"
 
 interface routerType {
   user: userType,
@@ -60,6 +63,9 @@ const Router: React.FC<routerType> = ({ user }) => user.token ? (
     <Route path="/team/:id" Component={Team}/>
     <Route path="/create-team" Component={CreateTeam}/>
     <Route path="/watch-live" Component={WatchLive}/>
+    <Route path="/leagues" Component={Leagues}/>
+    <Route path="/league/:id" Component={League}/>
+    <Route path="/create-league" Component={CreateLeague}/>
     <Route path="/users" Component={Users}/>
     <Route path="/social-events-settings" Component={SocialEventsSettings}/>
   </Routes>

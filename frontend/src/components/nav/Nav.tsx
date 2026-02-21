@@ -6,6 +6,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
 import GroupsIcon from "@mui/icons-material/Groups"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
+import { Shield } from "lucide-react"
 import { IconButton, Button } from "@mui/material"
 import { useNavigate, useLocation } from "react-router-dom"
 import "./_nav.scss"
@@ -21,6 +22,7 @@ interface navType {
 
 // Menu items for the drawer.
 const menuItems = [
+  { text: "Leagues", url: "/leagues", icon: <Shield size={24} /> },
   { text: "Championships", url: "/championships", icon: <EmojiEventsIcon /> },
   { text: "Series", url: "/series", icon: <SportsScoreIcon /> },
   { text: "Teams", url: "/teams", icon: <GroupsIcon /> },

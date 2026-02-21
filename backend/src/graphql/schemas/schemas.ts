@@ -10,6 +10,7 @@ import notificationSchema from "./notificationSchema"
 import trackmapSchema from "./trackmapSchema"
 import demoSchema from "./demoSchema"
 import socialEventSchema from "./socialEventSchema"
+import leagueSchema from "./leagueSchema"
 
 const Schema = buildSchema(`
   scalar JSON
@@ -25,6 +26,7 @@ const Schema = buildSchema(`
   ${trackmapSchema}
   ${demoSchema}
   ${socialEventSchema}
+  ${leagueSchema}
 
   type rootQuery {
     signS3(filename: String!): S3Payload!
@@ -50,6 +52,8 @@ const Schema = buildSchema(`
     getTopComment(eventId: ID!): TopCommentResult!
     getFollowing(userId: ID): Users!
     getFollowingDetailed(userId: ID!): FollowingDetailed!
+    getLeagues: Leagues!
+    getLeagueById(_id: ID!): League!
   }
 
   type rootMutation {
@@ -118,6 +122,11 @@ const Schema = buildSchema(`
     toggleCommentDislike(commentId: ID!): SocialComment!
     updateSocialEventSettings(settings: SocialEventSettingsInput!): User!
     updateLocation(location: LocationInput!): User!
+    createLeague(input: CreateLeagueInput!): League!
+    joinLeague(leagueId: ID!, champId: ID!): League!
+    leaveLeague(leagueId: ID!, champId: ID!): League!
+    updateLeagueSettings(_id: ID!, input: UpdateLeagueSettingsInput!): League!
+    deleteLeague(_id: ID!, confirmName: String!): League!
   }
 
   schema {

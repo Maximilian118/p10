@@ -167,6 +167,7 @@ export interface ChampType {
 
   // Configuration
   series: ObjectId // Which series is this championship based upon?
+  league?: ObjectId | null // Which league this championship belongs to (null = none). Enforces 1-league constraint.
   pointsStructure: PointsStructureEntry[] // What's the points structure of this championship?
 
   adjudicator: Adjudicator
@@ -465,6 +466,7 @@ const champSchema = new mongoose.Schema<ChampType>({
 
   // Configuration
   series: { type: mongoose.Schema.ObjectId, required: true, ref: "Series" },
+  league: { type: mongoose.Schema.ObjectId, ref: "League", default: null }, // Which league this championship belongs to.
   pointsStructure: [pointsStructureSchema],
   adjudicator: {
     current: { type: mongoose.Schema.ObjectId, required: true, ref: "User" },

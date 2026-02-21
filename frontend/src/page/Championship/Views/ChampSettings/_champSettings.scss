@@ -31,6 +31,14 @@
     }
   }
 
+  // Helper text shown when a setting is controlled externally (e.g., series).
+  .champ-settings-helper-text {
+    font-size: 0.75rem;
+    color: #888;
+    margin: 4px 0 0;
+    text-align: center;
+  }
+
   .switches {
     width: 100%;
     @include mixins.flexbox-start-column;

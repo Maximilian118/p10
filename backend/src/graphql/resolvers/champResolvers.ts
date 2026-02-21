@@ -29,6 +29,7 @@ import {
   cancelTimer,
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints, createEmptyRound, createCompetitorEntry, archiveSeason } from "./resolverUtility"
+import League from "../../models/league"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("ChampResolver")
@@ -1238,6 +1239,28 @@ const champResolvers = {
         return throwError("promoteAdjudicator", newAdjudicatorId, "Cannot promote a kicked user!", 400)
       }
 
+      // If this championship is in a league, verify the new adjudicator doesn't already
+      // have another championship in the same league (prevents one-adjudicator-rigging).
+      if (champ.league) {
+        const league = await League.findById(champ.league)
+        if (league) {
+          const newAdjudicatorChamps = await Champ.find({ "adjudicator.current": new ObjectId(newAdjudicatorId) })
+          const conflictingChamp = newAdjudicatorChamps.find(
+            (c) => c._id.toString() !== _id && league.championships.some(
+              (m) => m.active && m.championship.toString() === c._id.toString(),
+            ),
+          )
+          if (conflictingChamp) {
+            return throwError(
+              "promoteAdjudicator",
+              newAdjudicatorId,
+              "This user is already the adjudicator of another championship in the same league.",
+              400,
+            )
+          }
+        }
+      }
+
       const oldAdjudicatorId = champ.adjudicator.current.toString()
       const now = moment().format()
 
@@ -2327,6 +2350,17 @@ const champResolvers = {
 
       // Update rounds if provided.
       if (typeof rounds === "number") {
+        // Block round editing if the series has a fixed round count.
+        const seriesDoc = await Series.findById(champ.series)
+        if (seriesDoc?.rounds) {
+          return throwError(
+            "rounds",
+            rounds,
+            "Round count is controlled by the series. Edit the series to change rounds.",
+            400,
+          )
+        }
+
         // Validate: maximum 99 rounds.
         if (rounds > 99) {
           return throwError("rounds", rounds, "Maximum 99 rounds allowed.", 400)
@@ -2655,6 +2689,14 @@ const champResolvers = {
 
       // Update all Badges: set championship to null (keep badge for users who earned it).
       await Badge.updateMany({ championship: champId }, { $set: { championship: null } })
+
+      // If championship is in a league, mark its membership as inactive and clear the reference.
+      if (champ.league) {
+        await League.updateOne(
+          { _id: champ.league, "championships.championship": champId },
+          { $set: { "championships.$.active": false, "championships.$.leftAt": moment().format() } },
+        )
+      }
 
       // Delete the championship document.
       await Champ.findByIdAndDelete(champId)

@@ -1,0 +1,39 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.league-banner {
+  width: 100%;
+  @include mixins.flexbox-column;
+  padding: 30px 7.5% 20px;
+  box-sizing: border-box;
+  background: white;
+
+  .league-banner-icon {
+    margin-bottom: 15px;
+  }
+
+  .league-banner-name {
+    margin-bottom: 8px;
+    text-align: center;
+    text-transform: capitalize;
+  }
+
+  .league-banner-meta {
+    @include mixins.flexbox;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #888;
+
+    .league-banner-divider {
+      color: #ccc;
+    }
+  }
+
+  .league-banner-lock {
+    @include mixins.flexbox;
+    gap: 5px;
+    font-size: 13px;
+    color: #888;
+  }
+}

@@ -8,6 +8,7 @@ import Team from "../../models/team"
 import Driver, { driverType } from "../../models/driver"
 import { isThreeLettersUppercase } from "../../shared/utility"
 import Series from "../../models/series"
+import League from "../../models/league"
 
 export type punctuation = `${string}.` | `${string}!` | `${string}?`
 
@@ -672,5 +673,26 @@ export const driverInChampErrors = async (driver: driverType): Promise<void> => 
   })
   if (champWithBet) {
     throwError(type, driver, "This driver has been used in championship bets.")
+  }
+}
+
+// Validates league name - must be unique globally and valid format.
+export const leagueNameErrors = async (name: string): Promise<void> => {
+  const type = "leagueName"
+
+  if (!name) {
+    throwError(type, name, "Please enter a league name.")
+  }
+
+  if (!/^[a-zA-Z0-9\s]{1,50}$/.test(name)) {
+    if (name.length > 50) {
+      throwError(type, name, "Maximum length 50 characters.")
+    }
+    throwError(type, name, "No special characters.")
+  }
+
+  const existing = await League.findOne({ name: { $regex: `^${name}$`, $options: "i" } })
+  if (existing) {
+    throwError(type, name, "A league by that name already exists!")
   }
 }

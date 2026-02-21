@@ -11,8 +11,16 @@
   border-bottom: 2px solid variables.$background;
   position: sticky;
   overflow: hidden;
-  top: -60px;
+  top: -44px;
   z-index: 5;
+
+  .create-champ-title {
+    width: 100%;
+    @include mixins.flexbox-start;
+    color: variables.$colour-6;
+    padding: 0 7.5%;
+    box-sizing: border-box;
+  }
 
   .create-champ-header-stepper {
     width: 85%;

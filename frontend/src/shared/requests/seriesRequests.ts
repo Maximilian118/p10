@@ -97,11 +97,12 @@ export const createSeries = async (
             icon: iconURL,
             profile_picture: profilePictureURL,
             name: capitalise(form.seriesName),
+            rounds: form.rounds,
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation NewSeries( $created_by: ID!, $icon: String!, $profile_picture: String!, $name: String!, $drivers: [ID!]! ) {
-              newSeries(seriesInput: { created_by: $created_by, icon: $icon, profile_picture: $profile_picture, name: $name, drivers: $drivers }) {
+            mutation NewSeries( $created_by: ID!, $icon: String!, $profile_picture: String!, $name: String!, $rounds: Int, $drivers: [ID!]! ) {
+              newSeries(seriesInput: { created_by: $created_by, icon: $icon, profile_picture: $profile_picture, name: $name, rounds: $rounds, drivers: $drivers }) {
                 ${populateSeries}
                 tokens
               }
@@ -160,14 +161,15 @@ export const editSeries = async (
         {
           variables: {
             _id: seriesItem._id,
-            icon: iconURL || seriesItem.icon,
-            profile_picture: profilePictureURL || seriesItem.profile_picture,
+            ...(iconURL ? { icon: iconURL } : {}),
+            ...(profilePictureURL ? { profile_picture: profilePictureURL } : {}),
             name: capitalise(form.seriesName),
+            rounds: form.rounds,
             drivers: form.drivers.map((driver) => driver._id!),
           },
           query: `
-            mutation UpdateSeries( $_id: ID!, $icon: String!, $profile_picture: String!, $name: String!, $drivers: [ID!]) {
-              updateSeries(seriesInput: { _id: $_id, icon: $icon, profile_picture: $profile_picture, name: $name, drivers: $drivers }) {
+            mutation UpdateSeries( $_id: ID!, $icon: String, $profile_picture: String, $name: String!, $rounds: Int, $drivers: [ID!]) {
+              updateSeries(seriesInput: { _id: $_id, icon: $icon, profile_picture: $profile_picture, name: $name, rounds: $rounds, drivers: $drivers }) {
                 ${populateSeries}
                 tokens
               }

@@ -9,7 +9,7 @@ body #root .main-logged-in .content-container.create-driver {
 
   .create-driver-top-bar {
     width: 100%;
-    @include mixins.flexbox-space-between;
+    @include mixins.flexbox-start;
     margin-bottom: 40px;
     color: variables.$colour-6;
 

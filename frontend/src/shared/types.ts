@@ -172,6 +172,7 @@ export interface seriesType {
   profile_picture: string
   name: string
   shortName?: string
+  rounds?: number | null
   hasAPI?: boolean
   official?: boolean
   championships: ChampType[]
@@ -365,6 +366,7 @@ export interface ChampType {
   series: seriesType
   pointsStructure: pointsStructureType
   adjudicator: AdjudicatorType
+  league?: string | null
 
   // Rules and regulations.
   rulesAndRegs: rulesAndRegsType
@@ -424,4 +426,75 @@ export interface FloatingChampType {
   currentRoundStatus: RoundStatus
   currentRound: number
   totalRounds: number
+}
+
+// Individual competitor's contribution to a round's league score.
+export interface LeagueContributionType {
+  competitor: userType | null
+  driver: driverType | null
+  driverPosition: number
+  predictionScore: number
+}
+
+// Best/worst prediction insight for a round.
+export interface LeaguePredictionInsightType {
+  competitor: userType | null
+  driver: driverType | null
+  driverPosition: number
+  predictionScore: number
+}
+
+// Per-round insights for a championship within a league.
+export interface LeagueScoreInsightsType {
+  totalCompetitors: number
+  competitorsWhoBet: number
+  avgP10Distance: number
+  bestPrediction: LeaguePredictionInsightType | null
+  worstPrediction: LeaguePredictionInsightType | null
+  p10Hits: number
+  contributions: LeagueContributionType[]
+}
+
+// Per-round scoring data for a championship within a league.
+export interface LeagueScoreType {
+  champRoundNumber: number
+  predictionScore: number
+  completedAt: string
+  insights: LeagueScoreInsightsType
+}
+
+// A championship's membership record within a league.
+export interface LeagueMemberType {
+  championship: ChampType | null
+  adjudicator: userType | null
+  joinedAt: string
+  leftAt?: string
+  active: boolean
+  scores: LeagueScoreType[]
+  cumulativeScore: number
+  roundsCompleted: number
+  cumulativeAverage: number
+  position: number
+}
+
+// League settings.
+export interface LeagueSettingsType {
+  maxChampionships: number
+}
+
+// Main League type.
+export interface LeagueType {
+  _id: string
+  name: string
+  icon: string
+  profile_picture: string
+  series: seriesType | null
+  creator: userType | null
+  championships: LeagueMemberType[]
+  settings: LeagueSettingsType
+  locked: boolean
+  lockThreshold: number
+  created_at: string
+  updated_at: string
+  tokens: string
 }

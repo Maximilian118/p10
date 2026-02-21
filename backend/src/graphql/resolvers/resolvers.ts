@@ -9,6 +9,7 @@ import notificationResolvers from "./notificationResolvers"
 import trackmapResolvers from "./trackmapResolvers"
 import demoResolvers from "./demoResolvers"
 import socialEventResolvers from "./socialEventResolvers"
+import leagueResolvers from "./leagueResolvers"
 
 const Resolvers = {
   ...userResolvers,
@@ -22,6 +23,7 @@ const Resolvers = {
   ...trackmapResolvers,
   ...demoResolvers,
   ...socialEventResolvers,
+  ...leagueResolvers,
 }
 
 export default Resolvers

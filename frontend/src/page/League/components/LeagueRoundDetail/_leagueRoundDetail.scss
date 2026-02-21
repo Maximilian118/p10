@@ -1,0 +1,63 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.league-round-detail {
+  width: 100%;
+  border-bottom: 1px solid #f0f0f0;
+
+  .league-round-header {
+    width: 100%;
+    @include mixins.flexbox-space-between;
+    padding: 12px 0;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .round-number {
+      width: 40px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .round-score {
+      flex: 1;
+      font-weight: bold;
+    }
+
+    .round-p10-hits {
+      color: #888;
+      font-size: 13px;
+      margin-right: 10px;
+    }
+
+    .round-expand-icon {
+      transition: transform 0.2s ease;
+      color: #888;
+
+      &.expanded {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  .league-round-body {
+    padding: 0 0 15px;
+
+    .round-insight-row {
+      @include mixins.flexbox-space-between;
+      padding: 5px 0;
+      font-size: 13px;
+
+      &.round-highlight {
+        color: variables.$mui-success;
+      }
+    }
+
+    .round-prediction {
+      @include mixins.flexbox-start;
+      gap: 8px;
+    }
+  }
+}

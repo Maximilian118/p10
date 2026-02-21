@@ -334,6 +334,7 @@ export const populateSeries = `
   profile_picture
   name
   shortName
+  rounds
   hasAPI
   championships {
     _id
@@ -357,6 +358,7 @@ export const populateSeriesFull = `
   profile_picture
   name
   shortName
+  rounds
   hasAPI
   championships {
     _id
@@ -1043,6 +1045,153 @@ export const populateProtest = `
   accusedPoints
   created_at
   updated_at
+`
+
+// League population for list view (lightweight).
+export const populateLeagueList = `
+  _id
+  name
+  icon
+  profile_picture
+  series {
+    _id
+    name
+    shortName
+    icon
+    rounds
+  }
+  creator {
+    _id
+    name
+    icon
+  }
+  championships {
+    championship {
+      _id
+      name
+      icon
+      profile_picture
+    }
+    active
+    cumulativeAverage
+    roundsCompleted
+    position
+  }
+  settings {
+    maxChampionships
+  }
+  locked
+  lockThreshold
+  created_at
+  updated_at
+`
+
+// League population for detail view (full data including scores and insights).
+export const populateLeague = `
+  _id
+  name
+  icon
+  profile_picture
+  series {
+    _id
+    name
+    shortName
+    icon
+    profile_picture
+    rounds
+  }
+  creator {
+    _id
+    name
+    icon
+  }
+  championships {
+    championship {
+      _id
+      name
+      icon
+      profile_picture
+      competitors {
+        _id
+      }
+    }
+    adjudicator {
+      _id
+      name
+      icon
+    }
+    joinedAt
+    leftAt
+    active
+    scores {
+      champRoundNumber
+      predictionScore
+      completedAt
+      insights {
+        totalCompetitors
+        competitorsWhoBet
+        avgP10Distance
+        bestPrediction {
+          competitor {
+            _id
+            name
+            icon
+          }
+          driver {
+            _id
+            name
+            icon
+            driverID
+          }
+          driverPosition
+          predictionScore
+        }
+        worstPrediction {
+          competitor {
+            _id
+            name
+            icon
+          }
+          driver {
+            _id
+            name
+            icon
+            driverID
+          }
+          driverPosition
+          predictionScore
+        }
+        p10Hits
+        contributions {
+          competitor {
+            _id
+            name
+            icon
+          }
+          driver {
+            _id
+            name
+            icon
+            driverID
+          }
+          driverPosition
+          predictionScore
+        }
+      }
+    }
+    cumulativeScore
+    roundsCompleted
+    cumulativeAverage
+    position
+  }
+  settings {
+    maxChampionships
+  }
+  locked
+  lockThreshold
+  created_at
+  updated_at
+  tokens
 `
 
 // Notification population template for getNotifications query.

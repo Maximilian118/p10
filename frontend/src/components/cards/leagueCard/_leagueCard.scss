@@ -1,0 +1,84 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.league-card {
+  width: 100%;
+  min-height: 60px;
+  @include mixins.flexbox-start;
+  background: white;
+  cursor: pointer;
+  position: relative;
+  padding: 5px 7.5%;
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  .league-card-lock {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    color: #888;
+  }
+
+  .main-icon-container {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    position: relative;
+    @include mixins.flexbox;
+  }
+
+  .league-card-content {
+    height: 100%;
+    flex-grow: 1;
+    @include mixins.flexbox-column;
+    align-items: start;
+    padding: 10px 0;
+    box-sizing: border-box;
+    margin-left: 20px;
+    overflow: hidden;
+
+    .league-card-title {
+      width: 100%;
+      color: variables.$colour-9;
+      margin-bottom: 4px;
+      text-transform: capitalize;
+      overflow-wrap: break-word;
+      font-size: 15px;
+    }
+
+    .league-card-meta {
+      @include mixins.flexbox-start;
+      gap: 10px;
+      margin-bottom: 8px;
+
+      .league-card-series {
+        font-size: 12px;
+        color: #888;
+      }
+
+      .league-card-count {
+        font-size: 12px;
+        color: #888;
+      }
+    }
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  // Highlight animation for newly created leagues.
+  &__highlight {
+    animation: leagueHighlightFade 1.5s ease-out forwards;
+  }
+}
+
+@keyframes leagueHighlightFade {
+  0% {
+    background: variables.$mui-success;
+  }
+  100% {
+    background: white;
+  }
+}

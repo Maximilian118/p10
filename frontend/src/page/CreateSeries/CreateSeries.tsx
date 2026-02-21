@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { TextField } from "@mui/material"
+import { TextField, Autocomplete } from "@mui/material"
 import AppContext from "../../context"
 import { useChampFlowForm } from "../../context/ChampFlowContext"
 import { seriesType, driverType } from "../../shared/types"
@@ -13,13 +13,18 @@ import { canEditEntity } from "../../shared/entityPermissions"
 import DropZone from "../../components/utility/dropZone/DropZone"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import CreateDriver from "../CreateDriver/CreateDriver"
-import { ArrowBack, Delete } from "@mui/icons-material"
+import { ArrowBack, Delete, Info } from "@mui/icons-material"
+import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createSeries.scss"
+
+// Options for the rounds autocomplete: null (not set) plus 1-100.
+const roundsOptions: (number | null)[] = [null, ...Array.from({ length: 100 }, (_, i) => i + 1)]
 
 export interface createSeriesFormType {
   _id: string | null
   seriesName: string
+  rounds: number | null
   drivers: driverType[]
   icon: File | string | null
   profile_picture: File | string | null
@@ -64,6 +69,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ driversLoading, setDriversLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ drivers, setDrivers ] = useState<driverType[]>([])
@@ -80,6 +86,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
       return {
         _id: editingSeries._id || null,
         seriesName: editingSeries.name || "",
+        rounds: editingSeries.rounds ?? null,
         drivers: editingSeries.drivers || [],
         icon: null,
         profile_picture: null,
@@ -88,6 +95,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     return {
       _id: null,
       seriesName: "",
+      rounds: null,
       drivers: [],
       icon: null,
       profile_picture: null,
@@ -125,6 +133,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     return (
       !!form.icon ||
       editingSeries.name !== form.seriesName ||
+      (editingSeries.rounds ?? null) !== form.rounds ||
       !driversMatch
     )
   }
@@ -239,6 +248,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
       const updatedSeries: seriesType = {
         ...editingSeries,
         name: form.seriesName,
+        rounds: form.rounds,
         icon: form.icon && typeof form.icon === "string" ? form.icon : editingSeries.icon,
         profile_picture: form.profile_picture && typeof form.profile_picture === "string" ? form.profile_picture : editingSeries.profile_picture,
         drivers: form.drivers,
@@ -366,6 +376,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     <div className="content-container create-series">
       <div className="create-series-top-bar">
         <h4>{isEditing ? "Edit" : "New"} Series</h4>
+        <Info className="info-icon" onClick={() => setShowInfo(true)} />
         {editingSeries?.official && <h4 className="official">Official</h4>}
       </div>
       <DropZone<createSeriesFormType, createSeriesFormErrType>
@@ -389,6 +400,23 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
         value={form.seriesName}
         error={formErr.seriesName || backendErr.type === "seriesName" ? true : false}
         disabled={!permissions}
+      />
+      {/* Optional round count selector for fixing rounds across all championships in this series. */}
+      <Autocomplete
+        options={roundsOptions}
+        value={form.rounds}
+        getOptionLabel={(opt) => opt === null ? "Not Set" : String(opt)}
+        isOptionEqualToValue={(option, value) => option === value}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Rounds in a Season (Optional)"
+            variant="filled"
+          />
+        )}
+        onChange={(_, val) => setForm(prev => ({ ...prev, rounds: val }))}
+        disabled={!permissions}
+        className="mui-form-el"
       />
       <DriverPicker
         drivers={drivers}
@@ -428,6 +456,17 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
             loading
           }
         ]}
+      />
+    )}
+
+    {showInfo && (
+      <InfoModal
+        title="What is a Series?"
+        description={[
+          "A series represents a real-world racing series like Formula 1 or Formula 2. It defines the pool of drivers available for betting and the number of rounds in a season.",
+          "Championships are created within a series and inherit its driver lineup.",
+        ]}
+        onClose={() => setShowInfo(false)}
       />
     )}
   </>

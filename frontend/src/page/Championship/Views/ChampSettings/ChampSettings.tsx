@@ -137,16 +137,22 @@ const ChampSettings: React.FC<ChampSettingsProps> = ({
       <FormElContainer
         name="rounds"
         content={
-          <Pagination
-            count={99}
-            page={settingsForm.rounds}
-            className="mui-form-pagination"
-            color="primary"
-            onChange={handleRoundsChange}
-            siblingCount={1}
-            boundaryCount={1}
-            disabled={!canEdit}
-          />
+          <>
+            <Pagination
+              count={99}
+              page={settingsForm.rounds}
+              className="mui-form-pagination"
+              color="primary"
+              onChange={handleRoundsChange}
+              siblingCount={1}
+              boundaryCount={1}
+              disabled={!canEdit || !!champ.series?.rounds}
+            />
+            {/* Show helper text when round count is controlled by the series. */}
+            {champ.series?.rounds && (
+              <p className="champ-settings-helper-text">Controlled by series</p>
+            )}
+          </>
         }
         formErr={settingsFormErr}
         backendErr={backendErr}

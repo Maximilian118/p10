@@ -14,7 +14,8 @@ import DropZone from "../../components/utility/dropZone/DropZone"
 import MUICountrySelect, { countryType, findCountryByString } from "../../components/utility/muiCountrySelect/MUICountrySelect"
 import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
-import { ArrowBack, Delete } from "@mui/icons-material"
+import { ArrowBack, Delete, Info } from "@mui/icons-material"
+import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createTeam.scss"
 
@@ -70,6 +71,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ , setTeamsLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
   const [ teams, setTeams ] = useState<teamType[]>([])
@@ -329,6 +331,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     <div className="content-container create-team">
       <div className="create-team-top-bar">
         <h4>{isEditing ? "Edit" : "New"} Team</h4>
+        <Info className="info-icon" onClick={() => setShowInfo(true)} />
         {editingTeam?.official && <h4 className="official">Official</h4>}
       </div>
       <DropZone<createTeamFormType, createTeamFormErrType>
@@ -411,6 +414,17 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
             loading
           }
         ]}
+      />
+    )}
+
+    {showInfo && (
+      <InfoModal
+        title="What is a Team?"
+        description={[
+          "A team represents a real-world racing team or constructor. Teams contain drivers and can be associated with multiple series.",
+          "Teams help organise drivers and provide additional context for the competition.",
+        ]}
+        onClose={() => setShowInfo(false)}
       />
     )}
   </>

@@ -5,6 +5,7 @@ const seriesSchema = `
     profile_picture: String!
     name: String!
     shortName: String
+    rounds: Int
     hasAPI: Boolean
     official: Boolean
     championships: [Champ!]
@@ -27,6 +28,7 @@ const seriesSchema = `
     profile_picture: String
     name: String!
     shortName: String
+    rounds: Int
     drivers: [ID!]
   }
 `

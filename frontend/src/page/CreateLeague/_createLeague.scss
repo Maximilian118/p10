@@ -1,21 +1,17 @@
 @use '../../scss/mixins';
 @use '../../scss/variables';
 
-body #root .main-logged-in .content-container.create-series {
+body #root .main-logged-in .content-container.create-league {
   @include mixins.flexbox-start-column;
   padding: 20px 7.5%;
   box-sizing: border-box;
   background: white;
 
-  .create-series-top-bar {
+  .create-league-title {
     width: 100%;
     @include mixins.flexbox-start;
     margin-bottom: 40px;
     color: variables.$colour-6;
-
-    .official {
-      color: variables.$mui-blue;
-    }
   }
 
   .dropzone {

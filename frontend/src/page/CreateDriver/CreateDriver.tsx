@@ -21,7 +21,8 @@ import MUIAutocomplete from "../../components/utility/muiAutocomplete/muiAutocom
 import MUICheckbox from "../../components/utility/muiCheckbox/MUICheckbox"
 import TeamPicker from "../../components/utility/teamPicker/TeamPicker"
 import CreateTeam from "../CreateTeam/CreateTeam"
-import { ArrowBack, Delete } from "@mui/icons-material"
+import { ArrowBack, Delete, Info } from "@mui/icons-material"
+import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createDriver.scss"
 
@@ -90,6 +91,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
   const [ loading, setLoading ] = useState<boolean>(false)
   const [ delLoading, setDelLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ , setDriversLoading ] = useState<boolean>(false)
   const [ teamsLoading, setTeamsLoading ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
@@ -459,6 +461,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     <div className="content-container create-driver">
       <div className="create-driver-top-bar">
         <h4>{isEditing ? "Edit" : "New"} Driver</h4>
+        <Info className="info-icon" onClick={() => setShowInfo(true)} />
         {editingDriver?.official && <h4 className="official">Official</h4>}
       </div>
       <div className="create-driver-dropzones">
@@ -602,7 +605,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
       <ButtonBar
         background
         position="relative"
-        size="medium"
+        size="small"
         buttons={[
           { label: "Back", onClick: handleBack, startIcon: <ArrowBack />, color: "inherit" },
           ...(permissions === "delete" && isEditing ? [{
@@ -619,6 +622,17 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
             loading
           }
         ]}
+      />
+    )}
+
+    {showInfo && (
+      <InfoModal
+        title="What is a Driver?"
+        description={[
+          "A driver represents a real-world racing driver. Drivers are assigned to a series and can belong to a team.",
+          "During each round of a championship, competitors place bets on which driver will finish in P10. Drivers can be shared across multiple series and championships.",
+        ]}
+        onClose={() => setShowInfo(false)}
       />
     )}
   </>
