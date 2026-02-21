@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react"
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import "./_home.scss"
 import AppContext from "../../context"
@@ -36,6 +36,7 @@ const Home: React.FC = () => {
   const { requestLocation } = useGeolocation()
 
   const navigate = useNavigate()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // Load the next page of feed events.
   const loadMore = useCallback(async () => {
@@ -53,11 +54,13 @@ const Home: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedLoading, nextCursor])
 
-  // Infinite scroll sentinel.
+  // Infinite scroll sentinel — triggers 300px before reaching the bottom for seamless loading.
   const sentinelRef = useInfiniteScroll({
     hasMore: !!nextCursor,
     loading: feedLoading,
     onLoadMore: loadMore,
+    root: scrollRef,
+    rootMargin: "0px 0px 300px 0px",
   })
 
   // Fetch all home page data on mount.
@@ -128,7 +131,7 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="content-container home-container">
+    <div ref={scrollRef} className="content-container home-container">
       {/* Top championship card. */}
       {floatingChamp && (
         <FloatingChampCard
