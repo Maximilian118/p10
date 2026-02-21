@@ -23,6 +23,7 @@ import TeamPicker from "../../components/utility/teamPicker/TeamPicker"
 import CreateTeam from "../CreateTeam/CreateTeam"
 import { ArrowBack, Delete, Info } from "@mui/icons-material"
 import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../../shared/tooltip"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createDriver.scss"
 
@@ -627,11 +628,8 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
 
     {showInfo && (
       <InfoModal
-        title="What is a Driver?"
-        description={[
-          "A driver represents a real-world racing driver. Drivers are assigned to a series and can belong to a team.",
-          "During each round of a championship, competitors place bets on which driver will finish in P10. Drivers can be shared across multiple series and championships.",
-        ]}
+        title={tooltips.driver.title}
+        description={[...tooltips.driver.description]}
         onClose={() => setShowInfo(false)}
       />
     )}

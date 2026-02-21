@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react"
 import { seriesType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
@@ -10,6 +9,9 @@ import { getSeries } from "../shared/requests/seriesRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
 import SeriesListCard from "../components/cards/seriesListCard/SeriesListCard"
+import InfoModal from "../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../shared/tooltip"
+import { Info, Add } from "@mui/icons-material"
 
 // Page for displaying all series.
 const SeriesList: React.FC = () => {
@@ -17,6 +19,7 @@ const SeriesList: React.FC = () => {
   const [ seriesList, setSeriesList ] = useState<seriesType[]>([])
   const [ search, setSearch ] = useState<seriesType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   const navigate = useNavigate()
@@ -67,9 +70,19 @@ const SeriesList: React.FC = () => {
       <div className="champs-list">
         {renderSeriesList()}
       </div>
-      <ButtonBar>
-        <AddButton onClick={() => navigate("/create-series")} />
-      </ButtonBar>
+      <ButtonBar
+        rightButtons={[
+          { onClick: () => setShowInfo(true), startIcon: <Info />, className: "info-button" },
+          { onClick: () => navigate("/create-series"), startIcon: <Add />, className: "add-button" },
+        ]}
+      />
+      {showInfo && (
+        <InfoModal
+          title={tooltips.series.title}
+          description={[...tooltips.series.description]}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   )
 }

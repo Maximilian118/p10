@@ -16,6 +16,7 @@ import MUIDatePicker from "../../components/utility/muiDatePicker/MUIDatePicker"
 import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import { ArrowBack, Delete, Info } from "@mui/icons-material"
 import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../../shared/tooltip"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createTeam.scss"
 
@@ -419,11 +420,8 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
 
     {showInfo && (
       <InfoModal
-        title="What is a Team?"
-        description={[
-          "A team represents a real-world racing team or constructor. Teams contain drivers and can be associated with multiple series.",
-          "Teams help organise drivers and provide additional context for the competition.",
-        ]}
+        title={tooltips.team.title}
+        description={[...tooltips.team.description]}
         onClose={() => setShowInfo(false)}
       />
     )}

@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react"
 import { driverType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
@@ -10,6 +9,9 @@ import { getDrivers } from "../shared/requests/driverRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
 import DriverListCard from "../components/cards/driverListCard/DriverListCard"
+import InfoModal from "../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../shared/tooltip"
+import { Info, Add } from "@mui/icons-material"
 
 const Drivers: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -22,6 +24,7 @@ const Drivers: React.FC = () => {
   const [ drivers, setDrivers ] = useState<driverType[]>([])
   const [ search, setSearch ] = useState<driverType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   // Fetch all drivers on mount.
@@ -67,9 +70,19 @@ const Drivers: React.FC = () => {
       <div className="champs-list">
         {renderDriversList()}
       </div>
-      <ButtonBar>
-        <AddButton onClick={() => navigate("/create-driver")} />
-      </ButtonBar>
+      <ButtonBar
+        rightButtons={[
+          { onClick: () => setShowInfo(true), startIcon: <Info />, className: "info-button" },
+          { onClick: () => navigate("/create-driver"), startIcon: <Add />, className: "add-button" },
+        ]}
+      />
+      {showInfo && (
+        <InfoModal
+          title={tooltips.driver.title}
+          description={[...tooltips.driver.description]}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   )
 }

@@ -12,6 +12,7 @@ import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import SeriesOption from "../../components/utility/seriesOption/SeriesOption"
 import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../../shared/tooltip"
 import "./_createLeague.scss"
 
 // Max championship options for the autocomplete (2-50).
@@ -187,11 +188,8 @@ const CreateLeague: React.FC = () => {
 
       {showInfo && (
         <InfoModal
-          title="What is a League?"
-          description={[
-            "A league is a competition between championships. Each championship earns a prediction score based on how accurately its members predict P10 finishers.",
-            "Championships are ranked by their average prediction score across all rounds. Leagues lock after 20% of the season's rounds are completed, preventing new entries mid-season.",
-          ]}
+          title={tooltips.league.title}
+          description={[...tooltips.league.description]}
           onClose={() => setShowInfo(false)}
         />
       )}

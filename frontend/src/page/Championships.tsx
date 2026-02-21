@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react"
 import { ChampType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
@@ -10,6 +9,9 @@ import { getChamps } from "../shared/requests/champRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
 import ChampCard from "../components/cards/champCard/ChampCard"
+import InfoModal from "../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../shared/tooltip"
+import { Info, Add } from "@mui/icons-material"
 
 const Championships: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -17,6 +19,7 @@ const Championships: React.FC = () => {
   const [ sortedChamps, setSortedChamps ] = useState<ChampType[]>([]) // Immutable sorted source of truth.
   const [ search, setSearch ] = useState<ChampType[]>([]) // Filtered display list.
   const [ loading, setLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   const navigate = useNavigate()
@@ -86,9 +89,19 @@ const Championships: React.FC = () => {
       <div className="champs-list">
         {renderChampsList()}
       </div>
-      <ButtonBar>
-        <AddButton onClick={() => navigate("/create-championship")}/>
-      </ButtonBar>
+      <ButtonBar
+        rightButtons={[
+          { onClick: () => setShowInfo(true), startIcon: <Info />, className: "info-button" },
+          { onClick: () => navigate("/create-championship"), startIcon: <Add />, className: "add-button" },
+        ]}
+      />
+      {showInfo && (
+        <InfoModal
+          title={tooltips.championship.title}
+          description={[...tooltips.championship.description]}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   )
 }

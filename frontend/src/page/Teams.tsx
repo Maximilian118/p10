@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react"
 import { teamType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
@@ -10,6 +9,9 @@ import { getTeams } from "../shared/requests/teamRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
 import TeamListCard from "../components/cards/teamListCard/TeamListCard"
+import InfoModal from "../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../shared/tooltip"
+import { Info, Add } from "@mui/icons-material"
 
 const Teams: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -22,6 +24,7 @@ const Teams: React.FC = () => {
   const [ teams, setTeams ] = useState<teamType[]>([])
   const [ search, setSearch ] = useState<teamType[]>([])
   const [ loading, setLoading ] = useState<boolean>(false)
+  const [ showInfo, setShowInfo ] = useState<boolean>(false)
   const [ backendErr, setBackendErr ] = useState<graphQLErrorType>(initGraphQLError)
 
   // Fetch all teams on mount.
@@ -67,9 +70,19 @@ const Teams: React.FC = () => {
       <div className="champs-list">
         {renderTeamsList()}
       </div>
-      <ButtonBar>
-        <AddButton onClick={() => navigate("/create-team")} />
-      </ButtonBar>
+      <ButtonBar
+        rightButtons={[
+          { onClick: () => setShowInfo(true), startIcon: <Info />, className: "info-button" },
+          { onClick: () => navigate("/create-team"), startIcon: <Add />, className: "add-button" },
+        ]}
+      />
+      {showInfo && (
+        <InfoModal
+          title={tooltips.team.title}
+          description={[...tooltips.team.description]}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   )
 }

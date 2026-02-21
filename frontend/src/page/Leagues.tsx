@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react"
 import { LeagueType } from "../shared/types"
 import Search from "../components/utility/search/Search"
 import ButtonBar from "../components/utility/buttonBar/ButtonBar"
-import AddButton from "../components/utility/button/addButton/AddButton"
 import { useNavigate, useLocation } from "react-router-dom"
 import AppContext from "../context"
 import { graphQLErrorType, initGraphQLError } from "../shared/requests/requestsUtility"
@@ -10,6 +9,9 @@ import { getLeagues } from "../shared/requests/leagueRequests"
 import ErrorDisplay from "../components/utility/errorDisplay/ErrorDisplay"
 import FillLoading from "../components/utility/fillLoading/FillLoading"
 import LeagueCard from "../components/cards/leagueCard/LeagueCard"
+import InfoModal from "../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../shared/tooltip"
+import { Info, Add } from "@mui/icons-material"
 
 const Leagues: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
@@ -22,6 +24,7 @@ const Leagues: React.FC = () => {
   const [leagues, setLeagues] = useState<LeagueType[]>([])
   const [search, setSearch] = useState<LeagueType[]>([])
   const [loading, setLoading] = useState<boolean>(false)
+  const [showInfo, setShowInfo] = useState<boolean>(false)
   const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
 
   // Fetch all leagues on mount.
@@ -64,9 +67,19 @@ const Leagues: React.FC = () => {
       <div className="champs-list">
         {renderLeaguesList()}
       </div>
-      <ButtonBar>
-        <AddButton onClick={() => navigate("/create-league")} />
-      </ButtonBar>
+      <ButtonBar
+        rightButtons={[
+          { onClick: () => setShowInfo(true), startIcon: <Info />, className: "info-button" },
+          { onClick: () => navigate("/create-league"), startIcon: <Add />, className: "add-button" },
+        ]}
+      />
+      {showInfo && (
+        <InfoModal
+          title={tooltips.league.title}
+          description={[...tooltips.league.description]}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   )
 }

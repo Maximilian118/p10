@@ -56,6 +56,37 @@
     position: static;
   }
 
+  // Info button sized to match AddButton.
+  .info-button {
+    aspect-ratio: 1 !important;
+    padding: 0 !important;
+    position: relative;
+
+    // White circle behind the icon to fill the transparent "i" cutout.
+    &::before {
+      content: '';
+      position: absolute;
+      width: 60%;
+      height: 60%;
+      border-radius: 50%;
+      background: white;
+      z-index: 0;
+    }
+
+    svg {
+      font-size: 38px !important;
+      position: relative;
+      z-index: 1;
+    }
+  }
+
+  // AddButton sizing to match original button-medium dimensions.
+  .add-button {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+  }
+
   // Success color buttons - consistent styling when disabled.
   .MuiButton-containedSuccess {
     background-color: variables.$mui-success !important;

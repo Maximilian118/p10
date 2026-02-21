@@ -4,6 +4,7 @@ import MUIStepper from "../../utility/muiStepper/MUIStepper"
 import { muiStepperSteps } from "../../utility/muiStepper/muiStepperUtility"
 import { Info } from "@mui/icons-material"
 import InfoModal from "../../modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../../../shared/tooltip"
 
 interface createChampHeaderType {
   activeStep: number
@@ -24,11 +25,8 @@ const CreateChampHeader: React.FC<createChampHeaderType> = ({ activeStep }) => {
 
       {showInfo && (
         <InfoModal
-          title="What is a Championship?"
-          description={[
-            "A championship is a season-long prediction competition. Competitors bet on which driver will finish in P10 each round.",
-            "Points are awarded based on how close the bet is to the actual P10 finisher. The championship tracks standings, awards badges for achievements, and can be enrolled in a league to compete against other championships.",
-          ]}
+          title={tooltips.championship.title}
+          description={[...tooltips.championship.description]}
           onClose={() => setShowInfo(false)}
         />
       )}

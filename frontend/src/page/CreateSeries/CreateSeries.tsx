@@ -15,6 +15,7 @@ import DriverPicker from "../../components/utility/driverPicker/DriverPicker"
 import CreateDriver from "../CreateDriver/CreateDriver"
 import { ArrowBack, Delete, Info } from "@mui/icons-material"
 import InfoModal from "../../components/modal/configs/InfoModal/InfoModal"
+import { tooltips } from "../../shared/tooltip"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import "./_createSeries.scss"
 
@@ -461,11 +462,8 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
 
     {showInfo && (
       <InfoModal
-        title="What is a Series?"
-        description={[
-          "A series represents a real-world racing series like Formula 1 or Formula 2. It defines the pool of drivers available for betting and the number of rounds in a season.",
-          "Championships are created within a series and inherit its driver lineup.",
-        ]}
+        title={tooltips.series.title}
+        description={[...tooltips.series.description]}
         onClose={() => setShowInfo(false)}
       />
     )}
