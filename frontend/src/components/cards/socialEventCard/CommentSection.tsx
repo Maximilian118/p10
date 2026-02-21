@@ -1,4 +1,4 @@
-import React, { useContext, useState, useCallback } from "react"
+import React, { useContext, useState, useCallback, useEffect } from "react"
 import "./_commentSection.scss"
 import { SocialCommentType } from "../../../shared/socialTypes"
 import { getComments, addComment, toggleCommentLike, toggleCommentDislike } from "../../../shared/requests/socialRequests"
@@ -6,6 +6,7 @@ import { graphQLErrorType, initGraphQLError } from "../../../shared/requests/req
 import { useNavigate } from "react-router-dom"
 import AppContext from "../../../context"
 import CommentCard from "./CommentCard"
+import ErrorDisplay from "../../utility/errorDisplay/ErrorDisplay"
 import { CircularProgress } from "@mui/material"
 
 interface CommentSectionProps {
@@ -15,7 +16,7 @@ interface CommentSectionProps {
 
 const COMMENTS_PAGE_SIZE = 10
 
-// Displays a collapsible comments section for a social event.
+// Displays a collapsible comments section with the top-scored comment always visible.
 const CommentSection: React.FC<CommentSectionProps> = ({ eventId, commentCount }) => {
   const { user, setUser } = useContext(AppContext)
   const navigate = useNavigate()
@@ -44,12 +45,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({ eventId, commentCount }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId])
 
-  // Toggle expanded state and fetch comments on first expand.
-  const handleToggleExpand = () => {
-    if (!expanded && comments.length === 0) {
+  // Fetch first page of comments on mount.
+  useEffect(() => {
+    if (commentCount > 0) {
       fetchComments(null)
     }
-    setExpanded(!expanded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId])
+
+  // Expand to show all fetched comments.
+  const handleExpand = () => {
+    setExpanded(true)
+  }
+
+  // Collapse back to showing just the top comment.
+  const handleCollapse = () => {
+    setExpanded(false)
   }
 
   // Load more comments.
@@ -95,47 +106,66 @@ const CommentSection: React.FC<CommentSectionProps> = ({ eventId, commentCount }
     }
   }
 
+  const topComment = comments[0] || null
+  const remainingCount = localCommentCount - 1
+
   return (
     <div className="comment-section">
-      {/* Comment count toggle. */}
-      {localCommentCount > 0 && !expanded && (
-        <button className="comment-section__toggle" onClick={handleToggleExpand}>
-          View {localCommentCount} comment{localCommentCount !== 1 ? "s" : ""}
+      {/* Top comment — always visible when there are comments. */}
+      {topComment && !expanded && (
+        <div className="comment-section__top-comment">
+          <CommentCard
+            comment={topComment}
+            onLike={() => handleLike(topComment._id)}
+            onDislike={() => handleDislike(topComment._id)}
+          />
+        </div>
+      )}
+
+      {/* "View X more comments" toggle — only when collapsed and more than 1 comment. */}
+      {!expanded && remainingCount > 0 && (
+        <button className="comment-section__toggle" onClick={handleExpand}>
+          View {remainingCount} more comment{remainingCount !== 1 ? "s" : ""}
         </button>
       )}
 
       {/* Expanded comments list. */}
       {expanded && (
-        <div className="comment-section__list">
-          {comments.map(comment => (
-            <CommentCard
-              key={comment._id}
-              comment={comment}
-              onLike={() => handleLike(comment._id)}
-              onDislike={() => handleDislike(comment._id)}
-            />
-          ))}
+        <>
+          <div className="comment-section__list">
+            {comments.map(comment => (
+              <CommentCard
+                key={comment._id}
+                comment={comment}
+                onLike={() => handleLike(comment._id)}
+                onDislike={() => handleDislike(comment._id)}
+              />
+            ))}
 
-          {/* Load more button. */}
-          {nextCursor && !loading && (
-            <button className="comment-section__load-more" onClick={handleLoadMore}>
-              Load more comments
-            </button>
-          )}
+            {/* Load more button. */}
+            {nextCursor && !loading && (
+              <button className="comment-section__load-more" onClick={handleLoadMore}>
+                Load more comments
+              </button>
+            )}
 
-          {/* Loading indicator. */}
-          {loading && (
-            <div className="comment-section__loading">
-              <CircularProgress size={20} />
-            </div>
-          )}
+            {/* Loading indicator. */}
+            {loading && (
+              <div className="comment-section__loading">
+                <CircularProgress size={20} />
+              </div>
+            )}
+          </div>
 
-          {/* Collapse button. */}
-          <button className="comment-section__toggle" onClick={handleToggleExpand}>
+          {/* Collapse button — outside scrollable list so it stays visible. */}
+          <button className="comment-section__toggle" onClick={handleCollapse}>
             Hide comments
           </button>
-        </div>
+        </>
       )}
+
+      {/* Error display. */}
+      <ErrorDisplay backendErr={backendErr} />
 
       {/* Comment input. */}
       <div className="comment-section__input-wrapper">

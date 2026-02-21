@@ -47,6 +47,7 @@ const Schema = buildSchema(`
     getTrackmap(trackName: String): Trackmap
     getFeed(cursor: String, limit: Int): SocialEventFeed!
     getComments(eventId: ID!, cursor: String, limit: Int): SocialComments!
+    getTopComment(eventId: ID!): TopCommentResult!
     getFollowing(userId: ID): Users!
     getFollowingDetailed(userId: ID!): FollowingDetailed!
   }

@@ -120,6 +120,57 @@ export const getComments = async (
   }
 }
 
+// Fetch the most-liked comment for a social event.
+export const getTopComment = async (
+  eventId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<SocialCommentType | null> => {
+  try {
+    const res = await axios.post(
+      "",
+      {
+        variables: { eventId },
+        query: `
+          query GetTopComment($eventId: ID!) {
+            getTopComment(eventId: $eventId) {
+              comment {
+                _id
+                event
+                user
+                userSnapshot { name icon }
+                text
+                likes
+                dislikes
+                likesCount
+                dislikesCount
+                created_at
+              }
+              tokens
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      graphQLErrors("getTopComment", res, setUser, navigate, setBackendErr, true)
+      return null
+    }
+
+    const data = res.data.data.getTopComment
+    tokensHandler(user, data.tokens, setUser)
+
+    return data.comment
+  } catch (err: unknown) {
+    graphQLErrors("getTopComment", err, setUser, navigate, setBackendErr, true)
+    return null
+  }
+}
+
 // Add a comment to a social event.
 export const addComment = async (
   eventId: string,

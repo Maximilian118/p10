@@ -74,7 +74,7 @@ const socialEventResolvers = {
   },
 
   // Fetch paginated comments for a social event.
-  // Sorts by: followed users first, then by recency.
+  // Sorts by blended score: likes + follow boost, then recency.
   getComments: async (
     { eventId, cursor, limit = 20 }: { eventId: string; cursor?: string; limit?: number },
     req: AuthRequest,
@@ -109,12 +109,15 @@ const socialEventResolvers = {
       ? comments[comments.length - 1].created_at
       : null
 
-    // Sort: followed users first, then by recency.
+    // Sort by blended score: likes + follow boost, then recency as tiebreaker.
+    const FOLLOW_BOOST = 3
     const followingSet = new Set((user.following || []).map(id => id.toString()))
     const sorted = [...comments].sort((a, b) => {
-      const aFollowed = followingSet.has(a.user.toString()) ? 1 : 0
-      const bFollowed = followingSet.has(b.user.toString()) ? 1 : 0
-      if (aFollowed !== bFollowed) return bFollowed - aFollowed
+      const aLikes = (a.likes || []).length
+      const bLikes = (b.likes || []).length
+      const aScore = aLikes + (followingSet.has(a.user.toString()) ? FOLLOW_BOOST : 0)
+      const bScore = bLikes + (followingSet.has(b.user.toString()) ? FOLLOW_BOOST : 0)
+      if (aScore !== bScore) return bScore - aScore
       return b.created_at.localeCompare(a.created_at)
     })
 
@@ -128,6 +131,47 @@ const socialEventResolvers = {
     return {
       comments: commentsWithCounts,
       nextCursor,
+      tokens: signTokens(user),
+    }
+  },
+
+  // Fetch the most-liked comment for a social event.
+  getTopComment: async (
+    { eventId }: { eventId: string },
+    req: AuthRequest,
+  ): Promise<{ comment: (SocialCommentType & { likesCount: number; dislikesCount: number }) | null; tokens: string[] }> => {
+    if (!req.isAuth) {
+      throwError("getTopComment", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    const user = await User.findById(req._id).select("refresh_count") as userTypeMongo
+    if (!user) {
+      throwError("getTopComment", null, "User not found!", 404)
+    }
+
+    // Find the comment with the most likes, breaking ties by newest.
+    const comments = await SocialComment.find({ event: eventId }).lean()
+
+    if (comments.length === 0) {
+      return { comment: null, tokens: signTokens(user) }
+    }
+
+    // Sort by likes count descending, then by recency.
+    const sorted = comments.sort((a, b) => {
+      const aLikes = (a.likes || []).length
+      const bLikes = (b.likes || []).length
+      if (aLikes !== bLikes) return bLikes - aLikes
+      return b.created_at.localeCompare(a.created_at)
+    })
+
+    const top = sorted[0]
+
+    return {
+      comment: {
+        ...top,
+        likesCount: (top.likes || []).length,
+        dislikesCount: (top.dislikes || []).length,
+      },
       tokens: signTokens(user),
     }
   },

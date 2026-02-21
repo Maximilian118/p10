@@ -2,9 +2,13 @@
 @use "variables";
 @use "mixins";
 
-h1, h2, h3, h4, h5, h6, p, img {
+h1, h2, h3, h4, h5, h6, p, img, button {
   margin: 0;
   user-select: none;
+}
+
+img {
+  -webkit-user-drag: none;
 }
 
 a {

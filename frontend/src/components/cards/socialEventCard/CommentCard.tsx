@@ -46,13 +46,13 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onLike, onDislike })
       </div>
       <p className="comment-card__text">{comment.text}</p>
       <div className="comment-card__actions">
-        <button className={`comment-card__action${hasLiked ? " comment-card__action--active" : ""}`} onClick={onLike}>
+        <button className={`comment-card__action${hasLiked ? " comment-card__action--like" : ""}`} onClick={onLike}>
           {hasLiked ? <ThumbUpIcon fontSize="inherit" /> : <ThumbUpOutlinedIcon fontSize="inherit" />}
-          {comment.likesCount > 0 && <span>{formatCompactNumber(comment.likesCount)}</span>}
+          <span>{formatCompactNumber(comment.likesCount)}</span>
         </button>
-        <button className={`comment-card__action${hasDisliked ? " comment-card__action--active" : ""}`} onClick={onDislike}>
+        <button className={`comment-card__action${hasDisliked ? " comment-card__action--dislike" : ""}`} onClick={onDislike}>
           {hasDisliked ? <ThumbDownIcon fontSize="inherit" /> : <ThumbDownOutlinedIcon fontSize="inherit" />}
-          {comment.dislikesCount > 0 && <span>{formatCompactNumber(comment.dislikesCount)}</span>}
+          <span>{formatCompactNumber(comment.dislikesCount)}</span>
         </button>
       </div>
     </div>

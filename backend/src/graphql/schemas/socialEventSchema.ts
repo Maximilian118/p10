@@ -56,6 +56,12 @@ const socialEventSchema = `
     created_at: String!
   }
 
+  # Single top comment response.
+  type TopCommentResult {
+    comment: SocialComment
+    tokens: [String!]
+  }
+
   # Paginated comments response.
   type SocialComments {
     comments: [SocialComment!]!
