@@ -9,9 +9,10 @@ interface searchType<T> {
   setSearch: React.Dispatch<React.SetStateAction<T[]>> // State of the filtered search.
   preserveOrder?: boolean // If true, preserve original order when query is empty instead of sorting alphabetically.
   label?: string // Optional custom label for the search field.
+  searchKeys?: string[] // Optional Fuse.js keys to search on. Supports dot-notation for nested fields. Defaults to ["name"].
 }
 
-const Search = <T extends { name: string }>({ original, setSearch, preserveOrder, label = "Search" }: searchType<T>) => {
+const Search = <T extends { name: string }>({ original, setSearch, preserveOrder, label = "Search", searchKeys }: searchType<T>) => {
   const [ query, setQuery ] = useState("")
 
   // Debounced fuzzy search using Fuse.js.
@@ -23,7 +24,7 @@ const Search = <T extends { name: string }>({ original, setSearch, preserveOrder
       } else {
         // Fuzzy search with Fuse.js.
         const fuse = new Fuse(original, {
-          keys: ["name"],
+          keys: searchKeys || ["name"],
           threshold: 0.4, // 0 = exact match, 1 = match anything.
         })
         const results = fuse.search(query).map(result => result.item)

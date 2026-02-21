@@ -3,22 +3,15 @@
 
 .league-card {
   width: 100%;
-  min-height: 60px;
+  min-height: 100px;
   @include mixins.flexbox-start;
   background: white;
   cursor: pointer;
   position: relative;
-  padding: 5px 7.5%;
+  padding: 10px 7.5%;
   box-sizing: border-box;
   overflow: hidden;
   flex-shrink: 0;
-
-  .league-card-lock {
-    position: absolute;
-    top: 5px;
-    right: 10px;
-    color: #888;
-  }
 
   .main-icon-container {
     width: 60px;
@@ -33,10 +26,11 @@
     flex-grow: 1;
     @include mixins.flexbox-column;
     align-items: start;
-    padding: 10px 0;
+    padding: 2px 0;
     box-sizing: border-box;
     margin-left: 20px;
     overflow: hidden;
+    gap: 4px;
 
     .league-card-title {
       width: 100%;
@@ -47,18 +41,74 @@
       font-size: 15px;
     }
 
-    .league-card-meta {
-      @include mixins.flexbox-start;
-      gap: 10px;
-      margin-bottom: 8px;
+    // Series chip with icon for quick series identification.
+    .league-card-series-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 2px 8px 2px 2px;
+      margin-bottom: 6px;
+      max-width: 90%;
+      box-sizing: border-box;
 
-      .league-card-series {
-        font-size: 12px;
+      .icon-small {
+        width: 20px;
+        height: 20px;
+        background: white;
+        flex-shrink: 0;
+      }
+
+      span {
+        font-size: 11px;
+        color: variables.$colour-6;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    // Stats row with chip-style indicators.
+    .league-card-stats {
+      @include mixins.flexbox-start;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    // Base chip style shared by all stat chips.
+    .league-card-chip {
+      @include mixins.flexbox-start;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      white-space: nowrap;
+      height: 20px;
+
+      svg {
+        font-size: 13px;
+      }
+
+      // Open (unlocked) state chip.
+      &--open {
+        background: variables.$background-green;
+        color: #2e7d32;
+      }
+
+      // Locked state chip.
+      &--locked {
+        background: #eeeeee;
         color: #888;
       }
 
-      .league-card-count {
-        font-size: 12px;
+      // Neutral info chip (members, rounds).
+      &--neutral {
+        background: #f5f5f5;
         color: #888;
       }
     }

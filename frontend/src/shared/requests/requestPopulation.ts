@@ -1072,6 +1072,9 @@ export const populateLeagueList = `
       name
       icon
       profile_picture
+      competitors {
+        _id
+      }
     }
     active
     cumulativeAverage
