@@ -1,5 +1,4 @@
 import moment from "moment"
-import Filter from "bad-words"
 import { AuthRequest } from "../../middleware/auth"
 import Champ, {
   ChampType,
@@ -17,7 +16,7 @@ import Team from "../../models/team"
 import Badge from "../../models/badge"
 import Protest, { ProtestType } from "../../models/protest"
 import { ObjectId } from "mongodb"
-import { champNameErrors, falsyValErrors, throwError, userErrors } from "./resolverErrors"
+import { champNameErrors, checkProfanity, falsyValErrors, throwError, userErrors } from "./resolverErrors"
 import { filterChampForUser } from "../../shared/utility"
 import { champPopulation, rulesAndRegsPopulation, protestPopulation } from "../../shared/population"
 import { io } from "../../app"
@@ -36,9 +35,6 @@ const log = createLogger("ChampResolver")
 import { sendNotification, sendNotificationToMany } from "../../shared/notifications"
 import { createSocialEvent } from "../../shared/socialEvents"
 import badgeResolvers from "./badgeResolvers"
-
-// Profanity filter for protest content.
-const profanityFilter = new Filter()
 
 // Input types for the createChamp mutation.
 export interface PointsStructureInput {
@@ -3341,12 +3337,8 @@ const champResolvers = {
       }
 
       // Check for profanity in title and description separately.
-      if (profanityFilter.isProfane(input.title)) {
-        return throwError("title", "profanity", "Title contains inappropriate language!", 400)
-      }
-      if (profanityFilter.isProfane(input.description)) {
-        return throwError("description", "profanity", "Description contains inappropriate language!", 400)
-      }
+      checkProfanity("title", input.title)
+      checkProfanity("description", input.description)
 
       const champ = await Champ.findById(input.champId).populate(champPopulation).exec()
 

@@ -7,6 +7,7 @@ import badgeRewardOutcomes, { findDesc, findDescs, findHows } from "../../shared
 import Team from "../../models/team"
 import Driver, { driverType } from "../../models/driver"
 import { isThreeLettersUppercase } from "../../shared/utility"
+import { isProfane } from "../../shared/profanityFilter"
 import Series from "../../models/series"
 import League from "../../models/league"
 
@@ -50,6 +51,13 @@ export const throwError = (
   )
 }
 
+// Checks a field value for profanity and throws a field-specific error if profane.
+export const checkProfanity = (fieldName: string, value: string): void => {
+  if (isProfane(value)) {
+    throwError(fieldName, "profanity", "Contains inappropriate language!", 400)
+  }
+}
+
 export const createdByErrors = async (
   req_id: string | undefined,
   created_by: ObjectId,
@@ -80,6 +88,8 @@ export const nameErrors = async (name: string, user?: userType): Promise<void> =
 
     throwError(type, name, "No numbers or special characters.")
   }
+
+  checkProfanity(type, name)
 
   if (user && name === user.name) {
     throwError(type, name, "This is already your name.")
@@ -483,6 +493,8 @@ export const teamNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "No special characters.")
   }
 
+  checkProfanity(type, name)
+
   // Find a team by the passed name.
   if (await Team.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
     // FindOne case-insensitive.
@@ -506,6 +518,8 @@ export const driverNameErrors = async (name: string): Promise<void> => {
     throwError(type, name, "No numbers or special characters.")
   }
 
+  checkProfanity(type, name)
+
   // Find a driver by the passed name.
   if (await Driver.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
     // FindOne case-insensitive.
@@ -528,6 +542,8 @@ export const seriesNameErrors = async (name: string): Promise<void> => {
 
     throwError(type, name, "No special characters.")
   }
+
+  checkProfanity(type, name)
 
   // Find a series by the passed name.
   if (await Series.findOne({ name: { $regex: `^${name}$`, $options: "i" } })) {
@@ -588,6 +604,8 @@ export const champNameErrors = async (name: string): Promise<void> => {
 
     throwError(type, name, "No special characters.")
   }
+
+  checkProfanity(type, name)
 
   // Check if championship name already exists (globally unique).
   const existingChamp = await Champ.findOne({ name: { $regex: `^${name}$`, $options: "i" } })
@@ -690,6 +708,8 @@ export const leagueNameErrors = async (name: string): Promise<void> => {
     }
     throwError(type, name, "No special characters.")
   }
+
+  checkProfanity(type, name)
 
   const existing = await League.findOne({ name: { $regex: `^${name}$`, $options: "i" } })
   if (existing) {
