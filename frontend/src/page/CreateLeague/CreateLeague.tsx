@@ -1,13 +1,15 @@
 import React, { useContext, useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { TextField, Autocomplete } from "@mui/material"
 import AppContext from "../../context"
-import { seriesType } from "../../shared/types"
+import { seriesType, LeagueType } from "../../shared/types"
 import { graphQLErrorType, initGraphQLError, hasBackendErr } from "../../shared/requests/requestsUtility"
 import { getSeries } from "../../shared/requests/seriesRequests"
-import { createLeague, CreateLeagueFormType } from "../../shared/requests/leagueRequests"
+import { createLeague, updateLeagueSettings, deleteLeague, CreateLeagueFormType } from "../../shared/requests/leagueRequests"
+import { uplaodS3 } from "../../shared/requests/bucketRequests"
+import { capitalise } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
-import { ArrowBack, Info } from "@mui/icons-material"
+import { ArrowBack, Delete, Info } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
 import SeriesOption from "../../components/utility/seriesOption/SeriesOption"
@@ -31,30 +33,54 @@ const initFormErr: CreateLeagueFormErrType = {
   dropzone: "",
 }
 
-// Page for creating a new league.
+// Page for creating or editing a league.
 const CreateLeague: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Determine if editing from route state.
+  const editingLeague = (location.state as { league?: LeagueType })?.league || null
+  const isEditing = !!editingLeague
 
   const [loading, setLoading] = useState<boolean>(false)
+  const [delLoading, setDelLoading] = useState<boolean>(false)
   const [seriesLoading, setSeriesLoading] = useState<boolean>(false)
   const [showInfo, setShowInfo] = useState<boolean>(false)
   const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
   const [formErr, setFormErr] = useState<CreateLeagueFormErrType>(initFormErr)
 
+  // Delete confirmation state.
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false)
+  const [confirmDelete, setConfirmDelete] = useState<string>("")
+
   // All series available for selection.
   const [seriesList, setSeriesList] = useState<seriesType[]>([])
 
-  const [form, setForm] = useState<CreateLeagueFormType>({
-    name: "",
-    icon: null,
-    profile_picture: null,
-    series: "",
-    maxChampionships: 12,
+  // Initialise form with editing data or defaults.
+  const [form, setForm] = useState<CreateLeagueFormType>(() => {
+    if (editingLeague) {
+      return {
+        name: editingLeague.name || "",
+        icon: null,
+        profile_picture: null,
+        series: editingLeague.series?._id || "",
+        maxChampionships: editingLeague.settings.maxChampionships || 12,
+      }
+    }
+    return {
+      name: "",
+      icon: null,
+      profile_picture: null,
+      series: "",
+      maxChampionships: 12,
+    }
   })
 
   // Selected series object for the Autocomplete.
-  const [selectedSeries, setSelectedSeries] = useState<seriesType | null>(null)
+  const [selectedSeries, setSelectedSeries] = useState<seriesType | null>(
+    editingLeague?.series || null
+  )
 
   // Fetch all series on mount.
   useEffect(() => {
@@ -71,6 +97,9 @@ const CreateLeague: React.FC = () => {
     return a.name.localeCompare(b.name)
   })
 
+  // Whether the user can delete (creator or admin).
+  const canDelete = editingLeague?.creator?._id === user._id || user.permissions?.admin
+
   // Validates form before submission.
   const validateForm = (): boolean => {
     const errors: CreateLeagueFormErrType = { ...initFormErr }
@@ -86,7 +115,8 @@ const CreateLeague: React.FC = () => {
       valid = false
     }
 
-    if (!form.icon || !form.profile_picture) {
+    // Images required only when creating (not editing).
+    if (!isEditing && (!form.icon || !form.profile_picture)) {
       errors.dropzone = "Please upload a league image."
       valid = false
     }
@@ -95,8 +125,8 @@ const CreateLeague: React.FC = () => {
     return valid
   }
 
-  // Handles form submission.
-  const onSubmitHandler = async () => {
+  // Handles form submission for creating a new league.
+  const onCreateHandler = async () => {
     if (!validateForm()) return
 
     const league = await createLeague(form, setForm, user, setUser, navigate, setLoading, setBackendErr)
@@ -105,11 +135,84 @@ const CreateLeague: React.FC = () => {
     }
   }
 
+  // Handles form submission for updating an existing league.
+  const onUpdateHandler = async () => {
+    if (!validateForm() || !editingLeague) return
+    setLoading(true)
+
+    // Build the update input — only include changed fields.
+    const input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number } = {}
+
+    // Update name if changed.
+    const newName = capitalise(form.name)
+    if (newName !== editingLeague.name) {
+      input.name = newName
+    }
+
+    // Update max championships if changed.
+    if (form.maxChampionships !== editingLeague.settings.maxChampionships) {
+      input.maxChampionships = form.maxChampionships
+    }
+
+    // Upload new icon if provided.
+    if (form.icon instanceof File) {
+      const iconURL = await uplaodS3("leagues", form.name, "icon", form.icon, setBackendErr)
+      if (!iconURL) {
+        setLoading(false)
+        return
+      }
+      input.icon = iconURL
+      setForm((prev) => ({ ...prev, icon: iconURL }))
+    }
+
+    // Upload new profile_picture if provided.
+    if (form.profile_picture instanceof File) {
+      const ppURL = await uplaodS3("leagues", form.name, "profile_picture", form.profile_picture, setBackendErr)
+      if (!ppURL) {
+        setLoading(false)
+        return
+      }
+      input.profile_picture = ppURL
+      setForm((prev) => ({ ...prev, profile_picture: ppURL }))
+    }
+
+    // Only call update if something changed.
+    if (Object.keys(input).length === 0) {
+      setLoading(false)
+      navigate(-1)
+      return
+    }
+
+    const updated = await updateLeagueSettings(
+      editingLeague._id, input, user, setUser, navigate, setBackendErr
+    )
+    if (updated) {
+      navigate(`/league/${editingLeague._id}`)
+    }
+
+    setLoading(false)
+  }
+
+  // Handles league deletion with name confirmation.
+  const onDeleteHandler = async () => {
+    if (!editingLeague || confirmDelete !== editingLeague.name) return
+    setDelLoading(true)
+
+    const success = await deleteLeague(
+      editingLeague._id, confirmDelete, user, setUser, navigate, setBackendErr
+    )
+    if (success) {
+      navigate("/leagues")
+    }
+
+    setDelLoading(false)
+  }
+
   return (
     <>
       <div className="content-container create-league">
         <div className="create-league-title">
-          <h4>Create League</h4>
+          <h4>{isEditing ? "Edit" : "Create"} League</h4>
           <Info className="info-icon" onClick={() => setShowInfo(true)} />
         </div>
 
@@ -120,6 +223,7 @@ const CreateLeague: React.FC = () => {
           setFormErr={setFormErr}
           backendErr={backendErr}
           setBackendErr={setBackendErr}
+          thumbImg={isEditing ? editingLeague?.icon || false : false}
         />
 
         <TextField
@@ -157,6 +261,7 @@ const CreateLeague: React.FC = () => {
             setSelectedSeries(val)
             setForm((prev) => ({ ...prev, series: val?._id || "" }))
           }}
+          disabled={isEditing}
           className="mui-form-el"
         />
 
@@ -172,6 +277,21 @@ const CreateLeague: React.FC = () => {
           className="mui-form-el"
         />
 
+        {/* Delete confirmation section (edit mode only). */}
+        {isEditing && canDelete && showDeleteConfirm && (
+          <div className="create-league-delete-confirm">
+            <p>Type &quot;{editingLeague?.name}&quot; to confirm deletion:</p>
+            <TextField
+              variant="filled"
+              size="small"
+              value={confirmDelete}
+              onChange={(e) => setConfirmDelete(e.target.value)}
+              placeholder={editingLeague?.name}
+              className="mui-form-el"
+            />
+          </div>
+        )}
+
         {backendErr.message && !hasBackendErr(["leagueName"], backendErr) && (
           <ErrorDisplay backendErr={backendErr} />
         )}
@@ -182,7 +302,20 @@ const CreateLeague: React.FC = () => {
         position="relative"
         buttons={[
           { label: "Back", onClick: () => navigate(-1), startIcon: <ArrowBack />, color: "inherit" },
-          { label: "Create League", onClick: onSubmitHandler, loading },
+          // Delete button shown only in edit mode for creator/admin.
+          ...(isEditing && canDelete ? [{
+            label: showDeleteConfirm ? "Confirm Delete" : "Delete",
+            onClick: showDeleteConfirm ? onDeleteHandler : () => setShowDeleteConfirm(true),
+            startIcon: <Delete />,
+            color: "error" as const,
+            loading: delLoading,
+            disabled: showDeleteConfirm && confirmDelete !== editingLeague?.name,
+          }] : []),
+          {
+            label: isEditing ? "Update League" : "Create League",
+            onClick: isEditing ? onUpdateHandler : onCreateHandler,
+            loading,
+          },
         ]}
       />
 

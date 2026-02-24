@@ -8,45 +8,146 @@ interface leagueStandingsType {
   onChampClick?: (champId: string) => void
 }
 
-// Ranked standings table of championships in the league.
+// Returns a position label — medal emoji for top 3, number for the rest.
+const positionLabel = (pos: number): string => {
+  if (pos === 1) return "1st"
+  if (pos === 2) return "2nd"
+  if (pos === 3) return "3rd"
+  return `${pos}th`
+}
+
+// Head-to-head championship comparison. Adapts layout for 2 (VS) vs 3+ (ranked bars).
 const LeagueStandings: React.FC<leagueStandingsType> = ({ championships, onChampClick }) => {
-  // Sort active championships by position.
+  // Filter and sort active championships by position.
   const active = championships
     .filter((c) => c.active && c.championship)
     .sort((a, b) => a.position - b.position)
 
+  // No championships enrolled.
   if (active.length === 0) {
     return (
-      <div className="league-standings">
-        <p className="league-standings-empty">No championships enrolled yet.</p>
+      <div className="league-comparison">
+        <p className="league-comparison-empty">No championships enrolled yet.</p>
       </div>
     )
   }
 
-  return (
-    <div className="league-standings">
-      <h3 className="league-standings-title">Standings</h3>
-      <div className="league-standings-header">
-        <span className="standings-pos">#</span>
-        <span className="standings-name">Championship</span>
-        <span className="standings-avg">Avg %</span>
-        <span className="standings-rounds">Rounds</span>
-      </div>
-      {active.map((member) => (
+  // Single championship — just show a card.
+  if (active.length === 1) {
+    const member = active[0]
+    return (
+      <div className="league-comparison">
+        <h3 className="league-comparison-title">Championship</h3>
         <div
-          key={member.championship?._id}
-          className="league-standings-row"
+          className="comparison-card comparison-card--leader"
           onClick={() => onChampClick?.(member.championship!._id)}
         >
-          <span className="standings-pos">{member.position}</span>
-          <div className="standings-champ">
+          <div className="comparison-card-left">
             <ImageIcon src={member.championship?.icon || ""} size="small" />
-            <span className="standings-name">{member.championship?.name}</span>
+            <span className="comparison-card-name">{member.championship?.name}</span>
           </div>
-          <span className="standings-avg">{member.cumulativeAverage.toFixed(1)}%</span>
-          <span className="standings-rounds">{member.roundsCompleted}</span>
+          <div className="comparison-card-right">
+            <span className="comparison-card-avg">{member.cumulativeAverage.toFixed(1)}%</span>
+            <span className="comparison-card-rounds">R{member.roundsCompleted}</span>
+          </div>
         </div>
-      ))}
+      </div>
+    )
+  }
+
+  // Exactly 2 championships — VS head-to-head layout.
+  if (active.length === 2) {
+    const left = active[0]
+    const right = active[1]
+    const leftIsLeader = left.cumulativeAverage >= right.cumulativeAverage
+
+    return (
+      <div className="league-comparison">
+        <h3 className="league-comparison-title">Head to Head</h3>
+        <div className="versus-container">
+          {/* Left championship. */}
+          <div
+            className={`versus-side${leftIsLeader ? " versus-side--leader" : ""}`}
+            onClick={() => onChampClick?.(left.championship!._id)}
+          >
+            <ImageIcon src={left.championship?.icon || ""} size="medium" />
+            <span className="versus-name">{left.championship?.name}</span>
+            <span className="versus-avg">{left.cumulativeAverage.toFixed(1)}%</span>
+            <div className="versus-bar-track">
+              <div
+                className={`versus-bar-fill${leftIsLeader ? " versus-bar-fill--leader" : ""}`}
+                style={{ width: `${Math.min(left.cumulativeAverage, 100)}%` }}
+              />
+            </div>
+            <div className="versus-stats">
+              <span>Score: {left.cumulativeScore}</span>
+              <span>Rounds: {left.roundsCompleted}</span>
+            </div>
+          </div>
+
+          {/* VS divider. */}
+          <div className="versus-divider">
+            <span>VS</span>
+          </div>
+
+          {/* Right championship. */}
+          <div
+            className={`versus-side${!leftIsLeader ? " versus-side--leader" : ""}`}
+            onClick={() => onChampClick?.(right.championship!._id)}
+          >
+            <ImageIcon src={right.championship?.icon || ""} size="medium" />
+            <span className="versus-name">{right.championship?.name}</span>
+            <span className="versus-avg">{right.cumulativeAverage.toFixed(1)}%</span>
+            <div className="versus-bar-track">
+              <div
+                className={`versus-bar-fill${!leftIsLeader ? " versus-bar-fill--leader" : ""}`}
+                style={{ width: `${Math.min(right.cumulativeAverage, 100)}%` }}
+              />
+            </div>
+            <div className="versus-stats">
+              <span>Score: {right.cumulativeScore}</span>
+              <span>Rounds: {right.roundsCompleted}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 3+ championships — ranked list with visual bars.
+  return (
+    <div className="league-comparison">
+      <h3 className="league-comparison-title">Standings</h3>
+      <div className="ranked-list">
+        {active.map((member) => {
+          const isLeader = member.position === 1
+          const medalClass = member.position <= 3 ? ` ranked-pos--${member.position}` : ""
+
+          return (
+            <div
+              key={member.championship?._id}
+              className={`ranked-row${isLeader ? " ranked-row--leader" : ""}`}
+              onClick={() => onChampClick?.(member.championship!._id)}
+            >
+              <span className={`ranked-pos${medalClass}`}>{positionLabel(member.position)}</span>
+              <div className="ranked-info">
+                <div className="ranked-header">
+                  <ImageIcon src={member.championship?.icon || ""} size="small" />
+                  <span className="ranked-name">{member.championship?.name}</span>
+                  <span className="ranked-rounds">R{member.roundsCompleted}</span>
+                </div>
+                <div className="ranked-bar-track">
+                  <div
+                    className={`ranked-bar-fill${isLeader ? " ranked-bar-fill--leader" : ""}`}
+                    style={{ width: `${Math.min(member.cumulativeAverage, 100)}%` }}
+                  />
+                </div>
+              </div>
+              <span className="ranked-avg">{member.cumulativeAverage.toFixed(1)}%</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

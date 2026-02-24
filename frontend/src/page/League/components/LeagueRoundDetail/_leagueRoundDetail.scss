@@ -3,38 +3,64 @@
 
 .league-round-detail {
   width: 100%;
-  border-bottom: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: variables.$background;
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: background 0.15s ease;
 
+  &--expanded {
+    background: #efefef;
+  }
+
+  // Clickable header row.
   .league-round-header {
     width: 100%;
     @include mixins.flexbox-space-between;
-    padding: 12px 0;
+    padding: 10px 12px;
     cursor: pointer;
+    box-sizing: border-box;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.02);
+      background: rgba(0, 0, 0, 0.03);
     }
 
     .round-number {
-      width: 40px;
-      font-weight: bold;
+      width: 32px;
+      font-weight: 700;
+      font-size: 13px;
       flex-shrink: 0;
+      color: variables.$colour-6;
+    }
+
+    .round-champ {
+      flex: 1;
+      font-size: 12px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 8px;
     }
 
     .round-score {
-      flex: 1;
-      font-weight: bold;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-right: 10px;
     }
 
     .round-p10-hits {
       color: #888;
-      font-size: 13px;
-      margin-right: 10px;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-right: 6px;
     }
 
     .round-expand-icon {
       transition: transform 0.2s ease;
       color: #888;
+      font-size: 20px;
 
       &.expanded {
         transform: rotate(180deg);
@@ -42,22 +68,30 @@
     }
   }
 
+  // Expanded insights body.
   .league-round-body {
-    padding: 0 0 15px;
+    padding: 0 12px 12px;
 
     .round-insight-row {
       @include mixins.flexbox-space-between;
       padding: 5px 0;
-      font-size: 13px;
+      font-size: 12px;
+      color: variables.$colour-6;
 
+      // Best prediction highlight.
       &.round-highlight {
         color: variables.$mui-success;
+      }
+
+      // Worst prediction.
+      &.round-worst {
+        color: #888;
       }
     }
 
     .round-prediction {
       @include mixins.flexbox-start;
-      gap: 8px;
+      gap: 6px;
     }
   }
 }

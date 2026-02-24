@@ -4,17 +4,17 @@ import "./_league.scss"
 import { LeagueType, LeagueMemberType, ChampType } from "../../shared/types"
 import AppContext from "../../context"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
-import { getLeagueById, joinLeague, leaveLeague, deleteLeague } from "../../shared/requests/leagueRequests"
+import { getLeagueById, joinLeague, leaveLeague } from "../../shared/requests/leagueRequests"
 import { getChamps } from "../../shared/requests/champRequests"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
+import EditButton from "../../components/utility/button/editButton/EditButton"
 import LeagueBanner from "./components/LeagueBanner/LeagueBanner"
 import LeagueStandings from "./components/LeagueStandings/LeagueStandings"
 import LeagueRoundDetail from "./components/LeagueRoundDetail/LeagueRoundDetail"
 import { Button, Autocomplete, TextField } from "@mui/material"
-import { Delete } from "@mui/icons-material"
 
-// League detail page — shows banner, standings, round history, and join/leave controls.
+// League detail page — hero banner, head-to-head comparison, round history, join/leave controls.
 const League: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const { user, setUser } = useContext(AppContext)
@@ -28,10 +28,6 @@ const League: React.FC = () => {
   const [userChamps, setUserChamps] = useState<ChampType[]>([])
   const [champsLoading, setChampsLoading] = useState<boolean>(false)
   const [selectedChamp, setSelectedChamp] = useState<ChampType | null>(null)
-
-  // Delete confirmation.
-  const [confirmDelete, setConfirmDelete] = useState<string>("")
-  const [showDelete, setShowDelete] = useState<boolean>(false)
 
   // Fetch league on mount.
   useEffect(() => {
@@ -51,11 +47,8 @@ const League: React.FC = () => {
 
   // Filter championships eligible for joining this league.
   const eligibleChamps = userChamps.filter((c) => {
-    // Must be same series as league.
     if (c.series?._id !== league?.series?._id) return false
-    // Must be adjudicator.
     if (c.adjudicator?.current?._id !== user._id) return false
-    // Must not already be in a league.
     if (c.league) return false
     return true
   })
@@ -66,8 +59,13 @@ const League: React.FC = () => {
     return m.adjudicator?._id === user._id
   })
 
-  // Whether the current user is the league creator.
-  const isCreator = league?.creator?._id === user._id || user.permissions?.admin
+  // Whether the current user can edit (creator or admin).
+  const canEdit = league?.creator?._id === user._id || user.permissions?.admin
+
+  // Navigate to CreateLeague in edit mode.
+  const handleEdit = () => {
+    navigate("/create-league", { state: { league } })
+  }
 
   // Handle joining the league.
   const handleJoin = async () => {
@@ -84,13 +82,6 @@ const League: React.FC = () => {
     if (!userMember?.championship || !league) return
     const updated = await leaveLeague(league._id, userMember.championship._id, user, setUser, navigate, setBackendErr)
     if (updated) setLeague(updated)
-  }
-
-  // Handle deleting the league.
-  const handleDelete = async () => {
-    if (!league || confirmDelete !== league.name) return
-    const success = await deleteLeague(league._id, confirmDelete, user, setUser, navigate, setBackendErr)
-    if (success) navigate("/leagues")
   }
 
   // Render loading state.
@@ -124,14 +115,16 @@ const League: React.FC = () => {
 
   return (
     <div className="content-container league-detail">
+      {/* Hero banner with profile_picture, icon, name, series, status chips. */}
       <LeagueBanner league={league} />
 
+      {/* Head-to-head championship comparison. */}
       <LeagueStandings
         championships={league.championships}
         onChampClick={(champId) => navigate(`/championship/${champId}`)}
       />
 
-      {/* Join / Leave controls */}
+      {/* Join / Leave controls. */}
       <div className="league-actions">
         {!league.locked && !userMember && eligibleChamps.length > 0 && (
           <div className="league-join">
@@ -159,7 +152,7 @@ const League: React.FC = () => {
         )}
       </div>
 
-      {/* Round History */}
+      {/* Round History. */}
       {allScores.length > 0 && (
         <div className="league-round-history">
           <h3>Round History</h3>
@@ -175,40 +168,9 @@ const League: React.FC = () => {
 
       {backendErr.message && <ErrorDisplay backendErr={backendErr} />}
 
-      {/* Delete section for league creator */}
-      {isCreator && (
-        <div className="league-delete-section">
-          {!showDelete ? (
-            <Button
-              variant="text"
-              color="error"
-              startIcon={<Delete />}
-              onClick={() => setShowDelete(true)}
-            >
-              Delete League
-            </Button>
-          ) : (
-            <div className="league-delete-confirm">
-              <p>Type &quot;{league.name}&quot; to confirm deletion:</p>
-              <TextField
-                variant="filled"
-                size="small"
-                value={confirmDelete}
-                onChange={(e) => setConfirmDelete(e.target.value)}
-                placeholder={league.name}
-              />
-              <Button
-                variant="contained"
-                color="error"
-                size="small"
-                onClick={handleDelete}
-                disabled={confirmDelete !== league.name}
-              >
-                Confirm Delete
-              </Button>
-            </div>
-          )}
-        </div>
+      {/* Edit button for creator/admin. */}
+      {canEdit && (
+        <EditButton onClick={handleEdit} size="medium" absolute />
       )}
     </div>
   )

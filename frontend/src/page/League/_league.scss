@@ -4,10 +4,12 @@
 .league-detail {
   @include mixins.flexbox-start-column;
   background: white;
+  position: relative;
 
+  // Join / Leave controls section.
   .league-actions {
     width: 100%;
-    padding: 15px 7.5%;
+    padding: 0 7.5% 15px;
     box-sizing: border-box;
     @include mixins.flexbox-column;
 
@@ -22,33 +24,16 @@
     }
   }
 
+  // Round history section.
   .league-round-history {
     width: 100%;
-    padding: 20px 7.5%;
+    padding: 10px 7.5% 20px;
     box-sizing: border-box;
 
     h3 {
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       color: variables.$colour-9;
-    }
-  }
-
-  .league-delete-section {
-    width: 100%;
-    padding: 30px 7.5%;
-    box-sizing: border-box;
-    border-top: 1px solid #f0f0f0;
-    @include mixins.flexbox-column;
-
-    .league-delete-confirm {
-      width: 100%;
-      @include mixins.flexbox-column;
-      gap: 10px;
-
-      p {
-        font-size: 13px;
-        color: #888;
-      }
+      font-size: 16px;
     }
   }
 }
