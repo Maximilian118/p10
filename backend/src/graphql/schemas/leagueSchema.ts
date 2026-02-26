@@ -45,12 +45,35 @@ const leagueSchema = `
     cumulativeScore: Float!
     roundsCompleted: Int!
     cumulativeAverage: Float!
+    missedRounds: Int!
     position: Int!
+  }
+
+  # Enriched invite with timestamp for expiry tracking.
+  type LeagueInvite {
+    championship: Champ
+    invitedAt: String!
   }
 
   # League settings.
   type LeagueSettings {
     maxChampionships: Int!
+    inviteOnly: Boolean!
+  }
+
+  # Winner/runner-up reference in season history.
+  type LeagueSeasonWinner {
+    championship: Champ
+    adjudicator: User
+  }
+
+  # Snapshot of a completed league season.
+  type LeagueSeasonHistory {
+    season: Int!
+    championships: [LeagueMember!]!
+    winner: LeagueSeasonWinner
+    runnerUp: LeagueSeasonWinner
+    finalizedAt: String!
   }
 
   # Main League type.
@@ -62,7 +85,13 @@ const leagueSchema = `
     series: Series
     creator: User
     championships: [LeagueMember!]!
+    invited: [LeagueInvite]
     settings: LeagueSettings!
+    season: Int!
+    seasonEndedAt: String
+    seasonEndStandings: [LeagueMember]
+    history: [LeagueSeasonHistory!]!
+    lastRoundStartedAt: String
     locked: Boolean!
     lockThreshold: Int!
     created_at: String!
@@ -83,6 +112,7 @@ const leagueSchema = `
     profile_picture: String!
     series: ID!
     maxChampionships: Int
+    inviteOnly: Boolean
   }
 
   # Input for updating league settings.
@@ -91,6 +121,7 @@ const leagueSchema = `
     icon: String
     profile_picture: String
     maxChampionships: Int
+    inviteOnly: Boolean
   }
 `
 

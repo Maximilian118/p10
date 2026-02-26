@@ -14,6 +14,7 @@ export interface CreateLeagueFormType {
   profile_picture: File | string | null
   series: string
   maxChampionships: number
+  inviteOnly: boolean
 }
 
 // Get all leagues.
@@ -158,10 +159,11 @@ export const createLeague = async (
             profile_picture: ppURL,
             series: form.series,
             maxChampionships: form.maxChampionships,
+            inviteOnly: form.inviteOnly,
           },
           query: `
-            mutation CreateLeague($name: String!, $icon: String!, $profile_picture: String!, $series: ID!, $maxChampionships: Int) {
-              createLeague(input: { name: $name, icon: $icon, profile_picture: $profile_picture, series: $series, maxChampionships: $maxChampionships }) {
+            mutation CreateLeague($name: String!, $icon: String!, $profile_picture: String!, $series: ID!, $maxChampionships: Int, $inviteOnly: Boolean) {
+              createLeague(input: { name: $name, icon: $icon, profile_picture: $profile_picture, series: $series, maxChampionships: $maxChampionships, inviteOnly: $inviteOnly }) {
                 ${populateLeague}
               }
             }
@@ -278,7 +280,7 @@ export const leaveLeague = async (
 // Update league settings.
 export const updateLeagueSettings = async (
   _id: string,
-  input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number },
+  input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number; inviteOnly?: boolean },
   user: userType,
   setUser: React.Dispatch<React.SetStateAction<userType>>,
   navigate: NavigateFunction,
@@ -293,8 +295,8 @@ export const updateLeagueSettings = async (
         {
           variables: { _id, ...input },
           query: `
-            mutation UpdateLeagueSettings($_id: ID!, $name: String, $icon: String, $profile_picture: String, $maxChampionships: Int) {
-              updateLeagueSettings(_id: $_id, input: { name: $name, icon: $icon, profile_picture: $profile_picture, maxChampionships: $maxChampionships }) {
+            mutation UpdateLeagueSettings($_id: ID!, $name: String, $icon: String, $profile_picture: String, $maxChampionships: Int, $inviteOnly: Boolean) {
+              updateLeagueSettings(_id: $_id, input: { name: $name, icon: $icon, profile_picture: $profile_picture, maxChampionships: $maxChampionships, inviteOnly: $inviteOnly }) {
                 ${populateLeague}
               }
             }
@@ -314,6 +316,94 @@ export const updateLeagueSettings = async (
       })
   } catch (err: unknown) {
     graphQLErrors("updateLeagueSettings", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return league
+}
+
+// Invite a championship to a league.
+export const inviteChampionshipToLeague = async (
+  leagueId: string,
+  champId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<LeagueType | null> => {
+  let league: LeagueType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { leagueId, champId },
+          query: `
+            mutation InviteChampionshipToLeague($leagueId: ID!, $champId: ID!) {
+              inviteChampionshipToLeague(leagueId: $leagueId, champId: $champId) {
+                ${populateLeague}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("inviteChampionshipToLeague", res, setUser, navigate, setBackendErr, true)
+        } else {
+          league = graphQLResponse("inviteChampionshipToLeague", res, user, setUser, false) as LeagueType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("inviteChampionshipToLeague", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("inviteChampionshipToLeague", err, setUser, navigate, setBackendErr, true)
+  }
+
+  return league
+}
+
+// Revoke a championship invitation from a league.
+export const revokeLeagueInvite = async (
+  leagueId: string,
+  champId: string,
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+  navigate: NavigateFunction,
+  setBackendErr: React.Dispatch<React.SetStateAction<graphQLErrorType>>,
+): Promise<LeagueType | null> => {
+  let league: LeagueType | null = null
+
+  try {
+    await axios
+      .post(
+        "",
+        {
+          variables: { leagueId, champId },
+          query: `
+            mutation RevokeLeagueInvite($leagueId: ID!, $champId: ID!) {
+              revokeLeagueInvite(leagueId: $leagueId, champId: $champId) {
+                ${populateLeague}
+              }
+            }
+          `,
+        },
+        { headers: headers(user.token) },
+      )
+      .then((res: AxiosResponse) => {
+        if (res.data.errors) {
+          graphQLErrors("revokeLeagueInvite", res, setUser, navigate, setBackendErr, true)
+        } else {
+          league = graphQLResponse("revokeLeagueInvite", res, user, setUser, false) as LeagueType
+        }
+      })
+      .catch((err: unknown) => {
+        graphQLErrors("revokeLeagueInvite", err, setUser, navigate, setBackendErr, true)
+      })
+  } catch (err: unknown) {
+    graphQLErrors("revokeLeagueInvite", err, setUser, navigate, setBackendErr, true)
   }
 
   return league

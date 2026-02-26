@@ -44,6 +44,12 @@ const Email: React.FC = () => {
           onChange={(value) => handleEmailSettingsChange("emailChampInvite", value)}
         />
         <MUISwitch
+          text="League invites"
+          fullWidth
+          checked={user.notificationSettings?.emailLeagueInvite ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailLeagueInvite", value)}
+        />
+        <MUISwitch
           text="Badge earned"
           fullWidth
           checked={user.notificationSettings?.emailBadgeEarned ?? true}
@@ -84,6 +90,12 @@ const Email: React.FC = () => {
           fullWidth
           checked={user.notificationSettings?.emailUserJoined ?? true}
           onChange={(value) => handleEmailSettingsChange("emailUserJoined", value)}
+        />
+        <MUISwitch
+          text="Round missed"
+          fullWidth
+          checked={user.notificationSettings?.emailRoundMissed ?? true}
+          onChange={(value) => handleEmailSettingsChange("emailRoundMissed", value)}
         />
       </div>
       <h3 className="section-title">Protests</h3>

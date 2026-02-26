@@ -340,10 +340,11 @@ const champResolvers = {
     try {
       // Lightweight query - exclude heavy fields not needed for card display.
       const champs = await Champ.find({})
-        .select("-rounds -history -rulesAndRegs -pointsStructure -series -waitingList -banned -kicked -champBadges")
+        .select("-rounds -history -rulesAndRegs -pointsStructure -waitingList -banned -kicked -champBadges")
         .populate("adjudicator.current", "_id")
         .populate("competitors", "_id icon")
         .populate("invited", "_id")
+        .populate("series", "_id")
         .exec()
 
       // Check if user is admin to determine if admin settings should be visible.
@@ -423,8 +424,8 @@ const champResolvers = {
           created_at: moment().format(),
         })) || []
 
-      // Validate rounds count.
-      const roundCount = rounds || 1
+      // Validate rounds count. Series.rounds takes precedence when set (enforced for leagues).
+      const roundCount = seriesDoc.rounds ?? rounds ?? 1
       if (roundCount < 1) {
         throwError("rounds", rounds, "Rounds must be at least 1.")
       }
@@ -1631,6 +1632,21 @@ const champResolvers = {
 
       // When transitioning FROM "waiting", populate competitors/drivers/teams.
       if (currentStatus === "waiting") {
+        // Guard: block round start >1h before qualifying for API series.
+        const series = await Series.findById(champ.series)
+        if (series?.hasAPI && champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp) {
+          const qualifyingStart = new Date(champ.settings.automation.bettingWindow.autoOpenData.timestamp).getTime()
+          const msUntilQualifying = qualifyingStart - Date.now()
+          if (msUntilQualifying > 60 * 60 * 1000) {
+            return throwError(
+              "updateRoundStatus",
+              _id,
+              "Cannot start a round more than 1 hour before the next qualifying session.",
+              400,
+            )
+          }
+        }
+
         const roundData = await populateRoundData(champ, roundIndex)
         champ.rounds[roundIndex].competitors = roundData.competitors
         champ.rounds[roundIndex].drivers = roundData.drivers
@@ -1641,6 +1657,15 @@ const champResolvers = {
         if (roundIndex === 0 && champ.seasonEndedAt) {
           champ.seasonEndedAt = null
           champ.seasonEndStandings = null
+        }
+
+        // Update lastRoundStartedAt on the league for invite expiry tracking.
+        if (champ.league) {
+          const now = moment().format()
+          await League.updateOne(
+            { _id: champ.league },
+            { $set: { lastRoundStartedAt: now, updated_at: now } },
+          )
         }
       }
 

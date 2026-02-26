@@ -33,6 +33,8 @@ export const getChamps = async (
                   name
                   icon
                   updated_at
+                  series { _id }
+                  league
                   competitors {
                     _id
                     icon

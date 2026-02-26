@@ -6,24 +6,6 @@
   background: white;
   position: relative;
 
-  // Join / Leave controls section.
-  .league-actions {
-    width: 100%;
-    padding: 0 7.5% 15px;
-    box-sizing: border-box;
-    @include mixins.flexbox-column;
-
-    .league-join {
-      width: 100%;
-      @include mixins.flexbox-start;
-      gap: 10px;
-
-      .league-join-select {
-        flex: 1;
-      }
-    }
-  }
-
   // Round history section.
   .league-round-history {
     width: 100%;

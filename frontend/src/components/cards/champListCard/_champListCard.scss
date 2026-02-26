@@ -1,0 +1,35 @@
+@use '../../../scss/mixins';
+@use '../../../scss/variables';
+
+.champ-list-card {
+  width: 100%;
+  @include mixins.flexbox-start;
+  background: white;
+  padding: 10px 7.5%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+
+  .image-icon {
+    margin-right: 15px;
+    flex-shrink: 0;
+  }
+
+  .champ-list-card-name {
+    flex-grow: 1;
+    min-width: 0;
+    color: variables.$colour-9;
+    text-transform: capitalize;
+    font-size: 15px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .champ-list-card-button {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+}

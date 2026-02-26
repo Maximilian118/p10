@@ -1,0 +1,24 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+.league-invite-view {
+  width: 100%;
+  @include mixins.flexbox-column;
+
+  .league-invite-list {
+    width: 100%;
+    @include mixins.flexbox-column;
+  }
+
+  .league-invite-empty {
+    width: 100%;
+    padding: 30px 7.5%;
+    box-sizing: border-box;
+    text-align: center;
+
+    p {
+      color: variables.$colour-6;
+      font-size: 14px;
+    }
+  }
+}

@@ -171,10 +171,17 @@ const champSchema = `
     expiry: Int!
   }
 
+  # Auto-open schedule data populated by the qualifying scheduler.
+  type AutoOpenData {
+    timestamp: String!
+    updated_at: String!
+  }
+
   # Betting window automation settings.
   type BettingWindowSettings {
     autoOpen: Boolean!
     autoOpenTime: Int!
+    autoOpenData: AutoOpenData!
     autoClose: Boolean!
     autoCloseTime: Int!
   }
@@ -257,6 +264,7 @@ const champSchema = `
     seasonEndedAt: String
     seasonEndStandings: [CompetitorEntry]
     created_by: User
+    league: ID
     created_at: String!
     updated_at: String!
     tokens: [String!]

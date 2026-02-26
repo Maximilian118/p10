@@ -194,8 +194,10 @@ const userSchema = new mongoose.Schema<userType>({
   // Email notification preferences.
   notificationSettings: {
     emailChampInvite: { type: Boolean, default: true },
+    emailLeagueInvite: { type: Boolean, default: true },
     emailBadgeEarned: { type: Boolean, default: true },
     emailRoundStarted: { type: Boolean, default: true },
+    emailRoundMissed: { type: Boolean, default: true },
     emailResultsPosted: { type: Boolean, default: true },
     emailKicked: { type: Boolean, default: true },
     emailBanned: { type: Boolean, default: true },

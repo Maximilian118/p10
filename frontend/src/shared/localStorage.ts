@@ -40,6 +40,7 @@ export interface userBadgeSnapshotType {
 // Notification types for different events.
 export type NotificationTypeEnum =
   | "champ_invite"
+  | "league_invite"
   | "badge_earned"
   | "round_started"
   | "results_posted"
@@ -47,6 +48,7 @@ export type NotificationTypeEnum =
   | "banned"
   | "promoted"
   | "user_joined"
+  | "round_missed"
   | "protest_filed"
   | "protest_vote_required"
   | "protest_passed"
@@ -67,6 +69,10 @@ export interface NotificationType {
   champId?: string
   champName?: string
   champIcon?: string
+  // Optional league reference for deep linking.
+  leagueId?: string
+  leagueName?: string
+  leagueIcon?: string
   // Optional badge snapshot for badge earned notifications.
   badgeSnapshot?: userBadgeSnapshotType
   // Optional protest data for protest notifications.
@@ -116,6 +122,7 @@ export interface UserLocationType {
 // User's email notification preferences.
 export interface NotificationSettingsType {
   emailChampInvite: boolean
+  emailLeagueInvite: boolean
   emailBadgeEarned: boolean
   emailRoundStarted: boolean
   emailResultsPosted: boolean
@@ -123,6 +130,7 @@ export interface NotificationSettingsType {
   emailBanned: boolean
   emailPromoted: boolean
   emailUserJoined: boolean
+  emailRoundMissed: boolean
   emailProtestFiled: boolean
   emailProtestVoteRequired: boolean
   emailProtestPassed: boolean
@@ -159,6 +167,7 @@ export interface userType {
 // Default notification settings (all enabled).
 const defaultNotificationSettings: NotificationSettingsType = {
   emailChampInvite: true,
+  emailLeagueInvite: true,
   emailBadgeEarned: true,
   emailRoundStarted: true,
   emailResultsPosted: true,
@@ -166,6 +175,7 @@ const defaultNotificationSettings: NotificationSettingsType = {
   emailBanned: true,
   emailPromoted: true,
   emailUserJoined: true,
+  emailRoundMissed: true,
   emailProtestFiled: true,
   emailProtestVoteRequired: true,
   emailProtestPassed: true,

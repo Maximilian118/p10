@@ -47,13 +47,30 @@ export interface LeagueMemberType {
   scores: LeagueScoreType[]
   cumulativeScore: number // Sum of all prediction scores
   roundsCompleted: number
-  cumulativeAverage: number // cumulativeScore / roundsCompleted
+  cumulativeAverage: number // cumulativeScore / roundsCompleted (raw, unpenalized)
+  missedRounds: number // Rounds missed while in league (5% penalty each)
   position: number // League rank
+}
+
+// Enriched invite with timestamp for expiry tracking.
+export interface LeagueInviteType {
+  championship: ObjectId
+  invitedAt: string // When the invite was sent
 }
 
 // League settings.
 export interface LeagueSettingsType {
   maxChampionships: number
+  inviteOnly: boolean
+}
+
+// Snapshot of a completed league season.
+export interface LeagueSeasonHistoryType {
+  season: number // Year (2025, 2026, etc.)
+  championships: LeagueMemberType[] // Final standings snapshot
+  winner: { championship: ObjectId; adjudicator: ObjectId } | null
+  runnerUp: { championship: ObjectId; adjudicator: ObjectId } | null
+  finalizedAt: string
 }
 
 // Main League document.
@@ -65,7 +82,13 @@ export interface LeagueType {
   series: ObjectId
   creator: ObjectId
   championships: LeagueMemberType[]
+  invited: LeagueInviteType[] // Enriched invites with timestamps for expiry.
   settings: LeagueSettingsType
+  season: number // Current year/season (e.g., 2025)
+  seasonEndedAt: string | null // When season ended (triggers 24h results view)
+  seasonEndStandings: LeagueMemberType[] | null // Frozen final standings for results view
+  history: LeagueSeasonHistoryType[] // Past season snapshots
+  lastRoundStartedAt: string | null // When any member last started a round (for invite expiry)
   locked?: boolean // Computed server-side, not stored in DB
   lockThreshold?: number // Computed server-side, not stored in DB
   created_at: string
@@ -133,7 +156,17 @@ const leagueMemberSchema = new mongoose.Schema(
     cumulativeScore: { type: Number, default: 0 },
     roundsCompleted: { type: Number, default: 0 },
     cumulativeAverage: { type: Number, default: 0 },
+    missedRounds: { type: Number, default: 0 },
     position: { type: Number, default: 0 },
+  },
+  { _id: false },
+)
+
+// Sub-schema for enriched invites with timestamp for expiry tracking.
+const leagueInviteSchema = new mongoose.Schema(
+  {
+    championship: { type: mongoose.Schema.ObjectId, ref: "Champ", required: true },
+    invitedAt: { type: String, required: true },
   },
   { _id: false },
 )
@@ -142,6 +175,28 @@ const leagueMemberSchema = new mongoose.Schema(
 const leagueSettingsSchema = new mongoose.Schema(
   {
     maxChampionships: { type: Number, default: 12 },
+    inviteOnly: { type: Boolean, default: false },
+  },
+  { _id: false },
+)
+
+// Sub-schema for league season history winner/runner-up reference.
+const leagueSeasonWinnerSchema = new mongoose.Schema(
+  {
+    championship: { type: mongoose.Schema.ObjectId, ref: "Champ", required: true },
+    adjudicator: { type: mongoose.Schema.ObjectId, ref: "User", required: true },
+  },
+  { _id: false },
+)
+
+// Sub-schema for league season history snapshots.
+const leagueSeasonHistorySchema = new mongoose.Schema(
+  {
+    season: { type: Number, required: true },
+    championships: [leagueMemberSchema],
+    winner: { type: leagueSeasonWinnerSchema, default: null },
+    runnerUp: { type: leagueSeasonWinnerSchema, default: null },
+    finalizedAt: { type: String, required: true },
   },
   { _id: false },
 )
@@ -154,7 +209,13 @@ const leagueSchema = new mongoose.Schema<LeagueType>({
   series: { type: mongoose.Schema.ObjectId, ref: "Series", required: true },
   creator: { type: mongoose.Schema.ObjectId, ref: "User", required: true },
   championships: [leagueMemberSchema],
+  invited: [leagueInviteSchema], // Enriched invites with expiry timestamps.
   settings: { type: leagueSettingsSchema, default: () => ({}) },
+  season: { type: Number, default: () => new Date().getFullYear() }, // Current year/season.
+  seasonEndedAt: { type: String, default: null }, // When season ended (24h results view trigger).
+  seasonEndStandings: { type: [leagueMemberSchema], default: null }, // Frozen final standings.
+  history: [leagueSeasonHistorySchema], // Past season snapshots.
+  lastRoundStartedAt: { type: String, default: null }, // When any member last started a round.
   created_at: { type: String, default: moment().format() },
   updated_at: { type: String, default: moment().format() },
 })

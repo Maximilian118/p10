@@ -248,6 +248,7 @@ export const updateNotificationSettings = async (
                 emailBanned
                 emailPromoted
                 emailUserJoined
+                emailRoundMissed
                 emailProtestFiled
                 emailProtestVoteRequired
                 emailProtestPassed

@@ -1,19 +1,32 @@
 import moment from "moment"
 import { AuthRequest } from "../../middleware/auth"
 import League, { LeagueType } from "../../models/league"
-import Champ from "../../models/champ"
+import Champ, { Round } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
 import { ObjectId } from "mongodb"
 import { leagueNameErrors, throwError, userErrors } from "./resolverErrors"
 import { leaguePopulation, leagueListPopulation } from "../../shared/population"
-import { isLeagueLocked, recalculateLeagueStandings } from "../../shared/leagueScoring"
+import { isLeagueLocked, recalculateLeagueStandings, calculateChampionshipRoundScore } from "../../shared/leagueScoring"
+import { autoCompleteMissedRound } from "../../services/openF1/missedRoundHandler"
+import { sendNotification } from "../../shared/notifications"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("LeagueResolver")
 
 // Minimum number of competitors required for a championship to join a league.
 const MIN_COMPETITORS_FOR_LEAGUE = 7
+
+// 24h in milliseconds — duration of the season-end results view.
+const SEASON_END_WINDOW_MS = 24 * 60 * 60 * 1000
+
+// Checks if a league is in the 24h season-end results window.
+// Returns true if join/leave/invite/revoke should be blocked.
+const isInSeasonEndWindow = (league: LeagueType): boolean => {
+  if (!league.seasonEndedAt) return false
+  const elapsed = Date.now() - new Date(league.seasonEndedAt).getTime()
+  return elapsed < SEASON_END_WINDOW_MS
+}
 
 // Computes lock status for a league by resolving its series round count.
 const computeLockStatus = async (
@@ -86,7 +99,7 @@ const leagueResolvers = {
 
   // Creates a new league. Any authenticated user can create a league.
   createLeague: async (
-    { input }: { input: { name: string; icon: string; profile_picture: string; series: string; maxChampionships?: number } },
+    { input }: { input: { name: string; icon: string; profile_picture: string; series: string; maxChampionships?: number; inviteOnly?: boolean } },
     req: AuthRequest,
   ): Promise<LeagueType> => {
     if (!req.isAuth) {
@@ -132,7 +145,9 @@ const leagueResolvers = {
         championships: [],
         settings: {
           maxChampionships: input.maxChampionships ?? 12,
+          inviteOnly: input.inviteOnly ?? false,
         },
+        season: new Date().getFullYear(),
         created_at: now,
         updated_at: now,
       })
@@ -165,6 +180,11 @@ const leagueResolvers = {
         return throwError("joinLeague", leagueId, "League not found!", 404)
       }
 
+      // Block during 24h season-end results window.
+      if (isInSeasonEndWindow(league)) {
+        return throwError("joinLeague", leagueId, "League season has just ended. Try again after the results period.", 400)
+      }
+
       // Fetch championship.
       const champ = await Champ.findById(champId)
       if (!champ) {
@@ -194,10 +214,24 @@ const leagueResolvers = {
         return throwError("joinLeague", leagueId, "The league's series does not have a fixed round count.", 400)
       }
 
-      // Verify league is not locked.
+      // Verify league is not locked (invite-only leagues bypass lock for valid invites).
       const { locked } = isLeagueLocked(series.rounds, league.championships)
       if (locked) {
-        return throwError("joinLeague", leagueId, "This league is locked. No more championships can join or leave.", 400)
+        const hasValidInvite = league.settings.inviteOnly &&
+          league.invited.some((inv) => inv.championship.toString() === champId &&
+            (!league.lastRoundStartedAt || inv.invitedAt >= league.lastRoundStartedAt))
+        if (!hasValidInvite) {
+          return throwError("joinLeague", leagueId, "This league is locked. No more championships can join or leave.", 400)
+        }
+      }
+
+      // Verify invite-only access — championship must be on the invited list with a valid (non-expired) invite.
+      if (league.settings.inviteOnly) {
+        const invite = league.invited.find((inv) => inv.championship.toString() === champId)
+        const isInvited = !!invite && (!league.lastRoundStartedAt || invite.invitedAt >= league.lastRoundStartedAt)
+        if (!isAdmin && !isInvited) {
+          return throwError("joinLeague", champId, "This league is invite only.", 403)
+        }
       }
 
       // Verify league is not full.
@@ -244,20 +278,59 @@ const leagueResolvers = {
         previousMember.leftAt = undefined
         log.info(`Championship ${champId} rejoined league ${leagueId} with preserved scores`)
       } else {
-        // New membership entry.
-        league.championships.push({
+        // New membership entry — backfill completed round scores.
+        const newMember = {
           championship: new ObjectId(champId),
           adjudicator: new ObjectId(adjudicatorId),
           joinedAt: now,
           active: true,
-          scores: [],
+          scores: [] as typeof league.championships[0]["scores"],
           cumulativeScore: 0,
           roundsCompleted: 0,
           cumulativeAverage: 0,
+          missedRounds: 0,
           position: 0,
-        })
-        log.info(`Championship ${champId} joined league ${leagueId}`)
+        }
+
+        // Backfill scores from rounds that were actually played (with results data).
+        const playedRounds = champ.rounds.filter(
+          (r: Round) =>
+            (r.status === "completed" || r.status === "results") &&
+            r.resultsProcessed &&
+            r.competitors.length > 0 &&
+            r.drivers.length > 0,
+        )
+        for (const round of playedRounds) {
+          const roundScore = calculateChampionshipRoundScore(round, round.drivers.length)
+          newMember.scores.push(roundScore)
+          newMember.cumulativeScore += roundScore.predictionScore
+          newMember.roundsCompleted += 1
+        }
+        newMember.cumulativeAverage = newMember.roundsCompleted > 0
+          ? Math.round((newMember.cumulativeScore / newMember.roundsCompleted) * 100) / 100
+          : 0
+
+        league.championships.push(newMember)
+
+        // Auto-complete missed rounds without penalty (missed before joining).
+        if (series.hasAPI) {
+          const champCompletedCount = champ.rounds.filter(
+            (r: Round) => r.status === "completed" || r.status === "results",
+          ).length
+          const seriesCompleted = series.completedRounds || 0
+          for (let i = 0; i < seriesCompleted - champCompletedCount; i++) {
+            await autoCompleteMissedRound(champ)
+          }
+        }
+
+        log.info(
+          `Championship ${champId} joined league ${leagueId} ` +
+          `(backfilled ${newMember.roundsCompleted} round scores, avg ${newMember.cumulativeAverage}%)`,
+        )
       }
+
+      // Remove championship from invited list if present.
+      league.invited = league.invited.filter((inv) => inv.championship.toString() !== champId)
 
       // Recalculate standings with the new/reactivated member.
       recalculateLeagueStandings(league.championships)
@@ -296,6 +369,11 @@ const leagueResolvers = {
       const league = await League.findById(leagueId)
       if (!league) {
         return throwError("leaveLeague", leagueId, "League not found!", 404)
+      }
+
+      // Block during 24h season-end results window.
+      if (isInSeasonEndWindow(league)) {
+        return throwError("leaveLeague", leagueId, "League season has just ended. Try again after the results period.", 400)
       }
 
       // Fetch championship.
@@ -356,7 +434,7 @@ const leagueResolvers = {
 
   // Updates league settings. Only the league creator can do this.
   updateLeagueSettings: async (
-    { _id, input }: { _id: string; input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number } },
+    { _id, input }: { _id: string; input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number; inviteOnly?: boolean } },
     req: AuthRequest,
   ): Promise<LeagueType> => {
     if (!req.isAuth) {
@@ -416,11 +494,177 @@ const leagueResolvers = {
         league.markModified("settings")
       }
 
+      // Update invite-only setting if provided.
+      if (input.inviteOnly !== undefined && input.inviteOnly !== null) {
+        league.settings.inviteOnly = input.inviteOnly
+        league.markModified("settings")
+      }
+
       league.updated_at = moment().format()
       await league.save()
 
       log.info(`League ${_id} settings updated by user ${req._id}`)
       return await buildLeagueResponse(_id, req.tokens)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Invites a championship to a league. Only the league creator or admin can do this.
+  inviteChampionshipToLeague: async (
+    { leagueId, champId }: { leagueId: string; champId: string },
+    req: AuthRequest,
+  ): Promise<LeagueType> => {
+    if (!req.isAuth) {
+      throwError("inviteChampionshipToLeague", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Fetch league.
+      const league = await League.findById(leagueId)
+      if (!league) {
+        return throwError("inviteChampionshipToLeague", leagueId, "League not found!", 404)
+      }
+
+      // Block during 24h season-end results window.
+      if (isInSeasonEndWindow(league)) {
+        return throwError("inviteChampionshipToLeague", leagueId, "League season has just ended. Try again after the results period.", 400)
+      }
+
+      // Verify user is the league creator or admin.
+      const isAdmin = user.permissions?.admin === true
+      const isCreator = league.creator.toString() === req._id
+      if (!isAdmin && !isCreator) {
+        return throwError("inviteChampionshipToLeague", req._id, "Only the league creator can invite championships!", 403)
+      }
+
+      // Fetch championship.
+      const champ = await Champ.findById(champId).populate("adjudicator.current", "_id name")
+      if (!champ) {
+        return throwError("inviteChampionshipToLeague", champId, "Championship not found!", 404)
+      }
+
+      // Verify championship belongs to the same series as the league.
+      if (champ.series.toString() !== league.series.toString()) {
+        return throwError("inviteChampionshipToLeague", champId, "Championship must belong to the same series as the league!", 400)
+      }
+
+      // Verify championship is not already an active member.
+      const alreadyInLeague = league.championships.some(
+        (c) => c.active && c.championship.toString() === champId,
+      )
+      if (alreadyInLeague) {
+        return throwError("inviteChampionshipToLeague", champId, "This championship is already in the league!", 400)
+      }
+
+      // Verify championship is not already invited.
+      const alreadyInvited = league.invited.some((inv) => inv.championship.toString() === champId)
+      if (alreadyInvited) {
+        return throwError("inviteChampionshipToLeague", champId, "This championship has already been invited!", 400)
+      }
+
+      // Verify championship has minimum competitors.
+      if (champ.competitors.length < MIN_COMPETITORS_FOR_LEAGUE) {
+        return throwError(
+          "inviteChampionshipToLeague",
+          champId,
+          `Championship must have at least ${MIN_COMPETITORS_FOR_LEAGUE} competitors to join a league.`,
+          400,
+        )
+      }
+
+      // Verify league is not locked.
+      const series = await Series.findById(league.series)
+      if (series?.rounds) {
+        const { locked } = isLeagueLocked(series.rounds, league.championships)
+        if (locked) {
+          return throwError("inviteChampionshipToLeague", leagueId, "This league is locked.", 400)
+        }
+      }
+
+      // Verify league is not full.
+      const activeMembers = league.championships.filter((c) => c.active)
+      if (activeMembers.length >= league.settings.maxChampionships) {
+        return throwError("inviteChampionshipToLeague", leagueId, "This league is full!", 400)
+      }
+
+      // Add championship to invited list with timestamp for expiry tracking.
+      league.invited.push({
+        championship: new ObjectId(champId),
+        invitedAt: moment().format(),
+      })
+      league.updated_at = moment().format()
+      await league.save()
+
+      // Send notification to the championship's adjudicator.
+      const adjudicatorId = champ.adjudicator.current._id || champ.adjudicator.current
+      await sendNotification({
+        userId: adjudicatorId,
+        type: "league_invite",
+        title: "League Invite",
+        description: `${league.name} has invited ${champ.name} to join their league.`,
+        leagueId: league._id,
+        leagueName: league.name,
+        leagueIcon: league.icon,
+        champId: champ._id,
+        champName: champ.name,
+        champIcon: champ.icon,
+      })
+
+      log.info(`Championship ${champId} invited to league ${leagueId} by user ${req._id}`)
+      return await buildLeagueResponse(leagueId, req.tokens)
+    } catch (err) {
+      throw err
+    }
+  },
+
+  // Revokes a championship invitation from a league. Only the league creator or admin can do this.
+  revokeLeagueInvite: async (
+    { leagueId, champId }: { leagueId: string; champId: string },
+    req: AuthRequest,
+  ): Promise<LeagueType> => {
+    if (!req.isAuth) {
+      throwError("revokeLeagueInvite", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      const user = (await User.findById(req._id)) as userTypeMongo
+      userErrors(user)
+
+      // Fetch league.
+      const league = await League.findById(leagueId)
+      if (!league) {
+        return throwError("revokeLeagueInvite", leagueId, "League not found!", 404)
+      }
+
+      // Block during 24h season-end results window.
+      if (isInSeasonEndWindow(league)) {
+        return throwError("revokeLeagueInvite", leagueId, "League season has just ended. Try again after the results period.", 400)
+      }
+
+      // Verify user is the league creator or admin.
+      const isAdmin = user.permissions?.admin === true
+      const isCreator = league.creator.toString() === req._id
+      if (!isAdmin && !isCreator) {
+        return throwError("revokeLeagueInvite", req._id, "Only the league creator can revoke invites!", 403)
+      }
+
+      // Verify championship is actually invited.
+      const isInvited = league.invited.some((inv) => inv.championship.toString() === champId)
+      if (!isInvited) {
+        return throwError("revokeLeagueInvite", champId, "This championship is not invited!", 400)
+      }
+
+      // Remove from invited list.
+      league.invited = league.invited.filter((inv) => inv.championship.toString() !== champId)
+      league.updated_at = moment().format()
+      await league.save()
+
+      log.info(`League invite revoked for championship ${champId} in league ${leagueId} by user ${req._id}`)
+      return await buildLeagueResponse(leagueId, req.tokens)
     } catch (err) {
       throw err
     }

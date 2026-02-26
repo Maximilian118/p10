@@ -6,6 +6,7 @@ const seriesSchema = `
     name: String!
     shortName: String
     rounds: Int
+    completedRounds: Int
     hasAPI: Boolean
     official: Boolean
     championships: [Champ!]

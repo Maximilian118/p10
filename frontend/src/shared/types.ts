@@ -173,6 +173,7 @@ export interface seriesType {
   name: string
   shortName?: string
   rounds?: number | null
+  completedRounds?: number
   hasAPI?: boolean
   official?: boolean
   championships: ChampType[]
@@ -474,12 +475,35 @@ export interface LeagueMemberType {
   cumulativeScore: number
   roundsCompleted: number
   cumulativeAverage: number
+  missedRounds: number
   position: number
 }
 
 // League settings.
 export interface LeagueSettingsType {
   maxChampionships: number
+  inviteOnly: boolean
+}
+
+// Enriched invite with timestamp for expiry tracking.
+export interface LeagueInviteType {
+  championship: ChampType | null
+  invitedAt: string
+}
+
+// Winner/runner-up reference in season history.
+export interface LeagueSeasonWinnerType {
+  championship: ChampType | null
+  adjudicator: userType | null
+}
+
+// Snapshot of a completed league season.
+export interface LeagueSeasonHistoryType {
+  season: number
+  championships: LeagueMemberType[]
+  winner: LeagueSeasonWinnerType | null
+  runnerUp: LeagueSeasonWinnerType | null
+  finalizedAt: string
 }
 
 // Main League type.
@@ -491,7 +515,13 @@ export interface LeagueType {
   series: seriesType | null
   creator: userType | null
   championships: LeagueMemberType[]
+  invited: LeagueInviteType[]
   settings: LeagueSettingsType
+  season: number
+  seasonEndedAt: string | null
+  seasonEndStandings: LeagueMemberType[] | null
+  history: LeagueSeasonHistoryType[]
+  lastRoundStartedAt: string | null
   locked: boolean
   lockThreshold: number
   created_at: string

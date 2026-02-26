@@ -71,6 +71,10 @@ export interface SendNotificationOptions {
   filerPoints?: number
   accusedPoints?: number
   protestStatus?: "adjudicating" | "voting" | "denied" | "passed"
+  // Optional league reference for deep linking.
+  leagueId?: ObjectId | string
+  leagueName?: string
+  leagueIcon?: string
 }
 
 /**
@@ -118,6 +122,9 @@ export async function sendNotification(options: SendNotificationOptions): Promis
       filerPoints,
       accusedPoints,
       protestStatus,
+      leagueId,
+      leagueName,
+      leagueIcon,
     } = options
 
     // Validate notification type.
@@ -145,6 +152,17 @@ export async function sendNotification(options: SendNotificationOptions): Promis
     }
     if (champIcon) {
       notification.champIcon = champIcon
+    }
+
+    // Add optional league reference.
+    if (leagueId) {
+      notification.leagueId = typeof leagueId === "string" ? new ObjectId(leagueId) : leagueId
+    }
+    if (leagueName) {
+      notification.leagueName = leagueName
+    }
+    if (leagueIcon) {
+      notification.leagueIcon = leagueIcon
     }
 
     // Add optional badge snapshot.
@@ -295,6 +313,9 @@ export async function sendNotificationToMany(
     filerPoints,
     accusedPoints,
     protestStatus,
+    leagueId,
+    leagueName,
+    leagueIcon,
   } = options
 
   // Validate notification type.
@@ -331,6 +352,11 @@ export async function sendNotificationToMany(
     if (champName) notification.champName = champName
     if (champIcon) notification.champIcon = champIcon
     if (badgeSnapshot) notification.badgeSnapshot = badgeSnapshot
+
+    // Add league data if present.
+    if (leagueId) notification.leagueId = typeof leagueId === "string" ? new ObjectId(leagueId) : leagueId
+    if (leagueName) notification.leagueName = leagueName
+    if (leagueIcon) notification.leagueIcon = leagueIcon
 
     // Add protest data if present.
     if (protestId) notification.protestId = typeof protestId === "string" ? new ObjectId(protestId) : protestId

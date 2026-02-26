@@ -5,6 +5,7 @@ import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import LockIcon from "@mui/icons-material/Lock"
 import LockOpenIcon from "@mui/icons-material/LockOpen"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday"
 import { EmojiEvents } from "@mui/icons-material"
 
 interface leagueBannerType {
@@ -15,10 +16,8 @@ interface leagueBannerType {
 const LeagueBanner: React.FC<leagueBannerType> = ({ league }) => {
   const activeCount = league.championships.filter((c) => c.active).length
 
-  // Find the highest rounds completed across all active members.
-  const maxRoundsCompleted = league.championships
-    .filter((m) => m.active)
-    .reduce((max, m) => Math.max(max, m.roundsCompleted || 0), 0)
+  // API series: show R{completedRounds}/{rounds}. Non-API series: show the season year.
+  const isAPISeries = league.series?.hasAPI && league.series?.rounds
 
   return (
     <div className="league-hero">
@@ -47,18 +46,24 @@ const LeagueBanner: React.FC<leagueBannerType> = ({ league }) => {
 
       {/* Status chips row. */}
       <div className="league-hero-chips">
-        <div className={`hero-chip ${league.locked ? "hero-chip--locked" : "hero-chip--open"}`}>
-          {league.locked ? <LockIcon /> : <LockOpenIcon />}
-          <span>{league.locked ? "Locked" : "Open"}</span>
+        <div className={`hero-chip ${league.locked ? "hero-chip--locked" : league.settings.inviteOnly ? "hero-chip--invite-only" : "hero-chip--open"}`}>
+          {league.locked ? <LockIcon /> : league.settings.inviteOnly ? <LockIcon /> : <LockOpenIcon />}
+          <span>{league.locked ? "Locked" : league.settings.inviteOnly ? "Invite Only" : "Open"}</span>
         </div>
         <div className="hero-chip hero-chip--neutral">
           <EmojiEvents />
           <span>{activeCount}/{league.settings.maxChampionships}</span>
         </div>
-        {league.series?.rounds && (
+        {/* API series: round progress chip. Non-API series: season year chip. */}
+        {isAPISeries ? (
           <div className="hero-chip hero-chip--neutral">
             <SportsScoreIcon />
-            <span>R{maxRoundsCompleted}/{league.series.rounds}</span>
+            <span>R{league.series?.completedRounds ?? 0}/{league.series?.rounds}</span>
+          </div>
+        ) : (
+          <div className="hero-chip hero-chip--neutral">
+            <CalendarTodayIcon />
+            <span>{league.season}</span>
           </div>
         )}
       </div>

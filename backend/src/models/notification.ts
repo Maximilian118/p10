@@ -4,8 +4,10 @@ import { userBadgeSnapshotType } from "./user"
 // Notification types for different events.
 export type NotificationTypeEnum =
   | "champ_invite"
+  | "league_invite"
   | "badge_earned"
   | "round_started"
+  | "round_missed"
   | "results_posted"
   | "kicked"
   | "banned"
@@ -20,8 +22,10 @@ export type NotificationTypeEnum =
 // Array of valid notification types for runtime validation.
 export const NOTIFICATION_TYPES: NotificationTypeEnum[] = [
   "champ_invite",
+  "league_invite",
   "badge_earned",
   "round_started",
+  "round_missed",
   "results_posted",
   "kicked",
   "banned",
@@ -48,6 +52,10 @@ export interface NotificationType {
   champId?: ObjectId
   champName?: string
   champIcon?: string
+  // Optional league reference for deep linking.
+  leagueId?: ObjectId
+  leagueName?: string
+  leagueIcon?: string
   // Optional badge snapshot for badge earned notifications.
   badgeSnapshot?: userBadgeSnapshotType
   // Optional protest data for protest notifications.
@@ -68,8 +76,10 @@ export interface NotificationType {
 // User's email notification preferences.
 export interface NotificationSettingsType {
   emailChampInvite: boolean
+  emailLeagueInvite: boolean
   emailBadgeEarned: boolean
   emailRoundStarted: boolean
+  emailRoundMissed: boolean
   emailResultsPosted: boolean
   emailKicked: boolean
   emailBanned: boolean
@@ -85,8 +95,10 @@ export interface NotificationSettingsType {
 // Default notification settings (all enabled).
 export const defaultNotificationSettings: NotificationSettingsType = {
   emailChampInvite: true,
+  emailLeagueInvite: true,
   emailBadgeEarned: true,
   emailRoundStarted: true,
+  emailRoundMissed: true,
   emailResultsPosted: true,
   emailKicked: true,
   emailBanned: true,
@@ -102,8 +114,10 @@ export const defaultNotificationSettings: NotificationSettingsType = {
 // Map notification type to settings key.
 export const notificationTypeToSettingsKey: Record<NotificationTypeEnum, keyof NotificationSettingsType> = {
   champ_invite: "emailChampInvite",
+  league_invite: "emailLeagueInvite",
   badge_earned: "emailBadgeEarned",
   round_started: "emailRoundStarted",
+  round_missed: "emailRoundMissed",
   results_posted: "emailResultsPosted",
   kicked: "emailKicked",
   banned: "emailBanned",

@@ -126,6 +126,8 @@ const Schema = buildSchema(`
     joinLeague(leagueId: ID!, champId: ID!): League!
     leaveLeague(leagueId: ID!, champId: ID!): League!
     updateLeagueSettings(_id: ID!, input: UpdateLeagueSettingsInput!): League!
+    inviteChampionshipToLeague(leagueId: ID!, champId: ID!): League!
+    revokeLeagueInvite(leagueId: ID!, champId: ID!): League!
     deleteLeague(_id: ID!, confirmName: String!): League!
   }
 

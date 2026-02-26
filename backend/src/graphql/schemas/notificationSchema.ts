@@ -24,6 +24,9 @@ const notificationSchema = `
     champId: ID
     champName: String
     champIcon: String
+    leagueId: ID
+    leagueName: String
+    leagueIcon: String
     badgeSnapshot: NotificationBadgeSnapshot
     # Protest notification fields.
     protestId: ID
@@ -43,6 +46,7 @@ const notificationSchema = `
   # User's email notification preferences.
   type NotificationSettings {
     emailChampInvite: Boolean!
+    emailLeagueInvite: Boolean!
     emailBadgeEarned: Boolean!
     emailRoundStarted: Boolean!
     emailResultsPosted: Boolean!
@@ -50,6 +54,7 @@ const notificationSchema = `
     emailBanned: Boolean!
     emailPromoted: Boolean!
     emailUserJoined: Boolean!
+    emailRoundMissed: Boolean!
     emailProtestFiled: Boolean!
     emailProtestVoteRequired: Boolean!
     emailProtestPassed: Boolean!
@@ -66,6 +71,7 @@ const notificationSchema = `
   # Input for updating notification settings.
   input NotificationSettingsInput {
     emailChampInvite: Boolean
+    emailLeagueInvite: Boolean
     emailBadgeEarned: Boolean
     emailRoundStarted: Boolean
     emailResultsPosted: Boolean
@@ -73,6 +79,7 @@ const notificationSchema = `
     emailBanned: Boolean
     emailPromoted: Boolean
     emailUserJoined: Boolean
+    emailRoundMissed: Boolean
     emailProtestFiled: Boolean
     emailProtestVoteRequired: Boolean
     emailProtestPassed: Boolean

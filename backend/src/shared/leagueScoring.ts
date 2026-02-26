@@ -103,17 +103,23 @@ export const calculateChampionshipRoundScore = (
   }
 }
 
+// Computes the effective average after applying the 5% missed-round penalty.
+export const computeEffectiveAverage = (member: LeagueMemberType): number => {
+  return Math.max(0, member.cumulativeAverage - (member.missedRounds || 0) * 5)
+}
+
 // Recalculates league standings (positions) for all active championships.
-// Sorts by cumulativeAverage descending, tiebreaker: more rounds completed.
+// Sorts by effective average (raw average - 5% per missed round) descending.
+// Tiebreaker: more rounds completed.
 export const recalculateLeagueStandings = (
   championships: LeagueMemberType[],
 ): void => {
   const active = championships.filter(c => c.active)
 
   active.sort((a, b) => {
-    if (b.cumulativeAverage !== a.cumulativeAverage) {
-      return b.cumulativeAverage - a.cumulativeAverage
-    }
+    const aEffective = computeEffectiveAverage(a)
+    const bEffective = computeEffectiveAverage(b)
+    if (bEffective !== aEffective) return bEffective - aEffective
     return b.roundsCompleted - a.roundsCompleted
   })
 
@@ -191,5 +197,87 @@ export const updateLeagueScore = async (
     )
   } catch (err) {
     log.error(`Error updating league score for champ ${champId}: ${err}`)
+  }
+}
+
+// Archives a league season: snapshots standings, creates history entry, resets members for the next year.
+// Follows the same pattern as championship archiveSeason in resolverUtility.ts.
+export const archiveLeagueSeason = async (leagueId: string): Promise<void> => {
+  try {
+    const league = await League.findById(leagueId)
+    if (!league) {
+      log.error(`archiveLeagueSeason: League ${leagueId} not found`)
+      return
+    }
+
+    const currentSeason = league.season
+    const active = league.championships.filter((c) => c.active)
+
+    // Apply penalties and determine final standings.
+    active.sort((a, b) => {
+      const aEff = computeEffectiveAverage(a)
+      const bEff = computeEffectiveAverage(b)
+      if (bEff !== aEff) return bEff - aEff
+      return b.roundsCompleted - a.roundsCompleted
+    })
+    active.forEach((m, i) => {
+      m.position = i + 1
+    })
+
+    // Snapshot final standings for the 24h results view.
+    league.seasonEndStandings = league.championships.map((m) => ({
+      championship: m.championship,
+      adjudicator: m.adjudicator,
+      joinedAt: m.joinedAt,
+      leftAt: m.leftAt,
+      active: m.active,
+      scores: [...m.scores],
+      cumulativeScore: m.cumulativeScore,
+      roundsCompleted: m.roundsCompleted,
+      cumulativeAverage: m.cumulativeAverage,
+      missedRounds: m.missedRounds,
+      position: m.position,
+    }))
+
+    // Push history entry with winner and runner-up.
+    const winner = active[0] || null
+    const runnerUp = active[1] || null
+    league.history.push({
+      season: currentSeason,
+      championships: league.seasonEndStandings,
+      winner: winner
+        ? { championship: winner.championship, adjudicator: winner.adjudicator }
+        : null,
+      runnerUp: runnerUp
+        ? { championship: runnerUp.championship, adjudicator: runnerUp.adjudicator }
+        : null,
+      finalizedAt: moment().format(),
+    })
+
+    // Reset all member scores for the new season.
+    for (const member of league.championships) {
+      member.scores = []
+      member.cumulativeScore = 0
+      member.roundsCompleted = 0
+      member.cumulativeAverage = 0
+      member.missedRounds = 0
+      member.position = 0
+    }
+
+    // Increment season to the next year.
+    league.season = currentSeason + 1
+
+    // Set seasonEndedAt to trigger the 24h results view on the frontend.
+    league.seasonEndedAt = moment().format()
+
+    league.markModified("championships")
+    league.markModified("seasonEndStandings")
+    league.markModified("history")
+    league.updated_at = moment().format()
+    await league.save()
+
+    log.info(`Archived league "${league.name}" season ${currentSeason} — now season ${league.season}`)
+  } catch (err) {
+    log.error(`archiveLeagueSeason error for league ${leagueId}: ${err}`)
   }
 }

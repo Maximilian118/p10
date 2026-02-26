@@ -13,6 +13,7 @@ export interface seriesType {
   drivers: ObjectId[] // All the drivers in this series
   created_by: ObjectId // The user that created the Series
   official?: boolean // True = Only admins can modify/delete this series
+  completedRounds: number // How many qualifying sessions have finished this year (derived from OpenF1 API, 0 for non-API series)
   hasAPI: boolean // Determines if this Series has an API for live data and automation features
   created_at: string
   updated_at: string
@@ -40,6 +41,7 @@ const seriesSchema = new mongoose.Schema<seriesType>({
   drivers: [{ type: mongoose.Schema.ObjectId, ref: "Driver" }], // Drivers that belong in this series.
   created_by: { type: mongoose.Schema.ObjectId, required: true, ref: "User" }, // User that created the series.
   official: { type: Boolean, default: false }, // Only admins can modify/delete if true.
+  completedRounds: { type: Number, default: 0 }, // Number of completed qualifying sessions this year (API series only).
   hasAPI: { type: Boolean, default: false }, // Whether this series has an API for live data.
   created_at: { type: String, default: moment().format() }, // When the series was created.
   updated_at: { type: String, default: moment().format() }, // When the series was updated.

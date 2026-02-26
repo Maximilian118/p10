@@ -1,0 +1,127 @@
+@use '../../../../scss/mixins';
+@use '../../../../scss/variables';
+
+// Container with fade-in animation — no background, content floats on dark overlay.
+.champ-picker-modal {
+  padding: 32px 28px;
+  max-width: 380px;
+  width: 85%;
+  text-align: center;
+  animation: champPickerFadeIn 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+// Modal title — white, centered.
+.champ-picker-modal__title {
+  font-size: 24px;
+  font-weight: 500;
+  color: white;
+  margin: 0 0 8px 0;
+}
+
+// Modal subtitle — muted white, centered.
+.champ-picker-modal__subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 40px 0;
+  line-height: 1.6;
+}
+
+// Championship list.
+.champ-picker-modal__list {
+  @include mixins.flexbox-column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+// Individual championship card — white background on dark overlay.
+.champ-picker-modal__item {
+  @include mixins.flexbox-column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 90%;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  &--selected {
+    background: variables.$background-green;
+  }
+
+  // Ineligible items — dimmed and non-interactive.
+  &--ineligible {
+    opacity: 0.55;
+    cursor: default;
+
+    &:hover {
+      background: white;
+    }
+  }
+}
+
+// Icon + name row.
+.champ-picker-modal__item-row {
+  @include mixins.flexbox-start;
+  gap: 12px;
+  width: 100%;
+}
+
+// Championship name text — dark on white card.
+.champ-picker-modal__item-name {
+  flex-grow: 1;
+  font-size: 15px;
+  color: variables.$colour-9;
+  text-transform: capitalize;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Eligibility status chip.
+.champ-picker-modal__item-chip {
+  font-size: 11px;
+  border-radius: 10px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  margin-top: 6px;
+
+  &--eligible {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+  }
+
+  &--ineligible {
+    background: rgba(0, 0, 0, 0.08);
+    color: variables.$colour-6;
+  }
+}
+
+// Close hint at the bottom of the overlay.
+.champ-picker-modal__close-hint {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  position: absolute;
+  bottom: 40px;
+  animation: champPickerFadeIn 0.3s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+// Fade-in animation for content and hint.
+@keyframes champPickerFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

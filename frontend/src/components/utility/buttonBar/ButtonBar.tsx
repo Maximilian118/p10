@@ -19,6 +19,7 @@ interface ButtonBarProps {
   buttons?: ButtonConfig[]
   leftButtons?: ButtonConfig[]
   rightButtons?: ButtonConfig[]
+  rightChildren?: React.ReactNode
   size?: "small" | "medium" | "large"
   children?: React.ReactNode
   background?: boolean
@@ -28,7 +29,7 @@ interface ButtonBarProps {
 // Button bar for page toolbars (championship, profile, settings).
 // Absolutely positioned at bottom with transparent background by default.
 // Use background and position props for different appearances.
-const ButtonBar: React.FC<ButtonBarProps> = ({ buttons, leftButtons, rightButtons, size, children, background, position }) => {
+const ButtonBar: React.FC<ButtonBarProps> = ({ buttons, leftButtons, rightButtons, rightChildren, size, children, background, position }) => {
   // Build className based on props.
   const className = `button-bar${background ? ' button-bar--background' : ''}${position ? ` button-bar--${position}` : ''}`
 
@@ -82,8 +83,8 @@ const ButtonBar: React.FC<ButtonBarProps> = ({ buttons, leftButtons, rightButton
     )
   }
 
-  // Grouped layout with left/right button arrays.
-  if (leftButtons || rightButtons) {
+  // Grouped layout with left/right button arrays and optional right children.
+  if (leftButtons || rightButtons || rightChildren) {
     return (
       <div className={className}>
         <div className="button-group">
@@ -91,6 +92,7 @@ const ButtonBar: React.FC<ButtonBarProps> = ({ buttons, leftButtons, rightButton
         </div>
         <div className="button-group">
           {rightButtons?.map((btn, i) => renderButton(btn, i))}
+          {rightChildren}
         </div>
       </div>
     )

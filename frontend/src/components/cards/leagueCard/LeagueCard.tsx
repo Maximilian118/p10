@@ -2,10 +2,10 @@ import React, { SyntheticEvent } from "react"
 import "./_leagueCard.scss"
 import { LeagueType } from "../../../shared/types"
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
-import IconList from "../../utility/iconList/IconList"
 import LockIcon from "@mui/icons-material/Lock"
 import LockOpenIcon from "@mui/icons-material/LockOpen"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday"
 import { EmojiEvents } from "@mui/icons-material"
 
 interface leagueCardType {
@@ -16,15 +16,8 @@ interface leagueCardType {
 
 // Card for displaying a league in a list with series chip, stats, and championship icons.
 const LeagueCard: React.FC<leagueCardType> = ({ league, onClick, highlight }) => {
-  // Only show active championships in the icon list.
-  const activeChampionships = league.championships
-    .filter((m) => m.active && m.championship)
-    .map((m) => m.championship!)
-
-  // Find the highest rounds completed across all active members.
-  const maxRoundsCompleted = league.championships
-    .filter((m) => m.active)
-    .reduce((max, m) => Math.max(max, m.roundsCompleted || 0), 0)
+  // API series: show R{completedRounds}/{rounds}. Non-API series: show the season year.
+  const isAPISeries = league.series?.hasAPI && league.series?.rounds
 
   return (
     <div className={`league-card${highlight ? " league-card__highlight" : ""}`} onClick={onClick}>
@@ -42,28 +35,29 @@ const LeagueCard: React.FC<leagueCardType> = ({ league, onClick, highlight }) =>
           </div>
         )}
 
-        {/* Stats row with lock status, member count, and rounds. */}
+        {/* Stats row with lock status, member count, and round/season progress. */}
         <div className="league-card-stats">
-          <div className={`league-card-chip ${league.locked ? "league-card-chip--locked" : "league-card-chip--open"}`}>
-            {league.locked ? <LockIcon /> : <LockOpenIcon />}
-            <span>{league.locked ? "Locked" : "Open"}</span>
+          <div className={`league-card-chip ${league.locked ? "league-card-chip--locked" : league.settings.inviteOnly ? "league-card-chip--invite-only" : "league-card-chip--open"}`}>
+            {league.locked ? <LockIcon /> : league.settings.inviteOnly ? <LockIcon /> : <LockOpenIcon />}
+            <span>{league.locked ? "Locked" : league.settings.inviteOnly ? "Invite Only" : "Open"}</span>
           </div>
           <div className="league-card-chip league-card-chip--neutral">
-            <EmojiEvents/>
-            <span>{activeChampionships.length}/{league.settings.maxChampionships}</span>
+            <EmojiEvents />
+            <span>{league.championships.filter((m) => m.active).length}/{league.settings.maxChampionships}</span>
           </div>
-          {league.series?.rounds && (
+          {/* API series: round progress chip. Non-API series: season year chip. */}
+          {isAPISeries ? (
             <div className="league-card-chip league-card-chip--neutral">
               <SportsScoreIcon />
-              <span>R{maxRoundsCompleted}/{league.series.rounds}</span>
+              <span>R{league.series?.completedRounds ?? 0}/{league.series?.rounds}</span>
+            </div>
+          ) : (
+            <div className="league-card-chip league-card-chip--neutral">
+              <CalendarTodayIcon />
+              <span>{league.season}</span>
             </div>
           )}
         </div>
-
-        {/* Championship icon list. */}
-        {activeChampionships.length > 0 && (
-          <IconList items={activeChampionships} />
-        )}
       </div>
     </div>
   )

@@ -35,7 +35,7 @@
     .league-card-title {
       width: 100%;
       color: variables.$colour-9;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
       text-transform: capitalize;
       overflow-wrap: break-word;
       font-size: 15px;
@@ -104,6 +104,12 @@
       &--locked {
         background: #eeeeee;
         color: #888;
+      }
+
+      // Invite-only state chip.
+      &--invite-only {
+        background: #f3e5f5;
+        color: #7b1fa2;
       }
 
       // Neutral info chip (members, rounds).

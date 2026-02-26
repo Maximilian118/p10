@@ -163,8 +163,9 @@ export const protestPopulation = [
 
 // Full population for a single league (detail view).
 export const leaguePopulation = [
-  { path: "series", select: "_id name shortName icon profile_picture rounds" },
+  { path: "series", select: "_id name shortName icon profile_picture rounds completedRounds hasAPI" },
   { path: "creator", select: "_id name icon" },
+  { path: "invited.championship", select: "_id name icon" },
   { path: "championships.championship", select: "_id name icon profile_picture competitors" },
   { path: "championships.adjudicator", select: "_id name icon" },
   { path: "championships.scores.insights.contributions.competitor", select: "_id name icon" },
@@ -173,11 +174,22 @@ export const leaguePopulation = [
   { path: "championships.scores.insights.bestPrediction.driver", select: "_id name icon driverID" },
   { path: "championships.scores.insights.worstPrediction.competitor", select: "_id name icon" },
   { path: "championships.scores.insights.worstPrediction.driver", select: "_id name icon driverID" },
+  // Season end standings population (same as championships).
+  { path: "seasonEndStandings.championship", select: "_id name icon profile_picture competitors" },
+  { path: "seasonEndStandings.adjudicator", select: "_id name icon" },
+  // History population.
+  { path: "history.championships.championship", select: "_id name icon" },
+  { path: "history.championships.adjudicator", select: "_id name icon" },
+  { path: "history.winner.championship", select: "_id name icon" },
+  { path: "history.winner.adjudicator", select: "_id name icon" },
+  { path: "history.runnerUp.championship", select: "_id name icon" },
+  { path: "history.runnerUp.adjudicator", select: "_id name icon" },
 ]
 
 // Lightweight population for league list view.
 export const leagueListPopulation = [
-  { path: "series", select: "_id name shortName icon rounds" },
+  { path: "series", select: "_id name shortName icon rounds completedRounds hasAPI" },
   { path: "creator", select: "_id name icon" },
+  { path: "invited.championship", select: "_id name icon" },
   { path: "championships.championship", select: "_id name icon profile_picture" },
 ]

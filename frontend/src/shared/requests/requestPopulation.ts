@@ -42,6 +42,7 @@ export const populateUser = `
   notificationsCount
   notificationSettings {
     emailChampInvite
+    emailLeagueInvite
     emailBadgeEarned
     emailRoundStarted
     emailResultsPosted
@@ -767,6 +768,9 @@ export const populateChamp = `
       bettingWindow {
         autoOpen
         autoOpenTime
+        autoOpenData {
+          timestamp
+        }
         autoClose
         autoCloseTime
       }
@@ -1060,6 +1064,8 @@ export const populateLeagueList = `
     shortName
     icon
     rounds
+    completedRounds
+    hasAPI
   }
   creator {
     _id
@@ -1072,18 +1078,27 @@ export const populateLeagueList = `
       name
       icon
       profile_picture
-      competitors {
-        _id
-      }
     }
     active
     cumulativeAverage
     roundsCompleted
+    missedRounds
     position
+  }
+  invited {
+    championship {
+      _id
+      name
+      icon
+    }
+    invitedAt
   }
   settings {
     maxChampionships
+    inviteOnly
   }
+  season
+  seasonEndedAt
   locked
   lockThreshold
   created_at
@@ -1103,6 +1118,8 @@ export const populateLeague = `
     icon
     profile_picture
     rounds
+    completedRounds
+    hasAPI
   }
   creator {
     _id
@@ -1186,10 +1203,90 @@ export const populateLeague = `
     cumulativeScore
     roundsCompleted
     cumulativeAverage
+    missedRounds
     position
+  }
+  seasonEndStandings {
+    championship {
+      _id
+      name
+      icon
+      profile_picture
+      competitors {
+        _id
+      }
+    }
+    adjudicator {
+      _id
+      name
+      icon
+    }
+    active
+    cumulativeScore
+    roundsCompleted
+    cumulativeAverage
+    missedRounds
+    position
+  }
+  invited {
+    championship {
+      _id
+      name
+      icon
+    }
+    invitedAt
   }
   settings {
     maxChampionships
+    inviteOnly
+  }
+  season
+  seasonEndedAt
+  lastRoundStartedAt
+  history {
+    season
+    championships {
+      championship {
+        _id
+        name
+        icon
+      }
+      adjudicator {
+        _id
+        name
+        icon
+      }
+      active
+      cumulativeAverage
+      missedRounds
+      roundsCompleted
+      position
+    }
+    winner {
+      championship {
+        _id
+        name
+        icon
+      }
+      adjudicator {
+        _id
+        name
+        icon
+      }
+    }
+    runnerUp {
+      championship {
+        _id
+        name
+        icon
+      }
+      adjudicator {
+        _id
+        name
+        icon
+      }
+    }
+    finalizedAt
   }
   locked
   lockThreshold
@@ -1208,6 +1305,9 @@ export const populateNotification = `
   champId
   champName
   champIcon
+  leagueId
+  leagueName
+  leagueIcon
   badgeSnapshot {
     _id
     championship

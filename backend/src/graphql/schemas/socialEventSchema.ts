@@ -30,7 +30,7 @@ const socialEventSchema = `
     kind: String!
     user: ID!
     userSnapshot: UserSnapshot!
-    payload: SocialEventPayload!
+    payload: SocialEventPayload
     commentCount: Int!
     created_at: String!
   }

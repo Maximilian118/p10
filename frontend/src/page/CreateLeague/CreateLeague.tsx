@@ -9,6 +9,7 @@ import { createLeague, updateLeagueSettings, deleteLeague, CreateLeagueFormType 
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { capitalise } from "../../shared/utility"
 import DropZone from "../../components/utility/dropZone/DropZone"
+import MUISwitch from "../../components/utility/muiSwitch/MUISwitch"
 import { ArrowBack, Delete, Info } from "@mui/icons-material"
 import ButtonBar from "../../components/utility/buttonBar/ButtonBar"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
@@ -66,6 +67,7 @@ const CreateLeague: React.FC = () => {
         profile_picture: null,
         series: editingLeague.series?._id || "",
         maxChampionships: editingLeague.settings.maxChampionships || 12,
+        inviteOnly: editingLeague.settings.inviteOnly ?? false,
       }
     }
     return {
@@ -74,6 +76,7 @@ const CreateLeague: React.FC = () => {
       profile_picture: null,
       series: "",
       maxChampionships: 12,
+      inviteOnly: false,
     }
   })
 
@@ -99,6 +102,17 @@ const CreateLeague: React.FC = () => {
 
   // Whether the user can delete (creator or admin).
   const canDelete = editingLeague?.creator?._id === user._id || user.permissions?.admin
+
+  // Checks whether any form field has changed from the editing league's values.
+  const hasFormChanged = (): boolean => {
+    if (!editingLeague) return true
+    if (capitalise(form.name) !== editingLeague.name) return true
+    if (form.maxChampionships !== editingLeague.settings.maxChampionships) return true
+    if (form.inviteOnly !== (editingLeague.settings.inviteOnly ?? false)) return true
+    if (form.icon instanceof File) return true
+    if (form.profile_picture instanceof File) return true
+    return false
+  }
 
   // Validates form before submission.
   const validateForm = (): boolean => {
@@ -141,7 +155,7 @@ const CreateLeague: React.FC = () => {
     setLoading(true)
 
     // Build the update input — only include changed fields.
-    const input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number } = {}
+    const input: { name?: string; icon?: string; profile_picture?: string; maxChampionships?: number; inviteOnly?: boolean } = {}
 
     // Update name if changed.
     const newName = capitalise(form.name)
@@ -152,6 +166,11 @@ const CreateLeague: React.FC = () => {
     // Update max championships if changed.
     if (form.maxChampionships !== editingLeague.settings.maxChampionships) {
       input.maxChampionships = form.maxChampionships
+    }
+
+    // Update invite-only setting if changed.
+    if (form.inviteOnly !== (editingLeague.settings.inviteOnly ?? false)) {
+      input.inviteOnly = form.inviteOnly
     }
 
     // Upload new icon if provided.
@@ -277,6 +296,13 @@ const CreateLeague: React.FC = () => {
           className="mui-form-el"
         />
 
+        <MUISwitch
+          text="Invite Only"
+          checked={form.inviteOnly}
+          onChange={(value) => setForm((prev) => ({ ...prev, inviteOnly: value }))}
+          fullWidth
+        />
+
         {/* Delete confirmation section (edit mode only). */}
         {isEditing && canDelete && showDeleteConfirm && (
           <div className="create-league-delete-confirm">
@@ -312,9 +338,10 @@ const CreateLeague: React.FC = () => {
             disabled: showDeleteConfirm && confirmDelete !== editingLeague?.name,
           }] : []),
           {
-            label: isEditing ? "Update League" : "Create League",
+            label: isEditing ? "Update" : "Create League",
             onClick: isEditing ? onUpdateHandler : onCreateHandler,
             loading,
+            disabled: isEditing && !hasFormChanged(),
           },
         ]}
       />

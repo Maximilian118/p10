@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import Close from "@mui/icons-material/Close"
 import { NotificationType, userBadgeSnapshotType } from "../../../../shared/types"
 import { formatRelativeTime } from "../../../../shared/utility"
+import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import ChampNotificationItem from "../ChampNotificationItem/ChampNotificationItem"
 import BadgeNotificationItem from "../BadgeNotificationItem/BadgeNotificationItem"
 import ProtestNotificationItem from "../ProtestNotificationItem/ProtestNotificationItem"
@@ -24,6 +25,11 @@ const isProtestNotification = (type: string): boolean => {
     "protest_denied",
     "protest_expired",
   ].includes(type)
+}
+
+// Check if notification type is a league notification.
+const isLeagueNotification = (type: string): boolean => {
+  return type === "league_invite"
 }
 
 // Shared notification shell — renders header, description, timestamp, unread dot,
@@ -80,11 +86,14 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
   const handleClick = () => {
     const isBadge = notification.type === "badge_earned" && notification.badgeSnapshot
     const isProtest = isProtestNotification(notification.type)
+    const isLeague = isLeagueNotification(notification.type)
 
     if (isBadge && onBadgeClick) {
       onBadgeClick(notification.badgeSnapshot!)
     } else if (isProtest && notification.champId && notification.protestId) {
       navigate(`/championship/${notification.champId}?view=protest&protestId=${notification.protestId}`)
+    } else if (isLeague && notification.leagueId) {
+      navigate(`/league/${notification.leagueId}`)
     } else if (notification.champId) {
       navigate(`/championship/${notification.champId}`)
     }
@@ -98,6 +107,7 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
 
   const isBadge = notification.type === "badge_earned" && notification.badgeSnapshot
   const isProtest = isProtestNotification(notification.type)
+  const isLeague = isLeagueNotification(notification.type)
 
   // Render the type-specific content component.
   const renderContent = () => {
@@ -106,6 +116,15 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
     }
     if (isProtest) {
       return <ProtestNotificationItem notification={notification} />
+    }
+    // League notifications show league icon + name as a preview card.
+    if (isLeague && notification.leagueIcon && notification.leagueName) {
+      return (
+        <div className="champ-notification-item__card">
+          <ImageIcon src={notification.leagueIcon} size="medium" />
+          <p className="champ-notification-item__name">{notification.leagueName}</p>
+        </div>
+      )
     }
     return <ChampNotificationItem notification={notification} />
   }
