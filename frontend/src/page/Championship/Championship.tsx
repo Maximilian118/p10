@@ -218,7 +218,7 @@ const Championship: React.FC = () => {
   }, [justJoined])
 
   // Scroll-based shrinking for banner - uses ref for CSS updates to avoid oscillation.
-  const { shrinkState, handleScroll, bannerRef, setForceShrunk } = useScrollShrink({ threshold: 70 })
+  const { shrinkState, handleScroll, bannerRef, setForceShrunk } = useScrollShrink({ threshold: 150 })
 
   // Whether the protest-blocked confirm is shown.
   const [ showProtestBlocked, setShowProtestBlocked ] = useState(false)
