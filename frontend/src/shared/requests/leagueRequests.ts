@@ -17,6 +17,54 @@ export interface CreateLeagueFormType {
   inviteOnly: boolean
 }
 
+// Fetches the user's most relevant league for the FloatingLeagueCard.
+// Silently returns null on failure (non-critical UI element).
+export const getMyTopLeague = async (
+  user: userType,
+  setUser: React.Dispatch<React.SetStateAction<userType>>,
+): Promise<LeagueType | null> => {
+  try {
+    const res: AxiosResponse = await axios.post(
+      "",
+      {
+        variables: {},
+        query: `
+          query {
+            getMyTopLeague {
+              _id
+              name
+              icon
+              championships {
+                championship {
+                  _id
+                  name
+                  icon
+                }
+                active
+                cumulativeAverage
+                roundsCompleted
+                missedRounds
+                position
+              }
+              tokens
+            }
+          }
+        `,
+      },
+      { headers: headers(user.token) },
+    )
+
+    if (res.data.errors) {
+      return null
+    }
+
+    const result = graphQLResponse("getMyTopLeague", res, user, setUser) as LeagueType | null
+    return result
+  } catch {
+    return null
+  }
+}
+
 // Get all leagues.
 export const getLeagues = async (
   setLeagues: React.Dispatch<React.SetStateAction<LeagueType[]>>,

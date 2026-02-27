@@ -2,14 +2,16 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { useNavigate } from "react-router-dom"
 import "./_home.scss"
 import AppContext from "../../context"
-import { FloatingChampType } from "../../shared/types"
+import { FloatingChampType, LeagueType } from "../../shared/types"
 import { SocialEventType } from "../../shared/socialTypes"
 import { getMyTopChampionship } from "../../shared/requests/champRequests"
+import { getMyTopLeague } from "../../shared/requests/leagueRequests"
 import { getFeed, updateLocation } from "../../shared/requests/socialRequests"
 import { graphQLErrorType, initGraphQLError } from "../../shared/requests/requestsUtility"
 import { useInfiniteScroll } from "../../shared/hooks/useInfiniteScroll"
 import { useGeolocation } from "../../shared/hooks/useGeolocation"
 import FloatingChampCard from "../../components/cards/floatingChampCard/FloatingChampCard"
+import FloatingLeagueCard from "../../components/cards/floatingLeagueCard/FloatingLeagueCard"
 import SocialEventCard from "../../components/cards/socialEventCard/SocialEventCard"
 import FillLoading from "../../components/utility/fillLoading/FillLoading"
 import ErrorDisplay from "../../components/utility/errorDisplay/ErrorDisplay"
@@ -22,6 +24,7 @@ const FEED_PAGE_SIZE = 20
 const Home: React.FC = () => {
   const { user, setUser } = useContext(AppContext)
   const [floatingChamp, setFloatingChamp] = useState<FloatingChampType | null>(null)
+  const [floatingLeague, setFloatingLeague] = useState<LeagueType | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [backendErr, setBackendErr] = useState<graphQLErrorType>(initGraphQLError)
 
@@ -68,13 +71,15 @@ const Home: React.FC = () => {
     const fetchHomeData = async () => {
       setLoading(true)
 
-      // Fetch champ and initial feed in parallel.
-      const [topChamp, feedResult] = await Promise.all([
+      // Fetch champ, league, and initial feed in parallel.
+      const [topChamp, feedResult, topLeague] = await Promise.all([
         getMyTopChampionship(user, setUser),
         getFeed(null, FEED_PAGE_SIZE, user, setUser, navigate, setBackendErr),
+        getMyTopLeague(user, setUser),
       ])
 
       setFloatingChamp(topChamp)
+      setFloatingLeague(topLeague)
 
       if (feedResult) {
         setEvents(feedResult.events)
@@ -137,6 +142,14 @@ const Home: React.FC = () => {
         <FloatingChampCard
           champ={floatingChamp}
           onClick={() => navigate(`/championship/${floatingChamp._id}`)}
+        />
+      )}
+
+      {/* Top league card. */}
+      {floatingLeague && (
+        <FloatingLeagueCard
+          league={floatingLeague}
+          onClick={() => navigate(`/league/${floatingLeague._id}`)}
         />
       )}
 

@@ -726,6 +726,88 @@ const leagueResolvers = {
       throw err
     }
   },
+
+  // Returns the user's most relevant league for the FloatingLeagueCard.
+  // Prioritises leagues where the user is adjudicator of a championship.
+  getMyTopLeague: async (
+    _args: Record<string, never>,
+    req: AuthRequest,
+  ): Promise<LeagueType | null> => {
+    if (!req.isAuth) {
+      throwError("getMyTopLeague", req.isAuth, "Not Authenticated!", 401)
+    }
+
+    try {
+      // Find all championships where the user is a competitor.
+      const userChamps = await Champ.find(
+        { competitors: new ObjectId(req._id) },
+        { _id: 1, "adjudicator.current": 1 },
+      ).exec()
+
+      if (userChamps.length === 0) return null
+
+      const userChampIds = userChamps.map((c) => c._id)
+
+      // Find active leagues where the user's championship is an active member.
+      // Uses $elemMatch so both conditions apply to the same array element.
+      const leagues = await League.find({
+        championships: {
+          $elemMatch: {
+            championship: { $in: userChampIds },
+            active: true,
+          },
+        },
+        seasonEndedAt: null,
+      })
+        .populate(leagueListPopulation)
+        .exec()
+
+      if (leagues.length === 0) return null
+
+      // Build a set of championship IDs where the user is adjudicator.
+      const adjudicatorChampIds = new Set(
+        userChamps
+          .filter((c) => c.adjudicator?.current?.toString() === req._id)
+          .map((c) => c._id.toString()),
+      )
+
+      // Score each league to pick the most relevant one.
+      const scored = leagues.map((league) => {
+        let score = 0
+        const activeMembers = league.championships.filter((m) => m.active)
+
+        // +100 if user is adjudicator of any championship in this league.
+        const hasAdjChamp = activeMembers.some((m) =>
+          adjudicatorChampIds.has(m.championship?.toString() || ""),
+        )
+        if (hasAdjChamp) score += 100
+
+        // +10 per active championship (more active = more interesting).
+        score += activeMembers.length * 10
+
+        return { league, score }
+      })
+
+      // Sort by score descending, then by updated_at descending as tiebreaker.
+      scored.sort((a, b) => {
+        if (a.score !== b.score) return b.score - a.score
+        return new Date(b.league.updated_at).getTime() - new Date(a.league.updated_at).getTime()
+      })
+
+      const topLeague = scored[0].league
+      const { locked, lockThreshold } = await computeLockStatus(topLeague)
+
+      return {
+        ...topLeague._doc,
+        locked,
+        lockThreshold,
+        tokens: req.tokens,
+      }
+    } catch (err) {
+      log.error("Failed to get top league:", err)
+      return null
+    }
+  },
 }
 
 export default leagueResolvers

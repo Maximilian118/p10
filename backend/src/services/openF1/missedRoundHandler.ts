@@ -82,14 +82,21 @@ export const detectAndHandleMissedRounds = async (completedCount: number): Promi
       seasonEndedAt: null,
     })
 
+    // Batch-load all championships referenced by active league members (avoids N+1 queries).
+    const allChampIds = leagues.flatMap((l) =>
+      l.championships.filter((m) => m.active).map((m) => m.championship),
+    )
+    const allChamps = await Champ.find({ _id: { $in: allChampIds } })
+    const champMap = new Map(allChamps.map((c) => [c._id.toString(), c]))
+
     for (const league of leagues) {
       let leagueModified = false
 
       for (const member of league.championships) {
         if (!member.active) continue
 
-        // Load the championship.
-        const champ = await Champ.findById(member.championship)
+        // Look up the championship from the pre-loaded batch.
+        const champ = champMap.get(member.championship.toString())
         if (!champ) continue
 
         // Count how many rounds the championship has actually completed.

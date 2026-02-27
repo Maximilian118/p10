@@ -1,24 +1,12 @@
 import React from "react"
 import "./_leagueStandings.scss"
 import { LeagueMemberType } from "../../../../shared/types"
+import { positionLabel, effectiveAvg } from "../../../../shared/leagueUtils"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 
 interface leagueStandingsType {
   championships: LeagueMemberType[]
   onChampClick?: (champId: string) => void
-}
-
-// Returns a position label — medal emoji for top 3, number for the rest.
-const positionLabel = (pos: number): string => {
-  if (pos === 1) return "1st"
-  if (pos === 2) return "2nd"
-  if (pos === 3) return "3rd"
-  return `${pos}th`
-}
-
-// Computes the effective average after applying the 5% missed-round penalty.
-const effectiveAvg = (member: LeagueMemberType): number => {
-  return Math.max(0, member.cumulativeAverage - (member.missedRounds || 0) * 5)
 }
 
 // Head-to-head championship comparison. Adapts layout for 2 (VS) vs 3+ (ranked bars).
@@ -52,7 +40,7 @@ const LeagueStandings: React.FC<leagueStandingsType> = ({ championships, onChamp
             <span className="comparison-card-name">{member.championship?.name}</span>
           </div>
           <div className="comparison-card-right">
-            <span className="comparison-card-avg">{effectiveAvg(member).toFixed(1)}%</span>
+            <span className="comparison-card-avg">{effectiveAvg(member.cumulativeAverage, member.missedRounds).toFixed(1)}%</span>
             {member.missedRounds > 0 && <span className="comparison-card-penalty">-{member.missedRounds * 5}%</span>}
             <span className="comparison-card-rounds">R{member.roundsCompleted}</span>
           </div>
@@ -65,8 +53,8 @@ const LeagueStandings: React.FC<leagueStandingsType> = ({ championships, onChamp
   if (active.length === 2) {
     const left = active[0]
     const right = active[1]
-    const leftEffective = effectiveAvg(left)
-    const rightEffective = effectiveAvg(right)
+    const leftEffective = effectiveAvg(left.cumulativeAverage, left.missedRounds)
+    const rightEffective = effectiveAvg(right.cumulativeAverage, right.missedRounds)
     const leftIsLeader = leftEffective >= rightEffective
 
     return (
@@ -132,7 +120,7 @@ const LeagueStandings: React.FC<leagueStandingsType> = ({ championships, onChamp
         {active.map((member) => {
           const isLeader = member.position === 1
           const medalClass = member.position <= 3 ? ` ranked-pos--${member.position}` : ""
-          const memberEffective = effectiveAvg(member)
+          const memberEffective = effectiveAvg(member.cumulativeAverage, member.missedRounds)
 
           return (
             <div

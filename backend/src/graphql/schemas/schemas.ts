@@ -54,6 +54,7 @@ const Schema = buildSchema(`
     getFollowingDetailed(userId: ID!): FollowingDetailed!
     getLeagues: Leagues!
     getLeagueById(_id: ID!): League!
+    getMyTopLeague: League
   }
 
   type rootMutation {

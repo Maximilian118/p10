@@ -13,6 +13,9 @@ import { createLogger } from "../../shared/logger"
 
 const log = createLogger("AutoResults")
 
+// Number of championships to process concurrently.
+const BATCH_SIZE = 10
+
 // Triggers automatic round results for all API-enabled championships
 // when an F1 session finishes. Maps F1Session driver positions to round
 // drivers, sets positionActual, runs resultsHandler, and broadcasts
@@ -74,9 +77,19 @@ export const triggerAutoResults = async (sessionKey: number, io: Server): Promis
 
     log.info(`Position map built: ${positionMap.size} drivers with positions`)
 
-    // Process each championship that has a round in betting_closed.
-    for (const champ of champs) {
-      await processChampionship(champ, positionMap, io)
+    // Process championships in parallel batches (each champ is independent).
+    log.info(`Processing ${champs.length} championships in batches of ${BATCH_SIZE}`)
+    for (let i = 0; i < champs.length; i += BATCH_SIZE) {
+      const batch = champs.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(
+        batch.map((champ) => processChampionship(champ, positionMap, io)),
+      )
+      // Log any failures in the batch.
+      results.forEach((result, idx) => {
+        if (result.status === "rejected") {
+          log.error(`Failed to process championship "${batch[idx].name}":`, result.reason)
+        }
+      })
     }
   } catch (err) {
     log.error("Failed to trigger auto-results:", err)

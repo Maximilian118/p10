@@ -65,7 +65,10 @@
   }
 
   .rounds-bar-countdown-btn {
+    @include mixins.flexbox;
+    
     p {
+      font-size: 12px;
       margin-right: 5px;
     }
   }

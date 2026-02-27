@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import "./_leagueResultsView.scss"
 import { LeagueMemberType } from "../../../../shared/types"
+import { effectiveAvg } from "../../../../shared/leagueUtils"
 import ImageIcon from "../../../../components/utility/icon/imageIcon/ImageIcon"
 import StyledText from "../../../../components/utility/styledText/StyledText"
 
@@ -9,11 +10,6 @@ interface LeagueResultsViewProps {
   season: number
   seasonEndedAt: string
   onSkip: () => void
-}
-
-// Computes effective average after applying the 5% missed-round penalty.
-const effectiveAvg = (member: LeagueMemberType): number => {
-  return Math.max(0, member.cumulativeAverage - (member.missedRounds || 0) * 5)
 }
 
 // Calculates seconds remaining in the 24-hour results window.
@@ -54,8 +50,8 @@ const LeagueResultsView: React.FC<LeagueResultsViewProps> = ({
   const active = seasonEndStandings
     .filter((m) => m.active && m.championship)
     .sort((a, b) => {
-      const aEff = effectiveAvg(a)
-      const bEff = effectiveAvg(b)
+      const aEff = effectiveAvg(a.cumulativeAverage, a.missedRounds)
+      const bEff = effectiveAvg(b.cumulativeAverage, b.missedRounds)
       if (bEff !== aEff) return bEff - aEff
       return b.roundsCompleted - a.roundsCompleted
     })
@@ -85,7 +81,7 @@ const LeagueResultsView: React.FC<LeagueResultsViewProps> = ({
             <ImageIcon src={champion.championship?.icon || ""} size="xx-large" />
           </div>
           <h3 className="league-results__champion-name">{champion.championship?.name}</h3>
-          <StyledText text={`${effectiveAvg(champion).toFixed(1)}%`} color="gold" />
+          <StyledText text={`${effectiveAvg(champion.cumulativeAverage, champion.missedRounds).toFixed(1)}%`} color="gold" />
           {champion.missedRounds > 0 && (
             <span className="league-results__penalty">-{champion.missedRounds * 5}% penalty</span>
           )}
@@ -103,7 +99,7 @@ const LeagueResultsView: React.FC<LeagueResultsViewProps> = ({
               <ImageIcon src={runnerUp.championship?.icon || ""} size="large" />
               <p className="league-results__podium-name">{runnerUp.championship?.name}</p>
               <StyledText text="2nd" color="silver" />
-              <span className="league-results__podium-avg">{effectiveAvg(runnerUp).toFixed(1)}%</span>
+              <span className="league-results__podium-avg">{effectiveAvg(runnerUp.cumulativeAverage, runnerUp.missedRounds).toFixed(1)}%</span>
             </div>
           )}
           {third && (
@@ -111,7 +107,7 @@ const LeagueResultsView: React.FC<LeagueResultsViewProps> = ({
               <ImageIcon src={third.championship?.icon || ""} size="large" />
               <p className="league-results__podium-name">{third.championship?.name}</p>
               <StyledText text="3rd" color="bronze" />
-              <span className="league-results__podium-avg">{effectiveAvg(third).toFixed(1)}%</span>
+              <span className="league-results__podium-avg">{effectiveAvg(third.cumulativeAverage, third.missedRounds).toFixed(1)}%</span>
             </div>
           )}
         </div>
@@ -129,7 +125,7 @@ const LeagueResultsView: React.FC<LeagueResultsViewProps> = ({
               {member.missedRounds > 0 && (
                 <span className="league-results__standing-penalty">-{member.missedRounds * 5}%</span>
               )}
-              <span className="league-results__standing-avg">{effectiveAvg(member).toFixed(1)}%</span>
+              <span className="league-results__standing-avg">{effectiveAvg(member.cumulativeAverage, member.missedRounds).toFixed(1)}%</span>
             </div>
           ))}
         </div>
