@@ -33,6 +33,10 @@ const app = express()
 // Security: Remove X-Powered-By header to hide server technology.
 app.disable("x-powered-by")
 
+// Trust the first proxy (Railway's reverse proxy) so rate limiting
+// and IP-based features use the real client IP from X-Forwarded-For.
+app.set("trust proxy", 1)
+
 // Security: Add helmet middleware for various HTTP security headers.
 app.use(
   helmet({
@@ -52,9 +56,10 @@ app.use(
 const httpServer = createServer(app)
 
 // Initialize Socket.io with CORS configuration.
+// In production, restrict to frontend domain. In development, allow all origins.
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST"],
   },
 })
@@ -70,6 +75,18 @@ app.use(express.json({ limit: "1mb" }))
 
 // Handle CORS Errors.
 app.use(corsHandler)
+
+// Health check endpoint for deployment platform monitoring.
+// Returns server status, uptime, and database connectivity.
+app.get("/health", (_req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+  res.status(dbStatus === "connected" ? 200 : 503).json({
+    status: dbStatus === "connected" ? "healthy" : "degraded",
+    uptime: process.uptime(),
+    database: dbStatus,
+    timestamp: new Date().toISOString(),
+  })
+})
 
 // Security: Apply rate limiting to GraphQL endpoint.
 app.use("/graphql", apiLimiter)

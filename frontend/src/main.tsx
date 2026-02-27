@@ -6,8 +6,10 @@ import App from './App'
 import axios from 'axios'
 import { resizeOps } from './shared/utility'
 
-// URL for all graphql requests - uses Vite proxy in development
-axios.defaults.baseURL = "/graphql"
+// URL for all GraphQL requests.
+// In production, points to the API subdomain. In development, uses Vite proxy.
+const apiUrl = import.meta.env.PROD ? import.meta.env.VITE_API_URL : undefined
+axios.defaults.baseURL = apiUrl ? `${apiUrl}/graphql` : "/graphql"
 
 // MUI style
 const theme = createTheme({

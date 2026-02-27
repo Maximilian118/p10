@@ -12,9 +12,12 @@ import {
   userType as fullUserType,
 } from "./types"
 
-// Returns the backend API URL based on current browser location.
-// Allows frontend to auto-detect backend address for LAN access.
+// Returns the backend API URL.
+// In production, uses VITE_API_URL env var. In development, auto-detects from browser location.
 export const getApiUrl = (): string => {
+  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
   const protocol = window.location.protocol
   const hostname = window.location.hostname
   const port = 3001
