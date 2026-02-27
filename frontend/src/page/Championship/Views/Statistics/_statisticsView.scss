@@ -37,9 +37,18 @@
     position: relative;
   }
 
-  // Tall variant for heatmap.
+  // Tall variant for heatmap — fixed height, rows shrink to fit.
   &__section-chart--tall {
-    height: 400px;
+    width: 100%;
+    height: 300px;
+    position: relative;
+
+    // Force Nivo's responsive wrapper to fill the fixed-height container
+    // so the chart reads 400px and shrinks rows to fit.
+    > div {
+      position: absolute;
+      inset: 0;
+    }
   }
 
   // Short variant for simple bar charts.

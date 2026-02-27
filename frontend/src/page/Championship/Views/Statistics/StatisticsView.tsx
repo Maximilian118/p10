@@ -186,7 +186,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
           <ResponsiveLine
             data={pointsProgressionData}
             theme={nivoTheme}
-            margin={{ top: 20, right: 20, bottom: 30, left: 50 }}
+            margin={{ top: 20, right: 20, bottom: 10, left: 50 }}
             xScale={{ type: "point" }}
             yScale={{ type: "linear", min: 0, max: "auto", stacked: false }}
             curve="monotoneX"
@@ -198,10 +198,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
             pointColor="white"
             colors={competitorColors}
             enableSlices="x"
-            axisBottom={{
-              tickSize: 0,
-              tickPadding: 8,
-            }}
+            axisBottom={null}
             axisLeft={{
               tickSize: 0,
               tickPadding: 8,
@@ -246,25 +243,23 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
           <ResponsiveHeatMap
             data={heatmapData}
             theme={nivoTheme}
-            margin={{ top: 20, right: 20, bottom: 40, left: 90 }}
+            margin={{ top: 20, right: 10, bottom: 10, left: 50 }}
             axisTop={null}
-            axisBottom={{
-              tickSize: 0,
-              tickPadding: 8,
-            }}
+            axisBottom={null}
             axisLeft={{
               tickSize: 0,
               tickPadding: 8,
             }}
             colors={{
-              type: "sequential",
-              scheme: "reds",
+              type: "diverging",
+              colors: ["#E0E0E0", "#A5D6A7", "#2E7D32"],
+              divergeAt: 0.5,
             }}
             emptyColor="#f4f4f4"
+            enableLabels={false}
             borderRadius={3}
             borderWidth={2}
             borderColor="white"
-            labelTextColor={{ from: "color", modifiers: [["darker", 3]] }}
           />
         </div>
       </div>
@@ -278,18 +273,14 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
               data={streamData.data}
               keys={streamData.keys}
               theme={nivoTheme}
-              margin={{ top: 20, right: 20, bottom: 30, left: 50 }}
+              margin={{ top: 20, right: 20, bottom: 10, left: 50 }}
               offsetType="silhouette"
               curve="basis"
               colors={competitorColors}
               fillOpacity={0.85}
               borderWidth={1}
               borderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
-              axisBottom={{
-                tickSize: 0,
-                tickPadding: 8,
-                format: (v: number) => `R${v + 1}`,
-              }}
+              axisBottom={null}
               axisLeft={null}
             />
           </div>
@@ -345,7 +336,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
             <ResponsiveLine
               data={gapToLeaderData}
               theme={nivoTheme}
-              margin={{ top: 20, right: 20, bottom: 30, left: 50 }}
+              margin={{ top: 20, right: 20, bottom: 10, left: 50 }}
               xScale={{ type: "point" }}
               yScale={{ type: "linear", min: 0, max: "auto", stacked: false, reverse: true }}
               curve="monotoneX"
@@ -359,10 +350,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
               enableArea={true}
               areaOpacity={0.04}
               enableSlices="x"
-              axisBottom={{
-                tickSize: 0,
-                tickPadding: 8,
-              }}
+              axisBottom={null}
               axisLeft={{
                 tickSize: 0,
                 tickPadding: 8,
@@ -384,16 +372,13 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ champ }) => {
             keys={scoringBreakdownData.keys}
             indexBy="round"
             theme={nivoTheme}
-            margin={{ top: 20, right: 20, bottom: 30, left: 50 }}
+            margin={{ top: 20, right: 20, bottom: 10, left: 50 }}
             groupMode="stacked"
             colors={(bar) => colorAccessor(String(bar.id))}
             borderRadius={2}
             padding={0.2}
             enableLabel={false}
-            axisBottom={{
-              tickSize: 0,
-              tickPadding: 8,
-            }}
+            axisBottom={null}
             axisLeft={{
               tickSize: 0,
               tickPadding: 8,

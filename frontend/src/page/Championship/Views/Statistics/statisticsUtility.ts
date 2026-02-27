@@ -169,7 +169,7 @@ export const buildPointsDistributionData = (
 
 export interface HeatMapSerie {
   id: string
-  data: { x: string; value: number }[]
+  data: { x: string; y: number }[]
 }
 
 // Builds heatmap grid: rows = competitors (by final standing), cols = rounds, value = points scored.
@@ -185,7 +185,7 @@ export const buildPerformanceHeatmapData = (
       const entry = round.competitors.find(c => getCompetitorName(c) === name)
       return {
         x: `R${i + 1}`,
-        value: entry?.points ?? 0,
+        y: entry?.points ?? 0,
       }
     }),
   }))
@@ -278,7 +278,7 @@ export const buildDriverPopularityData = (completedRounds: RoundType[]): DriverP
 
   return [...pickMap.entries()]
     .map(([driver, picks]) => ({ driver, picks }))
-    .sort((a, b) => b.picks - a.picks)
+    .sort((a, b) => a.picks - b.picks)
     .slice(0, 10)
 }
 
@@ -414,16 +414,15 @@ export const getCompletedRounds = (rounds: RoundType[]): RoundType[] => {
 
 // Abbreviates a single name to "F. Last" format for compact chart labels.
 // Single-word names are returned as-is. Multi-word names use first initial + last word.
+// Converts a full name to initials (e.g. "Max Crosby" → "M.C.").
 const abbreviateName = (name: string): string => {
   const parts = name.trim().split(/\s+/)
   if (parts.length <= 1) return name
-  const first = parts[0]
-  const last = parts[parts.length - 1]
-  return `${first[0].toUpperCase()}. ${last}`
+  return parts.map(p => p[0].toUpperCase()).join(".") + "."
 }
 
-// Builds a collision-safe abbreviation map for a set of competitor names.
-// Uses "F. Last" format, expanding the first name prefix to resolve duplicates.
+// Builds a collision-safe initials map for a set of competitor names.
+// Uses "F.L." format, appending last-name characters to resolve duplicates.
 export const buildNameAbbreviations = (names: string[]): Map<string, string> => {
   const result = new Map<string, string>()
 
@@ -436,26 +435,25 @@ export const buildNameAbbreviations = (names: string[]): Map<string, string> => 
     abbrevToNames.set(abbrev, group)
   }
 
-  // Resolve: unique abbreviations go straight in, collisions get expanded prefix.
+  // Resolve: unique abbreviations go straight in, collisions append last-name chars.
   for (const [abbrev, group] of abbrevToNames) {
     if (group.length === 1) {
       result.set(group[0], abbrev)
     } else {
-      // Expand first name prefix until all are unique.
+      // Append last-name characters until each is unique within the collision group.
       for (const fullName of group) {
         const parts = fullName.trim().split(/\s+/)
-        const first = parts[0]
         const last = parts[parts.length - 1]
-        let prefixLen = 2
-        let candidate = `${first.slice(0, prefixLen)}. ${last}`
+        let suffixLen = 1
+        let candidate = `${abbrev}${last.slice(1, 1 + suffixLen).toLowerCase()}`
 
-        // Keep expanding until unique within this collision group.
+        // Keep expanding suffix until unique within this collision group.
         while (
-          prefixLen < first.length &&
-          group.some(other => other !== fullName && expandedAbbrev(other, prefixLen) === candidate)
+          suffixLen < last.length &&
+          group.some(other => other !== fullName && expandedInitials(other, suffixLen) === candidate)
         ) {
-          prefixLen++
-          candidate = `${first.slice(0, prefixLen)}. ${last}`
+          suffixLen++
+          candidate = `${abbrev}${last.slice(1, 1 + suffixLen).toLowerCase()}`
         }
         result.set(fullName, candidate)
       }
@@ -466,11 +464,12 @@ export const buildNameAbbreviations = (names: string[]): Map<string, string> => 
 }
 
 // Helper for collision resolution: expand first name to prefixLen chars.
-const expandedAbbrev = (name: string, prefixLen: number): string => {
+// Generates a disambiguated initials string by appending last-name characters.
+const expandedInitials = (name: string, suffixLen: number): string => {
   const parts = name.trim().split(/\s+/)
-  const first = parts[0]
   const last = parts[parts.length - 1]
-  return `${first.slice(0, prefixLen)}. ${last}`
+  const initials = parts.map(p => p[0].toUpperCase()).join(".") + "."
+  return `${initials}${last.slice(1, 1 + suffixLen).toLowerCase()}`
 }
 
 // Type helper for extracting abbreviated competitor names as keys for charts.
