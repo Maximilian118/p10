@@ -55,11 +55,16 @@ app.use(
 // Create HTTP server wrapping Express for Socket.io integration.
 const httpServer = createServer(app)
 
+// Allowed origins for CORS. Supports comma-separated list for multiple origins.
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
+  : ["*"]
+
 // Initialize Socket.io with CORS configuration.
-// In production, restrict to frontend domain. In development, allow all origins.
+// In production, restrict to frontend domains. In development, allow all origins.
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
+    origin: allowedOrigins.includes("*") ? "*" : allowedOrigins,
     methods: ["GET", "POST"],
   },
 })

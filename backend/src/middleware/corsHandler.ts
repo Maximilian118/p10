@@ -1,13 +1,15 @@
 import { RequestHandler } from "express"
 
-// Allowed origins for CORS. In production, restricts to the frontend domain.
+// Allowed origins for CORS. Supports comma-separated list for multiple origins.
 // In development (no FRONTEND_URL set), allows all origins.
-const allowedOrigin = process.env.FRONTEND_URL || "*"
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
+  : ["*"]
 
 const corsHandler: RequestHandler = (req, res, next) => {
   const origin = req.headers.origin
-  // Set the allowed origin header. When restricted, only allow the configured frontend URL.
-  if (allowedOrigin === "*" || origin === allowedOrigin) {
+  // Set the allowed origin header. When restricted, only allow configured frontend URLs.
+  if (allowedOrigins.includes("*") || (origin && allowedOrigins.includes(origin))) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*")
   }
   res.setHeader("Access-Control-Allow-Methods", "POST")
