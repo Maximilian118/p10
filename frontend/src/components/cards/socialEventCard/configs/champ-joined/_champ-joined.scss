@@ -1,0 +1,21 @@
+@use '../../../../../scss/mixins';
+
+// Theme: Championship Joined — blue.
+.social-event-card {
+  &--champ-joined &__content {
+    background: linear-gradient(135deg, #0a1a2e 0%, #15294a 50%, #0d2033 100%);
+    padding: 24px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &--champ-joined &__champ-joined-icon {
+    filter: drop-shadow(0 0 10px rgba(25, 118, 210, 0.4));
+  }
+
+  &--champ-joined strong {
+    color: white;
+    font-weight: 700;
+  }
+}

@@ -1,12 +1,19 @@
 import React from "react"
 import { SvgIconProps } from "@mui/material"
-import { SocialEventPayload } from "../../../../shared/socialTypes"
+import { SocialEventPayload, SocialEventType } from "../../../../shared/socialTypes"
 
 // Content area styling applied via inline styles from config.
 export interface EventContentStyle {
   borderSide?: "left" | "top"
   borderColor: string
   background?: string
+}
+
+// Props passed to every layout-specific content component.
+export interface ContentProps {
+  event: SocialEventType
+  config: SocialEventConfig
+  onUserClick: () => void
 }
 
 // Per-event-kind configuration driving the SocialEventCard layout.
@@ -17,8 +24,9 @@ export interface SocialEventConfig {
   iconColor: string                                                // Hex color for icon
   getText: (name: string, payload: SocialEventPayload) => string   // Descriptive text builder
   contentStyle?: EventContentStyle                                 // Border/background for content area
-  layout: "default" | "badge" | "victory" | "champion" | "runner-up" | "streak" | "perfect"
+  layout: "default" | "badge" | "victory" | "champion" | "runner-up" | "streak" | "perfect" | "champ-joined" | "new-competitor"
   useChampIcon?: boolean                                           // Show champ icon from payload if available
+  ContentComponent: React.FC<ContentProps>                         // Layout-specific content renderer
   showcase?: {                                                     // Hero/subtitle text for showcase layouts
     getHeroText: (payload: SocialEventPayload) => string
     getSubtitle?: (payload: SocialEventPayload) => string | undefined

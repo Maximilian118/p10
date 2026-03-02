@@ -12,6 +12,15 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd"
 import SportsScoreIcon from "@mui/icons-material/SportsScore"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
 import RouteIcon from "@mui/icons-material/Route"
+import DefaultContent from "./default/DefaultContent"
+import BadgeContent from "./badge/BadgeContent"
+import VictoryContent from "./victory/VictoryContent"
+import ChampionContent from "./champion/ChampionContent"
+import RunnerUpContent from "./runner-up/RunnerUpContent"
+import StreakContent from "./streak/StreakContent"
+import PerfectContent from "./perfect/PerfectContent"
+import ChampJoinedContent from "./champ-joined/ChampJoinedContent"
+import NewCompetitorContent from "./new-competitor/NewCompetitorContent"
 
 const RARITY_NAMES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"]
 
@@ -27,15 +36,15 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#3080d0",
     getText: (name, payload) => `${name} earned the ${payload.badgeName} badge`,
     layout: "badge",
+    ContentComponent: BadgeContent,
   },
   champ_joined: {
     title: "Championship Joined",
     Icon: GroupAddIcon,
     iconColor: "#1976d2",
     getText: (name, payload) => `${name} joined ${payload.champName}`,
-    contentStyle: { borderSide: "left", borderColor: "#1976d2" },
-    layout: "default",
-    useChampIcon: true,
+    layout: "champ-joined",
+    ContentComponent: ChampJoinedContent,
   },
   champ_created: {
     title: "Championship Created",
@@ -45,6 +54,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     contentStyle: { borderSide: "left", borderColor: "#1976d2" },
     layout: "default",
     useChampIcon: true,
+    ContentComponent: DefaultContent,
   },
   season_won: {
     title: "Season Champion",
@@ -52,6 +62,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#FFD700",
     getText: (name, payload) => `${name} won ${payload.champName} Season ${payload.season}`,
     layout: "champion",
+    ContentComponent: ChampionContent,
     showcase: {
       getHeroText: (payload) => `Season ${payload.season}`,
       getSubtitle: (payload) => payload.champName,
@@ -63,6 +74,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#C0C0C0",
     getText: (name, payload) => `${name} finished runner-up in ${payload.champName} Season ${payload.season}`,
     layout: "runner-up",
+    ContentComponent: RunnerUpContent,
     showcase: {
       getHeroText: (payload) => `Season ${payload.season}`,
       getSubtitle: (payload) => payload.champName,
@@ -74,6 +86,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#4caf50",
     getText: (name, payload) => `${name} won Round ${payload.roundNumber} of ${payload.champName}`,
     layout: "victory",
+    ContentComponent: VictoryContent,
     showcase: {
       getHeroText: (payload) => `Round ${payload.roundNumber}`,
       getSubtitle: (payload) => payload.champName,
@@ -85,6 +98,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#E10600",
     getText: (name, payload) => `${name} bet on the exact P10 driver in Round ${payload.roundNumber}`,
     layout: "perfect",
+    ContentComponent: PerfectContent,
     showcase: {
       getHeroText: (payload) => `Round ${payload.roundNumber}`,
       getSubtitle: () => "Exact P10 prediction",
@@ -96,6 +110,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     iconColor: "#E8860C",
     getText: (name, payload) => `${name} is on a ${payload.streakCount}-round win streak in ${payload.champName}`,
     layout: "streak",
+    ContentComponent: StreakContent,
     showcase: {
       getHeroText: (payload) => `${payload.streakCount}-Round Streak`,
       getSubtitle: (payload) => payload.champName,
@@ -108,6 +123,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     getText: (name, payload) => `${name} reached ${payload.milestoneValue} points in ${payload.champName}`,
     contentStyle: { borderSide: "left", borderColor: "#fdd835" },
     layout: "default",
+    ContentComponent: DefaultContent,
   },
   rounds_milestone: {
     title: "Rounds Milestone",
@@ -116,18 +132,15 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
     getText: (name, payload) => `${name} completed ${payload.milestoneValue} rounds`,
     contentStyle: { borderSide: "left", borderColor: "#fdd835" },
     layout: "default",
+    ContentComponent: DefaultContent,
   },
   user_joined_platform: {
     title: "New Competitor",
     Icon: PersonAddIcon,
     iconColor: "#1976d2",
     getText: (name) => `${name} joined P10`,
-    contentStyle: {
-      borderSide: "left",
-      borderColor: "#1976d2",
-      background: "linear-gradient(135deg, rgba(25, 118, 210, 0.03) 0%, white 100%)",
-    },
-    layout: "default",
+    layout: "new-competitor",
+    ContentComponent: NewCompetitorContent,
   },
   adjudicator_promoted: {
     title: "Adjudicator Promotion",
@@ -140,6 +153,7 @@ const eventConfigs: Record<SocialEventKind, SocialEventConfig> = {
       background: "linear-gradient(135deg, rgba(106, 90, 205, 0.03) 0%, white 100%)",
     },
     layout: "default",
+    ContentComponent: DefaultContent,
   },
 }
 

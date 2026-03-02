@@ -1,0 +1,28 @@
+@use '../../../../../scss/mixins';
+@use '../../../../../scss/variables';
+
+// Default content layout: icon + text side by side.
+.social-event-card {
+  &__content-default {
+    @include mixins.flexbox-start;
+    gap: 12px;
+  }
+
+  // Icon inside the content area (from config).
+  &__content-icon {
+    font-size: 1.4rem !important;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    font-size: 0.9rem;
+    color: variables.$colour-6;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  // Championship icon in content area.
+  &__champ-icon {
+    flex-shrink: 0;
+  }
+}

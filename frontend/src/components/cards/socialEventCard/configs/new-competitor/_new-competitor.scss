@@ -1,0 +1,16 @@
+@use '../../../../../scss/mixins';
+
+// Theme: New Competitor — welcoming blue.
+.social-event-card {
+  &--new-competitor &__content {
+    background: linear-gradient(135deg, #0a1a2e 0%, #162d4a 50%, #0d2035 100%);
+    padding: 24px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &--new-competitor &__showcase-icon {
+    filter: drop-shadow(0 0 8px rgba(25, 118, 210, 0.5));
+  }
+}

@@ -55,6 +55,10 @@
     width: auto;
     margin: 0;
 
+    .rounds-r {
+      margin-right: 2px;
+    }
+
     &:first-child,
     &:last-child {
       margin: 0;

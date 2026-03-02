@@ -1,0 +1,39 @@
+@use '../../../../../scss/mixins';
+
+// Theme: Badge earned — dark showcase.
+.social-event-card {
+  strong {
+    color: white;
+    font-weight: 700;
+  }
+
+  &--badge &__content {
+    background: #1a1a2e;
+    padding: 20px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &--badge &__badge-showcase {
+    @include mixins.flexbox;
+    
+  }
+
+  &--badge &__badge-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    text-align: center;
+  }
+
+  &--badge &__rarity-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}

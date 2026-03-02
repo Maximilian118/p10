@@ -1,0 +1,10 @@
+// Theme: Victory — racing green.
+.social-event-card {
+  &--victory &__content {
+    background: linear-gradient(135deg, #0a2e1a 0%, #1a4a2e 50%, #0d3320 100%);
+  }
+
+  &--victory &__showcase-icon {
+    filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.5));
+  }
+}

@@ -1,0 +1,11 @@
+// Theme: Champion — gold.
+.social-event-card {
+  &--champion &__content {
+    background: linear-gradient(135deg, #2e2400 0%, #4a3800 50%, #332a00 100%);
+  }
+
+  &--champion &__showcase-icon {
+    font-size: 3rem !important;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.6));
+  }
+}

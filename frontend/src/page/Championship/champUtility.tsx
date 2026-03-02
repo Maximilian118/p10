@@ -8,7 +8,6 @@ import { ProtestsFormType, RuleChangesFormType } from "../../shared/formValidati
 import { StatItem } from "./components/ChampBannerStats/ChampBannerStats"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
-import RotateRightIcon from "@mui/icons-material/RotateRight"
 import AutoModeIcon from "@mui/icons-material/AutoMode"
 import PersonIcon from "@mui/icons-material/Person"
 
@@ -537,7 +536,7 @@ export const buildChampBannerStats = (
   const discoveredBadges = champ.discoveredBadgesCount ?? 0
 
   const stats: StatItem[] = [
-    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <RotateRightIcon />, value: `${displayedRound}/${champ.rounds?.length || 0}` },
+    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <h5 className="rounds-r">R</h5>, value: `${displayedRound}/${champ.rounds?.length || 0}` },
     { icon: <PersonIcon />, value: `${champ.competitors?.length || 0}/${champ.settings?.maxCompetitors || 0}` },
   ]
 
@@ -553,7 +552,7 @@ export const buildChampBannerStats = (
 // Builds stats array for ChampBannerStats using pre-calculated snapshot data.
 export const buildChampBannerStatsFromSnapshot = (champ: userChampSnapshotType): StatItem[] => {
   return [
-    { icon: <RotateRightIcon />, value: `${champ.roundsCompleted}/${champ.totalRounds}` },
+    { icon: <h5 className="rounds-r">R</h5>, value: `${champ.roundsCompleted}/${champ.totalRounds}` },
     { icon: <PersonIcon />, value: `${champ.competitorCount}/${champ.maxCompetitors}` },
     { icon: <WorkspacePremiumIcon />, value: `${champ.discoveredBadges}/${champ.totalBadges}` },
   ]

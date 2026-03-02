@@ -2,7 +2,6 @@ import React, { SyntheticEvent } from "react"
 import './_floatingChampCard.scss'
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
 import ChampBannerStats from "../../../page/Championship/components/ChampBannerStats/ChampBannerStats"
-import RotateRightIcon from "@mui/icons-material/RotateRight"
 
 interface floatingChampCardType {
   champ: { icon: string; name: string; currentRound: number; totalRounds: number }
@@ -12,7 +11,7 @@ interface floatingChampCardType {
 // Displays a floating championship card at the top of the home page.
 const FloatingChampCard: React.FC<floatingChampCardType> = ({ champ, onClick }) => {
   const roundStats = [
-    { icon: <RotateRightIcon />, value: `${champ.currentRound}/${champ.totalRounds}` }
+    { icon: <h5 className="rounds-r">R</h5>, value: `${champ.currentRound}/${champ.totalRounds}` }
   ]
 
   return (

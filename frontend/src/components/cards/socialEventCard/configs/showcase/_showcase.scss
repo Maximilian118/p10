@@ -1,0 +1,51 @@
+@use '../../../../../scss/mixins';
+
+// Shared showcase layout for high-impact events (victory, champion, runner-up, streak, perfect).
+.social-event-card {
+  &--victory &__content,
+  &--champion &__content,
+  &--runner-up &__content,
+  &--streak &__content,
+  &--perfect &__content {
+    padding: 24px 16px;
+    @include mixins.flexbox-column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__showcase-icon {
+    font-size: 2.5rem !important;
+    flex-shrink: 0;
+  }
+
+  &__showcase-hero {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  &__showcase-user {
+    @include mixins.flexbox;
+    gap: 8px;
+    cursor: pointer;
+    margin-top: 4px;
+
+    &:hover .social-event-card__showcase-name {
+      text-decoration: underline;
+    }
+  }
+
+  &__showcase-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &__showcase-sub {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.5px;
+  }
+}

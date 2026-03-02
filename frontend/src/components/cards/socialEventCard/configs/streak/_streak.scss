@@ -1,0 +1,11 @@
+// Theme: Streak — fiery amber.
+.social-event-card {
+  &--streak &__content {
+    background: linear-gradient(135deg, #2e1500 0%, #4a2400 50%, #331a00 100%);
+  }
+
+  &--streak &__showcase-icon {
+    font-size: 2.8rem !important;
+    filter: drop-shadow(0 0 10px rgba(232, 134, 12, 0.6));
+  }
+}

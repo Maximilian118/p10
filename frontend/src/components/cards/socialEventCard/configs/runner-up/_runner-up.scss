@@ -1,0 +1,11 @@
+// Theme: Runner-up — silver/slate.
+.social-event-card {
+  &--runner-up &__content {
+    background: linear-gradient(135deg, #1a1a24 0%, #2a2a3a 50%, #1e1e2a 100%);
+  }
+
+  &--runner-up &__showcase-icon {
+    font-size: 2.8rem !important;
+    filter: drop-shadow(0 0 10px rgba(192, 192, 192, 0.5));
+  }
+}

@@ -1,0 +1,10 @@
+// Theme: Perfect — crimson.
+.social-event-card {
+  &--perfect &__content {
+    background: linear-gradient(135deg, #2e0a0a 0%, #4a1515 50%, #330d0d 100%);
+  }
+
+  &--perfect &__showcase-icon {
+    filter: drop-shadow(0 0 8px rgba(225, 6, 0, 0.5));
+  }
+}
