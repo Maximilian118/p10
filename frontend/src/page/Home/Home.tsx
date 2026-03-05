@@ -86,9 +86,14 @@ const Home: React.FC = () => {
         setNextCursor(feedResult.nextCursor)
       }
 
-      // Show location prompt if no location set and not previously dismissed.
+      // Show location prompt only if user hasn't enabled or dismissed it before.
+      const locationEnabled = localStorage.getItem("locationEnabled")
       const locationDismissed = localStorage.getItem("locationDismissed")
-      if (!user.location?.country && !locationDismissed) {
+
+      if (locationEnabled) {
+        // Silently update geolocation in the background.
+        silentLocationUpdate()
+      } else if (!locationDismissed) {
         setShowLocationPrompt(true)
       }
 
@@ -98,11 +103,20 @@ const Home: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Handle enabling location.
+  // Silently request and update geolocation without showing a prompt.
+  const silentLocationUpdate = async () => {
+    const locationData = await requestLocation()
+    if (locationData) {
+      await updateLocation(locationData, user, setUser, navigate, setBackendErr)
+    }
+  }
+
+  // Handle enabling location (first time only — sets persistent flag).
   const handleEnableLocation = async () => {
     setLocationLoading(true)
-    const locationData = await requestLocation()
+    localStorage.setItem("locationEnabled", "true")
 
+    const locationData = await requestLocation()
     if (locationData) {
       await updateLocation(locationData, user, setUser, navigate, setBackendErr)
     }

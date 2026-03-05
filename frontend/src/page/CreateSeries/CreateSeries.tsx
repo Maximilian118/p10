@@ -350,6 +350,7 @@ const CreateSeries: React.FC<CreateSeriesProps> = ({
     isEditing,
     loading,
     delLoading,
+    removeLoading: false,
     canDelete: permissions === "delete",
     canRemove: false,
     onDelete: onDeleteHandler,

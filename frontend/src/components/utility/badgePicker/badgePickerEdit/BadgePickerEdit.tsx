@@ -131,9 +131,9 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
       .map((outcome: badgeOutcomeType) => outcome.awardedHow)
   }
 
-  // Submit handler - makes direct API calls for badge operations.
-  // For new badges: upload to S3 → call newBadge API.
-  // For editing: optionally upload to S3 → call updateBadge API.
+  // Submit handler - creates or updates a badge.
+  // When no championship (CreateChamp flow): saves locally with file + previewUrl.
+  // When championship exists: makes API calls (S3 upload + newBadge/updateBadge).
   const onSubmitHandler = useCallback(async () => {
     // Prevent double-clicks while loading.
     if (loading) return
@@ -160,7 +160,33 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     const outcomeName = outcome?.name || ""
 
     if (isNewBadge) {
-      // Upload badge image to S3.
+      // CreateChamp flow: store badge locally with file data for later upload.
+      if (!championship) {
+        const previewUrl = editForm.icon instanceof File ? URL.createObjectURL(editForm.icon) : undefined
+
+        const localBadge: badgeType = {
+          url: null,
+          previewUrl,
+          file: editForm.icon instanceof File ? editForm.icon : null,
+          name: outcomeName,
+          customName: editForm.customName || undefined,
+          rarity,
+          awardedHow: how as string,
+          awardedDesc: findDesc(badgeRewardOutcomes, how),
+          zoom,
+          isDefault: false,
+        }
+
+        setForm(prevForm => ({
+          ...prevForm,
+          champBadges: [localBadge, ...prevForm.champBadges]
+        }))
+        setIsEdit(false)
+        setLoading(false)
+        return
+      }
+
+      // Existing championship flow: upload to S3 and call newBadge API.
       const badgeName = editForm.customName || outcomeName || "badge"
       const s3Url = await uplaodS3("badges", badgeName, "icon", editForm.icon, setBackendErr)
 
@@ -191,8 +217,42 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
         setIsEdit(false)
       }
     } else {
-      // Editing existing badge.
-      // Upload new image to S3 if changed.
+      // CreateChamp flow: update badge locally without API calls.
+      if (!championship) {
+        // Revoke old preview URL to prevent memory leak.
+        if (editForm.icon instanceof File && isEdit.previewUrl) {
+          URL.revokeObjectURL(isEdit.previewUrl)
+        }
+
+        const previewUrl = editForm.icon instanceof File
+          ? URL.createObjectURL(editForm.icon)
+          : isEdit.previewUrl
+
+        setForm(prevForm => ({
+          ...prevForm,
+          champBadges: prevForm.champBadges.map((badge: badgeType): badgeType => {
+            if (badge.awardedHow === isEdit.awardedHow) {
+              return {
+                ...badge,
+                previewUrl,
+                file: editForm.icon instanceof File ? editForm.icon : badge.file,
+                name: outcomeName,
+                customName: editForm.customName || undefined,
+                zoom,
+                rarity,
+                awardedHow: how ? how : badge.awardedHow,
+                awardedDesc: findDesc(badgeRewardOutcomes, how),
+              }
+            }
+            return badge
+          })
+        }))
+        setIsEdit(false)
+        setLoading(false)
+        return
+      }
+
+      // Existing championship flow: upload new image to S3 if changed.
       let s3Url = isEdit.url
       if (editForm.icon instanceof File) {
         const badgeName = editForm.customName || outcomeName || "badge"
@@ -230,9 +290,8 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
               awardedHow: how ? how : badge.awardedHow,
               awardedDesc: findDesc(badgeRewardOutcomes, how),
             }
-          } else {
-            return badge
           }
+          return badge
         })
       }))
       setIsEdit(false)
@@ -241,9 +300,24 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     setLoading(false)
   }, [loading, isNewBadge, isDefault, editForm, how, zoom, rarity, form, setForm, setIsEdit, user, setUser, navigate, setBackendErr, championship, isEdit])
 
-  // Delete a badge from database and S3 via API call.
+  // Delete a badge. When no championship (CreateChamp flow): removes from local state only.
+  // When championship exists: deletes from DB and S3 via API call.
   const deleteBadgeHandler = useCallback(async () => {
-    if (!isNewBadge && isEdit._id) {
+    if (isNewBadge) return
+
+    // CreateChamp flow: remove from local form state by awardedHow.
+    if (!championship) {
+      if (isEdit.previewUrl) URL.revokeObjectURL(isEdit.previewUrl)
+      setForm(prevForm => ({
+        ...prevForm,
+        champBadges: prevForm.champBadges.filter((badge: badgeType) => badge.awardedHow !== isEdit.awardedHow)
+      }))
+      setIsEdit(false)
+      return
+    }
+
+    // Existing championship flow: delete from DB and S3 via API.
+    if (isEdit._id) {
       setDelLoading(true)
 
       // Call deleteBadge API (deletes from DB and S3).
@@ -260,7 +334,7 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
 
       setDelLoading(false)
     }
-  }, [isNewBadge, isEdit, setForm, setIsEdit, user, setUser, navigate, setBackendErr])
+  }, [isNewBadge, isEdit, championship, setForm, setIsEdit, user, setUser, navigate, setBackendErr])
 
   // Remove a default badge from the championship (doesn't delete from DB).
   // If championship exists, calls API to persist removal. Otherwise just updates local state.
@@ -306,7 +380,8 @@ const BadgePickerEdit = <T extends { champBadges: badgeType[] }>({ isEdit, setIs
     isEditing: !isNewBadge,
     loading,
     delLoading,
-    canDelete: !isNewBadge && !!isEdit._id && !isDefault,
+    removeLoading,
+    canDelete: !isNewBadge && !isDefault,
     canRemove: !isNewBadge && !!isEdit._id && isDefault,
     onDelete: deleteBadgeHandler,
     onRemove: removeBadgeHandler,

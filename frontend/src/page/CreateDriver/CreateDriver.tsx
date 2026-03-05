@@ -435,6 +435,7 @@ const CreateDriver: React.FC<CreateDriverProps> = ({
     isEditing,
     loading,
     delLoading,
+    removeLoading: false,
     canDelete: permissions === "delete",
     canRemove: false,
     onDelete: onDeleteHandler,

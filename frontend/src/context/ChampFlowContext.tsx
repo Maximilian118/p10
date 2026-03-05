@@ -9,11 +9,12 @@ export interface FormHandlers {
   isEditing: boolean
   loading: boolean
   delLoading: boolean
+  removeLoading: boolean
   canDelete: boolean
   canRemove: boolean
   canSubmit: boolean
   onDelete?: () => Promise<void>
-  onRemove?: () => void
+  onRemove?: () => Promise<void>
 }
 
 // Context type for the championship creation flow.
@@ -22,6 +23,7 @@ export interface ChampFlowContextType {
   handlerStack: FormHandlers[]
   pushHandlers: (handlers: Omit<FormHandlers, 'id'>) => string
   popHandlers: (id: string) => void
+  updateHandlers: (id: string, updates: Partial<FormHandlers>) => void
 }
 
 // Default context value (used when not inside ChampFlowProvider).
@@ -30,6 +32,7 @@ const defaultContext: ChampFlowContextType = {
   handlerStack: [],
   pushHandlers: () => "",
   popHandlers: () => {},
+  updateHandlers: () => {},
 }
 
 const ChampFlowContext = createContext<ChampFlowContextType>(defaultContext)
@@ -53,7 +56,7 @@ export const useChampFlowForm = (
   handlers: Omit<FormHandlers, 'id'>,
   embedded: boolean,
 ): { showButtonBar: boolean } => {
-  const { inChampFlow, pushHandlers, popHandlers } = useChampFlow()
+  const { inChampFlow, pushHandlers, popHandlers, updateHandlers } = useChampFlow()
   const handlerIdRef = useRef<string | null>(null)
   const handlersRef = useRef(handlers)
 
@@ -61,26 +64,20 @@ export const useChampFlowForm = (
   handlersRef.current = handlers
 
   // Create stable wrappers that call through the ref to get latest handlers.
+  // Primitive values are initialized with current handler values for the first push.
   const stableHandlers = useRef<Omit<FormHandlers, 'id'>>({
     submit: async () => { await handlersRef.current.submit() },
     back: () => { handlersRef.current.back() },
     onDelete: async () => { await handlersRef.current.onDelete?.() },
-    onRemove: () => { handlersRef.current.onRemove?.() },
-    isEditing: false,
-    loading: false,
-    delLoading: false,
-    canDelete: false,
-    canRemove: false,
-    canSubmit: true,
+    onRemove: async () => { await handlersRef.current.onRemove?.() },
+    isEditing: handlers.isEditing,
+    loading: handlers.loading,
+    delLoading: handlers.delLoading,
+    removeLoading: handlers.removeLoading,
+    canDelete: handlers.canDelete,
+    canRemove: handlers.canRemove,
+    canSubmit: handlers.canSubmit,
   }).current
-
-  // Update static values on each render (read when ButtonBar renders).
-  stableHandlers.isEditing = handlers.isEditing
-  stableHandlers.loading = handlers.loading
-  stableHandlers.delLoading = handlers.delLoading
-  stableHandlers.canDelete = handlers.canDelete
-  stableHandlers.canRemove = handlers.canRemove
-  stableHandlers.canSubmit = handlers.canSubmit
 
   // Push on mount, pop on unmount (only when embedded in ChampFlow context).
   useEffect(() => {
@@ -94,6 +91,26 @@ export const useChampFlowForm = (
       }
     }
   }, [embedded, inChampFlow, pushHandlers, popHandlers, stableHandlers])
+
+  // Sync primitive values to the handler stack when they change.
+  // This triggers a state update in the parent so the ButtonBar re-renders with current values.
+  useEffect(() => {
+    if (handlerIdRef.current && embedded && inChampFlow) {
+      updateHandlers(handlerIdRef.current, {
+        isEditing: handlers.isEditing,
+        loading: handlers.loading,
+        delLoading: handlers.delLoading,
+        removeLoading: handlers.removeLoading,
+        canDelete: handlers.canDelete,
+        canRemove: handlers.canRemove,
+        canSubmit: handlers.canSubmit,
+      })
+    }
+  }, [
+    handlers.isEditing, handlers.loading, handlers.delLoading,
+    handlers.removeLoading, handlers.canDelete, handlers.canRemove,
+    handlers.canSubmit, embedded, inChampFlow, updateHandlers,
+  ])
 
   // Show ButtonBar only when not embedded or not in champ flow.
   return { showButtonBar: !embedded || !inChampFlow }

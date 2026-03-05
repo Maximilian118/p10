@@ -248,6 +248,7 @@ export const checkUserLS = (): userType => {
     const socialEventSettings = localStorage.getItem("socialEventSettings")
     const created_at = localStorage.getItem("created_at")
     const permissions = localStorage.getItem("permissions")
+    const location = localStorage.getItem("location")
 
     const user: userType = {
       token,
@@ -265,6 +266,7 @@ export const checkUserLS = (): userType => {
       socialEventSettings: socialEventSettings ? JSON.parse(socialEventSettings) : blankUser.socialEventSettings,
       created_at: created_at ? created_at : blankUser.created_at,
       permissions: permissions ? JSON.parse(permissions) : blankUser.permissions,
+      location: location ? JSON.parse(location) : undefined,
       localStorage: true,
     }
 
@@ -294,6 +296,8 @@ export const logout = (
   localStorage.removeItem("socialEventSettings")
   localStorage.removeItem("created_at")
   localStorage.removeItem("permissions")
+  localStorage.removeItem("location")
+  localStorage.removeItem("locationEnabled")
 
   if (setUser) {
     setUser((prevUser) => {
@@ -342,6 +346,7 @@ export const logInSuccess = (
     localStorage.setItem("socialEventSettings", JSON.stringify(user.socialEventSettings || defaultSocialEventSettings))
     localStorage.setItem("created_at", user.created_at)
     localStorage.setItem("permissions", JSON.stringify(user.permissions))
+    localStorage.setItem("location", JSON.stringify(user.location || null))
   }
 
   if (setUser) {

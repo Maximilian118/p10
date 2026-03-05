@@ -93,6 +93,11 @@ const CreateChamp: React.FC = () => {
     setHandlerStack(prev => prev.filter(h => h.id !== id))
   }, [])
 
+  // Update specific handler properties in the stack by ID.
+  const updateHandlers = useCallback((id: string, updates: Partial<FormHandlers>) => {
+    setHandlerStack(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h))
+  }, [])
+
   // Derive active handlers from the top of the stack.
   const activeFormHandlers = getActiveHandlers(handlerStack)
 
@@ -102,7 +107,8 @@ const CreateChamp: React.FC = () => {
     handlerStack,
     pushHandlers,
     popHandlers,
-  }), [handlerStack, pushHandlers, popHandlers])
+    updateHandlers,
+  }), [handlerStack, pushHandlers, popHandlers, updateHandlers])
 
   // Handles form submission - validates and creates the championship
   const onSubmitHandler = async (e: React.FormEvent<HTMLFormElement>) => {

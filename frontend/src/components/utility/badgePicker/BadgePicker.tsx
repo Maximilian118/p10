@@ -125,7 +125,7 @@ const BadgePicker = <T extends { champBadges: badgeType[] }>({
         badgesFiltered.length > 0 ?
         <div className="badge-list-container">
           {badgesFiltered.map((badge: badgeType) => (
-            <div key={badge._id} className="badge-item" onClick={(e) => e.stopPropagation()}>
+            <div key={badge._id || badge.awardedHow} className="badge-item" onClick={(e) => e.stopPropagation()}>
               <Badge
                 badge={badge}
                 zoom={badge.zoom}

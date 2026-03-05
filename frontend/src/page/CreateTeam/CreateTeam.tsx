@@ -318,6 +318,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({
     isEditing,
     loading,
     delLoading,
+    removeLoading: false,
     canDelete: permissions === "delete",
     canRemove: false,
     onDelete: onDeleteHandler,

@@ -422,6 +422,11 @@ export const updateLocation = async (
     const data = res.data.data.updateLocation
     tokensHandler(user, data.tokens, setUser)
 
+    // Persist returned location to state and localStorage.
+    const updatedLocation = data.location
+    localStorage.setItem("location", JSON.stringify(updatedLocation))
+    setUser((prev) => ({ ...prev, location: updatedLocation }))
+
     return true
   } catch (err: unknown) {
     graphQLErrors("updateLocation", err, setUser, navigate, setBackendErr, true)

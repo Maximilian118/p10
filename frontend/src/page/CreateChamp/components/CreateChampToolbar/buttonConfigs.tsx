@@ -51,6 +51,7 @@ export const getRemoveButton = (handlers: FormHandlers | null): ButtonConfig | n
     onClick: handlers.onRemove,
     startIcon: <Delete />,
     color: "error",
+    loading: handlers.removeLoading,
   }
 }
 

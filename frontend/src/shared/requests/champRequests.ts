@@ -166,19 +166,19 @@ export const createChamp = async (
   if (form.profile_picture instanceof File && profilePictureURL)
     setForm((prev) => ({ ...prev, profile_picture: profilePictureURL }))
 
-  // Process badges - upload images for custom badges and create in database.
+  // Process badges - collect IDs for existing badges, upload + create for local-only badges.
   const champBadgeIds: string[] = []
   for (const badge of form.champBadges) {
-    if (badge.isDefault && badge._id) {
-      // Default badge - just use existing ID.
+    if (badge._id) {
+      // Badge already exists in the database (default or previously saved custom).
       champBadgeIds.push(badge._id)
     } else {
-      // Custom badge - upload image to S3 first if it's a File.
+      // Local-only badge: upload image to S3 and create in database.
       let badgeUrl = badge.url
       if (badge.file instanceof File) {
         const uploadedUrl = await uplaodS3(
           "badges",
-          "custom",
+          badge.customName || badge.name || "custom",
           "icon",
           badge.file,
           setBackendErr,

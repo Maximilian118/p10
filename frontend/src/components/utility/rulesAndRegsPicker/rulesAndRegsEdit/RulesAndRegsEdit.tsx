@@ -274,6 +274,7 @@ const RulesAndRegsEdit = <T extends { rulesAndRegs: rulesAndRegsType }, U extend
     isEditing: !edit.newRuleReg,
     loading,
     delLoading: deleteLoading,
+    removeLoading: false,
     canDelete: !edit.newRuleReg,
     canRemove: false,
     canSubmit: true,
