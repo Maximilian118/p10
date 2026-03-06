@@ -243,7 +243,7 @@ const champResolvers = {
       const champsWithStatus = userChamps.map((champ) => {
         const currentRoundObj = champ.rounds.find((r) => r.status !== "completed") || champ.rounds[champ.rounds.length - 1]
         const currentRoundStatus: RoundStatus = currentRoundObj?.status || "completed"
-        const currentRound = currentRoundObj?.round || champ.rounds.length
+        const currentRound = champ.rounds.filter((r) => r.status === "completed").length
         return {
           champ,
           currentRoundStatus,

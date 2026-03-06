@@ -24,4 +24,8 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: process.env.NODE_ENV !== 'production', // Disable source maps in production.
   },
+  // Strip all console and debugger statements in production builds.
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
 });
