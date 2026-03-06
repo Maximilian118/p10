@@ -75,6 +75,8 @@ const socialEventResolvers = {
         .lean()
 
       events.push(...backfill)
+      // Re-sort after merging two independently-sorted lists.
+      events.sort((a, b) => b.created_at.localeCompare(a.created_at))
     }
 
     const hasMore = events.length > fetchLimit
