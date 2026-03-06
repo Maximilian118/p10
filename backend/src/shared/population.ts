@@ -121,7 +121,7 @@ export const champPopulation = [
   { path: "adjudicator.current", select: "_id name icon profile_picture permissions created_at" },
   { path: "adjudicator.history.adjudicator", select: "_id name icon" },
   { path: "series", populate: { path: "drivers", populate: { path: "teams", model: "Team", select: "_id name icon emblem" } } },
-  { path: "competitors", select: "_id name icon profile_picture permissions created_at" },
+  { path: "competitors", select: "_id name icon profile_picture permissions created_at badges" },
   { path: "waitingList", select: "_id name icon" },
   { path: "banned", select: "_id name icon" },
   { path: "kicked", select: "_id name icon" },

@@ -616,6 +616,14 @@ export const populateChamp = `
     _id
     name
     icon
+    badges {
+      _id
+      url
+      name
+      rarity
+      zoom
+      featured
+    }
   }
   series {
     _id
