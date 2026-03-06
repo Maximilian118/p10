@@ -53,7 +53,7 @@
     padding: 6px 16px;
     transition: background 0.15s ease;
 
-    &:hover {
+    @include mixins.hover {
       background: rgba(0, 0, 0, 0.03);
     }
   }
@@ -91,7 +91,7 @@
     flex-shrink: 0;
   }
 
-  &:hover {
+  @include mixins.hover {
     background: rgba(0, 0, 0, 0.02);
   }
 }

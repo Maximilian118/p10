@@ -47,7 +47,7 @@
     }
   }
 
-  &:hover {
+  @include mixins.hover {
     background: rgba(0, 0, 0, 0.06);
   }
 }

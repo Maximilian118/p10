@@ -55,8 +55,10 @@
     cursor: pointer;
     margin-bottom: 10px;
 
-    &:hover .social-event-card__name {
-      text-decoration: underline;
+    @include mixins.hover {
+      .social-event-card__name {
+        text-decoration: underline;
+      }
     }
   }
 

@@ -1415,7 +1415,7 @@ const Championship: React.FC = () => {
                         setBackendErr,
                       )
                     }}
-                    onPointsChange={(change) => {
+                    onPointsChange={champ.rounds.some(r => r.status !== "waiting") ? (change) => {
                       if (!competitorId) return
                       adjustCompetitorPoints(
                         champ._id,
@@ -1427,7 +1427,7 @@ const Championship: React.FC = () => {
                         navigate,
                         setBackendErr,
                       )
-                    }}
+                    } : undefined}
                   />
                 )})
               })()}

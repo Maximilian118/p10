@@ -62,7 +62,7 @@
     }
   }
 
-  &:hover {
+  @include mixins.hover {
     background: rgba(0, 0, 0, 0.06);
   }
 
@@ -95,7 +95,7 @@
       color: white;
     }
 
-    &:hover {
+    @include mixins.hover {
       background: variables.$mui-blue;
     }
   }
@@ -105,7 +105,7 @@
     cursor: default;
     pointer-events: none;
 
-    &:hover {
+    @include mixins.hover {
       background: white;
     }
   }

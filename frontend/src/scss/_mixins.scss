@@ -55,3 +55,12 @@
   justify-content: space-between;
   align-items: center;
 }
+
+// Only apply hover styles on devices with a true hover capability (not touch).
+@mixin hover {
+  @media (hover: hover) {
+    &:hover {
+      @content;
+    }
+  }
+}

@@ -32,8 +32,10 @@
     cursor: pointer;
     margin-top: 4px;
 
-    &:hover .social-event-card__showcase-name {
-      text-decoration: underline;
+    @include mixins.hover {
+      .social-event-card__showcase-name {
+        text-decoration: underline;
+      }
     }
   }
 

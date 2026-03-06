@@ -12,7 +12,7 @@
   overflow: hidden;
   position: relative;
 
-  &:hover {
+  @include mixins.hover {
     background: variables.$colour-1;
   }
 
@@ -84,7 +84,7 @@
       background-color: variables.$mui-success !important;
       color: white !important;
 
-      &:hover {
+      @include mixins.hover {
         background-color: variables.$mui-success-hover !important;
       }
     }
