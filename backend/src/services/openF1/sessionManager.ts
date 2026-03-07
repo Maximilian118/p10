@@ -29,7 +29,7 @@ import { computeSectorBoundaries } from "./sectorBoundaries"
 import { startPolling, stopPolling, markMqttReceived, onPolledMessage, getPollingStatus } from "./openf1Client"
 import { createF1Session, updateF1Session, finalizeF1Session, saveDemoSession, ReplayMessage } from "../../models/f1Session"
 import { triggerAutoResults } from "./autoResults"
-import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus, getSignalRTopicTimestamps } from "./signalrClient"
+import { connectLiveTiming, disconnectLiveTiming, getLatestClock, getLiveTimingStatus, getSignalRSessionStatus, getSignalRTopicTimestamps } from "./signalrClient"
 import { isMqttConnected, getSubscribedTopics } from "./openf1Client"
 import { InternalEvent, normalizeOpenF1Message } from "./normalizer"
 import { createLogger } from "../../shared/logger"
@@ -84,6 +84,9 @@ export const OPENF1_EVENTS = {
 
 // Current active session state (null when no session is active).
 let activeSession: SessionState | null = null
+
+// Reentrancy guard: prevents concurrent endSession() calls from interleaving.
+let isEndingSession = false
 
 // Demo session state — separate from live activeSession so demos don't interfere.
 let demoState: SessionState | null = null
@@ -1171,6 +1174,16 @@ const handleSessionDataEvent = (event: InternalEvent): void => {
   if (!activeSession) return
   const d = event.data
 
+  // SignalR SessionStatus lifecycle event — end session when F1 officially finalises.
+  if (d.key === "sessionStatus") {
+    const status = d.value as string
+    if (status === "Finalised" || status === "Ends") {
+      log.info(`SignalR SessionStatus → "${status}" — ending session`)
+      endSession()
+    }
+    return
+  }
+
   // Store grid position from TimingAppData GridPos field.
   if (d.key === "GridPosition" && event.driverNumber) {
     const gridPos = d.value as number
@@ -1227,10 +1240,20 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
 
   // Red flag ending (green flag or restart).
   if (activeSession._activeRedFlag && rc.flag === "GREEN") {
-    activeSession.redFlagPeriods.push({
+    const period = {
       ...activeSession._activeRedFlag,
       endTime: rc.date,
-    })
+    }
+    activeSession.redFlagPeriods.push(period)
+
+    // Extend dateEndTs by the red flag duration to account for stoppage time.
+    // This keeps the fallback clock and session poll timer accurate after stoppages.
+    const stoppageDurationMs = new Date(period.endTime).getTime() - new Date(period.startTime).getTime()
+    if (stoppageDurationMs > 0 && activeSession.dateEndTs > 0) {
+      activeSession.dateEndTs += stoppageDurationMs
+      log.info(`Extended session end by ${Math.round(stoppageDurationMs / 1000)}s for red flag stoppage`)
+    }
+
     activeSession._activeRedFlag = null
   }
 
@@ -1335,11 +1358,22 @@ export const handleMqttMessage = (topic: string, payload: Buffer, fromReplay = f
 // Handles a session status message from OpenF1.
 // Detects session starts and ends, initializes data collection.
 const handleSessionMessage = async (msg: OpenF1SessionMsg): Promise<void> => {
-  // If we already have an active session for this session_key, ignore duplicate.
+  // If we already have an active session for this session_key, check for end or update dateEndTs.
   if (activeSession && activeSession.sessionKey === msg.session_key) {
-    // Check if session has ended based on time.
-    if (msg.date_end && Date.now() > new Date(msg.date_end).getTime()) {
+    // OpenF1 session status indicates the session has ended.
+    if (msg.status === "Finished" || msg.status === "Finalised") {
+      log.info(`OpenF1 session status → "${msg.status}" — ending session`)
       await endSession()
+      return
+    }
+
+    // Update dateEndTs if the session window has been extended.
+    if (msg.date_end) {
+      const newEndTs = new Date(msg.date_end).getTime()
+      if (newEndTs > activeSession.dateEndTs) {
+        log.info(`Session end time extended: ${new Date(activeSession.dateEndTs).toISOString()} → ${msg.date_end}`)
+        activeSession.dateEndTs = newEndTs
+      }
     }
     return
   }
@@ -1733,39 +1767,44 @@ const MAX_RECORDING_BYTES = 6 * 1024 * 1024
 
 // Ends the current session and persists the final track map and session data.
 const endSession = async (): Promise<void> => {
-  if (!activeSession) return
+  if (!activeSession || isEndingSession) return
+  isEndingSession = true
 
-  log.info(`🏁 Session ended: ${activeSession.trackName}`)
+  try {
+    log.info(`🏁 Session ended: ${activeSession.trackName}`)
 
-  // Save final track map to MongoDB.
-  await saveTrackMap()
+    // Save final track map to MongoDB.
+    await saveTrackMap()
 
-  // Finalize the session record in MongoDB (marks as finished, writes final data).
-  await finalizeF1Session(activeSession.sessionKey, activeSession)
+    // Finalize the session record in MongoDB (marks as finished, writes final data).
+    await finalizeF1Session(activeSession.sessionKey, activeSession)
 
-  // Save the recorded session as a replayable demo if recording was active.
-  if (activeSession.isRecording && activeSession.recordedMessages.length > 0) {
-    await saveSessionRecording(activeSession)
+    // Save the recorded session as a replayable demo if recording was active.
+    if (activeSession.isRecording && activeSession.recordedMessages.length > 0) {
+      await saveSessionRecording(activeSession)
+    }
+
+    // Trigger automatic round results for any API-enabled championships.
+    if (ioServer) {
+      await triggerAutoResults(activeSession.sessionKey, ioServer)
+    }
+
+    // Stop all batching, polling, live timing connection, fallback clock, and progressive saves.
+    stopPositionBatching()
+    stopDriverStateBatching()
+    stopPolling()
+    disconnectLiveTiming()
+    stopFallbackClock()
+    stopProgressiveSaving()
+
+    // Notify subscribers and broadcast session end to all clients.
+    emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
+    broadcastLiveSession()
+
+    activeSession = null
+  } finally {
+    isEndingSession = false
   }
-
-  // Trigger automatic round results for any API-enabled championships.
-  if (ioServer) {
-    await triggerAutoResults(activeSession.sessionKey, ioServer)
-  }
-
-  // Stop all batching, polling, live timing connection, fallback clock, and progressive saves.
-  stopPositionBatching()
-  stopDriverStateBatching()
-  stopPolling()
-  disconnectLiveTiming()
-  stopFallbackClock()
-  stopProgressiveSaving()
-
-  // Notify subscribers and broadcast session end to all clients.
-  emitToRoom(OPENF1_EVENTS.SESSION, { active: false, trackName: "", sessionType: "", sessionName: "" })
-  broadcastLiveSession()
-
-  activeSession = null
 }
 
 // Saves the recorded session messages as a replayable demo in the unified F1Session model.
@@ -2810,7 +2849,48 @@ export const startSessionPolling = (): void => {
     // If we have an active live session, check if its time window has passed.
     if (activeSession && !activeSession.isDemo) {
       if (activeSession.dateEndTs > 0 && Date.now() > activeSession.dateEndTs) {
-        await endSession()
+        // If SignalR confirms the session is finished, end immediately.
+        const signalRStatus = getSignalRSessionStatus()
+        if (signalRStatus === "Finalised" || signalRStatus === "Ends") {
+          log.info(`Session poll: SignalR status "${signalRStatus}" — ending session`)
+          await endSession()
+          return
+        }
+
+        // Don't end during active red flags — session is suspended, not finished.
+        if (activeSession.trackFlag === "RED") return
+
+        // Check OpenF1 REST API for session status as a secondary signal.
+        try {
+          const token = await getOpenF1Token()
+          const res = await axios.get<OpenF1SessionMsg[]>(
+            `${OPENF1_API_BASE}/sessions?session_key=${activeSession.sessionKey}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          )
+          const session = res.data[0]
+          if (session?.status === "Finished" || session?.status === "Finalised") {
+            log.info(`Session poll: OpenF1 status "${session.status}" — ending session`)
+            await endSession()
+            return
+          }
+          // Extend dateEndTs if OpenF1 reports a later date_end.
+          if (session?.date_end) {
+            const newEndTs = new Date(session.date_end).getTime()
+            if (newEndTs > activeSession.dateEndTs) {
+              log.info(`Session poll: end time extended via REST → ${session.date_end}`)
+              activeSession.dateEndTs = newEndTs
+            }
+          }
+        } catch {
+          // REST check failed — fall through to hard timeout.
+        }
+
+        // Hard timeout: 3 hours past scheduled end as absolute safety net.
+        const SESSION_END_HARD_TIMEOUT = 3 * 60 * 60 * 1000
+        if (Date.now() > activeSession.dateEndTs + SESSION_END_HARD_TIMEOUT) {
+          log.warn("Session 3h past scheduled end with no Finalised — force ending")
+          await endSession()
+        }
       }
       return
     }

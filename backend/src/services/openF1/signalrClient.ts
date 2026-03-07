@@ -66,6 +66,10 @@ export const getSignalRStatus = (): { status: string; error: string | null } => 
 // Returns a map of topic → last-seen timestamp (for OpenF1 fallback decisions).
 export const getSignalRTopicTimestamps = (): ReadonlyMap<string, number> => topicLastSeen
 
+// Returns the current SignalR SessionStatus value (e.g. "Started", "Ends", "Finalised"), or null if unknown.
+export const getSignalRSessionStatus = (): string | null =>
+  signalrState.SessionStatus?.Status ? String(signalrState.SessionStatus.Status) : null
+
 // Latest clock state — cached so new clients can get it immediately.
 let latestClock: { remainingMs: number; running: boolean; serverTs: number; speed: number } | null = null
 
@@ -339,10 +343,24 @@ const handleSessionInfo = (data: Record<string, unknown>) => {
 }
 
 // Processes a SessionStatus update.
+// Emits lifecycle events ("Finalised", "Ends") to the session manager for authoritative session end detection.
 const handleSessionStatus = (data: Record<string, unknown>) => {
   markTopicSeen("SessionStatus")
   if (!signalrState.SessionStatus) signalrState.SessionStatus = {}
   deepMerge(signalrState.SessionStatus, data)
+
+  // Notify session manager when the session reaches a terminal status.
+  if (eventHandler && data.Status) {
+    const status = String(data.Status)
+    if (status === "Finalised" || status === "Ends") {
+      eventHandler({
+        type: "session_data" as InternalEventType,
+        data: { key: "sessionStatus", value: status },
+        timestamp: Date.now(),
+        source: "signalr",
+      })
+    }
+  }
 }
 
 // Processes a TimingStats update.
