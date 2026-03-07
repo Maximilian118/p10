@@ -1,6 +1,6 @@
 import { Server } from "socket.io"
 import moment from "moment"
-import Champ from "../../models/champ"
+import Champ, { ACTIVE_ROUND_STATUSES } from "../../models/champ"
 import League from "../../models/league"
 import Series from "../../models/series"
 import { populateRoundData } from "../../graphql/resolvers/champResolvers"
@@ -64,6 +64,10 @@ const checkAutoOpenRounds = async (): Promise<void> => {
       // Compute when the round should auto-open.
       const qualifyingStart = new Date(autoOpenData.timestamp).getTime()
       const autoOpenAt = qualifyingStart - (autoOpenTime * 60 * 1000)
+
+      // Guard: skip if any round is already in an active state (prevents cascading opens).
+      const hasActiveRound = champ.rounds.some((r) => ACTIVE_ROUND_STATUSES.includes(r.status))
+      if (hasActiveRound) continue
 
       // Find the current round in "waiting" status.
       const roundIndex = champ.rounds.findIndex((r) => r.status === "waiting")
@@ -176,6 +180,14 @@ const autoOpenRound = async (
         champIcon: champ.icon,
       })
     }
+
+    // Clear the auto-open timestamp so this championship won't be auto-opened again.
+    // The timestamp gets restored to the next qualifying date by:
+    // - refreshNextQualifyingForChamp() after round results are processed
+    // - Hourly qualifying schedule poll
+    champ.settings.automation.bettingWindow.autoOpenData.timestamp = ""
+    champ.markModified("settings")
+    await champ.save()
 
     log.info(`✓ Auto-opened round ${roundIndex + 1} for "${champ.name}" → ${initialStatus}`)
   } catch (err) {

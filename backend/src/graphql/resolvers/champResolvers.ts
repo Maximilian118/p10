@@ -9,6 +9,7 @@ import Champ, {
   RoundStatus,
   SeasonHistory,
   PointsAdjustment,
+  ACTIVE_ROUND_STATUSES,
 } from "../../models/champ"
 import User, { userTypeMongo } from "../../models/user"
 import Series from "../../models/series"
@@ -1632,6 +1633,19 @@ const champResolvers = {
 
       // When transitioning FROM "waiting", populate competitors/drivers/teams.
       if (currentStatus === "waiting") {
+        // Guard: prevent starting a round when another is already in progress.
+        const hasActiveRound = champ.rounds.some((r, i) =>
+          i !== roundIndex && ACTIVE_ROUND_STATUSES.includes(r.status)
+        )
+        if (hasActiveRound) {
+          return throwError(
+            "updateRoundStatus",
+            _id,
+            "Another round is already in progress. Complete it before starting a new one.",
+            400,
+          )
+        }
+
         // Guard: block round start >1h before qualifying for API series.
         const series = await Series.findById(champ.series)
         if (series?.hasAPI && champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp) {

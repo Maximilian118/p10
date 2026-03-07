@@ -7,6 +7,9 @@ import { ProtestStatus, Vote } from "./protest"
 // prettier-ignore
 export type RoundStatus = "waiting" | "countDown" | "betting_open" | "betting_closed" | "results" | "completed"
 
+// Round statuses that indicate a round is actively in progress (not waiting or completed).
+export const ACTIVE_ROUND_STATUSES: RoundStatus[] = ["countDown", "betting_open", "betting_closed", "results"]
+
 // Snapshot of a deleted user for display purposes.
 export interface DeletedUserSnapshot {
   _id: ObjectId

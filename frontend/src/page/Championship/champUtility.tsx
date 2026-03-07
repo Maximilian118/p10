@@ -8,7 +8,6 @@ import { ProtestsFormType, RuleChangesFormType } from "../../shared/formValidati
 import { StatItem } from "./components/ChampBannerStats/ChampBannerStats"
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports"
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium"
-import AutoModeIcon from "@mui/icons-material/AutoMode"
 import PersonIcon from "@mui/icons-material/Person"
 
 // ============================================
@@ -529,14 +528,12 @@ export const buildChampBannerStats = (
 ): StatItem[] => {
   const { showDrivers = true } = options ?? {}
   const displayedRound = viewedRoundNumber ?? 0
-  const autoNextRound = champ.settings?.automation?.enabled && champ.settings?.automation?.round?.autoNextRound
-
   // Get badge counts from championship data.
   const totalBadges = champ.champBadges?.length || 0
   const discoveredBadges = champ.discoveredBadgesCount ?? 0
 
   const stats: StatItem[] = [
-    { icon: autoNextRound ? <AutoModeIcon style={{ width: 16, height: 16 }}/> : <h5 className="rounds-r">R</h5>, value: `${displayedRound}/${champ.rounds?.length || 0}` },
+    { icon: <h5 className="rounds-r">R</h5>, value: `${displayedRound}/${champ.rounds?.length || 0}` },
     { icon: <PersonIcon />, value: `${champ.competitors?.length || 0}/${champ.settings?.maxCompetitors || 0}` },
   ]
 

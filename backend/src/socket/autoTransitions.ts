@@ -191,6 +191,18 @@ const transitionRoundStatus = async (
     return
   }
 
+  // Verify round is still in the expected pre-transition state (prevents stale timers).
+  const expectedPrevious: Record<string, string> = {
+    betting_open: "countDown",
+    betting_closed: "betting_open",
+    completed: "results",
+  }
+  const expected = expectedPrevious[newStatus]
+  if (expected && champ.rounds[roundIndex].status !== expected) {
+    log.warn(`Skipping stale transition for round ${roundIndex}: is '${champ.rounds[roundIndex].status}', expected '${expected}'`)
+    return
+  }
+
   champ.rounds[roundIndex].status = newStatus
   champ.rounds[roundIndex].statusChangedAt = moment().format()
   champ.updated_at = moment().format()
