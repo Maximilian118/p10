@@ -13,6 +13,7 @@ import {
 } from "../../socket/autoTransitions"
 import { champPopulation } from "../../shared/population"
 import { sendNotificationToMany } from "../../shared/notifications"
+import { getActiveSessionInfo } from "./sessionManager"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("RoundAutomation")
@@ -197,8 +198,14 @@ const autoOpenRound = async (
 
 // Reverts rounds stuck in betting_open or betting_closed for longer than the timeout.
 // This handles cases where F1 session data never arrives (cancelled session, API failure, driver mapping issues).
+// Skipped while an F1 session is active — the session will end naturally and trigger auto-results.
 const revertStuckRounds = async (): Promise<void> => {
   if (!ioServer) return
+
+  // Don't revert rounds while an F1 session is active — it will end naturally
+  // and trigger auto-results. Reverting now would prevent results from processing.
+  const sessionInfo = getActiveSessionInfo()
+  if (sessionInfo.active) return
 
   try {
     // Find all API-enabled series.

@@ -1179,7 +1179,7 @@ const handleSessionDataEvent = (event: InternalEvent): void => {
     const status = d.value as string
     if (status === "Finalised" || status === "Ends") {
       log.info(`SignalR SessionStatus → "${status}" — ending session`)
-      endSession()
+      endSession().catch((err) => log.error("Failed to end session from SignalR status:", err))
     }
     return
   }
@@ -2622,9 +2622,14 @@ const FALLBACK_CLOCK_INTERVAL = 5000
 // Maximum age of SignalR clock data before fallback activates (ms).
 const SIGNALR_STALE_THRESHOLD = 15000
 
+// Maximum age of SignalR clock data before we stop extrapolating and fall back to dateEndTs (ms).
+const SIGNALR_EXTRAPOLATION_MAX = 5 * 60 * 1000
+
 // Starts a periodic fallback clock that emits computed countdown events
 // when the F1 Live Timing SignalR connection hasn't delivered data recently.
-// Uses session date_end and race control flags to compute remaining time.
+// Two-tiered strategy:
+//   Tier 1: Extrapolate from last known SignalR clock (accurate for up to ~5 minutes).
+//   Tier 2: Compute from dateEndTs with active red flag compensation (>5 min stale).
 const startFallbackClock = (): void => {
   stopFallbackClock()
 
@@ -2635,17 +2640,37 @@ const startFallbackClock = (): void => {
     const signalRClock = getLatestClock()
     if (signalRClock && (Date.now() - signalRClock.serverTs) < SIGNALR_STALE_THRESHOLD) return
 
-    // Derive running state from the latest track-wide race control flag.
-    const rcMessages = activeSession.raceControlMessages
-    let running = true
-    for (let i = rcMessages.length - 1; i >= 0; i--) {
-      if (rcMessages[i].scope !== "Track") continue
-      if (rcMessages[i].flag === "RED") { running = false; break }
-      if (rcMessages[i].flag === "GREEN") break
+    // Tier 1: Extrapolate from the last known SignalR clock.
+    // SignalR's ExtrapolatedClock already accounts for all stoppages, so extrapolating
+    // from its last value is much more accurate than computing from dateEndTs.
+    if (signalRClock && (Date.now() - signalRClock.serverTs) < SIGNALR_EXTRAPOLATION_MAX) {
+      const elapsed = Date.now() - signalRClock.serverTs
+      const remainingMs = signalRClock.running
+        ? Math.max(0, signalRClock.remainingMs - elapsed)
+        : signalRClock.remainingMs
+      emitToRoom(OPENF1_EVENTS.CLOCK, {
+        remainingMs,
+        running: signalRClock.running,
+        serverTs: Date.now(),
+        speed: 1,
+      })
+      return
     }
 
-    // Compute remaining time from session date_end.
-    const remainingMs = Math.max(0, activeSession.dateEndTs - Date.now())
+    // Tier 2: Compute from dateEndTs, adjusting for any active red flag.
+    let remainingMs = Math.max(0, activeSession.dateEndTs - Date.now())
+
+    // If a red flag is currently active, its stoppage hasn't been added to dateEndTs yet.
+    // Add it back so remainingMs stays frozen at the value when the red flag started.
+    if (activeSession._activeRedFlag) {
+      const activeStoppageMs = Date.now() - new Date(activeSession._activeRedFlag.startTime).getTime()
+      if (activeStoppageMs > 0) {
+        remainingMs += activeStoppageMs
+      }
+    }
+
+    // Derive running state from trackFlag (maintained by handleRaceControlEvent).
+    const running = activeSession.trackFlag !== "RED"
 
     emitToRoom(OPENF1_EVENTS.CLOCK, {
       remainingMs,
