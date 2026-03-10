@@ -97,6 +97,10 @@
         background: variables.$colour-1;
       }
 
+      &:last-child {
+        border-bottom: none;
+      }
+
       svg {
         color: variables.$colour-4;
       }

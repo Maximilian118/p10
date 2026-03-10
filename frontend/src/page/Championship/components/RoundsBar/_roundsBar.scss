@@ -66,6 +66,10 @@
 
   .rounds-bar-countdown-btn {
     @include mixins.flexbox;
+
+    svg {
+      font-size: 22px;
+    }
     
     p {
       font-size: 12px;
