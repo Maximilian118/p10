@@ -70,10 +70,21 @@
     svg {
       font-size: 22px;
     }
-    
+
     p {
       font-size: 12px;
       margin-right: 5px;
+    }
+  }
+
+  // "Get Ready!" state shown briefly after countdown reaches zero.
+  .rounds-bar-get-ready-btn {
+    @include mixins.flexbox;
+
+    &:disabled p {
+      color: variables.$mui-success;
+      font-size: 12px;
+      font-weight: bold;
     }
   }
 }

@@ -33,6 +33,51 @@ let ioServer: Server | null = null
 // Tracks which championships have already received a 5-minute warning (prevents duplicate sends across 30s polling cycles).
 const warnedChampIds = new Set<string>()
 
+// Tracks scheduled precise auto-open timers per championship (prevents duplicate scheduling).
+const scheduledAutoOpenTimers = new Map<string, NodeJS.Timeout>()
+
+// Schedules a precise auto-open for a championship at the exact autoOpenAt time + 1 second.
+// The 1-second buffer lets the frontend "Get Ready!" text display before the countDown view broadcasts.
+const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
+  if (!ioServer || scheduledAutoOpenTimers.has(champId)) return
+
+  const delayMs = autoOpenAt - Date.now() + 1000
+  if (delayMs <= 0) return
+
+  const timer = setTimeout(async () => {
+    scheduledAutoOpenTimers.delete(champId)
+    if (!ioServer) return
+
+    try {
+      // Re-fetch championship to validate current state before opening.
+      const freshChamp = await Champ.findById(champId)
+      if (!freshChamp) return
+
+      // Guard: skip if any round is already active.
+      const hasActive = freshChamp.rounds.some((r) => ACTIVE_ROUND_STATUSES.includes(r.status))
+      if (hasActive) return
+
+      // Guard: skip if no waiting round exists.
+      const freshRoundIndex = freshChamp.rounds.findIndex((r) => r.status === "waiting")
+      if (freshRoundIndex === -1) return
+
+      // Guard: skip if auto-open timestamp was cleared (round already opened by adjudicator).
+      const freshTimestamp = freshChamp.settings.automation.bettingWindow.autoOpenData?.timestamp
+      if (!freshTimestamp) return
+
+      warnedChampIds.delete(champId)
+
+      log.info(`Precise auto-open firing for "${freshChamp.name}" round ${freshRoundIndex + 1}`)
+      await autoOpenRound(freshChamp, freshRoundIndex)
+    } catch (err) {
+      log.error(`Precise auto-open failed for champId=${champId}:`, err)
+    }
+  }, delayMs)
+
+  scheduledAutoOpenTimers.set(champId, timer)
+  log.info(`Scheduled precise auto-open for champId=${champId} in ${Math.round(delayMs / 1000)}s`)
+}
+
 // Checks all active championships with automation enabled and auto-opens
 // rounds when the qualifying start time minus autoOpenTime has been reached.
 // Also sends a 5-minute warning notification before auto-open.
@@ -93,11 +138,14 @@ const checkAutoOpenRounds = async (): Promise<void> => {
           })
           log.info(`5-minute warning sent for "${champ.name}" round ${roundIndex + 1}`)
         }
-        continue
       }
 
-      // Skip if not yet time to open.
-      if (now < autoOpenAt) continue
+      // Schedule a precise auto-open timer based on the API qualifying timestamp.
+      // This ensures the round opens exactly 1 second after the frontend countdown hits zero.
+      if (now < autoOpenAt) {
+        scheduleRoundAutoOpen(champId, autoOpenAt)
+        continue
+      }
 
       // Clear the warning flag once the round opens.
       warnedChampIds.delete(champId)
@@ -264,11 +312,18 @@ export const startRoundAutomation = (io: Server): void => {
   log.info(`✓ Round automation started (checking every ${CHECK_INTERVAL / 1000}s)`)
 }
 
-// Stops the periodic check.
+// Stops the periodic check and clears all scheduled auto-open timers.
 export const stopRoundAutomation = (): void => {
   if (checkTimer) {
     clearInterval(checkTimer)
     checkTimer = null
-    log.info("Round automation stopped")
   }
+
+  // Clear all scheduled precise auto-open timers.
+  for (const timer of scheduledAutoOpenTimers.values()) {
+    clearTimeout(timer)
+  }
+  scheduledAutoOpenTimers.clear()
+
+  log.info("Round automation stopped")
 }

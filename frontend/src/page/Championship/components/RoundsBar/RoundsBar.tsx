@@ -64,6 +64,7 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
   const [countdown, setCountdown] = useState<string | null>(null)
   const [roughCountdown, setRoughCountdown] = useState<string | null>(null)
   const [canStart, setCanStart] = useState(false)
+  const [getReady, setGetReady] = useState(false)
 
   // Countdown timer: computes display state based on time until auto-open.
   useEffect(() => {
@@ -71,6 +72,7 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
       setCountdown(null)
       setRoughCountdown(null)
       setCanStart(false)
+      setGetReady(false)
       return
     }
 
@@ -82,25 +84,29 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
       const msUntilOpen = autoOpenAt - Date.now()
 
       if (msUntilOpen <= 0) {
-        // Auto-open time has passed — round should be starting.
+        // Auto-open time has passed — show "Get Ready!" until backend broadcasts countDown status.
         setCountdown(null)
         setRoughCountdown(null)
         setCanStart(false)
+        setGetReady(true)
       } else if (msUntilOpen <= ONE_HOUR) {
         // Within 1h — precise countdown, adjudicator can start.
         setCountdown(formatCountdown(msUntilOpen))
         setRoughCountdown(null)
         setCanStart(true)
+        setGetReady(false)
       } else if (msUntilOpen <= TWENTY_FOUR_HOURS) {
         // 1h–24h — precise countdown, but no start yet.
         setCountdown(formatCountdown(msUntilOpen))
         setRoughCountdown(null)
         setCanStart(false)
+        setGetReady(false)
       } else {
         // >24h — rough label only.
         setCountdown(null)
         setRoughCountdown(formatRoughCountdown(msUntilOpen))
         setCanStart(false)
+        setGetReady(false)
       }
     }
 
@@ -172,6 +178,19 @@ const RoundsBar: React.FC<RoundsBarProps> = ({
         >
           <p>{roughCountdown}</p>
           <AccessTime />
+        </ToggleButton>
+      )
+    }
+
+    // Countdown reached zero — show "Get Ready!" until backend broadcasts countDown status.
+    if (getReady && hasRoundsRemaining) {
+      return (
+        <ToggleButton
+          value="getReady"
+          className="rounds-bar-nav-btn rounds-bar-get-ready-btn"
+          disabled
+        >
+          <p>Get Ready!</p>
         </ToggleButton>
       )
     }
