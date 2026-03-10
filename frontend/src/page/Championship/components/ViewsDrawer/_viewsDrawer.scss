@@ -32,6 +32,10 @@
   align-items: center;
   gap: 12px;
 
+  &:first-child {
+    border-top: none;
+  }
+
   &:hover {
     background: variables.$colour-1;
   }
