@@ -10,6 +10,7 @@ import {
 import {
   scheduleCountdownTransition,
   scheduleBettingCloseTransition,
+  computeBettingCloseAt,
 } from "../../socket/autoTransitions"
 import { champPopulation } from "../../shared/population"
 import { sendNotificationToMany } from "../../shared/notifications"
@@ -184,6 +185,15 @@ const autoOpenRound = async (
     // Set the round status and save.
     champ.rounds[roundIndex].status = initialStatus
     champ.rounds[roundIndex].statusChangedAt = moment().format()
+
+    // Compute bettingCloseAt BEFORE save so it's included in the initial broadcast.
+    if (skipCountDown && champ.settings.automation.bettingWindow.autoClose) {
+      champ.rounds[roundIndex].bettingCloseAt = computeBettingCloseAt(
+        champ.settings.automation.bettingWindow,
+        champ.rounds[roundIndex].statusChangedAt,
+      )
+    }
+
     champ.updated_at = moment().format()
     await champ.save()
 
@@ -198,14 +208,14 @@ const autoOpenRound = async (
       drivers: populatedRound.drivers,
       competitors: populatedRound.competitors,
       teams: populatedRound.teams,
-    })
+    }, undefined, champ.rounds[roundIndex].bettingCloseAt)
 
     // Schedule the countdown → betting_open transition if not skipping.
     if (!skipCountDown) {
       scheduleCountdownTransition(ioServer, champId, roundIndex)
-    } else if (champ.settings.automation.bettingWindow.autoClose) {
-      // If we skipped countdown and went straight to betting_open, schedule auto-close.
-      const closeDelayMs = (champ.settings.automation.bettingWindow.autoCloseTime || 5) * 60 * 1000
+    } else if (champ.rounds[roundIndex].bettingCloseAt) {
+      // Schedule auto-close using the pre-computed bettingCloseAt deadline.
+      const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
       scheduleBettingCloseTransition(ioServer, champId, roundIndex, closeDelayMs)
     }
 

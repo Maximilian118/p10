@@ -324,6 +324,8 @@ const Championship: React.FC = () => {
           ...newRounds[payload.roundIndex],
           status: payload.status,
           statusChangedAt: payload.timestamp,
+          // Store bettingCloseAt deadline from backend (used by BettingOpenView timer).
+          ...(payload.bettingCloseAt && { bettingCloseAt: payload.bettingCloseAt }),
           // Merge round data if included in payload (waiting → countDown, or any → results).
           ...(payload.round && {
             drivers: payload.round.drivers,
@@ -1178,7 +1180,6 @@ const Championship: React.FC = () => {
             onAdvance={() => handleAdvanceStatus("betting_closed")}
             lastRejectedBet={lastRejectedBet}
             lastBetPlaced={lastBetPlaced}
-            automation={champ.settings.automation}
             competitorsCanBet={champ.settings.competitorsCanBet}
           />
         )}

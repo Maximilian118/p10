@@ -106,6 +106,32 @@ export const scheduleResultsTransition = (
   scheduleAutoTransition(io, champId, roundIndex, "completed", RESULTS_DURATION)
 }
 
+// Computes the exact betting close timestamp based on qualifying start time.
+// Uses qualifying timestamp when available for precise anchoring;
+// falls back to round open time + full window duration.
+export const computeBettingCloseAt = (
+  bettingWindow: { autoOpen: boolean; autoOpenTime: number; autoCloseTime: number; autoOpenData?: { timestamp: string } },
+  previousStatusChangedAt: string | null,
+): string => {
+  const { autoOpen, autoOpenTime, autoCloseTime, autoOpenData } = bettingWindow
+
+  // Anchor directly to qualifying session start when available.
+  if (autoOpen && autoOpenData?.timestamp) {
+    const qualifyingStart = new Date(autoOpenData.timestamp).getTime()
+    return new Date(qualifyingStart + (autoCloseTime || 5) * 60 * 1000).toISOString()
+  }
+
+  // Qualifying timestamp cleared (auto-open already fired).
+  // Compute from original round-open time + full window.
+  if (autoOpen && previousStatusChangedAt) {
+    const totalMs = ((autoOpenTime || 10) + (autoCloseTime || 5)) * 60 * 1000
+    return new Date(new Date(previousStatusChangedAt).getTime() + totalMs).toISOString()
+  }
+
+  // Manual open (autoOpen OFF): close after autoCloseTime from now.
+  return new Date(Date.now() + (autoCloseTime || 5) * 60 * 1000).toISOString()
+}
+
 // Recovers rounds stuck in intermediate statuses after a server restart.
 // Pre-results statuses (countDown, betting_open, betting_closed) are reset to "waiting".
 // Results rounds beyond 6 minutes are transitioned to "completed" (resultsHandler already ran on entry).
@@ -203,14 +229,27 @@ const transitionRoundStatus = async (
     return
   }
 
+  // Save previous statusChangedAt for bettingCloseAt computation (may be countDown start time).
+  const previousStatusChangedAt = champ.rounds[roundIndex].statusChangedAt
+
   champ.rounds[roundIndex].status = newStatus
   champ.rounds[roundIndex].statusChangedAt = moment().format()
   champ.updated_at = moment().format()
+
+  // Compute and store bettingCloseAt when entering betting_open with autoClose enabled.
+  if (newStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
+    const bettingCloseAt = computeBettingCloseAt(
+      champ.settings.automation.bettingWindow,
+      previousStatusChangedAt,
+    )
+    champ.rounds[roundIndex].bettingCloseAt = bettingCloseAt
+  }
+
   await champ.save()
 
-  // Schedule auto-close of betting window when entering betting_open (if automation enabled).
-  if (newStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
-    const closeDelayMs = (champ.settings.automation.bettingWindow.autoCloseTime || 5) * 60 * 1000
+  // Schedule auto-close of betting window using the computed bettingCloseAt deadline.
+  if (newStatus === "betting_open" && champ.rounds[roundIndex].bettingCloseAt) {
+    const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
     scheduleBettingCloseTransition(io, champId, roundIndex, closeDelayMs)
   }
 
@@ -250,5 +289,6 @@ const transitionRoundStatus = async (
     }
   }
 
-  broadcastRoundStatusChange(io, champId, roundIndex, newStatus)
+  broadcastRoundStatusChange(io, champId, roundIndex, newStatus, undefined, undefined,
+    champ.rounds[roundIndex].bettingCloseAt)
 }

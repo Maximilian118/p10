@@ -86,6 +86,7 @@ const champSchema = `
     round: Int!
     status: RoundStatus!
     statusChangedAt: String
+    bettingCloseAt: String
     resultsProcessed: Boolean!
     winner: User
     runnerUp: User

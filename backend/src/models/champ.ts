@@ -80,6 +80,7 @@ export interface Round {
   round: number // Which round is it in the championship?
   status: RoundStatus // Current status of the round
   statusChangedAt: string | null // ISO timestamp when status was last changed (for 24h expiry)
+  bettingCloseAt: string | null // ISO timestamp when betting will auto-close (computed from qualifying start + autoCloseTime)
   resultsProcessed: boolean // Has resultsHandler() already processed this round? Prevents double execution.
   competitors: CompetitorEntry[] // All of the competitors in the champ and their data for this round.
   drivers: DriverEntry[] // All of the drivers in the champ and their data for this round.
@@ -345,6 +346,7 @@ const roundSchema = new mongoose.Schema(
       default: "waiting",
     },
     statusChangedAt: { type: String, default: null },
+    bettingCloseAt: { type: String, default: null },
     resultsProcessed: { type: Boolean, default: false }, // Prevents double execution of resultsHandler()
     competitors: [competitorEntrySchema],
     drivers: [driverEntrySchema],

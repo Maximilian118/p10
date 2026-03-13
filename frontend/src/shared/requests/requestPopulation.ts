@@ -475,6 +475,7 @@ export const populateChamp = `
     round
     status
     statusChangedAt
+    bettingCloseAt
     winner {
       _id
       name
@@ -847,6 +848,7 @@ export const populateChamp = `
       round
       status
       statusChangedAt
+      bettingCloseAt
       winner {
         _id
         name

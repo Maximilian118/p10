@@ -257,6 +257,7 @@ export interface RoundType {
   round: number
   status: RoundStatus
   statusChangedAt: string | null // ISO timestamp for when status changed (for countdown sync).
+  bettingCloseAt: string | null // ISO timestamp when betting will auto-close (qualifying start + autoCloseTime).
   resultsProcessed: boolean // Has resultsHandler() already processed this round? Prevents double execution.
   winner: userType | null // Competitor who scored max points (null if none).
   runnerUp: userType | null // Runner-up competitor for this round.

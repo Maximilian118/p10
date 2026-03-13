@@ -31,6 +31,7 @@ export interface RoundStatusPayload {
     competitors: CompetitorEntryType[]
     teams: TeamEntryType[]
   }
+  bettingCloseAt?: string // ISO timestamp when betting will auto-close
   isSeasonEnd?: boolean // True when the last round of a season transitions to results
   seasonEndedAt?: string // ISO timestamp for the 24h ChampionshipFinishView countdown
 }

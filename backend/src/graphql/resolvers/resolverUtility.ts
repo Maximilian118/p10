@@ -40,6 +40,7 @@ export const createEmptyRound = (roundNumber: number, competitors: CompetitorEnt
   round: roundNumber,
   status: "waiting",
   statusChangedAt: null, // Only set when status changes to an active state
+  bettingCloseAt: null,
   resultsProcessed: false,
   competitors,
   drivers: [],

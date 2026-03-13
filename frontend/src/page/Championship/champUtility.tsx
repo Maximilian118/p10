@@ -385,6 +385,7 @@ export const applySettingsOptimistically = (
           round: i,
           status: "waiting" as const,
           statusChangedAt: null,
+          bettingCloseAt: null,
           resultsProcessed: false,
           winner: null,
           runnerUp: null,

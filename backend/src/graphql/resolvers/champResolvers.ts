@@ -27,6 +27,7 @@ import {
   scheduleResultsTransition,
   scheduleBettingCloseTransition,
   cancelTimer,
+  computeBettingCloseAt,
 } from "../../socket/autoTransitions"
 import { resultsHandler, checkRoundExpiry, findLastKnownPoints, createEmptyRound, createCompetitorEntry, archiveSeason } from "./resolverUtility"
 import League from "../../models/league"
@@ -1714,10 +1715,23 @@ const champResolvers = {
         actualStatus = "completed"
       }
 
+      // Save previous statusChangedAt for bettingCloseAt computation (may be countDown start time).
+      const previousStatusChangedAt = champ.rounds[roundIndex].statusChangedAt
+
       // Update the round status and timestamp for expiry tracking.
       champ.rounds[roundIndex].status = actualStatus
       champ.rounds[roundIndex].statusChangedAt = moment().format()
       champ.updated_at = moment().format()
+
+      // Compute and store bettingCloseAt when entering betting_open with autoClose enabled.
+      if (actualStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
+        const bettingCloseAt = computeBettingCloseAt(
+          champ.settings.automation.bettingWindow,
+          previousStatusChangedAt,
+        )
+        champ.rounds[roundIndex].bettingCloseAt = bettingCloseAt
+      }
+
       await champ.save()
 
       // Schedule auto-transitions only if not skipping.
@@ -1736,9 +1750,9 @@ const champResolvers = {
         }
       }
 
-      // Schedule auto-close of betting window when entering betting_open (if automation enabled).
-      if (actualStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
-        const closeDelayMs = (champ.settings.automation.bettingWindow.autoCloseTime || 5) * 60 * 1000
+      // Schedule auto-close of betting window using the computed bettingCloseAt deadline.
+      if (actualStatus === "betting_open" && champ.rounds[roundIndex].bettingCloseAt) {
+        const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
         scheduleBettingCloseTransition(io, _id, roundIndex, closeDelayMs)
       }
 
@@ -1756,15 +1770,18 @@ const champResolvers = {
         ? { isSeasonEnd: true, seasonEndedAt: populatedChamp.seasonEndedAt || moment().format() }
         : undefined
 
+      // Include bettingCloseAt in broadcast when entering betting_open.
+      const roundBettingCloseAt = populatedChamp.rounds[roundIndex]?.bettingCloseAt
+
       if (currentStatus === "waiting" || actualStatus === "results") {
         const populatedRound = populatedChamp.rounds[roundIndex] || populatedChamp.rounds[0]
         broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, {
           drivers: populatedRound.drivers,
           competitors: populatedRound.competitors,
           teams: populatedRound.teams,
-        }, seasonEndInfo)
+        }, seasonEndInfo, roundBettingCloseAt)
       } else {
-        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, undefined, seasonEndInfo)
+        broadcastRoundStatusChange(io, _id, roundIndex, actualStatus, undefined, seasonEndInfo, roundBettingCloseAt)
       }
 
       // Send notifications to all competitors.

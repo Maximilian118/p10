@@ -43,6 +43,7 @@ export interface RoundStatusPayload {
     competitors: unknown[]
     teams: unknown[]
   }
+  bettingCloseAt?: string // ISO timestamp when betting will auto-close
   isSeasonEnd?: boolean // True when the last round of a season transitions to results
   seasonEndedAt?: string // ISO timestamp for the 24h ChampionshipFinishView countdown
 }
@@ -296,6 +297,7 @@ export const broadcastRoundStatusChange = (
   newStatus: RoundStatus,
   roundData?: { drivers: unknown[]; competitors: unknown[]; teams: unknown[] },
   seasonEndInfo?: { isSeasonEnd: boolean; seasonEndedAt: string },
+  bettingCloseAt?: string | null,
 ): void => {
   const roomName = `championship:${champId}`
   const payload: RoundStatusPayload = {
@@ -305,6 +307,7 @@ export const broadcastRoundStatusChange = (
     timestamp: new Date().toISOString(),
     ...(roundData && { round: roundData }),
     ...(seasonEndInfo && seasonEndInfo),
+    ...(bettingCloseAt && { bettingCloseAt }),
   }
 
   // Log room occupancy for monitoring.

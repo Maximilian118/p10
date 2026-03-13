@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from "react"
 import "./_bettingOpenView.scss"
-import { RoundType, driverType, CompetitorEntryType, AutomationSettingsType } from "../../../../../shared/types"
+import { RoundType, driverType, CompetitorEntryType } from "../../../../../shared/types"
 import { initDriver } from "../../../../../shared/init"
 import { placeBetViaSocket, BetRejectedPayload, BetPlacedPayload } from "../../../../../shared/socket/socketClient"
 import AppContext from "../../../../../context"
@@ -19,21 +19,13 @@ interface BettingOpenViewProps {
   onAdvance?: () => void
   lastRejectedBet?: BetRejectedPayload | null
   lastBetPlaced?: BetPlacedPayload | null
-  automation?: AutomationSettingsType
   competitorsCanBet?: boolean
 }
 
-// Calculates total betting window duration in seconds.
-const calculateBettingDuration = (automation: AutomationSettingsType): number => {
-  const { autoOpenTime, autoCloseTime } = automation.bettingWindow
-  return (autoOpenTime + autoCloseTime) * 60
-}
-
-// Calculates remaining seconds based on when betting_open started.
-const calculateSecondsLeft = (statusChangedAt: string | null, duration: number): number => {
-  if (!statusChangedAt) return duration
-  const elapsed = Math.floor((Date.now() - new Date(statusChangedAt).getTime()) / 1000)
-  return Math.max(0, duration - elapsed)
+// Calculates remaining seconds until the betting close deadline.
+const calculateSecondsLeft = (bettingCloseAt: string | null): number => {
+  if (!bettingCloseAt) return 0
+  return Math.max(0, Math.floor((new Date(bettingCloseAt).getTime() - Date.now()) / 1000))
 }
 
 // Finds which competitor (if any) has bet on a specific driver.
@@ -54,7 +46,6 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   onAdvance,
   lastRejectedBet,
   lastBetPlaced,
-  automation,
   competitorsCanBet = true
 }) => {
   const { user } = useContext(AppContext)
@@ -70,27 +61,24 @@ const BettingOpenView: React.FC<BettingOpenViewProps> = ({
   // Determine if we're in competitor selection mode (adjudicator selected a driver).
   const isSelectingCompetitor = isPlacingForOthers && selectedDriverId !== null
 
-  // Determine if countdown timer should be shown.
-  const showTimer = automation?.enabled
-    && automation.bettingWindow.autoOpen
-    && automation.bettingWindow.autoClose
+  // Show countdown timer when a bettingCloseAt deadline exists on the round.
+  const showTimer = !!round.bettingCloseAt
 
-  // Calculate initial countdown duration and seconds left.
-  const duration = automation ? calculateBettingDuration(automation) : 0
+  // Calculate remaining seconds from the backend-computed bettingCloseAt deadline.
   const [secondsLeft, setSecondsLeft] = useState(() =>
-    showTimer ? calculateSecondsLeft(round.statusChangedAt, duration) : 0
+    calculateSecondsLeft(round.bettingCloseAt)
   )
 
-  // Decrement timer every second.
+  // Recalculate from bettingCloseAt each tick to prevent drift (handles tab backgrounding).
   useEffect(() => {
-    if (!showTimer || secondsLeft <= 0) return
+    if (!showTimer) return
 
     const timer = setInterval(() => {
-      setSecondsLeft(prev => Math.max(0, prev - 1))
+      setSecondsLeft(calculateSecondsLeft(round.bettingCloseAt))
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [showTimer, secondsLeft])
+  }, [showTimer, round.bettingCloseAt])
 
   // Get drivers in the randomised order stored on the round.
   const drivers: driverType[] = round.randomisedDrivers?.length
