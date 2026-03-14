@@ -15,7 +15,7 @@ interface DemoSessionPickerProps {
   onSelect: (session: DemoSession) => void
 }
 
-// Notable F1 race sessions available for demo replay.
+// Notable F1 sessions available for demo replay.
 const DEMO_SESSIONS: DemoSessionOption[] = [
   { key: 9606, circuit: "Singapore", year: 2024, session: "Race" },
   { key: 9472, circuit: "Sakhir", year: 2024, session: "Race" },
@@ -25,10 +25,12 @@ const DEMO_SESSIONS: DemoSessionOption[] = [
   { key: 9558, circuit: "Silverstone", year: 2024, session: "Race" },
   { key: 9673, circuit: "Shanghai", year: 2024, session: "Race" },
   { key: 9189, circuit: "Las Vegas", year: 2023, session: "Race" },
+  { key: 9943, circuit: "Silverstone", year: 2025, session: "Qualifying" },
 ]
 
-// Builds a display label from session info.
-const buildLabel = (s: DemoSessionOption): string => s.circuit
+// Builds a display label from session info (appends session type for non-Race sessions).
+const buildLabel = (s: DemoSessionOption): string =>
+  s.session === "Race" ? s.circuit : `${s.circuit} ${s.session}`
 
 // Displays a list of historical F1 sessions for the user to choose from.
 const DemoSessionPicker: React.FC<DemoSessionPickerProps> = ({ onSelect }) => {

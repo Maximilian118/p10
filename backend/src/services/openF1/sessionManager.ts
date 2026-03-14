@@ -277,6 +277,7 @@ export const initDemoSession = async (
   drivers: Map<number, DriverInfo>,
   sessionType?: string,
   totalLaps?: number | null,
+  qualifyingKnockouts?: Map<number, number>,
 ): Promise<void> => {
   demoState = {
     sessionKey,
@@ -339,6 +340,12 @@ export const initDemoSession = async (
     trackStalls: new Map(),
     lastEmittedProgress: new Map(),
     rotationOverride: 0,
+    // If knockouts were pre-computed (qualifying demo), start in Q3 with knockouts applied.
+    // Otherwise, start in Q1 for qualifying sessions or null for non-qualifying.
+    qualifyingPhase: qualifyingKnockouts && qualifyingKnockouts.size > 0
+      ? 3
+      : (sessionType || "").toLowerCase().includes("qualifying") ? 1 : null,
+    driverKnockedOut: qualifyingKnockouts ?? new Map(),
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -889,6 +896,16 @@ const handleIntervalEvent = (event: InternalEvent): void => {
       personalFastest: (data.lastLapPersonalFastest as boolean) ?? false,
     })
   }
+
+  // Track driver elimination from qualifying (KnockedOut flag from SignalR TimingData).
+  if (data.knockedOut === true && activeSession.qualifyingPhase !== null) {
+    if (!activeSession.driverKnockedOut.has(event.driverNumber)) {
+      // KnockedOut arrives after the phase ends, so qualifyingPhase has already advanced.
+      // Use qualifyingPhase - 1 (the phase that just ended) as the elimination phase.
+      const eliminatedInPhase = Math.max(1, activeSession.qualifyingPhase - 1)
+      activeSession.driverKnockedOut.set(event.driverNumber, eliminatedInPhase)
+    }
+  }
 }
 
 // Handles a normalized pit event. Updates pit count, tracks history,
@@ -1184,6 +1201,12 @@ const handleSessionDataEvent = (event: InternalEvent): void => {
     return
   }
 
+  // Track qualifying phase from SignalR TimingData.SessionPart.
+  if (d.key === "SessionPart" && typeof d.value === "number") {
+    activeSession.qualifyingPhase = d.value
+    return
+  }
+
   // Store grid position from TimingAppData GridPos field.
   if (d.key === "GridPosition" && event.driverNumber) {
     const gridPos = d.value as number
@@ -1198,6 +1221,20 @@ const handleSessionDataEvent = (event: InternalEvent): void => {
     key: (d.key as string) ?? "",
     value: d.value as string | number | boolean,
   })
+}
+
+// Snapshots driver positions at the end of a qualifying phase and marks eliminated drivers.
+// Q1 end: positions > 15 eliminated. Q2 end: positions > 10 eliminated.
+const snapshotQualifyingEliminations = (endedPhase: number): void => {
+  if (!activeSession) return
+  const cutoff = endedPhase === 1 ? 15 : 10
+
+  for (const [driverNumber, position] of activeSession.driverPositions) {
+    if (position > cutoff && !activeSession.driverKnockedOut.has(driverNumber)) {
+      activeSession.driverKnockedOut.set(driverNumber, endedPhase)
+    }
+  }
+  log.info(`Q${endedPhase} ended — ${activeSession.driverKnockedOut.size} drivers eliminated so far`)
 }
 
 // ─── Race Control Metadata Extraction ───────────────────────────
@@ -1303,6 +1340,18 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
   if (activeSession._medicalCar && rc.flag === "GREEN" && rc.scope === "Track") {
     activeSession._medicalCar = false
     emitToRoom(OPENF1_EVENTS.MEDICAL_CAR, false)
+  }
+
+  // Qualifying phase detection from race control messages.
+  // "END OF Q1" / "END OF Q2" messages mark the boundary between qualifying phases.
+  if (activeSession.qualifyingPhase !== null) {
+    if (msgUpper.includes("END OF Q1")) {
+      snapshotQualifyingEliminations(1)
+      activeSession.qualifyingPhase = 2
+    } else if (msgUpper.includes("END OF Q2")) {
+      snapshotQualifyingEliminations(2)
+      activeSession.qualifyingPhase = 3
+    }
   }
 }
 
@@ -1606,6 +1655,8 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     trackStalls: new Map(),
     lastEmittedProgress: new Map(),
     rotationOverride,
+    qualifyingPhase: (msg.session_type || msg.session_name || "").toLowerCase().includes("qualifying") ? 1 : null,
+    driverKnockedOut: new Map(),
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -2576,6 +2627,7 @@ const buildDriverStates = (): DriverLiveState[] => {
       pitStops: pitState?.count ?? 0,
       isPitOutLap: latestLap?.is_pit_out_lap ?? false,
       retired: activeSession!.dnfs.some((d) => d.driverNumber === driverNumber),
+      knockedOutInPhase: activeSession!.driverKnockedOut.get(driverNumber) ?? null,
 
       speed: carData?.speed ?? 0,
       drs: carData?.drs ?? 0,

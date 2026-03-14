@@ -51,4 +51,10 @@
     background: rgba(25, 118, 210, 0.12);
     box-shadow: inset 3px 0 0 #1976d2;
   }
+
+  // Dimmed appearance for drivers eliminated from qualifying.
+  &--eliminated {
+    background: variables.$colour-2;
+    opacity: 0.9;
+  }
 }

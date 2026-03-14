@@ -177,15 +177,25 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
       })
   }, [raceControlMessages])
 
-  // Sorts drivers by race position (P1 at top). Null positions sink to the bottom.
+  // Maps knockedOutInPhase to sort group: active (null) → 0, Q2 (2) → 1, Q1 (1) → 2.
+  // Q2 eliminated drivers rank higher than Q1 eliminated (they survived longer).
+  const phaseOrder = useCallback((phase: number | null): number =>
+    phase === null ? 0 : phase === 2 ? 1 : 2, [])
+
+  // Sorts drivers by elimination group first (active → Q2 eliminated → Q1 eliminated),
+  // then by position within each group. Ensures qualifying separators appear exactly once.
   const sortedStates = useMemo(() =>
     [...driverStates].sort((a, b) => {
+      const groupA = phaseOrder(a.knockedOutInPhase)
+      const groupB = phaseOrder(b.knockedOutInPhase)
+      if (groupA !== groupB) return groupA - groupB
+
       if (a.position === null && b.position === null) return 0
       if (a.position === null) return 1
       if (b.position === null) return -1
       return a.position - b.position
     }),
-  [driverStates])
+  [driverStates, phaseOrder])
 
   // ─── FLIP animation for position changes ─────────────────────────
   const listRef = useRef<HTMLDivElement>(null)
@@ -316,17 +326,30 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
           </div>
         ) : (
           <div className="driver-list" ref={listRef}>
-            {sortedStates.map((state) => {
+            {sortedStates.map((state, index) => {
               const champDriver = champDriverMap.get(state.nameAcronym)
+
+              // Insert qualifying elimination separator before the first driver knocked out in each phase.
+              const prevState = index > 0 ? sortedStates[index - 1] : null
+              const showSeparator = state.knockedOutInPhase !== null &&
+                (prevState === null || prevState.knockedOutInPhase !== state.knockedOutInPhase)
+              const separatorLabel = state.knockedOutInPhase === 2 ? "Q2" : state.knockedOutInPhase === 1 ? "Q1" : null
+
               return (
-                <F1DriverCard
-                  key={state.driverNumber}
-                  state={state}
-                  champDriver={champDriver}
-                  selected={driverView?.driverNumber === state.driverNumber}
-                  onClick={() => handleDriverViewSelect(state.driverNumber)}
-                  pillSegments={pillSegments.get(state.driverNumber)}
-                />
+                <React.Fragment key={state.driverNumber}>
+                  {showSeparator && separatorLabel && (
+                    <div className="qualifying-separator">
+                      <span>{separatorLabel} Eliminated</span>
+                    </div>
+                  )}
+                  <F1DriverCard
+                    state={state}
+                    champDriver={champDriver}
+                    selected={driverView?.driverNumber === state.driverNumber}
+                    onClick={() => handleDriverViewSelect(state.driverNumber)}
+                    pillSegments={pillSegments.get(state.driverNumber)}
+                  />
+                </React.Fragment>
               )
             })}
           </div>

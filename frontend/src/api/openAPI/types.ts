@@ -112,6 +112,9 @@ export interface DriverLiveState {
   isPitOutLap: boolean
   retired: boolean
 
+  // Which qualifying phase this driver was eliminated in (1 or 2), null if still active.
+  knockedOutInPhase: number | null
+
   // Telemetry snapshot.
   speed: number
   drs: number

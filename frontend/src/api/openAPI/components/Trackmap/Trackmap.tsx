@@ -383,19 +383,26 @@ const Trackmap: React.FC<TrackmapProps> = ({ selectedDriverNumber, onDriverSelec
   // crosses each mini-sector line. Buffers persist per driver/lap and reset on S/F crossing.
   const pillSegmentsRef = useRef<Map<number, { lap: number; segments: AcceptedSegments }>>(new Map())
   const pillSectorTracker = useRef<Map<number, number>>(new Map())
+  // Ratcheted segment counts: only increases, never decreases. Prevents pill count fluctuation
+  // during qualifying when drivers' segment arrays reset between runs.
+  const stableSegCountsRef = useRef({ sector1: 0, sector2: 0, sector3: 0 })
 
   useEffect(() => {
     if (!sectorBoundaries || driverStates.length === 0) return
 
     // Compute the track's canonical segment counts (max per sector across all drivers).
-    // Retired/DNF drivers may have fewer segment entries, so we use the max to ensure
-    // every driver's pill buffer has the correct number of slots for this track.
-    const trackSegCounts = { sector1: 0, sector2: 0, sector3: 0 }
+    // Ratcheted via stableSegCountsRef so counts only ever increase — prevents pill count
+    // fluctuation during qualifying when drivers' segment arrays reset between runs.
+    const newMax = { sector1: 0, sector2: 0, sector3: 0 }
     driverStates.forEach((ds) => {
-      trackSegCounts.sector1 = Math.max(trackSegCounts.sector1, ds.segments.sector1.length)
-      trackSegCounts.sector2 = Math.max(trackSegCounts.sector2, ds.segments.sector2.length)
-      trackSegCounts.sector3 = Math.max(trackSegCounts.sector3, ds.segments.sector3.length)
+      newMax.sector1 = Math.max(newMax.sector1, ds.segments.sector1.length)
+      newMax.sector2 = Math.max(newMax.sector2, ds.segments.sector2.length)
+      newMax.sector3 = Math.max(newMax.sector3, ds.segments.sector3.length)
     })
+    stableSegCountsRef.current.sector1 = Math.max(stableSegCountsRef.current.sector1, newMax.sector1)
+    stableSegCountsRef.current.sector2 = Math.max(stableSegCountsRef.current.sector2, newMax.sector2)
+    stableSegCountsRef.current.sector3 = Math.max(stableSegCountsRef.current.sector3, newMax.sector3)
+    const trackSegCounts = stableSegCountsRef.current
 
     let anyChanged = false
     const resultMap = new Map<number, AcceptedSegments>()

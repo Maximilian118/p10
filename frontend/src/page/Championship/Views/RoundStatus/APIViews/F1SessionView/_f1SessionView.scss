@@ -151,6 +151,23 @@
     flex-grow: 1;
     min-height: 0;
     overflow-y: auto;
+
+    // Qualifying phase elimination separator between driver cards.
+    .qualifying-separator {
+      width: 100%;
+      padding: 4px 20px;
+      box-sizing: border-box;
+      @include mixins.flexbox;
+      background: variables.$colour-9;
+
+      span {
+        font-size: 10px;
+        font-family: 'formula1-regular', sans-serif;
+        color: variables.$colour-3;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+    }
   }
 
   // Scrollable race control messages panel — replaces driver-list when toggled.

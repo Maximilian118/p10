@@ -8,7 +8,7 @@ import {
   MAX_PIT_SAMPLES,
 } from "./types"
 import { computePitSideVote, isClockwise, median, circularMedian, PIT_SPEED_MARGIN, MIN_PIT_PROGRESS_RANGE, computeInfieldSide } from "./pitLaneUtils"
-import { loadDemoSession, saveDemoSession, ReplayMessage } from "../../models/f1Session"
+import { loadDemoSession, saveDemoSession, deleteDemoSession, ReplayMessage } from "../../models/f1Session"
 import { computeTrackProgress, computeArcLengths } from "./trackProgress"
 import Trackmap from "../../models/trackmap"
 import { resolveSessionPath, fetchStaticSession } from "./staticFileClient"
@@ -228,7 +228,7 @@ const computeOptimalMidpoint = (
 // Fetches all session data from the OpenF1 REST API and builds the message queue.
 const fetchFromAPI = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionType: string; sessionName: string; driverCount: number; sessionEndTs: number; totalLaps: number }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionType: string; sessionName: string; driverCount: number; sessionEndTs: number; totalLaps: number; qualifyingKnockouts: Map<number, number> }> => {
   const token = await getOpenF1Token()
   const authHeaders = { Authorization: `Bearer ${token}` }
 
@@ -280,12 +280,19 @@ const fetchFromAPI = async (
     .map((p: OpenF1PitMsg) => new Date(p.date).getTime())
     .sort((a: number, b: number) => a - b)
 
-  // Compute optimal midpoint balancing track activity and pit stop coverage.
-  // Scores against the ~5min effective window that survives the 6MB trim.
-  const activityMidpointMs = computeOptimalMidpoint(
-    lapTimestamps, pitTimestamps,
-    new Date(session.date_start || Date.now()).getTime(),
-  )
+  // Detect qualifying sessions — they need different windowing and knockout pre-computation.
+  const isQualifying = (session.session_type || session.session_name || "")
+    .toLowerCase().includes("qualifying")
+
+  // For qualifying, bias the activity midpoint toward the end of the session
+  // so the replay window captures Q3 (the most interesting phase).
+  // For races, compute the optimal midpoint from pit stop and lap density.
+  const activityMidpointMs = isQualifying
+    ? (lapTimestamps.length > 0 ? lapTimestamps[lapTimestamps.length - 1] : new Date(session.date_start || Date.now()).getTime())
+    : computeOptimalMidpoint(
+        lapTimestamps, pitTimestamps,
+        new Date(session.date_start || Date.now()).getTime(),
+      )
 
   // 2 min buffer before + 10 min after = ~8 min of data (2 min at 4x speed).
   const windowStartMs = activityMidpointMs - 2 * 60 * 1000
@@ -309,33 +316,59 @@ const fetchFromAPI = async (
     allLocations.push(...locRes.data)
   }
 
-  // Fetch interval data from session start to window end (full context for initial state).
-  const intervalsRes = await axios.get<OpenF1IntervalMsg[]>(
-    `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}${contextFilter}`,
-    { headers: authHeaders },
-  )
+  // Fetch interval data from session start to window end (may not exist for qualifying).
+  let intervalsData: OpenF1IntervalMsg[] = []
+  try {
+    const res = await axios.get<OpenF1IntervalMsg[]>(
+      `${OPENF1_API_BASE}/intervals?session_key=${sessionKey}${contextFilter}`,
+      { headers: authHeaders },
+    )
+    intervalsData = res.data
+  } catch {
+    log.verbose("No interval data available for this session")
+  }
 
-  // Fetch race position data from session start to window end (full context for preamble).
-  const positionRes = await axios.get<OpenF1PositionMsg[]>(
-    `${OPENF1_API_BASE}/position?session_key=${sessionKey}${contextFilter}`,
-    { headers: authHeaders },
-  )
+  // Fetch race position data (full session for qualifying to capture all phases).
+  let positionData: OpenF1PositionMsg[] = []
+  try {
+    const posFilter = isQualifying ? "" : contextFilter
+    const res = await axios.get<OpenF1PositionMsg[]>(
+      `${OPENF1_API_BASE}/position?session_key=${sessionKey}${posFilter}`,
+      { headers: authHeaders },
+    )
+    positionData = res.data
+  } catch {
+    log.verbose("No position data available for this session")
+  }
 
-  // Fetch stint data (no date field in API — fetched in full, filtered later).
-  const stintsRes = await axios.get<OpenF1StintMsg[]>(
-    `${OPENF1_API_BASE}/stints?session_key=${sessionKey}`,
-    { headers: authHeaders },
-  )
+  // Fetch stint data (may not exist for qualifying).
+  let stintsData: OpenF1StintMsg[] = []
+  try {
+    const res = await axios.get<OpenF1StintMsg[]>(
+      `${OPENF1_API_BASE}/stints?session_key=${sessionKey}`,
+      { headers: authHeaders },
+    )
+    stintsData = res.data
+  } catch {
+    log.verbose("No stint data available for this session")
+  }
 
-  // Fetch all pit stop data from session start to window end (full context).
-  const pitRes = await axios.get<OpenF1PitMsg[]>(
-    `${OPENF1_API_BASE}/pit?session_key=${sessionKey}${contextFilter}`,
-    { headers: authHeaders },
-  )
+  // Fetch all pit stop data from session start to window end (may not exist for qualifying).
+  let pitData: OpenF1PitMsg[] = []
+  try {
+    const res = await axios.get<OpenF1PitMsg[]>(
+      `${OPENF1_API_BASE}/pit?session_key=${sessionKey}${contextFilter}`,
+      { headers: authHeaders },
+    )
+    pitData = res.data
+  } catch {
+    log.verbose("No pit data available for this session")
+  }
 
-  // Fetch all race control messages from session start to window end (full context).
+  // Fetch all race control messages (full session for qualifying to capture phase transitions).
+  const rcFilter = isQualifying ? "" : contextFilter
   const raceControlRes = await axios.get<OpenF1RaceControlMsg[]>(
-    `${OPENF1_API_BASE}/race_control?session_key=${sessionKey}${contextFilter}`,
+    `${OPENF1_API_BASE}/race_control?session_key=${sessionKey}${rcFilter}`,
     { headers: authHeaders },
   )
 
@@ -364,7 +397,57 @@ const fetchFromAPI = async (
     })
   }
 
-  log.info(`Fetched ${lapsRes.data.length} laps, ${allLocations.length} locations, ${intervalsRes.data.length} intervals, ${positionRes.data.length} positions, ${stintsRes.data.length} stints, ${pitRes.data.length} pits, ${raceControlRes.data.length} race_control, ${weatherRes.data.length} weather, ${allCarData.length} car_data (sampled)`)
+  log.info(`Fetched ${lapsRes.data.length} laps, ${allLocations.length} locations, ${intervalsData.length} intervals, ${positionData.length} positions, ${stintsData.length} stints, ${pitData.length} pits, ${raceControlRes.data.length} race control, ${weatherRes.data.length} weather, ${allCarData.length} car data (sampled)`)
+
+  // Pre-compute qualifying knockouts from full session position + race control data.
+  // Uses CHEQUERED FLAG events to identify Q1/Q2 phase boundaries, then snapshots
+  // positions at the "WILL START" anchor (when flying laps have settled) to determine
+  // which drivers were eliminated.
+  const qualifyingKnockouts = new Map<number, number>()
+  if (isQualifying) {
+    const chequeredFlags = raceControlRes.data
+      .filter((rc: OpenF1RaceControlMsg) => rc.flag === "CHEQUERED")
+      .sort((a: OpenF1RaceControlMsg, b: OpenF1RaceControlMsg) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    // Finds the timestamp of the next phase's "WILL START" RC message after a given time.
+    // Falls back to cfTime + 180s if no such message exists (enough for flying laps to settle).
+    const rcMessages = raceControlRes.data as OpenF1RaceControlMsg[]
+    const findNextPhaseStart = (afterTs: number, nextPhase: string): number => {
+      const msg = rcMessages.find((rc) => {
+        const ts = new Date(rc.date).getTime()
+        return ts > afterTs && (rc.message || "").toUpperCase().includes(`${nextPhase} WILL START`)
+      })
+      return msg ? new Date(msg.date).getTime() : afterTs + 180_000
+    }
+
+    // Q1 end = first chequered flag, Q2 end = second chequered flag.
+    // Positions are snapshotted at the "WILL START" anchor, not at the chequered flag itself,
+    // because drivers on flying laps receive position updates 1-2 min after the flag.
+    for (let phase = 1; phase <= 2 && phase <= chequeredFlags.length; phase++) {
+      const cfTime = new Date(chequeredFlags[phase - 1].date).getTime()
+      const nextPhase = phase === 1 ? "Q2" : "Q3"
+      const snapshotTime = findNextPhaseStart(cfTime, nextPhase)
+      const cutoff = phase === 1 ? 15 : 10
+
+      // Build latest position per driver at the settled snapshot time.
+      const posAtPhaseEnd = new Map<number, number>()
+      positionData
+        .filter((p: OpenF1PositionMsg) => new Date(p.date).getTime() <= snapshotTime)
+        .forEach((p: OpenF1PositionMsg) => posAtPhaseEnd.set(p.driver_number, p.position))
+
+      // Mark drivers beyond the cutoff as eliminated in this phase.
+      posAtPhaseEnd.forEach((position, driverNumber) => {
+        if (position > cutoff && !qualifyingKnockouts.has(driverNumber)) {
+          qualifyingKnockouts.set(driverNumber, phase)
+        }
+      })
+    }
+
+    if (qualifyingKnockouts.size > 0) {
+      log.info(`Pre-computed ${qualifyingKnockouts.size} qualifying knockouts`)
+    }
+  }
 
   // Build a unified chronological message queue.
   const messages: { topic: string; data: unknown; timestamp: number }[] = []
@@ -406,7 +489,7 @@ const fetchFromAPI = async (
   })
 
   // Add interval messages.
-  intervalsRes.data.forEach((interval: OpenF1IntervalMsg) => {
+  intervalsData.forEach((interval: OpenF1IntervalMsg) => {
     const ts = interval.date ? new Date(interval.date).getTime() : 0
     if (ts > 0) {
       messages.push({ topic: "v1/intervals", data: interval, timestamp: ts })
@@ -414,7 +497,7 @@ const fetchFromAPI = async (
   })
 
   // Add race position messages.
-  positionRes.data.forEach((pos: OpenF1PositionMsg) => {
+  positionData.forEach((pos: OpenF1PositionMsg) => {
     const ts = pos.date ? new Date(pos.date).getTime() : 0
     if (ts > 0) {
       messages.push({ topic: "v1/position", data: pos, timestamp: ts })
@@ -444,7 +527,7 @@ const fetchFromAPI = async (
 
   // Add stint messages at their actual chronological time (derived from lap data).
   // Stints beyond the data window are skipped to prevent future stints overriding current ones.
-  stintsRes.data.forEach((stint: OpenF1StintMsg) => {
+  stintsData.forEach((stint: OpenF1StintMsg) => {
     const maxLap = maxLapByDriver.get(stint.driver_number) || 0
     if (stint.lap_start > maxLap + 1) return
 
@@ -460,7 +543,7 @@ const fetchFromAPI = async (
   // Add pit messages, anchored to just before the next lap starts.
   // OpenF1's pit.date is recorded after the stop completes (potentially after the new
   // stint's lap begins), so we anchor to the lap timeline to ensure correct ordering.
-  pitRes.data.forEach((pit: OpenF1PitMsg) => {
+  pitData.forEach((pit: OpenF1PitMsg) => {
     const nextLapTs = lapTimestampMap.get(`${pit.driver_number}-${(pit.lap_number || 0) + 1}`)
     const currentLapTs = lapTimestampMap.get(`${pit.driver_number}-${pit.lap_number}`)
     const rawTs = pit.date ? new Date(pit.date).getTime() : 0
@@ -535,7 +618,7 @@ const fetchFromAPI = async (
   // Compute total laps from the maximum lap number across all drivers.
   const totalLaps = Math.max(0, ...lapsRes.data.map((l: OpenF1LapMsg) => l.lap_number))
 
-  return { messages: withClock, circuitKey, trackName, sessionType: session.session_type || session.session_name, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs, totalLaps }
+  return { messages: withClock, circuitKey, trackName, sessionType: session.session_type || session.session_name, sessionName: session.session_name, driverCount: driverNumbers.length, sessionEndTs, totalLaps, qualifyingKnockouts }
 }
 
 // Maximum byte size for stored messages — leaves buffer under MongoDB's 16MB BSON limit.
@@ -908,13 +991,21 @@ const buildPitLaneProfile = (
 // Checks the unified F1Session cache first; fetches from OpenF1 API and caches if not found.
 const loadMessages = async (
   sessionKey: number,
-): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string; totalLaps: number | null }> => {
+): Promise<{ messages: { topic: string; data: unknown; timestamp: number }[]; circuitKey: number | null; trackName: string; sessionEndTs: number; sessionType: string; totalLaps: number | null; qualifyingKnockouts?: Map<number, number> }> => {
   // Check unified F1Session cache first.
   const cached = await loadDemoSession(sessionKey)
   if (cached) {
-    const msgs = cached.messages as { topic: string; data: unknown; timestamp: number }[]
-    log.info(`Loaded ${msgs.length} messages from cache`)
-    return { messages: msgs, circuitKey: cached.circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs, sessionType: cached.sessionType, totalLaps: cached.totalLaps }
+    // Stale cache detection: qualifying sessions cached before knockout support need re-fetching.
+    // These old caches only capture Q1 data and lack Q2/Q3 positions needed for knockouts.
+    const isQualifyingCached = cached.sessionType.toLowerCase().includes("qualifying")
+    if (isQualifyingCached) {
+      log.info("Qualifying session cache is stale (pre-knockout) — re-fetching")
+      await deleteDemoSession(sessionKey)
+    } else {
+      const msgs = cached.messages as { topic: string; data: unknown; timestamp: number }[]
+      log.info(`Loaded ${msgs.length} messages from cache`)
+      return { messages: msgs, circuitKey: cached.circuitKey, trackName: cached.trackName, sessionEndTs: cached.sessionEndTs, sessionType: cached.sessionType, totalLaps: cached.totalLaps }
+    }
   }
 
   // Fetch lightweight session metadata from OpenF1 for path resolution and preamble.
@@ -927,9 +1018,12 @@ const loadMessages = async (
 
   // Try F1 static files first (richer data, free for historical sessions).
   if (sessionMeta) {
-    const currentYear = new Date().getFullYear()
+    // Extract year from session date so the static file index matches (e.g. 2024/2025, not current year).
+    const sessionYear = sessionMeta.date_start
+      ? new Date(sessionMeta.date_start).getFullYear()
+      : new Date().getFullYear()
     const staticPath = await resolveSessionPath(
-      sessionKey, currentYear,
+      sessionKey, sessionYear,
       sessionMeta.date_start ?? undefined, sessionMeta.session_name,
     )
 
@@ -1055,7 +1149,7 @@ const loadMessages = async (
     result.totalLaps || null,
   )
 
-  return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs, sessionType: result.sessionType, totalLaps: result.totalLaps }
+  return { messages: result.messages, circuitKey: result.circuitKey, trackName: result.trackName, sessionEndTs: result.sessionEndTs, sessionType: result.sessionType, totalLaps: result.totalLaps, qualifyingKnockouts: result.qualifyingKnockouts }
 }
 
 // Starts a demo replay by loading cached data or fetching from the API.
@@ -1079,7 +1173,7 @@ export const startDemoReplay = async (
   emitDemoPhase("fetching")
 
   try {
-    const { messages, circuitKey, trackName, sessionType, totalLaps } = await loadMessages(replaySessionKey)
+    const { messages, circuitKey, trackName, sessionType, totalLaps, qualifyingKnockouts } = await loadMessages(replaySessionKey)
     replayTrackName = trackName
 
     // Find the first position message to determine the preamble boundary.
@@ -1109,7 +1203,7 @@ export const startDemoReplay = async (
     await buildTrackFromDemoData(messages, trackName, replaySessionKey)
 
     // Initialize session — loads trackmap from MongoDB (GPS path now matches current session).
-    await initDemoSession(replaySessionKey, trackName, circuitKey, drivers, sessionType, totalLaps)
+    await initDemoSession(replaySessionKey, trackName, circuitKey, drivers, sessionType, totalLaps, qualifyingKnockouts)
 
     // Build or refine pit lane profile from telemetry data if not yet settled.
     const existingTrackmap = await Trackmap.findOne({ trackName })

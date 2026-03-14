@@ -202,6 +202,17 @@ const handleTimingData = (data: Record<string, unknown>) => {
   deepMerge(signalrState.TimingData, data)
   markTopicSeen("TimingData")
 
+  // Extract qualifying session part (1=Q1, 2=Q2, 3=Q3) from top-level TimingData.
+  const sessionPart = signalrState.TimingData.SessionPart
+  if (sessionPart !== undefined && eventHandler) {
+    eventHandler({
+      type: "session_data",
+      data: { key: "SessionPart", value: parseInt(sessionPart as string, 10) },
+      timestamp: Date.now(),
+      source: "signalr",
+    })
+  }
+
   const lines = signalrState.TimingData.Lines
   if (!lines || typeof lines !== "object" || !eventHandler) return
 
@@ -227,6 +238,8 @@ const handleTimingData = (data: Record<string, unknown>) => {
     if (d.InPit !== undefined) timingData.inPit = d.InPit === true || d.InPit === "true"
     if (d.Retired !== undefined) timingData.retired = d.Retired === true || d.Retired === "true"
     if (d.Stopped !== undefined) timingData.stopped = d.Stopped === true || d.Stopped === "true"
+    if (d.KnockedOut !== undefined) timingData.knockedOut = d.KnockedOut === true || d.KnockedOut === "true"
+    if (d.Cutoff !== undefined) timingData.cutoff = d.Cutoff === true || d.Cutoff === "true"
 
     // Extract lap and sector times from TimingData (pre-formatted strings → seconds).
     // Also capture OverallFastest / PersonalFastest flags for color coding.

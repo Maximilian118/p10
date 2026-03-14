@@ -287,6 +287,9 @@ export interface DriverLiveState {
   isPitOutLap: boolean
   retired: boolean
 
+  // Which qualifying phase this driver was eliminated in (1 or 2), null if still active or non-qualifying session.
+  knockedOutInPhase: number | null
+
   // Telemetry snapshot (latest values).
   speed: number
   drs: number
@@ -545,6 +548,12 @@ export interface SessionState {
   lastEmittedProgress: Map<number, number>
   // Admin-set rotation override in degrees (additive to PCA auto-rotation on frontend).
   rotationOverride: number
+
+  // ─── Qualifying Phase Tracking ────────────────────────────────
+  // Current qualifying phase from SignalR TimingData.SessionPart (1=Q1, 2=Q2, 3=Q3). Null for non-qualifying.
+  qualifyingPhase: number | null
+  // Drivers knocked out in qualifying: driverNumber → phase they were eliminated in (1 or 2).
+  driverKnockedOut: Map<number, number>
 
   // ─── Session Recording (live → demo) ──────────────────────────
   // Buffered messages for recording live sessions as replayable demos.

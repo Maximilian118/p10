@@ -26,7 +26,7 @@ const F1DriverCard: React.FC<F1DriverCardProps> = ({ state, champDriver, selecte
   // Lap number on which the driver changed to current tyres (only if they've pitted).
   const lastPitLap = state.pitStops > 0 ? state.currentLapNumber - state.tyreAge : undefined
 
-  const className = `f1-driver-card${selected ? " f1-driver-card--selected" : ""}`
+  const className = `f1-driver-card${selected ? " f1-driver-card--selected" : ""}${state.knockedOutInPhase ? " f1-driver-card--eliminated" : ""}`
 
   return (
     <div className={className} onClick={onClick}>
