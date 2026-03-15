@@ -205,6 +205,33 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
           broadcastRoundStatusChange(io, champ._id.toString(), i, "waiting")
         }
 
+        // Waiting with existing bets: round was previously active and got reset by an earlier restart.
+        // Only recover if bettingCloseAt is in the past (qualifying session has ended).
+        if (status === "waiting") {
+          const hasBets = round.competitors.length > 0 &&
+            round.competitors.some((c) => c.bet !== null && c.bet !== undefined)
+          const hasDrivers = round.drivers.length > 0
+          const bettingClosed = round.bettingCloseAt && new Date(round.bettingCloseAt).getTime() < Date.now()
+
+          if (hasBets && hasDrivers && bettingClosed) {
+            const series = await Series.findById(champ.series)
+            if (series?.hasAPI) {
+              log.info(` Found waiting round with bets (betting closed at ${round.bettingCloseAt}): champ=${champ._id} (${champ.name}), round=${i + 1} — attempting recovery`)
+              const result = await resolveMissedRound(champ, i + 1, io)
+              if (result === "recovered") {
+                log.info(` ✓ Recovered waiting round for "${champ.name}" round ${i + 1}`)
+                break
+              }
+              if (result === "completed") {
+                log.info(` ✓ Clean completion for "${champ.name}" round ${i + 1}`)
+                break
+              }
+              // "deferred" or null — leave as waiting, hourly poll will retry.
+              log.info(` Recovery deferred for "${champ.name}" round ${i + 1} — leaving as waiting`)
+            }
+          }
+        }
+
         // Results: re-schedule timer for remaining time, or transition to completed if exceeded.
         if (status === "results" && round.statusChangedAt) {
           const elapsedMs = moment().diff(moment(round.statusChangedAt))
