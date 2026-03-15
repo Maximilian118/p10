@@ -1169,6 +1169,8 @@ const Championship: React.FC = () => {
             </div>
           </div>
         )}
+        {/* View content wrapper - min-height ensures scroll position is preserved when switching views */}
+        <div className="championship-views">
         {/* Round Status Views - shown during active round states (use activeRound, not viewedRound) */}
         {isInRoundStatusView && roundStatusView === "countDown" && activeRound && (
           <CountDownView
@@ -1703,6 +1705,8 @@ const Championship: React.FC = () => {
             loading={leavingChamp}
           />
         )}
+
+        </div>
 
         {/* ChampToolbar - hidden when any fullscreen overlay is active */}
         {!isOverlayActive && (

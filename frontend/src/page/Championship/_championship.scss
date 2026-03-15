@@ -35,6 +35,20 @@
   padding-top: 0;
 }
 
+// Ensures view content is tall enough to preserve scroll position when switching views.
+// Without this, short views would collapse scroll height, snapping the banner back into view.
+.championship-views {
+  min-height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+
+  // All view components grow to fill available space so backgrounds extend fully.
+  > * {
+    flex: 1;
+  }
+}
+
 // List of competitors/drivers/teams in the championship standings.
 .championship-list {
   width: 100%;
