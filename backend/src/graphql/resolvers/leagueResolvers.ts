@@ -8,7 +8,7 @@ import { ObjectId } from "mongodb"
 import { leagueNameErrors, throwError, userErrors } from "./resolverErrors"
 import { leaguePopulation, leagueListPopulation } from "../../shared/population"
 import { isLeagueLocked, recalculateLeagueStandings, calculateChampionshipRoundScore } from "../../shared/leagueScoring"
-import { autoCompleteMissedRound } from "../../services/openF1/missedRoundHandler"
+import { resolveMissedRound } from "../../services/openF1/missedRoundHandler"
 import { sendNotification } from "../../shared/notifications"
 import { createLogger } from "../../shared/logger"
 
@@ -319,7 +319,8 @@ const leagueResolvers = {
           ).length
           const seriesCompleted = series.completedRounds || 0
           for (let i = 0; i < seriesCompleted - champCompletedCount; i++) {
-            await autoCompleteMissedRound(champ)
+            const result = await resolveMissedRound(champ, champCompletedCount + i + 1, null)
+            if (!result) break
           }
         }
 

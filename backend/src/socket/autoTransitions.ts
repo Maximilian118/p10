@@ -1,8 +1,10 @@
 import { Server } from "socket.io"
 import Champ, { RoundStatus } from "../models/champ"
+import Series from "../models/series"
 import { broadcastRoundStatusChange } from "./socketHandler"
 import { resultsHandler, archiveSeason } from "../graphql/resolvers/resolverUtility"
 import { champPopulation } from "../shared/population"
+import { resolveMissedRound } from "../services/openF1/missedRoundHandler"
 import moment from "moment"
 import { createLogger } from "../shared/logger"
 
@@ -163,10 +165,39 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
           }
         }
 
-        // Betting open/closed: reset to waiting so adjudicator can restart cleanly.
-        // These statuses require user interaction, so continuing after a disruption isn't ideal.
-        if (status === "betting_open" || status === "betting_closed") {
+        // Betting open: reset to waiting so adjudicator can restart cleanly.
+        // Bets may be incomplete at this stage.
+        if (status === "betting_open") {
           log.info(` Recovering stuck ${status}: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+          champ.rounds[i].status = "waiting"
+          champ.rounds[i].statusChangedAt = null
+          champ.updated_at = moment().format()
+          await champ.save()
+          broadcastRoundStatusChange(io, champ._id.toString(), i, "waiting")
+        }
+
+        // Betting closed: attempt retroactive recovery before falling back to waiting.
+        // Bets are finalized and preserved in round.competitors[].bet.
+        if (status === "betting_closed") {
+          log.info(` Found betting_closed round: champ=${champ._id} (${champ.name}), round=${i + 1} — attempting retroactive recovery`)
+
+          // Only attempt recovery for API-enabled series.
+          const series = await Series.findById(champ.series)
+          if (series?.hasAPI) {
+            const result = await resolveMissedRound(champ, i + 1, io)
+            if (result === "recovered") {
+              log.info(` ✓ Retroactive recovery succeeded for "${champ.name}" round ${i + 1}`)
+              break // Skip remaining rounds for this championship.
+            }
+            if (result === "completed") {
+              log.info(` ✓ Clean completion for "${champ.name}" round ${i + 1} (no bets)`)
+              break
+            }
+            // "deferred" or null — fall through to reset below.
+            log.info(` Retroactive recovery deferred for "${champ.name}" round ${i + 1} — resetting to waiting`)
+          }
+
+          // Fallback: reset to waiting. Bets are preserved for the hourly poll to retry.
           champ.rounds[i].status = "waiting"
           champ.rounds[i].statusChangedAt = null
           champ.updated_at = moment().format()

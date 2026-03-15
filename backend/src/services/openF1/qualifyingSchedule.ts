@@ -209,7 +209,7 @@ export const pollNextQualifyingSession = async (): Promise<void> => {
 
   // Detect and handle missed rounds for league-enrolled championships.
   if (result.completedCount > 0) {
-    await detectAndHandleMissedRounds(result.completedCount)
+    await detectAndHandleMissedRounds(result.completedCount, ioServer)
   }
 
   // Finalize API leagues when all qualifying sessions are complete.
