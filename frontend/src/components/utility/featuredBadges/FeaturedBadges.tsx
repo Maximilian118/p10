@@ -15,6 +15,7 @@ interface FeaturedBadgesProps {
   selectedSlot?: number | null               // Slot position (1-6) to display selected visual state
   loadingSlot?: number | null                // 1-6: specific slot spinner, 0/null: none, other: all 6 spinners
   onSlotClick?: (position: number) => void   // Callback fired when a badge slot is clicked
+  onBadgeClick?: (badge: userBadgeSnapshotType) => void // Callback fired when a badge is clicked in read-only mode (e.g. to show info)
   className?: string                         // Additional CSS classes for the container element
 }
 
@@ -29,6 +30,7 @@ const FeaturedBadges: React.FC<FeaturedBadgesProps> = ({
   selectedSlot,
   loadingSlot,
   onSlotClick,
+  onBadgeClick,
   className,
 }) => {
   // When blankSlots is false, placeholders must be false (badges shift left, no placeholders).
@@ -55,9 +57,17 @@ const FeaturedBadges: React.FC<FeaturedBadgesProps> = ({
       return <CircularProgress key={position} size="small" />
     }
 
-    // Read-only or disabled mode: render without click handlers.
+    // Read-only or disabled mode: render without slot-edit click handlers.
     if (readOnly || disabled) {
       if (featuredBadge) {
+        // If onBadgeClick is provided, wrap badge in a clickable container for info display.
+        if (onBadgeClick) {
+          return (
+            <div key={position} className="featured-slot featured-slot--clickable" onClick={(e) => { e.stopPropagation(); onBadgeClick(featuredBadge) }}>
+              <Badge badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
+            </div>
+          )
+        }
         return <Badge key={position} badge={featuredBadge} zoom={featuredBadge.zoom} showEditButton={false} />
       }
       // If blankSlots is false and no badge, skip rendering this slot entirely.

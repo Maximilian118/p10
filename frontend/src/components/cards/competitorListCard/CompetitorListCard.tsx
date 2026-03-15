@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "@mui/material"
 import './_competitorListCard.scss'
 import ImageIcon from "../../utility/icon/imageIcon/ImageIcon"
-import { CompetitorEntryType } from "../../../shared/types"
+import { CompetitorEntryType, userBadgeSnapshotType } from "../../../shared/types"
 import Points from "../../utility/points/Points"
 import StatusLabel from "../../utility/statusLabel/StatusLabel"
 import FeaturedBadges from "../../utility/featuredBadges/FeaturedBadges"
 import Banner from "../../utility/banner/Banner"
+import BadgeModal from "../../modal/configs/BadgeModal/BadgeModal"
 
 interface competitorListCardType {
   entry: CompetitorEntryType
@@ -54,6 +55,9 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
 
   // State for adjudicator drawer visibility.
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
+  // State for badge info modal.
+  const [selectedBadge, setSelectedBadge] = useState<userBadgeSnapshotType | null>(null)
 
   // State for responsive badge sizing.
   const [isNarrowViewport, setIsNarrowViewport] = useState(window.innerWidth < 420)
@@ -217,12 +221,13 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
             )}
           </div>
 
-          {/* Featured badges below name row */}
+          {/* Featured badges below name row - clickable to show badge info modal */}
           {isActive && !adjudicatorView && competitorBadges && competitorBadges.length > 0 && (
             <FeaturedBadges
               badges={competitorBadges}
               badgeSize={isNarrowViewport ? 30 : 32}
               readOnly
+              onBadgeClick={setSelectedBadge}
             />
           )}
 
@@ -261,6 +266,8 @@ const CompetitorListCard: React.FC<competitorListCardType> = ({
           </div>
         )}
       </div>
+      {/* Badge info modal */}
+      {selectedBadge && <BadgeModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />}
     </div>
   )
 }

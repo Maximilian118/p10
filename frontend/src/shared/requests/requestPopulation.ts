@@ -502,7 +502,10 @@ export const populateChamp = `
           _id
           url
           name
+          customName
           rarity
+          awardedHow
+          awardedDesc
           zoom
           featured
         }
@@ -621,7 +624,10 @@ export const populateChamp = `
       _id
       url
       name
+      customName
       rarity
+      awardedHow
+      awardedDesc
       zoom
       featured
     }

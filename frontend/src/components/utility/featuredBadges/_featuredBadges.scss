@@ -35,5 +35,10 @@
   // Read-only state for viewing other users' profiles.
   &--readonly {
     pointer-events: none;
+
+    // Re-enable pointer events for clickable badge slots (e.g. badge info modal).
+    .featured-slot--clickable {
+      pointer-events: auto;
+    }
   }
 }
