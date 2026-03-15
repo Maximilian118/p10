@@ -7,11 +7,16 @@
   @include mixins.flexbox;
 }
 
+// Sticks to top of scroll container when ChampBanner scrolls out of view.
 .action-bar {
   width: 100%;
   height: 42px;
   overflow: hidden;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
 
   // When adjudicator: default state hides AdjudicatorBar above, shows RoundsBar.
   &--adjudicator .action-bar-inner {
@@ -23,6 +28,11 @@
   &--active .action-bar-inner {
     transform: translateY(0);
   }
+}
+
+// Override content-container padding so ChampBanner sits flush at the top.
+.content-container:has(.champ-banner) {
+  padding-top: 0;
 }
 
 // List of competitors/drivers/teams in the championship standings.

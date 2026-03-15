@@ -13,12 +13,6 @@ import SessionStats from "../SessionStats/SessionStats"
 import { SessionBannerData } from "../../../../api/openAPI/useSessionBanner"
 import { buildChampBannerStats } from "../../champUtility"
 
-// Shrink state from useScrollShrink hook.
-interface ShrinkState {
-  isShrunk: boolean  // True when ratio > 0.5 (for text truncation)
-  isActive: boolean  // True when ratio > 0 (for disabled states)
-}
-
 // Props for editable championship banner (when user is adjudicator).
 interface champBannerEditableType<T, U> {
   champ: ChampType
@@ -35,8 +29,6 @@ interface champBannerEditableType<T, U> {
   readOnly?: false
   settingsMode?: boolean // When true, hide confirmation UI (Save Changes button handles submission).
   openRef?: React.MutableRefObject<(() => void) | null> // Ref to expose DropZone's open function.
-  bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
-  shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
   sessionBanner?: SessionBannerData // When provided, renders SessionStats instead of ChampBannerStats.
 }
@@ -46,8 +38,6 @@ interface champBannerReadOnlyType {
   champ: ChampType
   onBannerClick?: () => void
   readOnly: true
-  bannerRef?: React.RefObject<HTMLDivElement> // Ref for CSS variable updates (from useScrollShrink).
-  shrinkState?: ShrinkState // Shrink state for class/disabled toggling.
   viewedRoundNumber?: number // When provided, shows this round number instead of current.
   sessionBanner?: SessionBannerData // When provided, renders SessionStats instead of ChampBannerStats.
 }
@@ -62,14 +52,14 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
 
   // Read-only mode for non-adjudicators.
   if (props.readOnly) {
-    const { champ, onBannerClick, bannerRef, shrinkState, viewedRoundNumber, sessionBanner } = props
+    const { champ, onBannerClick, viewedRoundNumber, sessionBanner } = props
     return (
-      <div className="champ-banner" ref={bannerRef}>
+      <div className="champ-banner">
         <div className="champ-banner-icon-container" onClick={onBannerClick}>
           <ImageIcon src={champ.icon} size="contained" />
         </div>
         <div className="champ-banner-info" onClick={onBannerClick}>
-          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
+          <div className="champ-name-container">
             <p>{champ.name}</p>
           </div>
           {sessionBanner
@@ -81,7 +71,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   // Editable mode for adjudicator.
-  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, bannerRef, shrinkState, viewedRoundNumber, sessionBanner } = props
+  const { champ, setChamp, user, setUser, form, setForm, formErr, setFormErr, backendErr, setBackendErr, onBannerClick, settingsMode, openRef, viewedRoundNumber, sessionBanner } = props
 
   // Is the "Are you sure" check dispalying or not?
   const isNormalView = !form.icon && !form.profile_picture
@@ -97,7 +87,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (settingsMode) {
       return (
         <>
-          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
+          <div className="champ-name-container">
             <p>{champ.name}</p>
           </div>
           {sessionBanner
@@ -111,7 +101,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
     if (isNormalView) {
       return (
         <>
-          <div className={`champ-name-container ${shrinkState?.isShrunk ? 'shrunk' : ''}`}>
+          <div className="champ-name-container">
             <p>{champ.name}</p>
           </div>
           {sessionBanner
@@ -136,7 +126,7 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
   }
 
   return (
-    <div className="champ-banner" ref={bannerRef}>
+    <div className="champ-banner">
       <DropZone<T, U>
         form={form}
         setForm={setForm}
@@ -147,7 +137,6 @@ const ChampBanner = <T extends formType, U extends formErrType>(props: champBann
         purposeText="Championship"
         thumbImg={champ.icon}
         openRef={openRef}
-        disabled={shrinkState?.isActive}
       />
       <div className="champ-banner-info" style={{ justifyContent: isNormalView ? "space-between" : "center" }} onClick={onBannerClick}>
         {filesInForm()}

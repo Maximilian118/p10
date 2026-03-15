@@ -9,28 +9,21 @@
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
-
-  // Dynamic height: 140px when shrink-ratio=0, 70px when shrink-ratio=1.
-  // Using simplified calc to avoid SCSS math evaluation issues.
-  height: calc(140px - 70px * var(--shrink-ratio, 0));
+  height: 140px;
 
   .champ-banner-icon-container {
-    // Dynamic size: 100px when shrink-ratio=0, 50px when shrink-ratio=1.
-    width: calc(100px - 50px * var(--shrink-ratio, 0));
-    height: calc(100px - 50px * var(--shrink-ratio, 0));
-    // Vertical margin shrinks (20px -> 10px), horizontal stays 20px.
-    margin: calc(20px - 10px * var(--shrink-ratio, 0)) 20px;
+    width: 100px;
+    height: 100px;
+    margin: 20px;
     flex-shrink: 0;
     cursor: pointer;
   }
 
   // DropZone styles (editable mode) - overrides default dropzone sizing.
   .dropzone {
-    // Dynamic size: 100px when shrink-ratio=0, 50px when shrink-ratio=1.
-    width: calc(100px - 50px * var(--shrink-ratio, 0));
-    height: calc(100px - 50px * var(--shrink-ratio, 0));
-    // Vertical margin shrinks (20px -> 10px), horizontal stays 20px.
-    margin: calc(20px - 10px * var(--shrink-ratio, 0)) 20px;
+    width: 100px;
+    height: 100px;
+    margin: 20px;
   }
 
   .champ-banner-info {
@@ -54,13 +47,6 @@
         color: variables.$colour-6;
         overflow-wrap: break-word;
         word-wrap: break-word;
-      }
-
-      // When shrunk past threshold, switch to single line with ellipsis.
-      &.shrunk p {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
     }
 

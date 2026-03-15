@@ -33,7 +33,6 @@ import { ProtestsFormType, ProtestsFormErrType, RuleChangesFormType, RuleChanges
 import { getChampById, updateChampSettings, updateRoundStatus, updateAdminSettings, banCompetitor, unbanCompetitor, kickCompetitor, leaveChampionship, adjustCompetitorPoints, promoteAdjudicator, getProtestsForChampionship } from "../../shared/requests/champRequests"
 import { uplaodS3 } from "../../shared/requests/bucketRequests"
 import { presetArrays } from "../../components/utility/pointsPicker/ppPresets"
-import { useScrollShrink } from "../../shared/hooks/useScrollShrink"
 import { useChampionshipSocket } from "../../shared/hooks/useChampionshipSocket"
 import { RoundStatusPayload, BetPlacedPayload, BetConfirmedPayload, BetRejectedPayload, AdjudicatorChangedPayload, ScheduleUpdatedPayload, SOCKET_EVENTS, getSocket } from "../../shared/socket/socketClient"
 import CountDownView from "./Views/RoundStatus/CountDownView/CountDownView"
@@ -217,9 +216,6 @@ const Championship: React.FC = () => {
     }
   }, [justJoined])
 
-  // Scroll-based shrinking for banner - uses ref for CSS updates to avoid oscillation.
-  const { shrinkState, handleScroll, bannerRef, setForceShrunk } = useScrollShrink({ threshold: 150 })
-
   // Whether the protest-blocked confirm is shown.
   const [ showProtestBlocked, setShowProtestBlocked ] = useState(false)
 
@@ -244,12 +240,6 @@ const Championship: React.FC = () => {
     showLeaveConfirm ||
     showProtestBlocked ||
     protestConfirmActive
-
-  // Force banner to be fully shrunk when any overlay or demo mode is active.
-  // Demo mode is separate from isOverlayActive so the ChampToolbar stays visible.
-  useEffect(() => {
-    setForceShrunk(isOverlayActive || view === "demoMode")
-  }, [isOverlayActive, view, setForceShrunk])
 
   // Selected protest ID for detail view.
   const [ selectedProtestId, setSelectedProtestId ] = useState<string | null>(null)
@@ -1117,72 +1107,68 @@ const Championship: React.FC = () => {
 
   return (
     <>
-      {/* Banner outside scroll container to avoid feedback loop when shrinking */}
-      {isAdjudicator ? (
-        view === "settings" ? (
-          <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
-            champ={champ}
-            setChamp={setChamp}
-            user={user}
-            setUser={setUser}
-            form={settingsForm}
-            setForm={setSettingsForm}
-            formErr={settingsFormErr}
-            setFormErr={setSettingsFormErr}
-            backendErr={backendErr}
-            setBackendErr={setBackendErr}
-            onBannerClick={handleBannerClick}
-            settingsMode={true}
-            openRef={dropzoneOpenRef}
-            bannerRef={bannerRef}
-            shrinkState={shrinkState}
-            viewedRoundNumber={viewedRoundNumber}
-            sessionBanner={sessionBannerData}
-          />
-        ) : (
-          <ChampBanner<formType, formErrType>
-            champ={champ}
-            setChamp={setChamp}
-            user={user}
-            setUser={setUser}
-            form={form}
-            setForm={setForm}
-            formErr={formErr}
-            setFormErr={setFormErr}
-            backendErr={backendErr}
-            setBackendErr={setBackendErr}
-            onBannerClick={handleBannerClick}
-            bannerRef={bannerRef}
-            shrinkState={shrinkState}
-            viewedRoundNumber={viewedRoundNumber}
-            sessionBanner={sessionBannerData}
-          />
-        )
-      ) : (
-        <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} bannerRef={bannerRef} shrinkState={shrinkState} viewedRoundNumber={viewedRoundNumber} sessionBanner={sessionBannerData} />
-      )}
-
-      {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
-        <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
-          <div className="action-bar-inner">
-            {isAdjudicator && <AdjudicatorBar/>}
-            <RoundsBar
-              totalRounds={champ.rounds.length}
-              completedRounds={completedRoundsCount}
-              viewedRoundIndex={viewedIndex}
-              standingsView={standingsView}
-              setViewedRoundIndex={setViewedRoundIndex}
-              setStandingsView={setStandingsView}
-              isAdjudicator={isAdjudicator}
-              onStartNextRound={() => setShowStartConfirm(true)}
-              autoOpenTimestamp={champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp}
-              autoOpenTime={champ.settings?.automation?.bettingWindow?.autoOpenTime}
+      <div className="content-container">
+        {/* Championship banner - scrolls away under nav on scroll */}
+        {isAdjudicator ? (
+          view === "settings" ? (
+            <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
+              champ={champ}
+              setChamp={setChamp}
+              user={user}
+              setUser={setUser}
+              form={settingsForm}
+              setForm={setSettingsForm}
+              formErr={settingsFormErr}
+              setFormErr={setSettingsFormErr}
+              backendErr={backendErr}
+              setBackendErr={setBackendErr}
+              onBannerClick={handleBannerClick}
+              settingsMode={true}
+              openRef={dropzoneOpenRef}
+              viewedRoundNumber={viewedRoundNumber}
+              sessionBanner={sessionBannerData}
             />
-          </div>
-        </div>
-      )}
+          ) : (
+            <ChampBanner<formType, formErrType>
+              champ={champ}
+              setChamp={setChamp}
+              user={user}
+              setUser={setUser}
+              form={form}
+              setForm={setForm}
+              formErr={formErr}
+              setFormErr={setFormErr}
+              backendErr={backendErr}
+              setBackendErr={setBackendErr}
+              onBannerClick={handleBannerClick}
+              viewedRoundNumber={viewedRoundNumber}
+              sessionBanner={sessionBannerData}
+            />
+          )
+        ) : (
+          <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} viewedRoundNumber={viewedRoundNumber} sessionBanner={sessionBannerData} />
+        )}
 
-      <div className="content-container" onScroll={handleScroll}>
+        {/* RoundsBar - sticks under nav when banner scrolls out of view */}
+        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
+          <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
+            <div className="action-bar-inner">
+              {isAdjudicator && <AdjudicatorBar/>}
+              <RoundsBar
+                totalRounds={champ.rounds.length}
+                completedRounds={completedRoundsCount}
+                viewedRoundIndex={viewedIndex}
+                standingsView={standingsView}
+                setViewedRoundIndex={setViewedRoundIndex}
+                setStandingsView={setStandingsView}
+                isAdjudicator={isAdjudicator}
+                onStartNextRound={() => setShowStartConfirm(true)}
+                autoOpenTimestamp={champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp}
+                autoOpenTime={champ.settings?.automation?.bettingWindow?.autoOpenTime}
+              />
+            </div>
+          </div>
+        )}
         {/* Round Status Views - shown during active round states (use activeRound, not viewedRound) */}
         {isInRoundStatusView && roundStatusView === "countDown" && activeRound && (
           <CountDownView
