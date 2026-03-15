@@ -118,6 +118,9 @@ const driverLapTransitionTs = new Map<number, number>()
 // Timer for fallback countdown clock (activates when SignalR is unavailable).
 let fallbackClockTimer: ReturnType<typeof setInterval> | null = null
 
+// Grace timer after the final CHEQUERED flag — gives flying laps time to settle before ending.
+let chequeredGraceTimer: ReturnType<typeof setTimeout> | null = null
+
 // Timer for progressive database persistence (flushes every 30s during live sessions).
 let progressiveSaveTimer: ReturnType<typeof setInterval> | null = null
 
@@ -346,6 +349,9 @@ export const initDemoSession = async (
       ? 3
       : (sessionType || "").toLowerCase().includes("qualifying") ? 1 : null,
     driverKnockedOut: qualifyingKnockouts ?? new Map(),
+    _chequeredFlagCount: 0,
+    _sessionEndTrigger: null,
+    _lastDataReceivedAt: Date.now(),
   }
 
   // Load existing trackmap from MongoDB so the track appears instantly.
@@ -459,6 +465,11 @@ export const handleLiveSignalREvent = (event: InternalEvent): void => {
 export const handleEvent = (event: InternalEvent): void => {
   // For OpenF1 events on topics where SignalR is active, skip the update.
   if (event.source === "openf1" && isSignalRFresh(event.type)) return
+
+  // Update data activity timestamp for inactivity watchdog (live sessions only).
+  if (activeSession && !activeSession.isDemo) {
+    activeSession._lastDataReceivedAt = Date.now()
+  }
 
   // Route to the appropriate handler based on event type.
   switch (event.type) {
@@ -1196,14 +1207,24 @@ const handleSessionDataEvent = (event: InternalEvent): void => {
     const status = d.value as string
     if (status === "Finalised" || status === "Ends") {
       log.info(`SignalR SessionStatus → "${status}" — ending session`)
+      activeSession._sessionEndTrigger = `SignalR: ${status}`
       endSession().catch((err) => log.error("Failed to end session from SignalR status:", err))
     }
     return
   }
 
   // Track qualifying phase from SignalR TimingData.SessionPart.
+  // When phase advances (Q1→Q2 or Q2→Q3), snapshot eliminations for the ended phase.
+  // Positions are settled by the time SessionPart transitions (similar to "Q2 WILL START" anchor).
   if (d.key === "SessionPart" && typeof d.value === "number") {
-    activeSession.qualifyingPhase = d.value
+    const newPhase = d.value
+    const oldPhase = activeSession.qualifyingPhase
+
+    if (oldPhase !== null && newPhase > oldPhase) {
+      snapshotQualifyingEliminations(oldPhase)
+    }
+
+    activeSession.qualifyingPhase = newPhase
     return
   }
 
@@ -1342,6 +1363,38 @@ const extractMetadataFromNormalizedRC = (rc: RaceControlEvent): void => {
     emitToRoom(OPENF1_EVENTS.MEDICAL_CAR, false)
   }
 
+  // CHEQUERED flag detection — signals the session (or qualifying phase) is ending.
+  // Starts a 3-minute grace timer on each CHEQUERED flag to let flying laps finish.
+  // For qualifying (3 CHEQUERED flags: Q1, Q2, Q3), only the 3rd flag's timer triggers
+  // endSession — earlier timers defer because the count hasn't reached 3 yet.
+  if (rc.flag === "CHEQUERED" && rc.scope === "Track") {
+    activeSession._chequeredFlagCount++
+    log.info(`🏁 CHEQUERED FLAG received (${activeSession._chequeredFlagCount} total) — starting 3min grace timer`)
+    clearChequeredGraceTimer()
+    chequeredGraceTimer = setTimeout(() => {
+      chequeredGraceTimer = null
+      if (!activeSession || isEndingSession) return
+      // For qualifying, only end after the 3rd CHEQUERED flag (Q3).
+      // Earlier CHEQUERED flags (Q1, Q2) are intermediate — more phases follow.
+      const isQualifying = activeSession.qualifyingPhase !== null
+      if (isQualifying && activeSession._chequeredFlagCount < 3) {
+        log.info(`CHEQUERED grace expired but only ${activeSession._chequeredFlagCount}/3 flags received — qualifying still in progress`)
+        return
+      }
+      activeSession._sessionEndTrigger = "CHEQUERED flag + 3min grace"
+      log.info("CHEQUERED grace period elapsed — ending session")
+      endSession().catch((err) => log.error("Failed to end session from CHEQUERED grace:", err))
+    }, 3 * 60 * 1000)
+  }
+
+  // GREEN flag at track scope cancels any pending CHEQUERED grace timer.
+  // This handles qualifying phase transitions (Q1→Q2, Q2→Q3) where a GREEN flag
+  // signals the session is continuing into the next phase.
+  if (rc.flag === "GREEN" && rc.scope === "Track" && chequeredGraceTimer) {
+    log.info("GREEN flag received — cancelling CHEQUERED grace timer (session continuing)")
+    clearChequeredGraceTimer()
+  }
+
   // Qualifying phase detection from race control messages.
   // "END OF Q1" / "END OF Q2" messages mark the boundary between qualifying phases.
   if (activeSession.qualifyingPhase !== null) {
@@ -1412,6 +1465,7 @@ const handleSessionMessage = async (msg: OpenF1SessionMsg): Promise<void> => {
     // OpenF1 session status indicates the session has ended.
     if (msg.status === "Finished" || msg.status === "Finalised") {
       log.info(`OpenF1 session status → "${msg.status}" — ending session`)
+      activeSession._sessionEndTrigger = `MQTT session: ${msg.status}`
       await endSession()
       return
     }
@@ -1657,6 +1711,9 @@ const startSession = async (msg: OpenF1SessionMsg): Promise<void> => {
     rotationOverride,
     qualifyingPhase: (msg.session_type || msg.session_name || "").toLowerCase().includes("qualifying") ? 1 : null,
     driverKnockedOut: new Map(),
+    _chequeredFlagCount: 0,
+    _sessionEndTrigger: null,
+    _lastDataReceivedAt: Date.now(),
   }
 
   // Try to fetch MultiViewer outline if not cached.
@@ -1813,6 +1870,50 @@ const logSessionReport = (expectedSessionKey: number): void => {
   lines.forEach((line) => log.info(line))
 }
 
+// Logs a summary banner when a session ends, showing trigger, positions, and key stats.
+const logSessionEndReport = (): void => {
+  if (!activeSession) return
+
+  const divider = "=".repeat(56)
+  const separator = "\u2500".repeat(56)
+
+  // Build top 3 positions from driverPositions map.
+  const posEntries = Array.from(activeSession.driverPositions.entries())
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+
+  const top3 = posEntries.map(([num, pos]) => {
+    const driver = activeSession!.drivers.get(num)
+    return `${driver?.nameAcronym || `#${num}`} (P${pos})`
+  }).join(", ")
+
+  const lines: string[] = [
+    "",
+    divider,
+    ` SESSION ENDED: ${activeSession.sessionName} @ ${activeSession.trackName}`,
+    ` Key: ${activeSession.sessionKey}`,
+    separator,
+    ` Trigger: ${activeSession._sessionEndTrigger || "unknown"}`,
+    ` Drivers: ${activeSession.drivers.size} | With positions: ${activeSession.driverPositions.size} | DNFs: ${activeSession.dnfs.length}`,
+    ` Top 3: ${top3 || "no position data"}`,
+  ]
+
+  // Qualifying-specific info.
+  if (activeSession.qualifyingPhase !== null) {
+    lines.push(` Qualifying: Q${activeSession.qualifyingPhase} | CHEQUERED flags: ${activeSession._chequeredFlagCount} | Knockouts: ${activeSession.driverKnockedOut.size}`)
+  }
+
+  // Race-specific info.
+  if (activeSession.totalLaps !== null) {
+    lines.push(` Race: ${activeSession.totalLaps} laps | Safety cars: ${activeSession.safetyCarPeriods.length} | Red flags: ${activeSession.redFlagPeriods.length}`)
+  }
+
+  lines.push(divider)
+  lines.push("")
+
+  lines.forEach((line) => log.info(line))
+}
+
 // Maximum byte size for recorded session messages (prevents bloating the DB).
 const MAX_RECORDING_BYTES = 6 * 1024 * 1024
 
@@ -1822,7 +1923,7 @@ const endSession = async (): Promise<void> => {
   isEndingSession = true
 
   try {
-    log.info(`🏁 Session ended: ${activeSession.trackName}`)
+    logSessionEndReport()
 
     // Save final track map to MongoDB.
     await saveTrackMap()
@@ -1846,6 +1947,7 @@ const endSession = async (): Promise<void> => {
     stopPolling()
     disconnectLiveTiming()
     stopFallbackClock()
+    clearChequeredGraceTimer()
     stopProgressiveSaving()
 
     // Notify subscribers and broadcast session end to all clients.
@@ -2741,6 +2843,14 @@ const stopFallbackClock = (): void => {
   }
 }
 
+// Clears the CHEQUERED flag grace timer (prevents double-ending when another trigger fires first).
+const clearChequeredGraceTimer = (): void => {
+  if (chequeredGraceTimer) {
+    clearTimeout(chequeredGraceTimer)
+    chequeredGraceTimer = null
+  }
+}
+
 // ─── Progressive Database Saving ──────────────────────────────────
 
 // Starts a periodic timer that flushes accumulated session data to MongoDB.
@@ -2930,12 +3040,38 @@ export const startSessionPolling = (): void => {
         const signalRStatus = getSignalRSessionStatus()
         if (signalRStatus === "Finalised" || signalRStatus === "Ends") {
           log.info(`Session poll: SignalR status "${signalRStatus}" — ending session`)
+          activeSession._sessionEndTrigger = `Poll: SignalR ${signalRStatus}`
           await endSession()
           return
         }
 
         // Don't end during active red flags — session is suspended, not finished.
+        // (SignalR "Finalised" above is authoritative and bypasses this guard.)
         if (activeSession.trackFlag === "RED") return
+
+        // When SignalR never connected, use a shorter grace period — the primary
+        // session-end signal will never arrive, so rely on REST + this timeout.
+        const liveTimingStatus = getLiveTimingStatus()
+        if (liveTimingStatus.status === "unavailable") {
+          const SIGNALR_DOWN_TIMEOUT = 10 * 60 * 1000
+          if (Date.now() > activeSession.dateEndTs + SIGNALR_DOWN_TIMEOUT) {
+            log.warn(`Session ${Math.round((Date.now() - activeSession.dateEndTs) / 60000)}min past end with SignalR unavailable — ending`)
+            activeSession._sessionEndTrigger = `Poll: SignalR unavailable timeout (${Math.round((Date.now() - activeSession.dateEndTs) / 60000)}min)`
+            await endSession()
+            return
+          }
+        }
+
+        // Data inactivity watchdog: if no MQTT/REST data for 5 minutes past dateEndTs,
+        // the session has likely ended silently (cars parked, data stream stopped).
+        const DATA_INACTIVITY_TIMEOUT = 5 * 60 * 1000
+        const inactiveFor = Date.now() - activeSession._lastDataReceivedAt
+        if (inactiveFor > DATA_INACTIVITY_TIMEOUT) {
+          log.warn(`No data received for ${Math.round(inactiveFor / 60000)}min — ending session`)
+          activeSession._sessionEndTrigger = `Data inactivity (${Math.round(inactiveFor / 60000)}min silent)`
+          await endSession()
+          return
+        }
 
         // Check OpenF1 REST API for session status as a secondary signal.
         try {
@@ -2947,6 +3083,7 @@ export const startSessionPolling = (): void => {
           const session = res.data[0]
           if (session?.status === "Finished" || session?.status === "Finalised") {
             log.info(`Session poll: OpenF1 status "${session.status}" — ending session`)
+            activeSession._sessionEndTrigger = `Poll: REST ${session.status}`
             await endSession()
             return
           }
@@ -2958,14 +3095,15 @@ export const startSessionPolling = (): void => {
               activeSession.dateEndTs = newEndTs
             }
           }
-        } catch {
-          // REST check failed — fall through to hard timeout.
+        } catch (err) {
+          log.warn("Session poll: REST status check failed:", err)
         }
 
-        // Hard timeout: 3 hours past scheduled end as absolute safety net.
-        const SESSION_END_HARD_TIMEOUT = 3 * 60 * 60 * 1000
+        // Hard timeout: 30 min past scheduled end as absolute safety net.
+        const SESSION_END_HARD_TIMEOUT = 30 * 60 * 1000
         if (Date.now() > activeSession.dateEndTs + SESSION_END_HARD_TIMEOUT) {
-          log.warn("Session 3h past scheduled end with no Finalised — force ending")
+          log.warn("Session 30min past scheduled end with no Finalised — force ending")
+          activeSession._sessionEndTrigger = "Poll: hard timeout (30min)"
           await endSession()
         }
       }

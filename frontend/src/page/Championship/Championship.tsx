@@ -569,6 +569,20 @@ const Championship: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  // Refetch championship data when returning from background to sync missed socket events.
+  // Mobile browsers (especially Firefox) drop WebSocket connections during backgrounding,
+  // causing status transition events to be lost.
+  useEffect(() => {
+    const handleVisibilityChange = (): void => {
+      if (!document.hidden && id) {
+        getChampById(id, setChamp, user, setUser, navigate, setLoading, setBackendErr)
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
   // Initialize settings form when champ data is loaded.
   useEffect(() => {
     if (champ) {
@@ -628,9 +642,16 @@ const Championship: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, champ?._id])
 
+  // Derive the active round's current status for use as an effect dependency.
+  // This ensures roundStatusView re-syncs when refetched data shows a different status
+  // (e.g. after returning from background where socket events were missed).
+  const activeRoundStatus = champ?.rounds.find(
+    r => r.status !== "completed" && r.status !== "waiting"
+  )?.status ?? null
+
   // Check current round status on load - show status view if round is active.
   // Also detects season end: if seasonEndedAt exists and is within 24h, show ChampionshipFinishView.
-  // Runs when champ data is loaded (champ._id changes).
+  // Runs when champ data is loaded or when the active round status changes (e.g. after refetch).
   // Resets roundStatusView when navigating to a championship without an active round.
   useEffect(() => {
     if (champ) {
@@ -645,15 +666,14 @@ const Championship: React.FC = () => {
         }
       }
 
-      const currentRound = champ.rounds.find(r => r.status !== "completed")
-      if (currentRound && currentRound.status !== "waiting" && currentRound.status !== "completed") {
-        setRoundStatusView(currentRound.status)
+      if (activeRoundStatus && activeRoundStatus !== "waiting" && activeRoundStatus !== "completed") {
+        setRoundStatusView(activeRoundStatus)
       } else {
         setRoundStatusView(null)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [champ?._id])
+  }, [champ?._id, activeRoundStatus])
 
   // Check if forms have changes compared to champ data.
   const settingsChanged = champ ? hasSettingsChanged(settingsForm, champ) : false

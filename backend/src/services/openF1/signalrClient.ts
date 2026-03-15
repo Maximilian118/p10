@@ -17,14 +17,22 @@ import { createLogger } from "../../shared/logger"
 
 const log = createLogger("SignalR")
 
-const SIGNALR_BASE = "https://livetiming.formula1.com"
+const SIGNALR_BASE = "https://livetiming.formula1.com/signalr"
 const SIGNALR_HUB = "Streaming"
 
-// Flat retry interval when SignalR is unavailable (ms).
-const RETRY_INTERVAL_MS = 60000
+// HTTP headers matching the fastf1-livetiming client.
+// Header casing is critical — F1's server is case-sensitive and returns errors with wrong casing.
+const HEADERS: Record<string, string> = {
+  "User-agent": "BestHTTP",
+  "Accept-Encoding": "gzip, identity",
+  "Connection": "keep-alive, Upgrade",
+}
 
-// Maximum number of connection attempts before giving up.
-const MAX_RETRIES = 3
+// Delay between reconnection attempts (ms). Matches the fastf1-livetiming default of 5 seconds.
+const RECONNECT_DELAY_MS = 5_000
+
+// WebSocket keepalive ping interval (ms). Matches the fastf1-livetiming default of 20 seconds.
+const PING_INTERVAL_MS = 20_000
 
 // All free SignalR topics we subscribe to.
 const SIGNALR_TOPICS = [
@@ -48,7 +56,7 @@ const SIGNALR_TOPICS = [
 let ws: WebSocket | null = null
 let retryTimeout: ReturnType<typeof setTimeout> | null = null
 let shouldReconnect = false
-let retryCount = 0
+let pingInterval: ReturnType<typeof setInterval> | null = null
 
 // Tracks the current connection state for the session capability report.
 let connectionStatus: "connected" | "connecting" | "unavailable" = "connecting"
@@ -517,6 +525,41 @@ const handleMessage = (raw: string) => {
 
 // ─── Connection Management ───────────────────────────────────────
 
+// Starts periodic WebSocket pings to keep the connection alive.
+// If no pong is received before the next ping fires, the connection is considered dead and terminated.
+const startPingInterval = (): void => {
+  stopPingInterval()
+  let awaitingPong = false
+
+  pingInterval = setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+
+    if (awaitingPong) {
+      log.warn("No pong received — terminating dead connection")
+      ws.terminate()
+      return
+    }
+
+    awaitingPong = true
+    ws.ping()
+
+    // Reset the flag when pong is received.
+    const onPong = () => {
+      awaitingPong = false
+      ws?.removeListener("pong", onPong)
+    }
+    ws.on("pong", onPong)
+  }, PING_INTERVAL_MS)
+}
+
+// Stops the keepalive ping interval timer.
+const stopPingInterval = (): void => {
+  if (pingInterval) {
+    clearInterval(pingInterval)
+    pingInterval = null
+  }
+}
+
 // Connects to the F1 Live Timing SignalR endpoint and subscribes to all free topics.
 const connect = async (): Promise<void> => {
   try {
@@ -525,28 +568,27 @@ const connect = async (): Promise<void> => {
     const negotiateUrl = `${SIGNALR_BASE}/negotiate?clientProtocol=1.5&connectionData=${connectionData}`
 
     const negotiateRes = await axios.get(negotiateUrl, {
-      headers: { "User-Agent": "BestHTTP" },
+      headers: HEADERS,
     })
 
     const connectionToken = encodeURIComponent(negotiateRes.data.ConnectionToken)
     const cookies = (negotiateRes.headers["set-cookie"] || []).map((c: string) => c.split(";")[0]).join("; ")
 
-    // Step 2: Open WebSocket connection.
-    const connectUrl = `wss://livetiming.formula1.com/connect?clientProtocol=1.5&transport=webSockets&connectionToken=${connectionToken}&connectionData=${connectionData}`
+    // Step 2: Open WebSocket connection using the negotiated token.
+    const wsBase = SIGNALR_BASE.replace(/^https/, "wss")
+    const connectUrl = `${wsBase}/connect?transport=webSockets&connectionToken=${connectionToken}&connectionData=${connectionData}&clientProtocol=1.5`
 
     ws = new WebSocket(connectUrl, {
       headers: {
-        "User-Agent": "BestHTTP",
-        "Accept-Encoding": "gzip,identity",
+        ...HEADERS,
         Cookie: cookies,
       },
     })
 
     ws.on("open", () => {
-      log.info(`✓ Connected (subscribing to ${SIGNALR_TOPICS.length} topics)`)
+      log.info(`Connected (subscribing to ${SIGNALR_TOPICS.length} topics)`)
       connectionStatus = "connected"
       lastError = null
-      retryCount = 0
 
       // Step 3: Subscribe to all free topics.
       const subscribeMsg = JSON.stringify({
@@ -556,6 +598,9 @@ const connect = async (): Promise<void> => {
         I: "1",
       })
       ws?.send(subscribeMsg)
+
+      // Step 4: Start keepalive pings to prevent idle disconnection.
+      startPingInterval()
     })
 
     ws.on("message", (data) => {
@@ -563,45 +608,42 @@ const connect = async (): Promise<void> => {
     })
 
     ws.on("close", () => {
-      log.info("⚠ Connection closed")
+      log.info("Connection closed")
       connectionStatus = "connecting"
+      stopPingInterval()
       ws = null
       scheduleReconnect()
     })
 
     ws.on("error", (err) => {
-      log.error("✗ WebSocket error:", err.message)
+      log.error("WebSocket error:", err.message)
       ws?.close()
     })
   } catch (err: unknown) {
-    retryCount++
-    const gaveUp = retryCount >= MAX_RETRIES
-    const suffix = gaveUp ? `(giving up after ${MAX_RETRIES} attempts)` : "(retrying in 60s)"
-
     if (axios.isAxiosError(err) && err.response) {
       const { status, statusText, data } = err.response
       const body = typeof data === "string" ? data.substring(0, 100) : JSON.stringify(data).substring(0, 100)
       lastError = `${status} ${statusText}`
-      log.warn(`Negotiate failed: ${status} ${statusText} — "${body}" ${suffix}`)
+      log.warn(`Negotiate failed: ${status} ${statusText} — "${body}" (retrying in ${RECONNECT_DELAY_MS / 1000}s)`)
     } else {
       lastError = (err as Error).message
-      log.warn(`Connection failed: ${(err as Error).message} ${suffix}`)
+      log.warn(`Connection failed: ${(err as Error).message} (retrying in ${RECONNECT_DELAY_MS / 1000}s)`)
     }
     connectionStatus = "unavailable"
     ws = null
-    if (!gaveUp) scheduleReconnect()
+    scheduleReconnect()
   }
 }
 
-// Schedules a reconnection attempt after a flat 60-second delay.
-const scheduleReconnect = () => {
+// Schedules a reconnection attempt after a short delay.
+const scheduleReconnect = (): void => {
   if (!shouldReconnect) return
   if (retryTimeout) return
 
   retryTimeout = setTimeout(() => {
     retryTimeout = null
     connect()
-  }, RETRY_INTERVAL_MS)
+  }, RECONNECT_DELAY_MS)
 }
 
 // ─── Public Lifecycle ────────────────────────────────────────────
@@ -609,7 +651,6 @@ const scheduleReconnect = () => {
 // Starts the SignalR connection. Called when a live session begins.
 export const connectSignalR = (): void => {
   shouldReconnect = true
-  retryCount = 0
   latestClock = null
   connectionStatus = "connecting"
   lastError = null
@@ -636,6 +677,8 @@ export const disconnectSignalR = (): void => {
     delete signalrState[key]
   }
 
+  stopPingInterval()
+
   if (retryTimeout) {
     clearTimeout(retryTimeout)
     retryTimeout = null
@@ -646,7 +689,7 @@ export const disconnectSignalR = (): void => {
     ws = null
   }
 
-  log.info("✓ Disconnected")
+  log.info("Disconnected")
 }
 
 // ─── Backwards Compat Aliases ─────────────────────────────────────

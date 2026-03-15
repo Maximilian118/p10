@@ -554,6 +554,12 @@ export interface SessionState {
   qualifyingPhase: number | null
   // Drivers knocked out in qualifying: driverNumber → phase they were eliminated in (1 or 2).
   driverKnockedOut: Map<number, number>
+  // Number of CHEQUERED flags received at track scope (qualifying has 3: Q1, Q2, Q3).
+  _chequeredFlagCount: number
+  // What triggered endSession — logged in the session end banner for diagnostics.
+  _sessionEndTrigger: string | null
+  // Timestamp of the last received data event (MQTT or REST) — used by inactivity watchdog.
+  _lastDataReceivedAt: number
 
   // ─── Session Recording (live → demo) ──────────────────────────
   // Buffered messages for recording live sessions as replayable demos.
