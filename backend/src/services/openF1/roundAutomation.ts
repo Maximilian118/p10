@@ -88,7 +88,6 @@ const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
   }, delayMs)
 
   scheduledAutoOpenTimers.set(champId, { timer, autoOpenAt })
-  log.info(`Scheduled precise auto-open for champId=${champId} in ${Math.round(delayMs / 1000)}s`)
 }
 
 // Checks all active championships with automation enabled and auto-opens
@@ -113,6 +112,7 @@ const checkAutoOpenRounds = async (): Promise<void> => {
     })
 
     const now = Date.now()
+    let scheduledCount = 0
 
     for (const champ of champs) {
       const { autoOpenTime, autoOpenData } = champ.settings.automation.bettingWindow
@@ -157,6 +157,7 @@ const checkAutoOpenRounds = async (): Promise<void> => {
       // Schedule a precise timer for countdown start based on the API qualifying timestamp.
       if (now < countDownAt) {
         scheduleRoundAutoOpen(champId, countDownAt)
+        scheduledCount++
         continue
       }
 
@@ -166,6 +167,11 @@ const checkAutoOpenRounds = async (): Promise<void> => {
       log.info(`Auto-opening round ${roundIndex + 1} for "${champ.name}"`)
 
       await autoOpenRound(champ, roundIndex)
+    }
+
+    // Log a single summary for all scheduled auto-opens.
+    if (scheduledCount > 0) {
+      log.info(`Scheduled auto-open timers for ${scheduledCount} championship(s)`)
     }
   } catch (err) {
     log.error("Failed to check auto-open rounds:", err)

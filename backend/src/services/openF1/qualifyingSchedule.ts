@@ -20,6 +20,19 @@ const POLL_INTERVAL = 60 * 60 * 1000
 // 1-hour buffer (ms) after a session ends before counting it as "completed" for league purposes.
 const COMPLETION_BUFFER_MS = 60 * 60 * 1000
 
+// Official F1 calendar API (Ergast/Jolpica) — free, no auth required.
+const OFFICIAL_CALENDAR_API = "https://api.jolpi.ca/ergast/f1"
+
+// How long to cache the official calendar (24 hours — calendar changes rarely).
+const CALENDAR_CACHE_TTL = 24 * 60 * 60 * 1000
+
+// Maximum day difference between a qualifying session and its race day to be considered the same weekend.
+const RACE_WEEKEND_WINDOW_DAYS = 2
+
+// In-memory cache for official calendar race dates.
+let cachedRaceDates: Set<string> | null = null
+let raceDatesExpiresAt = 0
+
 let pollTimer: NodeJS.Timeout | null = null
 let ioServer: Server | null = null
 
@@ -31,6 +44,7 @@ interface OpenF1SessionSchedule {
   date_start: string
   date_end: string
   meeting_key: number
+  circuit_short_name: string
   year: number
 }
 
@@ -40,6 +54,45 @@ interface QualifyingScheduleResult {
   totalSessions: number // Total qualifying sessions for the year.
   nextSession: OpenF1SessionSchedule | null // Next upcoming session.
   allSessionsFinished: boolean // All sessions ended (with 1h buffer).
+}
+
+// Fetches official race dates from the Ergast/Jolpica API for the given year.
+// Returns a Set of race-day date strings (YYYY-MM-DD), or null on failure.
+// Cached for 24 hours since the calendar changes very infrequently.
+const fetchOfficialRaceDates = async (year: number): Promise<Set<string> | null> => {
+  const now = Date.now()
+  if (cachedRaceDates && now < raceDatesExpiresAt) return cachedRaceDates
+
+  try {
+    const res = await axios.get(`${OFFICIAL_CALENDAR_API}/${year}.json`, { timeout: 10000 })
+    const races = res.data?.MRData?.RaceTable?.Races || []
+    const dates = new Set<string>(races.map((r: { date: string }) => r.date))
+    cachedRaceDates = dates
+    raceDatesExpiresAt = now + CALENDAR_CACHE_TTL
+    log.info(`Official calendar: ${dates.size} races for ${year}`)
+    return dates
+  } catch (err) {
+    log.warn("Failed to fetch official calendar — using unfiltered OpenF1 data:", err)
+    return null
+  }
+}
+
+// Filters out cancelled sessions by cross-referencing against the official F1 calendar.
+// A qualifying session is valid if its date falls within ±2 days of any official race date.
+const filterCancelledSessions = (
+  sessions: OpenF1SessionSchedule[],
+  officialRaceDates: Set<string>,
+): OpenF1SessionSchedule[] => {
+  const windowMs = RACE_WEEKEND_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  return sessions.filter((session) => {
+    const qualTime = new Date(session.date_start).getTime()
+    for (const raceDateStr of officialRaceDates) {
+      const raceTime = new Date(raceDateStr + "T00:00:00Z").getTime()
+      if (Math.abs(qualTime - raceTime) <= windowMs) return true
+    }
+    log.info(`Filtered cancelled session: ${session.circuit_short_name} (${session.date_start})`)
+    return false
+  })
 }
 
 // Fetches all qualifying sessions for the year and computes schedule analysis.
@@ -64,7 +117,14 @@ const fetchQualifyingSchedule = async (): Promise<QualifyingScheduleResult | nul
       },
     )
 
-    const allSessions = res.data || []
+    const rawSessions = res.data || []
+
+    // Cross-check against the official F1 calendar to filter out cancelled sessions.
+    const officialDates = await fetchOfficialRaceDates(new Date().getFullYear())
+    const allSessions = officialDates
+      ? filterCancelledSessions(rawSessions, officialDates)
+      : rawSessions
+
     const now = Date.now()
 
     // Count sessions that ended more than 1h ago (buffer for champs to finish processing).
