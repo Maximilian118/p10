@@ -19,8 +19,10 @@ import { createLogger } from "../../shared/logger"
 
 const log = createLogger("RoundAutomation")
 
-// How often to check if any championship needs its round auto-opened (30 seconds).
-const CHECK_INTERVAL = 30 * 1000
+// How often to check if any championship needs its round auto-opened (5 minutes).
+// The precise setTimeout in scheduleRoundAutoOpen handles the actual auto-open timing;
+// this poll is a safety net for warnings, stuck rounds, and catching timestamp changes.
+const CHECK_INTERVAL = 5 * 60 * 1000
 
 // 5-minute warning window in milliseconds.
 const WARNING_WINDOW_MS = 5 * 60 * 1000
@@ -41,13 +43,14 @@ const scheduledAutoOpenTimers = new Map<string, { timer: NodeJS.Timeout; autoOpe
 // Schedules a precise auto-open for a championship at the exact autoOpenAt time + 1 second.
 // The 1-second buffer lets the frontend "Get Ready!" text display before the countDown view broadcasts.
 // If a timer already exists with a different autoOpenAt, it is cancelled and rescheduled.
-const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
-  if (!ioServer) return
+// Returns true if a new timer was created, false if an existing timer was kept or skipped.
+const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): boolean => {
+  if (!ioServer) return false
 
   const existing = scheduledAutoOpenTimers.get(champId)
   if (existing) {
     // Timestamp unchanged — keep existing timer.
-    if (existing.autoOpenAt === autoOpenAt) return
+    if (existing.autoOpenAt === autoOpenAt) return false
     // Timestamp changed — cancel old timer and reschedule.
     clearTimeout(existing.timer)
     scheduledAutoOpenTimers.delete(champId)
@@ -55,7 +58,7 @@ const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
   }
 
   const delayMs = autoOpenAt - Date.now() + 1000
-  if (delayMs <= 0) return
+  if (delayMs <= 0) return false
 
   const timer = setTimeout(async () => {
     scheduledAutoOpenTimers.delete(champId)
@@ -88,6 +91,7 @@ const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
   }, delayMs)
 
   scheduledAutoOpenTimers.set(champId, { timer, autoOpenAt })
+  return true
 }
 
 // Checks all active championships with automation enabled and auto-opens
@@ -156,8 +160,7 @@ const checkAutoOpenRounds = async (): Promise<void> => {
 
       // Schedule a precise timer for countdown start based on the API qualifying timestamp.
       if (now < countDownAt) {
-        scheduleRoundAutoOpen(champId, countDownAt)
-        scheduledCount++
+        if (scheduleRoundAutoOpen(champId, countDownAt)) scheduledCount++
         continue
       }
 
@@ -343,7 +346,7 @@ export const startRoundAutomation = (io: Server): void => {
   ioServer = io
 
   checkTimer = setInterval(runPeriodicChecks, CHECK_INTERVAL)
-  log.info(`✓ Round automation started (checking every ${CHECK_INTERVAL / 1000}s)`)
+  log.info(`✓ Round automation started (checking every ${CHECK_INTERVAL / 60000} min)`)
 }
 
 // Stops the periodic check and clears all scheduled auto-open timers.
