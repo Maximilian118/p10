@@ -167,6 +167,10 @@ const Championship: React.FC = () => {
   // Season end state - true when viewing the ChampionshipFinishView after final round.
   const [ isSeasonEnd, setIsSeasonEnd ] = useState<boolean>(false)
 
+  // Whether the user has dismissed the extended countdown overlay (close button).
+  // Resets when round status changes.
+  const [ dismissedCountDown, setDismissedCountDown ] = useState<boolean>(false)
+
   // Track last rejected bet for BettingOpenView to show rejection feedback.
   const [ lastRejectedBet, setLastRejectedBet ] = useState<BetRejectedPayload | null>(null)
 
@@ -229,8 +233,9 @@ const Championship: React.FC = () => {
   const [ viewHistory, setViewHistory ] = useState<ChampView[]>([])
 
   // Whether any fullscreen overlay (confirm dialog, round status view, etc.) is active.
+  // When the user dismisses the extended countdown, the overlay is no longer active.
   const isOverlayActive =
-    isInRoundStatusView ||
+    (isInRoundStatusView && !dismissedCountDown) ||
     showStartConfirm ||
     showBanConfirm ||
     showKickConfirm ||
@@ -330,6 +335,8 @@ const Championship: React.FC = () => {
     // Show the appropriate status view for active statuses.
     if (payload.status !== "waiting" && payload.status !== "completed") {
       setRoundStatusView(payload.status)
+      // Reset dismissed state so the new status view shows.
+      setDismissedCountDown(false)
     } else {
       setRoundStatusView(null)
     }
@@ -1000,6 +1007,11 @@ const Championship: React.FC = () => {
   const canAccessSettings = isAdjudicator || isAdmin
   const isCompetitor = champ.competitors.some(c => c._id === user._id)
 
+  // Countdown duration: 30 minutes for automated championships with countdown, 30 seconds for manual.
+  const countdownDuration = champ.settings.automation?.enabled &&
+    champ.settings.automation.bettingWindow?.autoOpen &&
+    !champ.settings.skipCountDown ? 1800 : 30
+
   // Active round index and data - the round currently in progress (for status views/API calls).
   const activeRoundIndex = champ.rounds.findIndex(r => r.status !== "completed" && r.status !== "waiting")
   const activeRound = activeRoundIndex >= 0 ? champ.rounds[activeRoundIndex] : null
@@ -1108,49 +1120,51 @@ const Championship: React.FC = () => {
   return (
     <>
       <div className="content-container">
-        {/* Championship banner - scrolls away under nav on scroll */}
-        {isAdjudicator ? (
-          view === "settings" ? (
-            <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
-              champ={champ}
-              setChamp={setChamp}
-              user={user}
-              setUser={setUser}
-              form={settingsForm}
-              setForm={setSettingsForm}
-              formErr={settingsFormErr}
-              setFormErr={setSettingsFormErr}
-              backendErr={backendErr}
-              setBackendErr={setBackendErr}
-              onBannerClick={handleBannerClick}
-              settingsMode={true}
-              openRef={dropzoneOpenRef}
-              viewedRoundNumber={viewedRoundNumber}
-              sessionBanner={sessionBannerData}
-            />
+        {/* Championship banner - hidden during active round views (unless countdown dismissed) */}
+        {(!isInRoundStatusView || dismissedCountDown) && (
+          isAdjudicator ? (
+            view === "settings" ? (
+              <ChampBanner<ChampSettingsFormType, ChampSettingsFormErrType>
+                champ={champ}
+                setChamp={setChamp}
+                user={user}
+                setUser={setUser}
+                form={settingsForm}
+                setForm={setSettingsForm}
+                formErr={settingsFormErr}
+                setFormErr={setSettingsFormErr}
+                backendErr={backendErr}
+                setBackendErr={setBackendErr}
+                onBannerClick={handleBannerClick}
+                settingsMode={true}
+                openRef={dropzoneOpenRef}
+                viewedRoundNumber={viewedRoundNumber}
+                sessionBanner={sessionBannerData}
+              />
+            ) : (
+              <ChampBanner<formType, formErrType>
+                champ={champ}
+                setChamp={setChamp}
+                user={user}
+                setUser={setUser}
+                form={form}
+                setForm={setForm}
+                formErr={formErr}
+                setFormErr={setFormErr}
+                backendErr={backendErr}
+                setBackendErr={setBackendErr}
+                onBannerClick={handleBannerClick}
+                viewedRoundNumber={viewedRoundNumber}
+                sessionBanner={sessionBannerData}
+              />
+            )
           ) : (
-            <ChampBanner<formType, formErrType>
-              champ={champ}
-              setChamp={setChamp}
-              user={user}
-              setUser={setUser}
-              form={form}
-              setForm={setForm}
-              formErr={formErr}
-              setFormErr={setFormErr}
-              backendErr={backendErr}
-              setBackendErr={setBackendErr}
-              onBannerClick={handleBannerClick}
-              viewedRoundNumber={viewedRoundNumber}
-              sessionBanner={sessionBannerData}
-            />
+            <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} viewedRoundNumber={viewedRoundNumber} sessionBanner={sessionBannerData} />
           )
-        ) : (
-          <ChampBanner champ={champ} readOnly onBannerClick={handleBannerClick} viewedRoundNumber={viewedRoundNumber} sessionBanner={sessionBannerData} />
         )}
 
         {/* RoundsBar - sticks under nav when banner scrolls out of view */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
+        {view === "competitors" && (!isInRoundStatusView || dismissedCountDown) && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
           <div className={`action-bar${isAdjudicator ? ' action-bar--adjudicator' : ''}${adjudicatorView ? ' action-bar--active' : ''}`}>
             <div className="action-bar-inner">
               {isAdjudicator && <AdjudicatorBar/>}
@@ -1172,11 +1186,14 @@ const Championship: React.FC = () => {
         {/* View content wrapper - min-height ensures scroll position is preserved when switching views */}
         <div className="championship-views">
         {/* Round Status Views - shown during active round states (use activeRound, not viewedRound) */}
-        {isInRoundStatusView && roundStatusView === "countDown" && activeRound && (
+        {/* CountDownView — socket-driven countdown (30s manual or 30-min automated). */}
+        {isInRoundStatusView && roundStatusView === "countDown" && !dismissedCountDown && activeRound && (
           <CountDownView
             round={activeRound}
             isAdjudicator={isAdjudicator}
             onSkipTimer={() => handleAdvanceStatus("betting_open")}
+            countdownDuration={countdownDuration}
+            onClose={() => setDismissedCountDown(true)}
           />
         )}
         {isInRoundStatusView && roundStatusView === "betting_open" && activeRound && id && (
@@ -1375,7 +1392,7 @@ const Championship: React.FC = () => {
         )}
 
         {/* Default competitors view - shown when not in active round status */}
-        {view === "competitors" && !isInRoundStatusView && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
+        {view === "competitors" && (!isInRoundStatusView || dismissedCountDown) && !showStartConfirm && !showBanConfirm && !showKickConfirm && !showPromoteConfirm && !showInviteFullConfirm && !showAcceptInviteFullConfirm && !showLeaveConfirm && (
           <div className="championship-list">
               {standingsView === "competitors" && viewedRound && (() => {
                 // Filter out inactive competitors with 0 points in normal view only.

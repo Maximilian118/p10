@@ -75,16 +75,18 @@ const scheduleAutoTransition = (
   activeTimers.set(key, timer)
 }
 
-// Schedules auto-transition from countDown to betting_open after 30 seconds + random delay.
+// Schedules auto-transition from countDown to betting_open after the given duration + random delay.
 // The random delay (0.5-5s) simulates the race start "lights out" moment.
+// Duration defaults to COUNTDOWN_DURATION (30s) for manual starts; pass 1800*1000 for automated 30-min countdowns.
 export const scheduleCountdownTransition = (
   io: Server,
   champId: string,
-  roundIndex: number
+  roundIndex: number,
+  duration?: number
 ): void => {
   const randomDelay = randomiseRoundStartTime() * 1000
-  const totalDelay = COUNTDOWN_DURATION + randomDelay
-  log.info(` Scheduling countdown transition: randomDelay=${randomDelay}ms, totalDelay=${totalDelay}ms`)
+  const totalDelay = (duration || COUNTDOWN_DURATION) + randomDelay
+  log.info(` Scheduling countdown transition: duration=${(duration || COUNTDOWN_DURATION) / 1000}s, randomDelay=${randomDelay}ms`)
   scheduleAutoTransition(io, champId, roundIndex, "betting_open", totalDelay)
 }
 
@@ -147,11 +149,16 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
         const { status } = round
 
         // Countdown: re-schedule timer for remaining time, or reset to waiting if exceeded.
+        // Uses extended duration (30 min) for automated championships with countdown enabled.
         if (status === "countDown" && round.statusChangedAt) {
+          const isExtended = champ.settings?.automation?.enabled &&
+            champ.settings.automation.bettingWindow?.autoOpen &&
+            !champ.settings.skipCountDown
+          const countdownDuration = isExtended ? 1800 * 1000 : COUNTDOWN_DURATION
           const elapsedMs = moment().diff(moment(round.statusChangedAt))
-          if (elapsedMs < COUNTDOWN_DURATION) {
+          if (elapsedMs < countdownDuration) {
             // Still within countdown duration — re-schedule timer for remaining time.
-            const remainingMs = COUNTDOWN_DURATION - elapsedMs
+            const remainingMs = countdownDuration - elapsedMs
             log.info(` Re-scheduling countdown timer: champ=${champ._id} (${champ.name}), round=${i + 1}, remaining=${Math.round(remainingMs / 1000)}s`)
             scheduleAutoTransition(io, champ._id.toString(), i, "betting_open", remainingMs)
           } else {
@@ -295,7 +302,8 @@ const transitionRoundStatus = async (
   champ.updated_at = moment().format()
 
   // Compute and store bettingCloseAt when entering betting_open with autoClose enabled.
-  if (newStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose) {
+  // Skip if already pre-computed during autoOpenRound (extended countdown pre-computes before clearing timestamp).
+  if (newStatus === "betting_open" && champ.settings?.automation?.bettingWindow?.autoClose && !champ.rounds[roundIndex].bettingCloseAt) {
     const bettingCloseAt = computeBettingCloseAt(
       champ.settings.automation.bettingWindow,
       previousStatusChangedAt,

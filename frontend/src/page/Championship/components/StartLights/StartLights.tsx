@@ -9,6 +9,10 @@ import {
   red2Lights,
   red3Lights,
   red4Lights,
+  ceremony8Red,
+  ceremony6Red,
+  ceremony4Red,
+  ceremony2Red,
   StartLightsStatus,
   getLightStatus
 } from "./startLightsUtility"
@@ -24,6 +28,7 @@ interface StartLightsType {
 // Maps each status to the row configuration (which light pattern each row should display)
 const rowConfigs: Record<StartLightsStatus, string[][]> = {
   off: [defaultLights, defaultLights, defaultLights, defaultLights],
+  // Race start sequence - columns illuminate left to right
   red1: [defaultLights, defaultLights, red1Lights, red1Lights],
   red2: [defaultLights, defaultLights, red2Lights, red2Lights],
   red3: [defaultLights, defaultLights, red3Lights, red3Lights],
@@ -32,6 +37,12 @@ const rowConfigs: Record<StartLightsStatus, string[][]> = {
   green: [defaultLights, greenLights, defaultLights, defaultLights],
   orange: [orangeLights, defaultLights, defaultLights, defaultLights],
   orange_flash: [orangeLights, defaultLights, defaultLights, defaultLights],
+  // Build-up ceremony - columns turn OFF left to right
+  ceremony_10red: [defaultLights, defaultLights, redLights, redLights],
+  ceremony_8red: [defaultLights, defaultLights, ceremony8Red, ceremony8Red],
+  ceremony_6red: [defaultLights, defaultLights, ceremony6Red, ceremony6Red],
+  ceremony_4red: [defaultLights, defaultLights, ceremony4Red, ceremony4Red],
+  ceremony_2red: [defaultLights, defaultLights, ceremony2Red, ceremony2Red],
 }
 
 const StartLights: React.FC<StartLightsType> = ({ status = "off", startSequence = false, initialSeconds }) => {

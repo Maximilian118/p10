@@ -52,7 +52,7 @@
 // List of competitors/drivers/teams in the championship standings.
 .championship-list {
   width: 100%;
-  @include mixins.flexbox-column;
+  @include mixins.flexbox-start-column;
   gap: 2px;
   margin-bottom: 120px;
 }

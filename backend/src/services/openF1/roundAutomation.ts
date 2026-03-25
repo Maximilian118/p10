@@ -34,13 +34,25 @@ let ioServer: Server | null = null
 // Tracks which championships have already received a 5-minute warning (prevents duplicate sends across 30s polling cycles).
 const warnedChampIds = new Set<string>()
 
-// Tracks scheduled precise auto-open timers per championship (prevents duplicate scheduling).
-const scheduledAutoOpenTimers = new Map<string, NodeJS.Timeout>()
+// Tracks scheduled precise auto-open timers per championship with the expected autoOpenAt time.
+// Used to detect timestamp changes and reschedule when qualifying sessions are moved.
+const scheduledAutoOpenTimers = new Map<string, { timer: NodeJS.Timeout; autoOpenAt: number }>()
 
 // Schedules a precise auto-open for a championship at the exact autoOpenAt time + 1 second.
 // The 1-second buffer lets the frontend "Get Ready!" text display before the countDown view broadcasts.
+// If a timer already exists with a different autoOpenAt, it is cancelled and rescheduled.
 const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
-  if (!ioServer || scheduledAutoOpenTimers.has(champId)) return
+  if (!ioServer) return
+
+  const existing = scheduledAutoOpenTimers.get(champId)
+  if (existing) {
+    // Timestamp unchanged — keep existing timer.
+    if (existing.autoOpenAt === autoOpenAt) return
+    // Timestamp changed — cancel old timer and reschedule.
+    clearTimeout(existing.timer)
+    scheduledAutoOpenTimers.delete(champId)
+    log.info(`Rescheduling auto-open for champId=${champId} (timestamp changed)`)
+  }
 
   const delayMs = autoOpenAt - Date.now() + 1000
   if (delayMs <= 0) return
@@ -75,7 +87,7 @@ const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): void => {
     }
   }, delayMs)
 
-  scheduledAutoOpenTimers.set(champId, timer)
+  scheduledAutoOpenTimers.set(champId, { timer, autoOpenAt })
   log.info(`Scheduled precise auto-open for champId=${champId} in ${Math.round(delayMs / 1000)}s`)
 }
 
@@ -108,9 +120,10 @@ const checkAutoOpenRounds = async (): Promise<void> => {
 
       const champId = champ._id.toString()
 
-      // Compute when the round should auto-open.
+      // Compute when the round should auto-open and when the countdown should start (30 min before).
       const qualifyingStart = new Date(autoOpenData.timestamp).getTime()
       const autoOpenAt = qualifyingStart - (autoOpenTime * 60 * 1000)
+      const countDownAt = autoOpenAt - 1800 * 1000
 
       // Guard: skip if any round is already in an active state (prevents cascading opens).
       const hasActiveRound = champ.rounds.some((r) => ACTIVE_ROUND_STATUSES.includes(r.status))
@@ -124,15 +137,15 @@ const checkAutoOpenRounds = async (): Promise<void> => {
       const completedCount = champ.rounds.filter((r) => r.status === "completed").length
       if (completedCount >= champ.rounds.length) continue
 
-      // Send 5-minute warning notification before auto-open (once per round).
-      const timeUntilOpen = autoOpenAt - now
-      if (timeUntilOpen > 0 && timeUntilOpen <= WARNING_WINDOW_MS && !warnedChampIds.has(champId)) {
+      // Send 5-minute warning notification before countdown starts (once per round).
+      const timeUntilCountDown = countDownAt - now
+      if (timeUntilCountDown > 0 && timeUntilCountDown <= WARNING_WINDOW_MS && !warnedChampIds.has(champId)) {
         warnedChampIds.add(champId)
         if (champ.competitors.length > 0) {
           await sendNotificationToMany(champ.competitors, {
             type: "round_started",
             title: "Round Starting Soon",
-            description: `Round ${roundIndex + 1} in ${champ.name} opens in 5 minutes.`,
+            description: `Round ${roundIndex + 1} in ${champ.name} countdown starts in 5 minutes.`,
             champId: champ._id,
             champName: champ.name,
             champIcon: champ.icon,
@@ -141,14 +154,13 @@ const checkAutoOpenRounds = async (): Promise<void> => {
         }
       }
 
-      // Schedule a precise auto-open timer based on the API qualifying timestamp.
-      // This ensures the round opens exactly 1 second after the frontend countdown hits zero.
-      if (now < autoOpenAt) {
-        scheduleRoundAutoOpen(champId, autoOpenAt)
+      // Schedule a precise timer for countdown start based on the API qualifying timestamp.
+      if (now < countDownAt) {
+        scheduleRoundAutoOpen(champId, countDownAt)
         continue
       }
 
-      // Clear the warning flag once the round opens.
+      // Clear the warning flag once the countdown fires.
       warnedChampIds.delete(champId)
 
       log.info(`Auto-opening round ${roundIndex + 1} for "${champ.name}"`)
@@ -187,7 +199,8 @@ const autoOpenRound = async (
     champ.rounds[roundIndex].statusChangedAt = moment().format()
 
     // Compute bettingCloseAt BEFORE save so it's included in the initial broadcast.
-    if (skipCountDown && champ.settings.automation.bettingWindow.autoClose) {
+    // Always compute while qualifying timestamp is still available (cleared after save).
+    if (champ.settings.automation.bettingWindow.autoClose) {
       champ.rounds[roundIndex].bettingCloseAt = computeBettingCloseAt(
         champ.settings.automation.bettingWindow,
         champ.rounds[roundIndex].statusChangedAt,
@@ -212,9 +225,14 @@ const autoOpenRound = async (
 
     // Schedule the countdown → betting_open transition if not skipping.
     if (!skipCountDown) {
-      scheduleCountdownTransition(ioServer, champId, roundIndex)
+      scheduleCountdownTransition(ioServer, champId, roundIndex, 1800 * 1000)
+      // Schedule auto-close from the pre-computed bettingCloseAt deadline.
+      if (champ.rounds[roundIndex].bettingCloseAt) {
+        const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
+        scheduleBettingCloseTransition(ioServer, champId, roundIndex, closeDelayMs)
+      }
     } else if (champ.rounds[roundIndex].bettingCloseAt) {
-      // Schedule auto-close using the pre-computed bettingCloseAt deadline.
+      // Skip countdown — schedule auto-close using the pre-computed bettingCloseAt deadline.
       const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
       scheduleBettingCloseTransition(ioServer, champId, roundIndex, closeDelayMs)
     }
@@ -233,7 +251,7 @@ const autoOpenRound = async (
       await sendNotificationToMany(champ.competitors, {
         type: "round_started",
         title: "Round Started",
-        description: `Round ${roundIndex + 1} has been opened for ${champ.name}.`,
+        description: `Round ${roundIndex + 1} countdown has started for ${champ.name}.`,
         champId: champ._id,
         champName: champ.name,
         champIcon: champ.icon,
@@ -330,7 +348,7 @@ export const stopRoundAutomation = (): void => {
   }
 
   // Clear all scheduled precise auto-open timers.
-  for (const timer of scheduledAutoOpenTimers.values()) {
+  for (const { timer } of scheduledAutoOpenTimers.values()) {
     clearTimeout(timer)
   }
   scheduledAutoOpenTimers.clear()
