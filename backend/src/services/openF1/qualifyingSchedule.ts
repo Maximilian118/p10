@@ -8,6 +8,7 @@ import { SOCKET_EVENTS } from "../../socket/socketHandler"
 import { detectAndHandleMissedRounds } from "./missedRoundHandler"
 import { archiveLeagueSeason } from "../../shared/leagueScoring"
 import League from "../../models/league"
+import User from "../../models/user"
 import { createLogger } from "../../shared/logger"
 
 const log = createLogger("QualifyingSchedule")
@@ -155,16 +156,56 @@ const fetchQualifyingSchedule = async (): Promise<QualifyingScheduleResult | nul
   }
 }
 
-// Updates completedRounds on all API-enabled series.
-const updateSeriesCompletedRounds = async (completedCount: number): Promise<void> => {
+// Updates completedRounds and total rounds on all API-enabled series.
+// When totalSessions changes (e.g. races cancelled), trims trailing waiting rounds
+// from championships and updates user snapshots to keep the frontend in sync.
+const updateSeriesFromSchedule = async (completedCount: number, totalSessions: number): Promise<void> => {
   try {
-    await Series.updateMany(
-      { hasAPI: true },
-      { $set: { completedRounds: completedCount, updated_at: moment().format() } },
-    )
+    const apiSeries = await Series.find({ hasAPI: true })
+
+    for (const series of apiSeries) {
+      series.completedRounds = completedCount
+
+      // Sync total rounds from the API when the count has changed.
+      if (series.rounds !== totalSessions) {
+        const oldRounds = series.rounds
+        series.rounds = totalSessions
+
+        // Trim trailing waiting rounds from championships to match (same pattern as seriesResolvers).
+        const champs = await Champ.find({ series: series._id })
+        for (const champ of champs) {
+          const currentCount = champ.rounds.length
+          if (totalSessions < currentCount) {
+            // Only remove trailing waiting rounds — never completed or active ones.
+            const nonWaitingCount = champ.rounds.filter((r) => r.status !== "waiting").length
+            const targetCount = Math.max(totalSessions, nonWaitingCount + 1)
+            if (targetCount < currentCount) {
+              champ.rounds = champ.rounds.slice(0, targetCount)
+              champ.markModified("rounds")
+              champ.updated_at = moment().format()
+              await champ.save()
+
+              // Keep user snapshot totalRounds in sync.
+              await User.updateMany(
+                { "championships._id": champ._id },
+                { $set: { "championships.$.totalRounds": champ.rounds.length } },
+              )
+
+              log.info(`Trimmed "${champ.name}" from ${currentCount} to ${champ.rounds.length} rounds`)
+            }
+          }
+        }
+
+        log.info(`Updated series.rounds from ${oldRounds} to ${totalSessions}`)
+      }
+
+      series.updated_at = moment().format()
+      await series.save()
+    }
+
     log.info(`Updated completedRounds to ${completedCount} on all API-enabled series`)
   } catch (err) {
-    log.error("Failed to update series completedRounds:", err)
+    log.error("Failed to update series from schedule:", err)
   }
 }
 
@@ -259,8 +300,8 @@ export const pollNextQualifyingSession = async (): Promise<void> => {
   const result = await fetchQualifyingSchedule()
   if (!result) return
 
-  // Update series.completedRounds from qualifying schedule.
-  await updateSeriesCompletedRounds(result.completedCount)
+  // Update series completedRounds and total rounds from qualifying schedule.
+  await updateSeriesFromSchedule(result.completedCount, result.totalSessions)
 
   // Update championship auto-open timestamps with the next qualifying session.
   if (result.nextSession) {
