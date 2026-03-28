@@ -11,6 +11,7 @@ import {
   scheduleCountdownTransition,
   scheduleBettingCloseTransition,
   computeBettingCloseAt,
+  cancelTimer,
 } from "../../socket/autoTransitions"
 import { champPopulation } from "../../shared/population"
 import { sendNotificationToMany } from "../../shared/notifications"
@@ -323,18 +324,19 @@ const revertStuckRounds = async (): Promise<void> => {
     for (const champ of champs) {
       for (let i = 0; i < champ.rounds.length; i++) {
         const round = champ.rounds[i]
-        if (round.status !== "betting_open" && round.status !== "betting_closed") continue
+        if (round.status !== "countDown" && round.status !== "betting_open" && round.status !== "betting_closed") continue
         if (!round.statusChangedAt) continue
 
         const elapsedMs = now.diff(moment(round.statusChangedAt))
         if (elapsedMs <= STUCK_ROUND_TIMEOUT) continue
 
-        // Round has been stuck for >1h — revert to waiting.
+        // Round has been stuck for >1h — cancel any active timer and revert to waiting.
         log.info(
           `Reverting stuck ${round.status} round ${i + 1} for "${champ.name}" ` +
           `(stuck for ${Math.round(elapsedMs / 60000)} minutes)`,
         )
 
+        cancelTimer(champ._id.toString(), i)
         champ.rounds[i].status = "waiting"
         champ.rounds[i].statusChangedAt = null
         champ.updated_at = moment().format()

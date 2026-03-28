@@ -154,6 +154,27 @@ export const recoverStuckRounds = async (io: Server): Promise<void> => {
           const isExtended = champ.settings?.automation?.enabled &&
             champ.settings.automation.bettingWindow?.autoOpen &&
             !champ.settings.skipCountDown
+
+          // Guard: detect premature countdowns caused by bugs (e.g. setTimeout overflow).
+          // If the qualifying session is still >1h away, this countdown shouldn't exist yet.
+          if (isExtended) {
+            const autoOpenTimestamp = champ.settings?.automation?.bettingWindow?.autoOpenData?.timestamp
+            const autoOpenTime = champ.settings?.automation?.bettingWindow?.autoOpenTime || 10
+            if (autoOpenTimestamp) {
+              const qualStart = new Date(autoOpenTimestamp).getTime()
+              const expectedAutoOpenAt = qualStart - autoOpenTime * 60 * 1000
+              if (expectedAutoOpenAt - Date.now() > 60 * 60 * 1000) {
+                log.info(` Premature countdown detected (qualifying not for ${Math.round((expectedAutoOpenAt - Date.now()) / 3600000)}h), resetting: champ=${champ._id} (${champ.name}), round=${i + 1}`)
+                champ.rounds[i].status = "waiting"
+                champ.rounds[i].statusChangedAt = null
+                champ.updated_at = moment().format()
+                await champ.save()
+                broadcastRoundStatusChange(io, champ._id.toString(), i, "waiting")
+                continue
+              }
+            }
+          }
+
           const countdownDuration = isExtended ? 1800 * 1000 : COUNTDOWN_DURATION
           const elapsedMs = moment().diff(moment(round.statusChangedAt))
           if (elapsedMs < countdownDuration) {
