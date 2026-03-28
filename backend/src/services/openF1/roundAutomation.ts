@@ -129,6 +129,17 @@ const checkAutoOpenRounds = async (): Promise<void> => {
       const autoOpenAt = qualifyingStart - (autoOpenTime * 60 * 1000)
       const countDownAt = autoOpenAt - 1800 * 1000
 
+      // Guard: clear stale timestamps where qualifying ended hours ago.
+      // Prevents auto-opening with leftover timestamps from completed qualifying sessions.
+      const MAX_QUALIFYING_AGE_MS = 4 * 60 * 60 * 1000
+      if (now - qualifyingStart > MAX_QUALIFYING_AGE_MS) {
+        log.warn(`Clearing stale auto-open timestamp for "${champ.name}" (qualifying was ${Math.round((now - qualifyingStart) / 3600000)}h ago)`)
+        champ.settings.automation.bettingWindow.autoOpenData.timestamp = ""
+        champ.markModified("settings")
+        await champ.save()
+        continue
+      }
+
       // Guard: skip if any round is already in an active state (prevents cascading opens).
       const hasActiveRound = champ.rounds.some((r) => ACTIVE_ROUND_STATUSES.includes(r.status))
       if (hasActiveRound) continue

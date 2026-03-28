@@ -292,6 +292,34 @@ const updateChampionshipTimestamps = async (nextSession: OpenF1SessionSchedule):
   }
 }
 
+// Clears auto-open timestamps on all automation-enabled championships.
+// Called when no upcoming qualifying session exists, to prevent stale timestamps from triggering auto-opens.
+const clearStaleChampionshipTimestamps = async (): Promise<void> => {
+  try {
+    const apiSeries = await Series.find({ hasAPI: true })
+    if (apiSeries.length === 0) return
+    const apiSeriesIds = apiSeries.map((s) => s._id)
+
+    // Find championships with non-empty auto-open timestamps.
+    const champs = await Champ.find({
+      active: true,
+      series: { $in: apiSeriesIds },
+      "settings.automation.enabled": true,
+      "settings.automation.bettingWindow.autoOpen": true,
+      "settings.automation.bettingWindow.autoOpenData.timestamp": { $ne: "" },
+    })
+
+    for (const champ of champs) {
+      champ.settings.automation.bettingWindow.autoOpenData.timestamp = ""
+      champ.markModified("settings")
+      await champ.save()
+      log.info(`Cleared stale qualifying timestamp for "${champ.name}" — no upcoming sessions`)
+    }
+  } catch (err) {
+    log.error("Failed to clear stale championship timestamps:", err)
+  }
+}
+
 // Polls for qualifying schedule, updates series completedRounds, championship timestamps,
 // detects missed rounds, and triggers finalization when seasons are complete.
 export const pollNextQualifyingSession = async (): Promise<void> => {
@@ -304,8 +332,11 @@ export const pollNextQualifyingSession = async (): Promise<void> => {
   await updateSeriesFromSchedule(result.completedCount, result.totalSessions)
 
   // Update championship auto-open timestamps with the next qualifying session.
+  // Clear stale timestamps when no upcoming session exists.
   if (result.nextSession) {
     await updateChampionshipTimestamps(result.nextSession)
+  } else {
+    await clearStaleChampionshipTimestamps()
   }
 
   // Detect and handle missed rounds for league-enrolled championships.
@@ -349,10 +380,21 @@ export const stopQualifyingSchedulePolling = (): void => {
 export const refreshNextQualifyingForChamp = async (champId: string): Promise<void> => {
   try {
     const result = await fetchQualifyingSchedule()
-    if (!result?.nextSession) return
+    if (!result) return // API failure — don't clear valid timestamps.
 
     const champ = await Champ.findById(champId)
     if (!champ || !champ.settings.automation.enabled || !champ.settings.automation.bettingWindow.autoOpen) return
+
+    // No upcoming qualifying session — clear stale timestamp to prevent auto-open with old data.
+    if (!result.nextSession) {
+      if (champ.settings.automation.bettingWindow.autoOpenData?.timestamp) {
+        champ.settings.automation.bettingWindow.autoOpenData.timestamp = ""
+        champ.markModified("settings")
+        await champ.save()
+        log.info(`Cleared stale qualifying timestamp for "${champ.name}" — no upcoming sessions`)
+      }
+      return
+    }
 
     champ.settings.automation.bettingWindow.autoOpenData = {
       timestamp: result.nextSession.date_start,

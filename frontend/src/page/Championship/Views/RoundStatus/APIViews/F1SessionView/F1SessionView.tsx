@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, useContext, useRef, useEffect, useLayoutEffect } from "react"
 import "./_f1SessionView.scss"
-import Button from "@mui/material/Button"
 import Trackmap from "../../../../../../api/openAPI/components/Trackmap/Trackmap"
 import { DriverLiveState, SessionLiveState, RaceControlEvent } from "../../../../../../api/openAPI/types"
 import { AcceptedSegments } from "../../../../../../api/openAPI/openF1Utility"
@@ -16,7 +15,6 @@ import { setTrackmapRotation } from "../../../../../../api/openAPI/requests/trac
 interface F1SessionViewProps {
   round?: RoundType
   isAdjudicator?: boolean
-  onAdvance?: () => void
   demoMode?: boolean
   sessionLabel?: string
   demoEnded?: boolean
@@ -33,7 +31,6 @@ const ROTATION_SENSITIVITY = 1
 const F1SessionView: React.FC<F1SessionViewProps> = ({
   round,
   isAdjudicator,
-  onAdvance,
   demoMode,
   sessionLabel,
   demoEnded,
@@ -98,8 +95,6 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
   const handleRotationSave = useCallback((trackName: string, rotation: number) => {
     setTrackmapRotation(user, setUser, trackName, rotation)
   }, [user, setUser])
-
-  const advButton = !demoMode && isAdjudicator && onAdvance
 
   // Build a lookup map from driverID (3-letter acronym) to championship driver.
   const champDriverMap = useMemo(() => {
@@ -353,17 +348,6 @@ const F1SessionView: React.FC<F1SessionViewProps> = ({
               )
             })}
           </div>
-        )}
-
-        {advButton && (
-          <Button
-            variant="contained"
-            className="advance-button"
-            color="primary"
-            onClick={onAdvance}
-          >
-            Show Results
-          </Button>
         )}
       </div>
     </div>
