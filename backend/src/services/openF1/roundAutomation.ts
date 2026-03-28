@@ -30,6 +30,10 @@ const WARNING_WINDOW_MS = 5 * 60 * 1000
 // Maximum time a round can stay in betting_open/betting_closed before being reverted to waiting.
 const STUCK_ROUND_TIMEOUT = 60 * 60 * 1000 // 1 hour
 
+// Node.js setTimeout max is 2^31-1 ms (~24.8 days). Cap at 24h to stay well under the limit.
+// The 5-minute polling interval will reschedule when the event gets closer.
+const MAX_TIMER_DELAY_MS = 24 * 60 * 60 * 1000
+
 let checkTimer: NodeJS.Timeout | null = null
 let ioServer: Server | null = null
 
@@ -58,7 +62,7 @@ const scheduleRoundAutoOpen = (champId: string, autoOpenAt: number): boolean => 
   }
 
   const delayMs = autoOpenAt - Date.now() + 1000
-  if (delayMs <= 0) return false
+  if (delayMs <= 0 || delayMs > MAX_TIMER_DELAY_MS) return false
 
   const timer = setTimeout(async () => {
     scheduledAutoOpenTimers.delete(champId)
