@@ -1,4 +1,4 @@
-import { useEffect, useContext } from "react"
+import { useEffect, useLayoutEffect, useContext } from "react"
 import AppContext from "../../context"
 import { initSocket, onNotificationReceived } from "../socket/socketClient"
 
@@ -8,12 +8,18 @@ import { initSocket, onNotificationReceived } from "../socket/socketClient"
 export const useNotificationSocket = (): void => {
   const { user, setUser } = useContext(AppContext)
 
-  // Initialize socket and listen for notification events.
-  // Re-runs on token change to update socket auth and reattach listener.
+  // Initialize socket before regular effects so child hooks (useLiveSession,
+  // useConnectionStatus) can access it in their useEffect callbacks.
+  // useLayoutEffect runs before all useEffect hooks regardless of component depth.
+  useLayoutEffect(() => {
+    if (!user.token || !user._id) return
+    initSocket(user.token)
+  }, [user.token, user._id])
+
+  // Listen for notification events.
+  // Re-runs on token change to reattach listener.
   useEffect(() => {
     if (!user.token || !user._id) return
-
-    initSocket(user.token)
 
     // Increment notificationsCount in state and localStorage.
     const handleNotification = (): void => {
