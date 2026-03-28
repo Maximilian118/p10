@@ -235,11 +235,10 @@ const autoOpenRound = async (
     // Schedule the countdown → betting_open transition if not skipping.
     if (!skipCountDown) {
       scheduleCountdownTransition(ioServer, champId, roundIndex, 1800 * 1000)
-      // Schedule auto-close from the pre-computed bettingCloseAt deadline.
-      if (champ.rounds[roundIndex].bettingCloseAt) {
-        const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
-        scheduleBettingCloseTransition(ioServer, champId, roundIndex, closeDelayMs)
-      }
+      // Betting close timer is NOT scheduled here — transitionRoundStatus() handles it
+      // when the countdown timer fires and the round enters betting_open.
+      // Scheduling both here would cause a timer key collision (same champId:roundIndex key),
+      // where the betting close timer cancels the countdown timer.
     } else if (champ.rounds[roundIndex].bettingCloseAt) {
       // Skip countdown — schedule auto-close using the pre-computed bettingCloseAt deadline.
       const closeDelayMs = Math.max(0, new Date(champ.rounds[roundIndex].bettingCloseAt).getTime() - Date.now())
